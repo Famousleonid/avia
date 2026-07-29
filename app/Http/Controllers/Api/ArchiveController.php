@@ -19,33 +19,33 @@ class ArchiveController extends Controller
 
         $collections = array_keys(config('workorder_media.groups', []));
 
-        $items = Media::query()
+        $items = collect();
+
+        Media::query()
             ->where('model_type', (new Workorder())->getMorphClass())
             ->whereNull('archive_synced_at')
+            ->whereNull('archive_skipped_at')
             ->whereIn('collection_name', $collections)
             ->where('mime_type', 'like', 'image/%')
             ->with('model')
-            ->orderBy('id')
-            ->limit($limit)
-            ->get()
-            ->filter(function (Media $media): bool {
-                return $media->model instanceof Workorder
-                    && $this->mediaFileExists($media);
-            })
-            ->map(function (Media $media): array {
-                /** @var Workorder $workorder */
-                $workorder = $media->model;
+            ->chunkById(200, function ($mediaBatch) use ($items, $limit): bool {
+                foreach ($mediaBatch as $media) {
+                    if (
+                        !$media->model instanceof Workorder
+                        || !$this->mediaFileExists($media)
+                    ) {
+                        continue;
+                    }
 
-                return [
-                    'id' => $media->id,
-                    'workorder_number' => (string) $workorder->number,
-                    'collection_name' => $media->collection_name,
-                    'filename' => $media->file_name,
-                    'size' => (int) $media->size,
-                    'download_url' => route('archive.download', ['media' => $media->id]),
-                ];
-            })
-            ->values();
+                    $items->push($this->pendingMediaPayload($media));
+
+                    if ($items->count() >= $limit) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
 
         return response()->json($items);
     }
@@ -87,6 +87,8 @@ class ArchiveController extends Controller
 
         $media->forceFill([
             'archive_synced_at' => $syncedAt,
+            'archive_skipped_at' => null,
+            'archive_skip_reason' => null,
         ])->save();
 
         return response()->json([
@@ -132,5 +134,20 @@ class ArchiveController extends Controller
         $path = $media->getPath();
 
         return $path && is_file($path);
+    }
+
+    private function pendingMediaPayload(Media $media): array
+    {
+        /** @var Workorder $workorder */
+        $workorder = $media->model;
+
+        return [
+            'id' => $media->id,
+            'workorder_number' => (string) $workorder->number,
+            'collection_name' => $media->collection_name,
+            'filename' => $media->file_name,
+            'size' => (int) $media->size,
+            'download_url' => route('archive.download', ['media' => $media->id]),
+        ];
     }
 }

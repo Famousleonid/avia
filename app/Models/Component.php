@@ -96,6 +96,14 @@ class Component extends Model implements  hasMedia
 
     public function assemblies(): HasMany
     {
+        return $this->hasMany(ComponentAssembly::class)
+            ->withIdentifier()
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function allAssemblies(): HasMany
+    {
         return $this->hasMany(ComponentAssembly::class)->orderBy('sort_order')->orderBy('id');
     }
 

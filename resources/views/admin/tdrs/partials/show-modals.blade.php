@@ -120,30 +120,44 @@
                                 <td class="p-2">{{ $displayName }}</td>
                                 <td class="p-2">{{ $displayPartNumber }}</td>
                                 <td class="p-2 align-middle" style="min-width: 10rem;">
-                                    <textarea name="description" rows="1" class="form-control form-control-sm" form="{{ $orderPartFormId }}"
-                                              placeholder="{{ __('Description') }}">{{ $part->description ?? '' }}</textarea>
+                                    @if($part->isManufacturePairMember())
+                                        <span>{{ $part->description ?? '' }}</span>
+                                    @else
+                                        <textarea name="description" rows="1" class="form-control form-control-sm" form="{{ $orderPartFormId }}"
+                                                  placeholder="{{ __('Description') }}">{{ $part->description ?? '' }}</textarea>
+                                    @endif
                                 </td>
                                 <td class="p-2 align-middle text-center" style="min-width: 5.0rem;">
-                                    <input type="number" name="qty" value="{{ $part->qty }}" min="1" max="999999"
-                                           class="form-control form-control-sm" form="{{ $orderPartFormId }}">
+                                    @if($part->isManufacturePairMember())
+                                        {{ $part->qty }}
+                                    @else
+                                        <input type="number" name="qty" value="{{ $part->qty }}" min="1" max="999999"
+                                               class="form-control form-control-sm" form="{{ $orderPartFormId }}">
+                                    @endif
                                 </td>
                                 <td class="p-2 align-middle" style="min-width: 8rem;">
-                                    <select name="codes_id" class="form-select form-select-sm" form="{{ $orderPartFormId }}">
-                                        @foreach($codes as $code)
-                                            <option value="{{ $code->id }}" @selected($code->id == $part->codes_id)>{{ $code->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    @if($part->isManufacturePairMember())
+                                        {{ $part->codes->name ?? '' }}
+                                    @else
+                                        <select name="codes_id" class="form-select form-select-sm" form="{{ $orderPartFormId }}">
+                                            @foreach($codes as $code)
+                                                <option value="{{ $code->id }}" @selected($code->id == $part->codes_id)>{{ $code->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    @endif
                                 </td>
                                 <td class="p-2 align-middle">
                                     <div class="d-flex justify-content-evenly align-items-center w-100 text-center">
-                                        <form id="{{ $orderPartFormId }}" method="POST" action="{{ route('tdrs.update', $part->id) }}" class="d-inline">
-                                            @csrf
-                                            @method('PUT')
-                                            <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-                                            <button type="submit" class="btn btn-link btn-sm p-0 border-0 bg-transparent text-primary" title="{{ __('Save') }}" aria-label="{{ __('Save') }}">
-                                                <i class="bi bi-floppy"></i>
-                                            </button>
-                                        </form>
+                                        @unless($part->isManufacturePairMember())
+                                            <form id="{{ $orderPartFormId }}" method="POST" action="{{ route('tdrs.update', $part->id) }}" class="d-inline">
+                                                @csrf
+                                                @method('PUT')
+                                                <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
+                                                <button type="submit" class="btn btn-link btn-sm p-0 border-0 bg-transparent text-primary" title="{{ __('Save') }}" aria-label="{{ __('Save') }}">
+                                                    <i class="bi bi-floppy"></i>
+                                                </button>
+                                            </form>
+                                        @endunless
                                         <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST" class="d-inline">
                                             @csrf
                                             @method('DELETE')
@@ -152,9 +166,13 @@
                                                     class="btn btn-link btn-sm p-0 border-0 bg-transparent text-danger"
                                                     title="{{ __('Delete') }}"
                                                     aria-label="{{ __('Delete') }}"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#useConfirmDelete"
-                                                    data-title="{{ __('Delete Confirmation') }}">
+                                                    @if($part->isManufacturePairMember())
+                                                        data-tdr-manufacture-pair-delete
+                                                    @else
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#useConfirmDelete"
+                                                        data-title="{{ __('Delete Confirmation') }}"
+                                                    @endif>
                                                 <i class="bi bi-trash3"></i>
                                             </button>
                                         </form>

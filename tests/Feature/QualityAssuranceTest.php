@@ -331,7 +331,7 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('data-certificate-manual-revision-date', false);
         $response->assertSee('value="12"', false);
         $response->assertSee('value="15/Jun/2025"', false);
-        $response->assertSee('Airworthiness Directives 2019-11-07, E2024-05-09 R1 and Service Bulletins: 170-32-0060 R1, 170-32-A94 R2 incorporated.');
+        $response->assertSee('Airworthiness Directives 2019-11-07, E2024-05-09 R1 and Service Bulletins 2801A-32-09 R2 (170-32-0060 R1), 170-32-A94 R2 incorporated.');
         $response->assertSee('data-setting-key="include_airworthiness_remark"', false);
         $this->assertMatchesRegularExpression(
             '/<div(?=[^>]*class="[^"]*arc-remark-line[^"]*is-print-disabled)[\s\S]*?data-certificate-airworthiness-remark[\s\S]*?data-setting-key="include_airworthiness_remark"[\s\S]*?<\/div>/',
@@ -480,16 +480,16 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('data-certificate-detail-toggle', false);
         $response->assertSee('data-certificate-detail-select', false);
         $response->assertSee('Log Card Detail | LOG-PN | LOG-SN');
-        $response->assertSee('Second Log Card Detail | ASSY-PN-2 / LOG-PN-2 | ASSY-SN-2 / LOG-SN-2');
+        $response->assertSee('Second Log Card Detail | LOG-PN-2 / ASSY-PN-2 | LOG-SN-2 / ASSY-SN-2');
         $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-2</div>', false);
         $response->assertSee('>Second Log Card Detail</div>', false);
         $response->assertSee('data-certificate-item-part', false);
         $this->assertMatchesRegularExpression(
-            '/<div(?=[^>]*data-certificate-item-part)[^>]*>\s*ASSY-PN-2\s*<\/div>/s',
+            '/<div(?=[^>]*data-certificate-item-part)[^>]*>\s*LOG-PN-2\s*<\/div>/s',
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
-            '/<input(?=[^>]*data-certificate-item-part-secondary)(?=[^>]*value="LOG-PN-2")[^>]*>/s',
+            '/<input(?=[^>]*data-certificate-item-part-secondary)(?=[^>]*value="ASSY-PN-2")[^>]*>/s',
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
@@ -498,11 +498,11 @@ class QualityAssuranceTest extends TestCase
         );
         $response->assertSee('data-certificate-item-serial', false);
         $this->assertMatchesRegularExpression(
-            '/<div(?=[^>]*data-certificate-item-serial)[^>]*>\s*ASSY-SN-2\s*<\/div>/s',
+            '/<div(?=[^>]*data-certificate-item-serial)[^>]*>\s*LOG-SN-2\s*<\/div>/s',
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
-            '/<input(?=[^>]*data-certificate-item-serial-secondary)(?=[^>]*value="LOG-SN-2")[^>]*>/s',
+            '/<input(?=[^>]*data-certificate-item-serial-secondary)(?=[^>]*value="ASSY-SN-2")[^>]*>/s',
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
@@ -628,11 +628,11 @@ class QualityAssuranceTest extends TestCase
             $content
         );
         $this->assertFalse(str_contains($content, '>C service remark.</span>'));
-        $response->assertSee('Airworthiness Directives none and Service Bulletins: none incorporated.');
+        $response->assertSee('Airworthiness Directives none and Service Bulletins none incorporated.');
         $response->assertSee('data-setting-key="include_airworthiness_remark"', false);
         $this->assertFalse(str_contains($content, '>C AD remark.</span>'));
         $this->assertMatchesRegularExpression(
-            '/<span(?=[^>]*data-certificate-airworthiness-remark)(?=[^>]*contenteditable="true")[^>]*>\s*Airworthiness Directives none and Service Bulletins: none incorporated\.\s*<\/span>/s',
+            '/<span(?=[^>]*data-certificate-airworthiness-remark)(?=[^>]*contenteditable="true")[^>]*>\s*Airworthiness Directives none and Service Bulletins none incorporated\.\s*<\/span>/s',
             $content
         );
         $this->assertMatchesRegularExpression(

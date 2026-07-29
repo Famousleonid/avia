@@ -86,6 +86,14 @@
             transform: translate(12px, 4px);
         }
 
+        .std-page--ndt .std-ndt-grid--aligned {
+            grid-template-rows: auto minmax(28px, auto) auto minmax(28px, auto) auto 54px;
+        }
+
+        .std-page--ndt .std-process-long {
+            line-height: 1.15;
+        }
+
         .std-page--ndt .std-grid-row--header > .std-cell {
             overflow-wrap: normal;
             padding-left: 3px;
@@ -138,7 +146,7 @@
             }
 
             .std-page--ndt .std-ndt-grid--aligned {
-                grid-template-rows: auto 24px auto 24px auto 44px;
+                grid-template-rows: auto minmax(28px, auto) auto minmax(28px, auto) auto 44px;
                 column-gap: 17px;
                 row-gap: 4px;
             }

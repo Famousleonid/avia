@@ -48,6 +48,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use League\Csv\Reader;
 
 class TdrController extends Controller
@@ -634,10 +635,12 @@ class TdrController extends Controller
             try {
                 $description = $validated['description'] ?? null;
                 $qty = (int)($validated['qty'] ?? 1);
+                $manufacturePairId = (string) Str::uuid();
 
                 // Record 1: Order New — conditions_id=null, order_component_id=component_id, use_tdr=1, use_process_forms=0
                 Tdr::create([
                     'tdr_type' => Tdr::TYPE_MANUFACTURE_ORDER,
+                    'manufacture_pair_id' => $manufacturePairId,
                     'workorder_id' => $validated['workorder_id'],
                     'component_id' => $validated['component_id'],
                     'serial_number' => $validated['serial_number'] ?? 'NSN',
@@ -655,6 +658,7 @@ class TdrController extends Controller
                 // Record 2: Repair — conditions_id=Manufacture, use_tdr=1, use_process_forms=1
                 Tdr::create([
                     'tdr_type' => Tdr::TYPE_MANUFACTURE_REPAIR,
+                    'manufacture_pair_id' => $manufacturePairId,
                     'workorder_id' => $validated['workorder_id'],
                     'component_id' => $validated['component_id'],
                     'serial_number' => 'NSN',
@@ -1767,27 +1771,20 @@ class TdrController extends Controller
         $missingCodeId = $code ? $code->id : 7;
         $orderNewNecessaryId = $necessary ? $necessary->id : 2;
 
-        $ordersParts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('codes_id', '!=', $missingCodeId)
-            ->where('necessaries_id', $orderNewNecessaryId)
+        $orderedPartsQuery = Tdr::query()
+            ->orderedParts($current_wo->id, $orderNewNecessaryId, $missingCodeId);
+
+        $ordersParts = (clone $orderedPartsQuery)
             ->with(['codes', 'component' => function($query) {
                 $query->withTrashed()->select('id', 'name', 'part_number', 'ipl_num', 'deleted_at');
             }])
             ->get();
         $ordersParts = $this->sortTdrsByDisplayedIpl($ordersParts);
 
-        $orderedPartsTdrs = Tdr::where('workorder_id', $current_wo->id)
-            ->whereNotNull('component_id')
-            ->where('codes_id', '!=', $missingCodeId)
-            ->where('necessaries_id', $orderNewNecessaryId)
-            ->get();
-        $orderedPartsCount = $orderedPartsTdrs->sum('qty');
+        $orderedPartsCount = (clone $orderedPartsQuery)->sum('qty');
         $hasOrderedParts = $orderedPartsCount > 0;
 
-        $ordersPartsNew = Tdr::where('workorder_id', $current_wo->id)
-            ->where('codes_id', '!=', $missingCodeId)
-            ->where('necessaries_id', $orderNewNecessaryId)
-            ->whereNotNull('order_component_id')
+        $ordersPartsNew = (clone $orderedPartsQuery)
             ->with(['codes', 'orderComponent' => function($query) {
                 $query->withTrashed()->select('id', 'name', 'part_number', 'ipl_num', 'deleted_at');
             }, 'orderComponentAssembly' => function($query) {
@@ -1796,8 +1793,7 @@ class TdrController extends Controller
             ->get();
         $ordersPartsNew = $this->sortTdrsByDisplayedIpl($ordersPartsNew);
 
-        $prl_parts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('necessaries_id', $orderNewNecessaryId)
+        $prl_parts = (clone $orderedPartsQuery)
             ->with([
                 'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
                 'orderComponent' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
@@ -1893,6 +1889,11 @@ class TdrController extends Controller
     {
 
         $current_tdr = Tdr::findOrFail($id);
+        abort_if(
+            $current_tdr->isManufacturePairMember(),
+            422,
+            __('Manufacture entries cannot be edited. Delete the Manufacture pair and create a new TDR entry instead.')
+        );
 
         $manuals = Manual::all();
         $units = Unit::all();
@@ -1926,10 +1927,15 @@ class TdrController extends Controller
     public function editForm($id)
     {
         $current_tdr = Tdr::with(['workorder.unit', 'component'])->findOrFail($id);
+        abort_if(
+            $current_tdr->isManufacturePairMember(),
+            422,
+            __('Manufacture entries cannot be edited. Delete the Manufacture pair and create a new TDR entry instead.')
+        );
         $codes = Code::all();
         $necessaries = Necessary::all();
         $manuals = Manual::all();
-        $canReplaceTdrComponent = (bool) (Auth::user()?->isSystemAdmin() ?? false);
+        $canReplaceTdrComponent = (bool) (Auth::user()?->roleIs('Admin') ?? false);
         $components = collect();
 
         if ($canReplaceTdrComponent && $current_tdr->workorder?->unit?->manual_id) {
@@ -1969,7 +1975,18 @@ class TdrController extends Controller
     {
         // Находим запись Tdr по ID
         $tdr = Tdr::findOrFail($id);
-        $canReplaceTdrComponent = (bool) ($request->user()?->isSystemAdmin() ?? false);
+
+        if ($tdr->isManufacturePairMember()) {
+            $message = __('Manufacture entries cannot be edited. Delete the Manufacture pair and create a new TDR entry instead.');
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return redirect()->back()->withErrors(['tdr' => $message]);
+        }
+
+        $canReplaceTdrComponent = (bool) ($request->user()?->roleIs('Admin') ?? false);
 
         // Валидация входных данных
         $rules = [
@@ -1991,15 +2008,31 @@ class TdrController extends Controller
             unset($validated['component_id']);
         }
 
-        // Проверяем, если выбран необходимый пункт "Order New"
-        $necessary = Necessary::where('name', 'Order New')->first();
+        $orderNewNecessary = Necessary::where('name', 'Order New')->first();
+        $isOrderNew = $orderNewNecessary
+            && isset($validated['necessaries_id'])
+            && (int) $validated['necessaries_id'] === (int) $orderNewNecessary->id;
 
-        if ($necessary && isset($validated['necessaries_id']) && (int) $validated['necessaries_id'] === (int) $necessary->id) {
-            $validated['use_process_forms'] = false; // Исправлено присваивание
-        }
+        DB::transaction(function () use ($tdr, $validated, $isOrderNew): void {
+            $lockedTdr = Tdr::query()->lockForUpdate()->findOrFail($tdr->id);
 
-        // Обновляем запись Tdr
-        $tdr->update($validated);
+            if ($isOrderNew) {
+                $validated['use_process_forms'] = false;
+                $validated['tdr_type'] = Tdr::TYPE_ORDER_NEW;
+                $validated['order_component_id'] = $lockedTdr->order_component_id
+                    ?: ($validated['component_id'] ?? $lockedTdr->component_id);
+
+                // Order New has no repair/process route. Delete model instances so
+                // activity logging runs; machining work steps are removed by FK cascade.
+                $lockedTdr->tdrProcesses()->get()->each->delete();
+
+                Workorder::query()
+                    ->whereKey($lockedTdr->workorder_id)
+                    ->update(['new_parts' => true]);
+            }
+
+            $lockedTdr->update($validated);
+        });
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'redirect' => route('tdrs.show', ['id' => $request->workorder_id])]);
@@ -2057,6 +2090,35 @@ class TdrController extends Controller
      * @param int $id
      * @return \Illuminate\Http\RedirectResponse
      */
+    private function manufactureRowsForDeletion(Tdr $tdr)
+    {
+        if (! $tdr->isManufacturePairMember()) {
+            return collect([$tdr]);
+        }
+
+        $membersQuery = Tdr::query()
+            ->where('workorder_id', $tdr->workorder_id)
+            ->whereIn('tdr_type', [Tdr::TYPE_MANUFACTURE_ORDER, Tdr::TYPE_MANUFACTURE_REPAIR]);
+
+        if (filled($tdr->manufacture_pair_id)) {
+            $members = $membersQuery
+                ->where('manufacture_pair_id', $tdr->manufacture_pair_id)
+                ->get();
+        } else {
+            $members = $membersQuery
+                ->where('component_id', $tdr->component_id)
+                ->where('created_at', $tdr->created_at)
+                ->get();
+        }
+
+        $hasOrder = $members->contains(fn (Tdr $member): bool => $member->isManufactureOrder());
+        $hasRepair = $members->contains(fn (Tdr $member): bool => $member->isManufactureRepair());
+
+        return $members->count() === 2 && $hasOrder && $hasRepair
+            ? $members
+            : collect([$tdr]);
+    }
+
     public function destroy($id)
     {
         // Логируем начало метода
@@ -2068,12 +2130,14 @@ class TdrController extends Controller
         // Запомнить workorder_id и codes_id для дальнейшего использования
         $workorderId = $tdr->workorder_id;
         $tdrCodesId = $tdr->codes_id;
+        $tdrIdsToDelete = $this->manufactureRowsForDeletion($tdr)->pluck('id')->all();
 
         // Логируем workorder_id
         // Log::info('Workorder ID: ' . $workorderId);
 
         // Удалить связанные записи из tdr_processes
-        TdrProcess::where('tdrs_id', $id)
+        DB::transaction(function () use ($tdr, $tdrIdsToDelete, $workorderId): void {
+        TdrProcess::whereIn('tdrs_id', $tdrIdsToDelete)
             ->get()
             ->each
             ->delete();
@@ -2147,7 +2211,8 @@ class TdrController extends Controller
         }
 
         // Удалить запись Tdr
-        $tdr->delete();
+        Tdr::query()->whereIn('id', $tdrIdsToDelete)->get()->each->delete();
+        });
         // Log::info('Запись Tdr с ID: ' . $id . ' была удалена.');
 
 

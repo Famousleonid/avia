@@ -974,24 +974,19 @@
                                     <div class="card-body">
                                         <p class="small text-muted mb-2">{{__('Your CSV file should have the following columns:')}}</p>
                                         <ul class="small text-muted">
+                                            <li><strong>ipl_num</strong> - {{__('IPL number (required)')}}</li>
                                             <li><strong>part_number</strong> - {{__('Part number (required)')}}</li>
                                             <li><strong>assy_part_number</strong> - {{__('Assembly part number (optional)')}}</li>
                                             <li><strong>name</strong> - {{__('Part name (required)')}}</li>
-                                            <li><strong>ipl_num</strong> - {{__('IPL number (required)')}}</li>
                                             <li><strong>assy_ipl_num</strong> - {{__('Assembly IPL number (optional)')}}</li>
                                             <li><strong>units_assy</strong> - {{__('Units assy (optional)')}}</li>
-                                            <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
-                                            <li><strong>is_bush</strong> - {{__('Is bushing (0 or 1, optional)')}}</li>
-                                            <li><strong>kit</strong>, <strong>np</strong>, <strong>kit_e</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
-                                            <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                         </ul>
                                         <div class="alert alert-warning mt-3 mb-0">
                                             <small><i class="bi bi-exclamation-triangle"></i> <strong>{{__('EFF Code:')}}</strong> {{__('Do not include eff_code in Parts CSV. If the column is present, it will be ignored and will not create or update EFF Code.')}}</small>
                                         </div>
                                         <div class="alert alert-info mt-3 mb-0">
                                             <small><i class="bi bi-info-circle"></i> <strong>{{__('Note:')}}</strong> {{__
-                                            ('Exact duplicate parts will be automatically skipped. Multiple components with the
-                                            same part_number but different IPL numbers are allowed in the same manual. CSV files are processed once and are not stored.')}}</small>
+                                            ('A row is skipped without changing the existing Part when its IPL number already exists in this manual. The same part_number with different IPL numbers is allowed. CSV files are processed once and are not stored.')}}</small>
                                         </div>
                                         <div class="mt-2">
                                             <a href="{{ route('components.download-csv-template') }}" class="btn btn-outline-secondary btn-sm">

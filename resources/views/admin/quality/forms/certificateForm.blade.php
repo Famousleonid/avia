@@ -191,13 +191,13 @@
             $assyPartNumber = $firstNonBlank($row['assy_part_number'] ?? null, $component?->assy_part_number);
             $serialNumber = $firstNonBlank($row['qa_serial_number'] ?? null, $row['serial_number'] ?? null);
             $assySerialNumber = $firstNonBlank($row['assy_serial_number'] ?? null);
-            $primaryPartNumber = $assyPartNumber !== '' ? $assyPartNumber : $partNumber;
-            $secondaryPartNumber = $assyPartNumber !== '' && strcasecmp($assyPartNumber, $partNumber) !== 0
-                ? $partNumber
+            $primaryPartNumber = $partNumber !== '' ? $partNumber : $assyPartNumber;
+            $secondaryPartNumber = $partNumber !== '' && $assyPartNumber !== '' && strcasecmp($partNumber, $assyPartNumber) !== 0
+                ? $assyPartNumber
                 : '';
-            $primarySerialNumber = $assySerialNumber !== '' ? $assySerialNumber : $serialNumber;
-            $secondarySerialNumber = $assySerialNumber !== '' && strcasecmp($assySerialNumber, $serialNumber) !== 0
-                ? $serialNumber
+            $primarySerialNumber = $serialNumber !== '' ? $serialNumber : $assySerialNumber;
+            $secondarySerialNumber = $serialNumber !== '' && $assySerialNumber !== '' && strcasecmp($serialNumber, $assySerialNumber) !== 0
+                ? $assySerialNumber
                 : '';
 
             return [
@@ -318,19 +318,30 @@
     $serviceBulletins = $incorporatedBulletinLogs
         ->map(function ($log): string {
             $bulletin = $log->serviceBulletin;
-            $number = trim((string) ($bulletin?->ac_mfg_service_bulletin_no ?? ''));
-            if ($number === '' || strcasecmp($number, 'N/A') === 0) {
-                $number = trim((string) ($bulletin?->oem_service_bulletin_no ?? ''));
+            $normalizeBulletinNumber = static function ($number): string {
+                $number = trim((string) $number);
+
+                return $number === '' || strcasecmp($number, 'N/A') === 0 ? '' : $number;
+            };
+            $oemNumber = $normalizeBulletinNumber($bulletin?->oem_service_bulletin_no);
+            $acMfgNumber = $normalizeBulletinNumber($bulletin?->ac_mfg_service_bulletin_no);
+
+            if ($oemNumber === '') {
+                return $acMfgNumber;
             }
 
-            return strcasecmp($number, 'N/A') === 0 ? '' : $number;
+            if ($acMfgNumber === '' || strcasecmp($oemNumber, $acMfgNumber) === 0) {
+                return $oemNumber;
+            }
+
+            return $oemNumber . ' (' . $acMfgNumber . ')';
         })
         ->filter()
         ->unique()
         ->values();
     $airworthinessText = 'Airworthiness Directives '
         . ($airworthinessDirectives->isNotEmpty() ? $airworthinessDirectives->implode(', ') : 'none')
-        . ' and Service Bulletins: '
+        . ' and Service Bulletins '
         . ($serviceBulletins->isNotEmpty() ? $serviceBulletins->implode(', ') : 'none')
         . ' incorporated.';
     if (array_key_exists('certificate_airworthiness_remark', $selectedCertificateItemSettings)) {
@@ -995,11 +1006,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 3px;
+            box-sizing: border-box;
+            padding: 0 18px;
+            position: relative;
         }
 
         .arc-item-secondary-input {
-            width: calc(100% - 18px);
+            width: 100%;
             min-width: 0;
             height: 20px;
             border: 0;
@@ -1009,7 +1022,7 @@
             background: transparent;
             color: #000;
             font-family: "Times New Roman", Times, serif;
-            font-size: calc(var(--arc-value-size) + 1px);
+            font-size: calc(var(--arc-value-size) + 2px);
             line-height: 1;
             text-align: center;
             outline: 0;
@@ -1028,6 +1041,10 @@
         }
 
         .arc-item-secondary-toggle {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
             display: inline-flex;
             flex: 0 0 15px;
             align-items: center;
@@ -1686,6 +1703,11 @@
                 text-overflow: ellipsis;
             }
 
+            .arc-item-secondary-line {
+                padding-right: 0;
+                padding-left: 0;
+            }
+
             .arc-item-secondary-line.is-print-disabled,
             .arc-item-secondary-line.is-empty {
                 display: none !important;
@@ -1942,7 +1964,7 @@
                         data-certificate-item-part
                         data-default-value="{{ $partNumber }}"
                         data-original-value="{{ $partNumber }}"
-                        aria-label="ASSY Part No."
+                        aria-label="Part No. of component"
                         spellcheck="false"
                     >{{ $partNumber }}</div>
                     <div
@@ -1955,7 +1977,7 @@
                             value="{{ $partNumberSecondary }}"
                             data-certificate-item-part-secondary
                             data-original-value="{{ $partNumberSecondary }}"
-                            aria-label="Part No. of component"
+                            aria-label="ASSY Part No."
                             spellcheck="false"
                         >
                         <span class="arc-item-secondary-print-value" data-certificate-item-part-secondary-output>{{ $partNumberSecondary }}</span>
@@ -1980,7 +2002,7 @@
                         data-certificate-item-serial
                         data-default-value="{{ $serialNumber }}"
                         data-original-value="{{ $serialNumber }}"
-                        aria-label="ASSY Serial / Batch No."
+                        aria-label="Serial / Batch No. of component"
                         spellcheck="false"
                     >{{ $serialNumber }}</div>
                     <div
@@ -1993,7 +2015,7 @@
                             value="{{ $serialNumberSecondary }}"
                             data-certificate-item-serial-secondary
                             data-original-value="{{ $serialNumberSecondary }}"
-                            aria-label="Serial / Batch No. of component"
+                            aria-label="ASSY Serial / Batch No."
                             spellcheck="false"
                         >
                         <span class="arc-item-secondary-print-value" data-certificate-item-serial-secondary-output>{{ $serialNumberSecondary }}</span>
@@ -2808,6 +2830,14 @@
             }
 
             detailSelect.hidden = !(detailToggle && detailToggle.checked);
+        }
+
+        function applySelectedLogCardDetail() {
+            if (!detailSelect || !detailSelect.value || detailSelect.value === currentCertificateDetailKey) {
+                return;
+            }
+
+            applyCertificateDetail(detailSelect.value);
         }
 
         function getDescriptionValue() {
@@ -3681,15 +3711,21 @@
         if (detailToggle) {
             detailToggle.addEventListener('change', function () {
                 syncDetailSelectVisibility();
+                if (detailToggle.checked && detailSelect?.options.length === 1) {
+                    detailSelect.selectedIndex = 0;
+                    applySelectedLogCardDetail();
+                }
                 saveSetting('certificate_detail_open', detailToggle.checked);
             });
             syncDetailSelectVisibility();
         }
 
         if (detailSelect) {
-            detailSelect.addEventListener('change', function () {
-                if (detailSelect.value) {
-                    applyCertificateDetail(detailSelect.value);
+            detailSelect.addEventListener('input', applySelectedLogCardDetail);
+            detailSelect.addEventListener('change', applySelectedLogCardDetail);
+            detailSelect.addEventListener('click', function (event) {
+                if (event.target?.tagName === 'OPTION') {
+                    applySelectedLogCardDetail();
                 }
             });
         }

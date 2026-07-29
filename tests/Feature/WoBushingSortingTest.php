@@ -210,6 +210,79 @@ class WoBushingSortingTest extends TestCase
         $response->assertDontSee('NDT-7', false);
     }
 
+    public function test_bushing_processes_allow_machining_without_ndt_and_reset_spinner_on_validation_error(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+
+        $component = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-235',
+            'part_number' => '1840-0352',
+            'name' => 'Machining only bushing',
+            'bush_ipl_num' => '8-235',
+            'is_bush' => true,
+            'units_assy' => 1,
+        ]);
+        $machining = $this->attachProcessToManual($manualId, 'Machining', 'Machining only');
+
+        $editForm = $this->actingAs($admin)->get(route('wo_bushings.edit', [
+            'wo_bushing' => $woBushing->id,
+            'fragment' => 1,
+        ]));
+
+        $editForm->assertOk();
+        $editForm->assertSee('Machining only', false);
+        $editForm->assertSee("typeof window.safeHideSpinner === 'function'", false);
+        $editForm->assertSee("form.addEventListener('invalid'", false);
+        $editForm->assertSee('Please enter Qty for selected bushings.', false);
+        $editForm->assertDontSee('Please enter Qty and NDT for selected bushings with processes.', false);
+        $editForm->assertDontSee('ndt.options.length > 1 && !ndt.value', false);
+
+        $showForm = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+
+        $showForm->assertOk();
+        $showForm->assertSee("typeof window.safeHideSpinner === 'function'", false);
+        $showForm->assertSee("bushingTabBody.addEventListener('invalid'", false);
+        $showForm->assertSee('Please enter Qty for selected bushings.', false);
+        $showForm->assertDontSee('Please enter Qty and NDT for selected bushings with processes.', false);
+        $showForm->assertDontSee('ndt.options.length > 1 && !ndt.value', false);
+
+        $save = $this->actingAs($admin)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->put(route('wo_bushings.update', $woBushing->id), [
+                'group_bushings' => [
+                    '8-235' => [
+                        'items' => [
+                            $component->id => [
+                                'selected' => '1',
+                                'qty' => '1',
+                                'need_processes' => '1',
+                                'machining' => (string) $machining->id,
+                                'ndt' => '',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $save->assertOk()->assertJson(['success' => true]);
+
+        $line = WoBushingLine::query()
+            ->where('wo_bushing_id', $woBushing->id)
+            ->where('component_id', $component->id)
+            ->first();
+
+        $this->assertNotNull($line);
+        $this->assertDatabaseHas('wo_bushing_processes', [
+            'wo_bushing_line_id' => $line->id,
+            'process_id' => $machining->id,
+        ]);
+        $this->assertSame(1, WoBushingProcess::query()->where('wo_bushing_line_id', $line->id)->count());
+    }
+
     public function test_bushing_process_form_uses_batches_and_b_labels_only(): void
     {
         $admin = $this->createUserWithRole('Admin');

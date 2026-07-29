@@ -356,9 +356,7 @@ class ComponentController extends Controller
         $assemblies = collect($request->input('assemblies', []))
             ->filter(function ($assembly) {
                 return filled($assembly['assy_part_number'] ?? null)
-                    || filled($assembly['assy_ipl_num'] ?? null)
-                    || filled($assembly['units_assy'] ?? null)
-                    || filled($assembly['notes'] ?? null);
+                    || filled($assembly['assy_ipl_num'] ?? null);
             })
             ->values();
         $firstAssembly = $assemblies->first();
@@ -376,7 +374,6 @@ class ComponentController extends Controller
         if ($assemblies->isEmpty() && (
             $request->filled('assy_part_number')
             || $request->filled('assy_ipl_num')
-            || $request->filled('units_assy')
         )) {
             $assemblies = collect([[
                 'assy_part_number' => $request->input('assy_part_number'),
@@ -650,9 +647,7 @@ class ComponentController extends Controller
         $assemblies = collect($request->input('assemblies', []))
             ->filter(function ($assembly) {
                 return filled($assembly['assy_part_number'] ?? null)
-                    || filled($assembly['assy_ipl_num'] ?? null)
-                    || filled($assembly['units_assy'] ?? null)
-                    || filled($assembly['notes'] ?? null);
+                    || filled($assembly['assy_ipl_num'] ?? null);
             })
             ->values();
         $firstAssembly = $assemblies->first();
@@ -687,7 +682,7 @@ class ComponentController extends Controller
             foreach ($assemblies as $index => $assemblyData) {
                 $assemblyId = $assemblyData['id'] ?? null;
                 $assembly = $assemblyId
-                    ? $component->assemblies()->whereKey($assemblyId)->first()
+                    ? $component->allAssemblies()->whereKey($assemblyId)->first()
                     : null;
 
                 if (! $assembly) {
@@ -712,7 +707,7 @@ class ComponentController extends Controller
                 $keptIds[] = $assembly->id;
             }
 
-            $component->assemblies()
+            $component->allAssemblies()
                 ->when($keptIds, fn ($query) => $query->whereNotIn('id', $keptIds))
                 ->delete();
         }
@@ -1289,7 +1284,9 @@ class ComponentController extends Controller
     //        \Log::info("Final cleaned headers: " . json_encode($headers));
 
             // Validate headers
-            $requiredHeaders = ['part_number', 'name', 'ipl_num'];
+            // Columns are mapped by header name, so IPL may be the first column
+            // without changing how the remaining fields are read.
+            $requiredHeaders = ['ipl_num', 'part_number', 'name'];
             $missingHeaders = array_diff($requiredHeaders, $headers);
 
             if (!empty($missingHeaders)) {
@@ -1306,8 +1303,8 @@ class ComponentController extends Controller
    //         \Log::info("Headers validation passed. All required headers found.");
 
             $successCount = 0;
-            $updateCount = 0;
             $createCount = 0;
+            $skipCount = 0;
             $errorCount = 0;
             $errors = [];
 
@@ -1405,8 +1402,6 @@ class ComponentController extends Controller
                         }
                     }
 
-                    $rowHasKitPrlChoiceGroup = array_key_exists('kit_prl_choice_group', $rowData);
-
                     // Prepare component data
                     $componentData = [
                         'manual_id' => $manualId,
@@ -1416,20 +1411,7 @@ class ComponentController extends Controller
                         'ipl_num' => trim($rowData['ipl_num']),
                         'assy_ipl_num' => isset($rowData['assy_ipl_num']) ? trim($rowData['assy_ipl_num']) : null,
                         'units_assy' => isset($rowData['units_assy']) ? trim($rowData['units_assy']) : null,
-                        'log_card' => isset($rowData['log_card']) ? (int)($rowData['log_card'] == '1' || $rowData['log_card'] == 'true') : 0,
-                        'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
-                        'kit' => isset($rowData['kit']) ? (int)($rowData['kit'] == '1' || $rowData['kit'] == 'true') : 0,
-                        'np' => isset($rowData['np']) ? (int)($rowData['np'] == '1' || $rowData['np'] == 'true') : 0,
-                        'kit_e' => isset($rowData['kit_e']) ? (int)($rowData['kit_e'] == '1' || $rowData['kit_e'] == 'true') : 0,
-                        'ndt_list' => isset($rowData['ndt_list']) ? (int)($rowData['ndt_list'] == '1' || $rowData['ndt_list'] == 'true') : 0,
-                        'cad_list' => isset($rowData['cad_list']) ? (int)($rowData['cad_list'] == '1' || $rowData['cad_list'] == 'true') : 0,
-                        'stress_relief_list' => isset($rowData['stress_relief_list']) ? (int)($rowData['stress_relief_list'] == '1' || $rowData['stress_relief_list'] == 'true') : 0,
-                        'paint_list' => isset($rowData['paint_list']) ? (int)($rowData['paint_list'] == '1' || $rowData['paint_list'] == 'true') : 0,
-                        'bush_ipl_num' => isset($rowData['bush_ipl_num']) ? trim($rowData['bush_ipl_num']) : null,
                     ];
-                    if ($rowHasKitPrlChoiceGroup) {
-                        $componentData['kit_prl_choice_group'] = $this->normalizeKitPrlChoiceGroup($rowData['kit_prl_choice_group']);
-                    }
 
                     // Дополнительная проверка на минимальную полноту данных
                     $hasMinimalData = !empty($componentData['part_number']) &&
@@ -1443,115 +1425,61 @@ class ComponentController extends Controller
                         continue;
                     }
 
-                    // One manual can have only one component for one IPL. Part number/name may repeat or change.
-                    $existingComponent = Component::where('manual_id', $manualId)
+                    // CSV import is create-only. An existing IPL in this manual is never overwritten.
+                    if (Component::where('manual_id', $manualId)
                         ->where('ipl_num', $componentData['ipl_num'])
-                        ->first();
-
-                    // Дополнительная проверка на дублирование по содержимому (для случаев, когда CSV содержит дублирующиеся строки)
-                    if (!$existingComponent) {
-                        $similarComponent = Component::where('manual_id', $manualId)
-                            ->where('name', $componentData['name'])
-                            ->where('part_number', $componentData['part_number'])
-                            ->where('assy_part_number', $componentData['assy_part_number'])
-                            ->where('units_assy', $componentData['units_assy'])
-                            ->first();
-
-                        if ($similarComponent && $similarComponent->ipl_num !== $componentData['ipl_num']) {
-        //                    \Log::info("Found similar component with different IPL: existing IPL '{$similarComponent->ipl_num}' vs CSV IPL '{$componentData['ipl_num']}' for component '{$componentData['part_number']}'");
-
-                            // Если найден похожий компонент, предлагаем обновить IPL вместо создания нового
-                            if ($similarComponent->ipl_num !== $componentData['ipl_num']) {
-         //                       \Log::info("Suggesting to update IPL from '{$similarComponent->ipl_num}' to '{$componentData['ipl_num']}' for component '{$componentData['part_number']}'");
-                                // Можно добавить логику для автоматического обновления IPL
-                            }
-                        }
+                        ->exists()) {
+                        $skipCount++;
+                        continue;
                     }
 
-                    // Если не найден, проверяем на дублирование по part_number в том же мануале
-                    if (!$existingComponent) {
-                        $duplicateComponents = Component::where('part_number', $componentData['part_number'])
-                            ->where('manual_id', $manualId)
-                            ->get();
-
-                        if ($duplicateComponents->count() > 0) {
-                            $iplNumbers = $duplicateComponents->pluck('ipl_num')->implode(', ');
-         //                   \Log::warning("Potential duplicates found: part_number '{$componentData['part_number']}' already exists in manual {$manualId} with IPL numbers: [{$iplNumbers}], but CSV has IPL '{$componentData['ipl_num']}'");
-
-                            // Если есть только один дубликат и он имеет другой IPL, предлагаем обновить IPL
-                            if ($duplicateComponents->count() === 1) {
-                                $duplicateComponent = $duplicateComponents->first();
-                                if ($duplicateComponent->ipl_num !== $componentData['ipl_num']) {
-         //                           \Log::info("Consider updating IPL number from '{$duplicateComponent->ipl_num}' to '{$componentData['ipl_num']}' for component '{$componentData['part_number']}'");
-                                }
-                            }
-                        }
-                    }
-
-                    if ($existingComponent) {
-                        // Update existing component with new data from CSV
-                        try {
-                            // Обновляем все поля из CSV файла, избегая дублирования
-                            // Фильтруем пустые значения, чтобы не перезаписывать существующие данные
-                            $updateData = array_intersect_key($componentData, array_flip([
-                                'part_number', 'name', 'assy_part_number', 'assy_ipl_num',
-                                'units_assy', 'log_card', 'is_bush', 'kit', 'np', 'kit_prl_choice_group', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list', 'bush_ipl_num'
-                            ]));
-
-                            // Убираем пустые строки и null значения, но оставляем 0 для boolean полей
-                            $updateData = array_filter($updateData, function($value, $key) {
-                                if (in_array($key, self::COMPONENT_FLAGS, true)) {
-                                    return $value !== null; // Оставляем 0 для boolean полей
-                                }
-                                return $value !== null && $value !== ''; // Убираем пустые строки для текстовых полей
-                            }, ARRAY_FILTER_USE_BOTH);
-
-                            // Проверяем, есть ли реальные изменения в данных
-                            $hasChanges = false;
-                            foreach ($updateData as $field => $value) {
-                                if ($existingComponent->$field != $value) {
-                                    $hasChanges = true;
-                                    break;
-                                }
-                            }
-
-                            if (!empty($updateData) && $hasChanges) {
-                                $existingComponent->update($updateData);
-                                $successCount++;
-                                $updateCount++;
-         //                       \Log::info("Updated existing component: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ") with fields: " . implode(', ', array_keys($updateData)));
-                            } else {
-         //                       \Log::info("No changes needed for component: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ")");
-                            }
-                        } catch (\Exception $e) {
-         //                   \Log::error("Row " . ($rowIndex + 2) . ": Failed to update existing component: " . $e->getMessage());
-                            $errorCount++;
-                            $errors[] = "Row " . ($rowIndex + 2) . ": Failed to update existing component: " . $e->getMessage();
-                        }
-                    } else {
-                        // Create new component
-                        try {
-                            // Дополнительная проверка на уникальность перед созданием
-                            $finalCheck = Component::where('manual_id', $manualId)
+                    try {
+                        $newComponent = DB::transaction(function () use ($componentData, $manualId) {
+                            // Repeat the check inside the transaction for duplicate CSV rows.
+                            if (Component::where('manual_id', $manualId)
                                 ->where('ipl_num', $componentData['ipl_num'])
-                                ->exists();
-
-                            if ($finalCheck) {
-             //                   \Log::warning("Component already exists after final check, skipping creation: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ")");
-                                $errorCount++;
-                                $errors[] = "Row " . ($rowIndex + 2) . ": Component already exists, skipping creation";
-                                continue;
+                                ->exists()) {
+                                return null;
                             }
 
-                            $newComponent = Component::create($componentData);
-                            $successCount++;
-                            $createCount++;
-             //               \Log::info("Created new component: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ")");
-                        } catch (\Exception $e) {
-             //               \Log::error("Row " . ($rowIndex + 2) . ": Failed to create component: " . $e->getMessage());
-                            $errorCount++;
-                            $errors[] = "Row " . ($rowIndex + 2) . ": Failed to create component: " . $e->getMessage();
+                            $component = Component::create($componentData);
+                            $assyPartNumber = trim((string) ($componentData['assy_part_number'] ?? ''));
+                            $assyIplNumber = trim((string) ($componentData['assy_ipl_num'] ?? ''));
+                            $unitsAssy = trim((string) ($componentData['units_assy'] ?? ''));
+
+                            // The Parts page reads assembly data from component_assemblies.
+                            if ($assyPartNumber !== '' || $assyIplNumber !== '') {
+                                ComponentAssembly::create([
+                                    'component_id' => $component->id,
+                                    'assy_part_number' => $assyPartNumber,
+                                    'assy_ipl_num' => $assyIplNumber !== '' ? $assyIplNumber : null,
+                                    'units_assy' => $unitsAssy !== '' ? $unitsAssy : null,
+                                    'sort_order' => 0,
+                                    'notes' => null,
+                                ]);
+                            }
+
+                            return $component;
+                        });
+
+                        if ($newComponent === null) {
+                            $skipCount++;
+                            continue;
                         }
+
+                        $successCount++;
+                        $createCount++;
+                    } catch (\Exception $e) {
+                        // A concurrent insert may win after the existence check; that is still a skip.
+                        if (Component::where('manual_id', $manualId)
+                            ->where('ipl_num', $componentData['ipl_num'])
+                            ->exists()) {
+                            $skipCount++;
+                            continue;
+                        }
+
+                        $errorCount++;
+                        $errors[] = "Row " . ($rowIndex + 2) . ": Failed to create component: " . $e->getMessage();
                     }
 
                 } catch (\Exception $e) {
@@ -1560,7 +1488,7 @@ class ComponentController extends Controller
                 }
             }
 
-            $message = "Successfully processed {$successCount} components: {$createCount} created, {$updateCount} updated.";
+            $message = "Successfully processed {$successCount} components: {$createCount} created, {$skipCount} skipped because the IPL already exists.";
             if ($errorCount > 0) {
                 $message .= " {$errorCount} rows had errors.";
             }
@@ -1575,7 +1503,8 @@ class ComponentController extends Controller
                 'message' => $message,
                 'success_count' => $successCount,
                 'create_count' => $createCount,
-                'update_count' => $updateCount,
+                'update_count' => 0,
+                'skip_count' => $skipCount,
                 'error_count' => $errorCount,
                 'errors' => $errors,
                 'manual_id' => $manualId,
@@ -1616,64 +1545,31 @@ class ComponentController extends Controller
 
             // Headers
             fputcsv($file, [
+                'ipl_num',
                 'part_number',
                 'assy_part_number',
                 'name',
-                'ipl_num',
                 'assy_ipl_num',
-                'units_assy',
-                'log_card',
-                'is_bush',
-                'kit',
-                'np',
-                'kit_prl_choice_group',
-                'kit_e',
-                'ndt_list',
-                'cad_list',
-                'stress_relief_list',
-                'paint_list',
-                'bush_ipl_num'
+                'units_assy'
             ]);
 
             // Example rows
             fputcsv($file, [
+                '123-456',
                 'ABC123',
                 'ABC123-ASSY',
                 'Example Component Name',
-                '123-456',
                 '123-456A',
-                'UNITS001',
-                '1',
-                '0',
-                '0',
-                '0',
-                '',
-                '1',
-                '0',
-                '0',
-                '0',
-                '0',
-                ''
+                'UNITS001'
             ]);
 
             fputcsv($file, [
+                '789-012',
                 'XYZ789',
                 '',
                 'Another Component',
-                '789-012',
                 '',
-                'UNITS002',
-                '0',
-                '1',
-                '1',
-                '0',
-                'example_choice_group',
-                '0',
-                '1',
-                '0',
-                '0',
-                '0',
-                '789-012B'
+                'UNITS002'
             ]);
 
             fclose($file);

@@ -39,6 +39,7 @@ class Tdr extends Model
 
     protected $fillable = [
         'tdr_type',
+        'manufacture_pair_id',
         'workorder_id',
         'component_id',
         'order_component_id',
@@ -106,6 +107,15 @@ class Tdr extends Model
         return $query->where('tdr_type', self::TYPE_ORDER_NEW);
     }
 
+    public function scopeOrderedParts($query, int $workorderId, int $orderNewNecessaryId, ?int $missingCodeId = null)
+    {
+        return $query
+            ->where('workorder_id', $workorderId)
+            ->where('necessaries_id', $orderNewNecessaryId)
+            ->whereNotNull('order_component_id')
+            ->when($missingCodeId !== null, fn ($query) => $query->where('codes_id', '!=', $missingCodeId));
+    }
+
     public function scopeManufactureOrderRows($query)
     {
         return $query->where('tdr_type', self::TYPE_MANUFACTURE_ORDER);
@@ -164,6 +174,11 @@ class Tdr extends Model
     public function isManufactureRepair(): bool
     {
         return $this->tdr_type === self::TYPE_MANUFACTURE_REPAIR;
+    }
+
+    public function isManufacturePairMember(): bool
+    {
+        return $this->isManufactureOrder() || $this->isManufactureRepair();
     }
 
     public function isUnknownType(): bool

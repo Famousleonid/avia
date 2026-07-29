@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasMediaHelpers;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -47,6 +48,15 @@ class ComponentAssembly extends Model implements HasMedia
     public function component(): BelongsTo
     {
         return $this->belongsTo(Component::class);
+    }
+
+    public function scopeWithIdentifier(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->whereRaw("TRIM(COALESCE(assy_part_number, '')) <> ''")
+                ->orWhereRaw("TRIM(COALESCE(assy_ipl_num, '')) <> ''");
+        });
     }
 
     public function registerAllMediaConversions(): void

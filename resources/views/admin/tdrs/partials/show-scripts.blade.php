@@ -2101,11 +2101,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
+        bushingTabBody.addEventListener('invalid', function(e) {
+            var form = e.target.closest('form');
+            if (!form || form.id !== 'bushings-form' || form.dataset.embed !== '1') return;
+            if (typeof window.safeHideSpinner === 'function') {
+                window.safeHideSpinner();
+                return;
+            }
+            if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+        }, true);
+
         bushingTabBody.addEventListener('submit', function(e) {
             var form = e.target;
             if (form.id !== 'bushings-form' || form.dataset.embed !== '1') return;
             e.preventDefault();
             function hideGlobalSpinner() {
+                if (typeof window.safeHideSpinner === 'function') {
+                    window.safeHideSpinner();
+                    return;
+                }
                 if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
             }
 
@@ -2130,8 +2144,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         var componentPrefix = checkbox.name.replace('[selected]', '');
                         var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
-                        var need = row.querySelector('input[name="' + componentPrefix + '[need_processes]"][type="checkbox"]');
-                        var ndt = row.querySelector('select[name="' + componentPrefix + '[ndt]"]');
 
                         if (!qty || !qty.value || parseInt(qty.value, 10) < 1) {
                             if (qty) qty.style.borderColor = 'red';
@@ -2139,18 +2151,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         } else {
                             qty.style.borderColor = '';
                         }
-
-                        if (need && need.checked && ndt && ndt.options.length > 1 && !ndt.value) {
-                            ndt.style.borderColor = 'red';
-                            itemizedHasErr = true;
-                        } else if (ndt) {
-                            ndt.style.borderColor = '';
-                        }
                     });
                 });
 
                 if (itemizedHasErr) {
-                    window.tdrShowNotify('{{ __("Please enter Qty and NDT for selected bushings with processes.") }}', 'warning');
+                    window.tdrShowNotify('{{ __("Please enter Qty for selected bushings.") }}', 'warning');
                     hideGlobalSpinner();
                     return;
                 }
@@ -3356,6 +3361,33 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('click', async function (event) {
+        const button = event.target.closest('[data-tdr-manufacture-pair-delete]');
+        if (! button) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        if (typeof window.confirmDialog !== 'function') {
+            window.tdrShowNotify('{{ __('Delete confirmation dialog is not available.') }}', 'error');
+            return;
+        }
+
+        const confirmed = await window.confirmDialog({
+            title: '{{ __('Delete Manufacture pair') }}',
+            message: '{{ __('This will delete both linked Manufacture entries. Create a new TDR entry if the part needs a different disposition.') }}',
+            okText: '{{ __('Delete both') }}',
+            cancelText: '{{ __('Cancel') }}',
+            danger: true,
+        });
+
+        if (confirmed) {
+            button.closest('form')?.submit();
+        }
+    }, true);
+
     const modal = document.getElementById('useConfirmDelete');
     const confirmBtn = document.getElementById('confirmDeleteBtn');
     let deleteForm = null;

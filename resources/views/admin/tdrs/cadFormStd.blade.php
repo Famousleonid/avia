@@ -58,6 +58,22 @@
             white-space: nowrap;
         }
 
+        .std-page--cad .std-process-cell {
+            overflow: visible;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: normal;
+            padding-top: 5px;
+            padding-bottom: 5px;
+        }
+
+        .std-page--cad .std-process-cell > span {
+            display: block;
+            width: 100%;
+            white-space: normal;
+            line-height: 1.15;
+        }
+
         @media print {
             .std-page--cad .std-header {
                 gap: 18px;
@@ -190,10 +206,6 @@
                             $component = $cadEntry['component'];
                             $rowHeight = max(34, (int) ($component->row_height ?? 34));
                             $processText = (string) ($component->process_name ?? '');
-                            $processLength = mb_strlen($processText);
-                            $processFitClass = $processLength > 48
-                                ? 'std-cell-fit--xs'
-                                : ($processLength > 38 ? 'std-cell-fit--sm' : '');
                         @endphp
                         <div class="data-row std-grid-row" data-row-index="{{ $cadGlobalRowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;">
                             <div class="std-cell">
@@ -201,7 +213,7 @@
                             </div>
                             <div class="std-cell">{{ $component->part_number }}</div>
                             <div class="std-cell">{{ $component->name }}</div>
-                            <div class="std-cell std-cell-fit {{ $processFitClass }}">
+                            <div class="std-cell std-process-cell">
                                 <span>{{ $processText }}</span>
                             </div>
                             <div class="std-cell">{{ $component->qty }}</div>

@@ -7,6 +7,7 @@ use App\Models\Component;
 use App\Models\ComponentAssembly;
 use App\Models\Condition;
 use App\Models\LogCard;
+use App\Models\MachiningWorkStep;
 use App\Models\ManualProcess;
 use App\Models\ManualIplBranchRule;
 use App\Models\Necessary;
@@ -70,6 +71,231 @@ class TdrsTest extends TestCase
             'serial_number' => 'SN-TDR',
             'qty' => 2,
         ]);
+    }
+
+    public function test_switching_tdr_to_order_new_removes_repair_process_records(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'new_parts' => false]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'CLEANUP-ORDER-NEW',
+            'name' => 'Cleanup Order New Component',
+            'ipl_num' => '1-15',
+        ]);
+        $code = Code::query()->firstOrCreate(['name' => 'Damaged'], ['code' => 'DMG']);
+        $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        $tdr = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'codes_id' => $code->id,
+            'necessaries_id' => $repair->id,
+            'qty' => 1,
+            'use_process_forms' => true,
+        ]);
+        $tdrProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'processes' => [],
+            'description' => 'Repair-only process',
+        ]);
+        $workStep = MachiningWorkStep::query()->create([
+            'tdr_process_id' => $tdrProcess->id,
+            'step_index' => 1,
+            'description' => 'Repair-only machining step',
+        ]);
+
+        $this->actingAs($admin)
+            ->putJson(route('tdrs.update', $tdr->id), [
+                'workorder_id' => $workorder->id,
+                'codes_id' => $code->id,
+                'necessaries_id' => $orderNew->id,
+                'qty' => 1,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $tdr->refresh();
+        $this->assertSame($orderNew->id, $tdr->necessaries_id);
+        $this->assertSame(Tdr::TYPE_ORDER_NEW, $tdr->tdr_type);
+        $this->assertSame($component->id, $tdr->order_component_id);
+        $this->assertFalse($tdr->use_process_forms);
+        $this->assertTrue((bool) $workorder->refresh()->new_parts);
+        $this->assertDatabaseMissing('tdr_processes', ['id' => $tdrProcess->id]);
+        $this->assertDatabaseMissing('machining_work_steps', ['id' => $workStep->id]);
+    }
+
+    public function test_empty_assemblies_are_not_created_or_returned_to_tdr_picker(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'unit_id' => $unit->id]);
+
+        $createResponse = $this->actingAs($admin)->postJson(route('components.store'), [
+            'manual_id' => $manual->id,
+            'part_number' => 'NO-EMPTY-ASSY',
+            'name' => 'No Empty Assembly',
+            'ipl_num' => '2-10',
+            'units_assy' => '2',
+            'assemblies' => [[
+                'assy_part_number' => '',
+                'assy_ipl_num' => '',
+                'units_assy' => '2',
+                'notes' => 'Units and notes alone are not an assembly',
+            ]],
+        ]);
+
+        $createResponse->assertOk()->assertJsonPath('success', true);
+        $componentId = (int) $createResponse->json('component_id');
+        $this->assertDatabaseMissing('component_assemblies', [
+            'component_id' => $componentId,
+            'deleted_at' => null,
+        ]);
+
+        ComponentAssembly::query()->create([
+            'component_id' => $componentId,
+            'assy_part_number' => '   ',
+            'assy_ipl_num' => null,
+            'units_assy' => '3',
+            'sort_order' => 0,
+        ]);
+        $visibleAssembly = ComponentAssembly::query()->create([
+            'component_id' => $componentId,
+            'assy_part_number' => 'ASSY-VISIBLE',
+            'assy_ipl_num' => null,
+            'units_assy' => '1',
+            'sort_order' => 1,
+        ]);
+
+        $pickerResponse = $this->actingAs($admin)->getJson(route('api.get-components-by-manual', [
+            'manual_id' => $manual->id,
+            'workorder_id' => $workorder->id,
+        ]));
+
+        $pickerResponse->assertOk();
+        $component = collect($pickerResponse->json('components'))->firstWhere('id', $componentId);
+        $this->assertNotNull($component);
+        $this->assertSame([$visibleAssembly->id], collect($component['assemblies'])->pluck('id')->all());
+    }
+
+    public function test_ordered_parts_badges_modal_and_prl_ignore_orphan_order_new_rows(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'unit_id' => $unit->id]);
+        $damage = Code::query()->firstOrCreate(['name' => 'Damage'], ['code' => 'DMG']);
+        Code::query()->firstOrCreate(['name' => Code::NAME_MISSING], ['code' => 'M']);
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+
+        foreach (range(1, 4) as $index) {
+            $component = Component::query()->create([
+                'manual_id' => $manual->id,
+                'ipl_num' => '3-'.($index * 10),
+                'part_number' => 'ORDERED-'.$index,
+                'name' => 'Ordered Part '.$index,
+            ]);
+
+            Tdr::query()->create([
+                'tdr_type' => Tdr::TYPE_ORDER_NEW,
+                'workorder_id' => $workorder->id,
+                'component_id' => $component->id,
+                'order_component_id' => $component->id,
+                'codes_id' => $damage->id,
+                'necessaries_id' => $orderNew->id,
+                'qty' => 1,
+                'use_process_forms' => false,
+            ]);
+        }
+
+        $orphanComponent = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-90',
+            'part_number' => 'ORPHAN-NOT-ORDERED',
+            'name' => 'Orphan Order New Row',
+        ]);
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_ORDER_NEW,
+            'workorder_id' => $workorder->id,
+            'component_id' => $orphanComponent->id,
+            'order_component_id' => null,
+            'codes_id' => $damage->id,
+            'necessaries_id' => $orderNew->id,
+            'qty' => 1,
+            'use_process_forms' => false,
+        ]);
+
+        $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+
+        $showResponse->assertOk();
+        $this->assertSame(4, (int) $showResponse->viewData('orderedPartsCount'));
+        $this->assertCount(4, $showResponse->viewData('ordersPartsNew'));
+        $this->assertCount(4, $showResponse->viewData('prl_parts'));
+
+        $prlResponse = $this->actingAs($admin)->get(route('tdrs.prlForm', $workorder->id));
+
+        $prlResponse->assertOk();
+        $this->assertCount(4, $prlResponse->viewData('ordersParts'));
+        $prlResponse->assertSee('ORDERED-1');
+        $prlResponse->assertDontSee('ORPHAN-NOT-ORDERED');
+    }
+
+    public function test_manufacture_pair_cannot_be_edited_and_deleting_either_row_deletes_both(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'MFG-PAIR-' . uniqid(),
+            'name' => 'Manufacture pair component',
+            'ipl_num' => '1-685RB',
+        ]);
+        $manufactureCode = Code::query()->firstOrCreate(['name' => 'Manufacture'], ['code' => 'MFG']);
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
+        $pairId = (string) \Illuminate\Support\Str::uuid();
+
+        $orderRow = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_MANUFACTURE_ORDER,
+            'manufacture_pair_id' => $pairId,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'order_component_id' => $component->id,
+            'codes_id' => $manufactureCode->id,
+            'necessaries_id' => $orderNew->id,
+            'qty' => 2,
+            'use_tdr' => true,
+            'use_process_forms' => false,
+        ]);
+        $repairRow = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_MANUFACTURE_REPAIR,
+            'manufacture_pair_id' => $pairId,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'codes_id' => $manufactureCode->id,
+            'necessaries_id' => $repair->id,
+            'qty' => 2,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->putJson(route('tdrs.update', $repairRow->id), [
+                'workorder_id' => $workorder->id,
+                'codes_id' => $manufactureCode->id,
+                'necessaries_id' => $orderNew->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Manufacture entries cannot be edited. Delete the Manufacture pair and create a new TDR entry instead.');
+
+        $this->actingAs($admin)
+            ->delete(route('tdrs.destroy', $orderRow->id))
+            ->assertRedirect(route('tdrs.show', ['id' => $workorder->id]));
+
+        $this->assertDatabaseMissing('tdrs', ['id' => $orderRow->id]);
+        $this->assertDatabaseMissing('tdrs', ['id' => $repairRow->id]);
     }
 
     public function test_tdr_process_store_rejects_catalog_process_without_process_name(): void
@@ -344,7 +570,7 @@ class TdrsTest extends TestCase
         $this->assertSame('PO-999', $tdr->po_num);
     }
 
-    public function test_non_system_admin_can_update_serial_number_but_cannot_replace_tdr_component_from_edit(): void
+    public function test_admin_role_can_replace_tdr_component_without_system_admin_flag(): void
     {
         $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => false]);
         $workorder = $this->createWorkorder(['user_id' => $roleOnlyAdmin->id]);
@@ -368,6 +594,12 @@ class TdrsTest extends TestCase
             'qty' => 1,
         ]);
 
+        $formResponse = $this->actingAs($roleOnlyAdmin)->get(route('tdrs.editForm', $tdr->id));
+
+        $formResponse->assertOk();
+        $formResponse->assertSee('name="component_id"', false);
+        $formResponse->assertSee('PN-NEW');
+
         $response = $this->actingAs($roleOnlyAdmin)->put(route('tdrs.update', $tdr->id), [
             'workorder_id' => $workorder->id,
             'component_id' => $secondComponent->id,
@@ -378,15 +610,15 @@ class TdrsTest extends TestCase
         $response->assertRedirect(route('tdrs.show', ['id' => $workorder->id]));
 
         $tdr->refresh();
-        $this->assertSame($firstComponent->id, $tdr->component_id);
+        $this->assertSame($secondComponent->id, $tdr->component_id);
         $this->assertSame('SN-NEW', $tdr->serial_number);
         $this->assertSame('After', $tdr->description);
     }
 
-    public function test_system_admin_can_replace_tdr_component_and_serial_number_from_edit(): void
+    public function test_non_admin_role_cannot_replace_tdr_component_from_edit(): void
     {
-        $systemAdmin = $this->createUserWithRole('Admin', ['is_admin' => true]);
-        $workorder = $this->createWorkorder(['user_id' => $systemAdmin->id]);
+        $manager = $this->createUserWithRole('Manager', ['is_admin' => false]);
+        $workorder = $this->createWorkorder(['user_id' => $manager->id]);
         $firstComponent = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'PN-OLD-SYS',
@@ -407,7 +639,12 @@ class TdrsTest extends TestCase
             'qty' => 1,
         ]);
 
-        $response = $this->actingAs($systemAdmin)->put(route('tdrs.update', $tdr->id), [
+        $formResponse = $this->actingAs($manager)->get(route('tdrs.editForm', $tdr->id));
+
+        $formResponse->assertOk();
+        $formResponse->assertDontSee('name="component_id"', false);
+
+        $response = $this->actingAs($manager)->put(route('tdrs.update', $tdr->id), [
             'workorder_id' => $workorder->id,
             'component_id' => $secondComponent->id,
             'serial_number' => 'SN-SYS-NEW',
@@ -417,7 +654,7 @@ class TdrsTest extends TestCase
         $response->assertRedirect(route('tdrs.show', ['id' => $workorder->id]));
 
         $tdr->refresh();
-        $this->assertSame($secondComponent->id, $tdr->component_id);
+        $this->assertSame($firstComponent->id, $tdr->component_id);
         $this->assertSame('SN-SYS-NEW', $tdr->serial_number);
         $this->assertSame('After', $tdr->description);
     }
@@ -2119,7 +2356,7 @@ class TdrsTest extends TestCase
         $kitResponse->assertDontSee('<h6>6</h6>', false);
     }
 
-    public function test_manual_parts_can_assign_kit_choice_group_in_bulk(): void
+    public function test_manual_parts_can_assign_kit_choice_group_in_bulk_and_csv_skips_existing_ipl(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
@@ -2174,9 +2411,12 @@ class TdrsTest extends TestCase
 
         $csvResponse->assertOk();
         $csvResponse->assertJsonPath('success', true);
+        $csvResponse->assertJsonPath('create_count', 0);
+        $csvResponse->assertJsonPath('update_count', 0);
+        $csvResponse->assertJsonPath('skip_count', 1);
         $this->assertDatabaseHas('components', [
             'id' => $parts->first()->id,
-            'name' => 'BEARING SPHERICAL UPDATED',
+            'name' => 'BEARING, SPHERICAL',
             'kit_prl_choice_group' => $generatedGroup,
         ]);
 

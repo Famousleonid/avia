@@ -748,20 +748,31 @@
                                             <i class="bi bi-rulers"></i>
                                         </button>
                                     @endif
-                                    <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Edit') }}"
-                                            data-bs-toggle="modal" data-bs-target="#editTdrModal"
-                                            data-tdr-id="{{ $tdr->id }}">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
+                                    @if($tdr->isManufacturePairMember())
+                                        <button type="button" class="btn btn-outline-secondary btn-sm me-2" disabled
+                                                title="{{ __('Manufacture entries must be deleted as a pair and recreated.') }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    @else
+                                        <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Edit') }}"
+                                                data-bs-toggle="modal" data-bs-target="#editTdrModal"
+                                                data-tdr-id="{{ $tdr->id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    @endif
                                     <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST">
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="return_to" value="show">
                                         <button type="button"
                                                 class="btn btn-outline-danger btn-sm"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#useConfirmDelete"
-                                                data-title="{{ __('Delete Confirmation') }}">
+                                                @if($tdr->isManufacturePairMember())
+                                                    data-tdr-manufacture-pair-delete
+                                                @else
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#useConfirmDelete"
+                                                    data-title="{{ __('Delete Confirmation') }}"
+                                                @endif>
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>

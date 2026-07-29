@@ -487,8 +487,10 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertStringContainsString('.std-page--ndt .std-ndt-title { transform: translate(12px, 4px); }', $html);
         $this->assertStringContainsString('.std-page--ndt .std-ndt-cmm-label { font-size: 16px; }', $html);
         $this->assertStringContainsString('.std-page--ndt .std-ndt-cmm-box { font-size: 16px; }', $html);
+        $this->assertStringContainsString('grid-template-rows: auto minmax(28px, auto) auto minmax(28px, auto) auto 54px;', $html);
+        $this->assertStringContainsString('.std-page--ndt .std-process-long { line-height: 1.15; }', $html);
         $this->assertStringContainsString('.std-page--ndt .std-header { gap: 11px; }', $html);
-        $this->assertStringContainsString('grid-template-rows: auto 24px auto 24px auto 44px;', $html);
+        $this->assertStringContainsString('grid-template-rows: auto minmax(28px, auto) auto minmax(28px, auto) auto 44px;', $html);
         $this->assertStringContainsString('.std-page--ndt .std-table { margin-top: 8px; }', $html);
         $this->assertStringContainsString('--std-row-min-height: 35px;', $html);
         $this->assertStringContainsString('.std-page--ndt .std-footer-grid { font-size: 15px; }', $html);
@@ -938,13 +940,23 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'user_id' => $admin->id,
         ]);
 
-        Component::query()->create([
+        $component = Component::query()->create([
             'manual_id' => $manual->id,
             'ipl_num' => '8-10',
             'part_number' => 'PN-CAD-LAYOUT',
             'name' => 'CAD Layout Part',
             'units_assy' => 1,
             'cad_list' => true,
+        ]);
+
+        $longProcess = 'AMS-2401 Thickness (0.0003-0.0005), Bake as per AMS 2759/9. Chromat Treatment as per AMS 2401.';
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $component->id,
+            'std' => StdProcess::STD_CAD,
+        ], [
+            'process' => $longProcess,
+            'qty' => 1,
         ]);
 
         $response = $this->actingAs($admin)->get(route('tdrs.cadStd', $workorder->id));
@@ -957,6 +969,9 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertStringContainsString('.std-page--cad .std-meta-row { grid-template-columns: 170px minmax(0, 1fr); min-height: 36px; }', $html);
         $this->assertStringContainsString('.std-page--cad .std-meta-label { white-space: nowrap; }', $html);
         $this->assertStringContainsString('.std-page--cad .std-cad-instruction { display: block; font-size: 17px; line-height: 1.2; margin-top: 10px; overflow: visible; white-space: nowrap; }', $html);
+        $this->assertStringContainsString('.std-page--cad .std-process-cell { overflow: visible; white-space: normal; overflow-wrap: break-word; word-break: normal;', $html);
+        $this->assertStringContainsString('<div class="std-cell std-process-cell"> <span>'.$longProcess.'</span> </div>', $html);
+        $this->assertStringNotContainsString('std-cell std-cell-fit', $html);
         $this->assertStringContainsString('.std-page--cad .std-meta-row { grid-template-columns: 150px minmax(0, 1fr); min-height: 30px; }', $html);
         $this->assertStringContainsString('.std-page--cad .std-cad-instruction { font-size: 15px; line-height: 1.15; margin-top: 8px; overflow: visible; white-space: nowrap; }', $html);
     }

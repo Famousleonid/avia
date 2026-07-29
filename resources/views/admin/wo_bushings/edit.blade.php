@@ -321,6 +321,18 @@
                 else alert(message);
             }
 
+            function hideGlobalSpinner() {
+                if (typeof window.safeHideSpinner === 'function') {
+                    window.safeHideSpinner();
+                    return;
+                }
+                if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+            }
+
+            form.addEventListener('invalid', function() {
+                hideGlobalSpinner();
+            }, true);
+
             function rowState(row) {
                 var selectedChecks = Array.prototype.slice.call(row.querySelectorAll('.component-checkbox'));
                 var selected = selectedChecks.some(function(checkbox) { return checkbox.checked; });
@@ -405,6 +417,7 @@
                 if (selectedRows.length === 0) {
                     e.preventDefault();
                     notify('{{ __("Please select at least one component before submitting.") }}');
+                    hideGlobalSpinner();
                     return;
                 }
 
@@ -414,8 +427,6 @@
                         if (!checkbox.checked) return;
                         var componentPrefix = checkbox.name.replace('[selected]', '');
                         var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
-                        var need = row.querySelector('input[name="' + componentPrefix + '[need_processes]"][type="checkbox"]');
-                        var ndt = row.querySelector('select[name="' + componentPrefix + '[ndt]"]');
 
                         if (!qty || !qty.value || parseInt(qty.value, 10) < 1) {
                             if (qty) qty.style.borderColor = 'red';
@@ -423,18 +434,13 @@
                         } else {
                             qty.style.borderColor = '';
                         }
-                        if (need && need.checked && ndt && ndt.options.length > 1 && !ndt.value) {
-                            ndt.style.borderColor = 'red';
-                            hasErrors = true;
-                        } else if (ndt) {
-                            ndt.style.borderColor = '';
-                        }
                     });
                 });
 
                 if (hasErrors) {
                     e.preventDefault();
-                    notify('{{ __("Please enter Qty and NDT for selected bushings with processes.") }}');
+                    notify('{{ __("Please enter Qty for selected bushings.") }}');
+                    hideGlobalSpinner();
                     return;
                 }
 
@@ -470,7 +476,7 @@
                         notify('{{ __("Failed to submit.") }}', 'error');
                     })
                     .finally(function() {
-                        if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+                        hideGlobalSpinner();
                         if (submitBtn) {
                             submitBtn.disabled = false;
                             submitBtn.innerHTML = originalHtml;
