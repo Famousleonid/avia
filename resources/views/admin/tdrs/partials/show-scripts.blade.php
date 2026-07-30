@@ -26,6 +26,46 @@
         console[level === 'error' ? 'error' : 'log'](message);
     };
 
+    window.syncTdrPrlPaperGroupFromDocument = function(freshDocument) {
+        var currentGroup = document.getElementById('tdr-prl-paper-group');
+        var freshGroup = freshDocument && freshDocument.getElementById
+            ? freshDocument.getElementById('tdr-prl-paper-group')
+            : null;
+        if (!currentGroup || !freshGroup) return false;
+
+        currentGroup.replaceWith(document.importNode(freshGroup, true));
+        return true;
+    };
+
+    window.refreshTdrPrlPaperButtons = function() {
+        if (window.tdrPrlPaperRefreshPromise) return window.tdrPrlPaperRefreshPromise;
+
+        var showUrl = window.tdrShowUrl || window.location.href;
+        window.tdrPrlPaperRefreshPromise = fetch(showUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+            credentials: 'same-origin',
+            cache: 'no-store',
+            spinner: false
+        })
+            .then(function(response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.text();
+            })
+            .then(function(html) {
+                var freshDocument = new DOMParser().parseFromString(html, 'text/html');
+                return window.syncTdrPrlPaperGroupFromDocument(freshDocument);
+            })
+            .catch(function(error) {
+                console.warn('Failed to refresh PRL paper buttons', error);
+                return false;
+            })
+            .finally(function() {
+                window.tdrPrlPaperRefreshPromise = null;
+            });
+
+        return window.tdrPrlPaperRefreshPromise;
+    };
+
     window.tdrShowConfirm = window.tdrShowConfirm || function(message, title, confirmLabel, cancelLabel) {
         return new Promise(function(resolve) {
             let modal = document.getElementById('tdrShowConfirmModal');
@@ -220,6 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var actionsEl = document.getElementById('editBushingModalActions');
         if (actionsEl) actionsEl.style.setProperty('display', 'none', 'important');
         if (bushingTabBody) loadBushingPartial();
+        window.refreshTdrPrlPaperButtons();
         if (typeof window.tdrShowNotify === 'function') {
             window.tdrShowNotify(message || '{{ __("Bushing data saved.") }}', 'success');
         }
@@ -2181,6 +2222,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (result.json) {
                         if (result.json.success) {
                             if (typeof loadBushingPartial === 'function') loadBushingPartial();
+                            window.refreshTdrPrlPaperButtons();
                             window.tdrShowNotify(result.json.message || '{{ __("Bushing data saved.") }}', 'success');
                         } else {
                             window.tdrShowNotify(result.json.message || (result.json.errors ? JSON.stringify(result.json.errors) : '') || '{{ __("Error creating bushings data.") }}', 'error');
@@ -2241,6 +2283,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.json) {
                     if (result.json.success) {
                         if (typeof loadBushingPartial === 'function') loadBushingPartial();
+                        window.refreshTdrPrlPaperButtons();
                         window.tdrShowNotify(result.json.message || '{{ __("Bushing data saved.") }}', 'success');
                     } else {
                         window.tdrShowNotify(result.json.message || (result.json.errors ? JSON.stringify(result.json.errors) : '') || '{{ __("Error creating bushings data.") }}', 'error');
@@ -2897,6 +2940,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (m) m.hide();
                                 bodyEl.innerHTML = '';
                                 if (bushingTabBody) loadBushingPartial();
+                                window.refreshTdrPrlPaperButtons();
                                 var editIfr = document.getElementById('editBushingIframe');
                                 if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
                             } else {
@@ -2992,6 +3036,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var ifr = document.getElementById('editBushingIframe');
             if (ifr) ifr.src = 'about:blank';
             if (bushingTabBody) loadBushingPartial();
+            window.refreshTdrPrlPaperButtons();
         } else if (e.data && e.data.type === 'editBushingCancel') {
             var m = bootstrap.Modal.getInstance(document.getElementById('editBushingModal'));
             if (m) m.hide();
@@ -3023,6 +3068,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (ifr1) ifr1.src = 'about:blank';
             if (b2) b2.innerHTML = '';
             if (bushingTabBody) loadBushingPartial();
+            window.refreshTdrPrlPaperButtons();
             var editIfr = document.getElementById('editBushingIframe');
             if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
             window.tdrShowNotify(e.data.message || (e.data.type === 'addPartSuccess' ? '{{ __("Part added successfully.") }}' : '{{ __("Process added successfully.") }}'), 'success', 2500);

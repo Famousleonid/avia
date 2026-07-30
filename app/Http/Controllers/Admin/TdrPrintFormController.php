@@ -65,30 +65,23 @@ class TdrPrintFormController extends Controller
             ->with('builder')
             ->get();
 
-        // Получаем TDR записи с непустым order_component_id
-        $ordersPartsNew = Tdr::where('workorder_id', $current_wo->id)
-            ->where('necessaries_id', $necessary->id)
-            ->whereNotNull('order_component_id')
-            ->with(['codes', 'orderComponent' => function($query) {
-                // Добавляем manual_id в select и загружаем связь manual
-                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
-                      ->with('manual:id,number'); // Загружаем только id и number из Manual
-            }, 'orderComponentAssembly'])
+        // PRL includes regular Order New rows and every Missing row. Missing rows
+        // created by the part-number workflow may only have component_id populated.
+        $ordersParts = Tdr::query()
+            ->prlParts($current_wo->id, $necessary->id, $code?->id)
+            ->with([
+                'codes',
+                'component' => function($query) {
+                    $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
+                        ->with('manual:id,number');
+                },
+                'orderComponent' => function($query) {
+                    $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
+                        ->with('manual:id,number');
+                },
+                'orderComponentAssembly',
+            ])
             ->get();
-
-        // Получаем TDR записи без order_component_id
-        $ordersParts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('necessaries_id', $necessary->id)
-            ->whereNull('order_component_id')
-            ->with(['codes', 'component' => function($query) {
-                // Добавляем manual_id в select и загружаем связь manual
-                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
-                      ->with('manual:id,number'); // Загружаем только id и number из Manual
-            }])
-            ->get();
-
-        // Объединяем коллекции
-        $ordersParts = $ordersPartsNew->concat($ordersParts);
 
         // Добавляем поле manual (номер manual) к каждой TDR записи
         $ordersParts = $ordersParts->map(function($tdr) {

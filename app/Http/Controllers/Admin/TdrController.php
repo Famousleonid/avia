@@ -1793,13 +1793,15 @@ class TdrController extends Controller
             ->get();
         $ordersPartsNew = $this->sortTdrsByDisplayedIpl($ordersPartsNew);
 
-        $prl_parts = (clone $orderedPartsQuery)
+        $prl_parts = Tdr::query()
+            ->prlParts($current_wo->id, $orderNewNecessaryId, $missingCodeId)
             ->with([
                 'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
                 'orderComponent' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
                 'orderComponentAssembly' => function($query) { $query->select('id', 'component_id', 'assy_part_number', 'assy_ipl_num'); }
             ])
             ->get();
+        $prlPartsCount = (int) $prl_parts->sum('qty');
 
         $planes = Plane::all();
         $builders = Builder::all();
@@ -1867,7 +1869,7 @@ class TdrController extends Controller
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'bushingPrlCount', 'kitPrlCount', 'prl_parts', 'tdr_proc', 'vendors', 'processGroups', 'totalQty', 'hasTransfers',
+            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'bushingPrlCount', 'kitPrlCount', 'prl_parts', 'prlPartsCount', 'tdr_proc', 'vendors', 'processGroups', 'totalQty', 'hasTransfers',
             'transfersIncomingGroupsWithMultiple', 'transfersHasOutgoingGroup',
             'hasMissingParts', 'missingCondition', 'missingPartsCount', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs',
             'stdFormCounts', 'spFormColumnsCount', 'bushingSpFormColumnsCount', 'rmFormRowsCount', 'tdrFormRowsCount',

@@ -116,6 +116,26 @@ class Tdr extends Model
             ->when($missingCodeId !== null, fn ($query) => $query->where('codes_id', '!=', $missingCodeId));
     }
 
+    public function scopePrlParts($query, int $workorderId, int $orderNewNecessaryId, ?int $missingCodeId = null)
+    {
+        return $query
+            ->where('workorder_id', $workorderId)
+            ->where(function ($query) use ($orderNewNecessaryId, $missingCodeId): void {
+                $query->where(function ($orderedParts) use ($orderNewNecessaryId, $missingCodeId): void {
+                    $orderedParts
+                        ->where('necessaries_id', $orderNewNecessaryId)
+                        ->whereNotNull('order_component_id')
+                        ->when($missingCodeId !== null, fn ($query) => $query->where('codes_id', '!=', $missingCodeId));
+                });
+
+                if ($missingCodeId !== null) {
+                    // Missing parts are Order New by definition and belong on the PRL,
+                    // including legacy rows which only have component_id populated.
+                    $query->orWhere('codes_id', $missingCodeId);
+                }
+            });
+    }
+
     public function scopeManufactureOrderRows($query)
     {
         return $query->where('tdr_type', self::TYPE_MANUFACTURE_ORDER);

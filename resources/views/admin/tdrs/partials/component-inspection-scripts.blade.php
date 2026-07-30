@@ -1054,6 +1054,9 @@ function initTdrInlineCreate() {
 
                 replaceModalFromFreshDocument('missingModal{{ $current_wo->number }}');
                 replaceModalFromFreshDocument('orderModal{{ $current_wo->number }}');
+                if (typeof window.syncTdrPrlPaperGroupFromDocument === 'function') {
+                    window.syncTdrPrlPaperGroupFromDocument(doc);
+                }
 
                 if (currentInspectBody) {
                     currentInspectBody.replaceChildren();

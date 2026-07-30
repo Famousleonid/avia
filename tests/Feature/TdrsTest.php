@@ -242,6 +242,53 @@ class TdrsTest extends TestCase
         $prlResponse->assertDontSee('ORPHAN-NOT-ORDERED');
     }
 
+    public function test_missing_part_with_component_only_appears_in_prl_and_enables_live_paper_refresh(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'unit_id' => $unit->id]);
+        $missing = Code::query()->firstOrCreate(['name' => Code::NAME_MISSING], ['code' => 'M']);
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '4-120',
+            'part_number' => 'MISSING-PRL-120',
+            'name' => 'Missing PRL Part',
+        ]);
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_ORDER_NEW,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'order_component_id' => null,
+            'codes_id' => $missing->id,
+            'necessaries_id' => $orderNew->id,
+            'qty' => 2,
+            'use_tdr' => false,
+            'use_process_forms' => false,
+        ]);
+
+        $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+
+        $showResponse->assertOk();
+        $this->assertCount(1, $showResponse->viewData('missingParts'));
+        $this->assertSame(2, (int) $showResponse->viewData('missingPartsCount'));
+        $this->assertCount(0, $showResponse->viewData('ordersPartsNew'));
+        $this->assertCount(1, $showResponse->viewData('prl_parts'));
+        $this->assertSame(2, (int) $showResponse->viewData('prlPartsCount'));
+        $showResponse->assertSee('id="tdr-prl-paper-group"', false);
+        $showResponse->assertSee(route('tdrs.prlForm', ['id' => $workorder->id]), false);
+        $showResponse->assertSee('window.refreshTdrPrlPaperButtons = function()', false);
+        $showResponse->assertSee('window.syncTdrPrlPaperGroupFromDocument(doc);', false);
+
+        $prlResponse = $this->actingAs($admin)->get(route('tdrs.prlForm', ['id' => $workorder->id]));
+
+        $prlResponse->assertOk();
+        $this->assertCount(1, $prlResponse->viewData('ordersParts'));
+        $prlResponse->assertSee('MISSING-PRL-120');
+    }
+
     public function test_manufacture_pair_cannot_be_edited_and_deleting_either_row_deletes_both(): void
     {
         $admin = $this->createUserWithRole('Admin');

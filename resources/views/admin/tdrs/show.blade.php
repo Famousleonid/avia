@@ -606,7 +606,7 @@
                                 </span>
                         </div>
                         <div class="tdr-show-paper-divider" aria-hidden="true"></div>
-                        <div class="tdr-show-paper-extra ms-2">
+                        <div class="tdr-show-paper-extra ms-2" id="tdr-prl-paper-group">
                             @if(($kitPrlCount ?? 0) > 0)
                                 <div class="position-relative d-inline-block ">
                                     <x-paper-button text="KIT"
@@ -616,13 +616,13 @@
                                           style="{{ $paperCountBadgeStyle }}">{{ $kitPrlCount }}</span>
                                 </div>
                             @endif
-                            @if(count($prl_parts) > 0)
+                            @if(($prlPartsCount ?? 0) > 0)
                                 <div class="position-relative d-inline-block ">
                                     <x-paper-button text="PRL"
                                                     href="{{ route('tdrs.prlForm', ['id' => $current_wo->id]) }}"
                                                     target="_blank" color="outline-primary"/>
                                     <span class="badge bg-success rounded-pill"
-                                          style="{{ $paperCountBadgeStyle }}">{{ count($prl_parts) }}</span>
+                                          style="{{ $paperCountBadgeStyle }}">{{ $prlPartsCount }}</span>
                                 </div>
                             @endif
                             @if(($bushingPrlCount ?? 0) > 0)
