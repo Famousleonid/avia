@@ -77,6 +77,119 @@ class AndroidApiTest extends TestCase
         $this->assertNull(MobileApiToken::find($row->id));
     }
 
+    public function test_log_card_read_fill_and_variant_switch(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder();
+        $manualId = (int) $workorder->unit->manual_id;
+
+        $main = \App\Models\Component::query()->create([
+            'manual_id' => $manualId, 'name' => 'CYLINDER ASSY', 'part_number' => '47401-1',
+            'ipl_num' => '1-190', 'log_card' => 1,
+        ]);
+        $variant = \App\Models\Component::query()->create([
+            'manual_id' => $manualId, 'name' => 'CYLINDER ASSY', 'part_number' => '47401-5',
+            'ipl_num' => '1-190A', 'log_card' => 1,
+        ]);
+
+        $logCard = \App\Models\LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                ['row_type' => 'manual', 'manual_id' => (string) $manualId, 'manual_label' => 'Test manual'],
+                [
+                    'component_id' => (string) $main->id, 'included' => '1', 'serial_number' => '',
+                    'assy_serial_number' => '', 'reason' => '', 'new_serial_number' => '',
+                    'manual_id' => (string) $manualId, 'ipl_group' => '1-190',
+                ],
+            ], JSON_UNESCAPED_UNICODE),
+        ]);
+
+        $token = $this->postJson(route('api.android.auth.login'), [
+            'email' => $user->email, 'password' => 'password',
+        ])->json('data.token');
+        $auth = ['Authorization' => 'Bearer ' . $token];
+
+        // read: resolved component + both variants offered
+        $res = $this->getJson(route('api.android.workorders.log-card.show', $workorder->id), $auth)
+            ->assertOk()
+            ->assertJsonPath('data.exists', true)
+            ->assertJsonPath('data.rows.0.kind', 'manual')
+            ->assertJsonPath('data.rows.1.component.part_number', '47401-1');
+        $this->assertCount(2, $res->json('data.rows.1.variants'));
+
+        // fill a serial
+        $this->patchJson(route('api.android.log-card.rows.update', [$logCard->id, 1]), [
+            'field' => 'serial_number', 'value' => 'CPS1278',
+        ], $auth)->assertOk()->assertJsonPath('data.value', 'CPS1278');
+
+        // switch the variant
+        $this->patchJson(route('api.android.log-card.rows.variant.update', [$logCard->id, 1]), [
+            'component_id' => $variant->id,
+        ], $auth)->assertOk()->assertJsonPath('data.component_id', $variant->id);
+
+        $rows = json_decode($logCard->fresh()->component_data, true);
+        $this->assertSame('CPS1278', $rows[1]['serial_number']);
+        $this->assertSame((string) $variant->id, (string) $rows[1]['component_id']);
+
+        // a stranger component is rejected as a variant
+        $other = \App\Models\Component::query()->create([
+            'manual_id' => $manualId, 'name' => 'GLAND', 'part_number' => '47407-1',
+            'ipl_num' => '1-240', 'log_card' => 1,
+        ]);
+        $this->patchJson(route('api.android.log-card.rows.variant.update', [$logCard->id, 1]), [
+            'component_id' => $other->id,
+        ], $auth)->assertStatus(422);
+    }
+
+    public function test_log_card_template_and_mobile_create(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder();
+        $manualId = (int) $workorder->unit->manual_id;
+
+        $a = \App\Models\Component::query()->create([
+            'manual_id' => $manualId, 'name' => 'CYLINDER ASSY', 'part_number' => '47401-1',
+            'ipl_num' => '1-190', 'log_card' => 1,
+        ]);
+        \App\Models\Component::query()->create([
+            'manual_id' => $manualId, 'name' => 'CYLINDER ASSY', 'part_number' => '47401-5',
+            'ipl_num' => '1-190A', 'log_card' => 1,
+        ]);
+        $washer = \App\Models\Component::query()->create([
+            'manual_id' => $manualId, 'name' => 'WASHER', 'part_number' => '47409-1',
+            'ipl_num' => '1-100', 'log_card' => 1, 'units_assy' => 'UNITS002',
+        ]);
+
+        $token = $this->postJson(route('api.android.auth.login'), [
+            'email' => $user->email, 'password' => 'password',
+        ])->json('data.token');
+        $auth = ['Authorization' => 'Bearer ' . $token];
+
+        $tpl = $this->getJson(route('api.android.workorders.log-card.template', $workorder->id), $auth)
+            ->assertOk()
+            ->assertJsonPath('data.exists', false);
+        $group = collect($tpl->json('data.groups'))->firstWhere('ipl_group', '1-190');
+        $this->assertCount(2, $group['variants']);
+
+        $this->postJson(route('api.android.workorders.log-card.store', $workorder->id), [
+            'rows' => [
+                ['component_id' => $a->id, 'ipl_group' => '1-190', 'included' => true],
+                ['component_id' => $washer->id, 'ipl_group' => '1-100', 'included' => false],
+            ],
+        ], $auth)->assertOk()->assertJsonPath('ok', true);
+
+        $card = \App\Models\LogCard::query()->where('workorder_id', $workorder->id)->firstOrFail();
+        $rows = json_decode($card->component_data, true);
+        $this->assertSame('manual', $rows[0]['row_type']);
+        $this->assertSame((string) $a->id, (string) $rows[1]['component_id']);
+        $this->assertSame('0', (string) $rows[2]['included']);
+
+        // a second create is rejected (one card per WO)
+        $this->postJson(route('api.android.workorders.log-card.store', $workorder->id), [
+            'rows' => [['component_id' => $a->id]],
+        ], $auth)->assertStatus(422);
+    }
+
     public function test_android_login_rejects_bad_credentials(): void
     {
         $user = $this->createUserWithRole('Technician');
