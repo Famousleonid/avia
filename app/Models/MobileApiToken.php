@@ -11,6 +11,7 @@ class MobileApiToken extends Model
         'user_id',
         'name',
         'platform',
+        'fcm_token',
         'token_hash',
         'last_used_at',
         'expires_at',

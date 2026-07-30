@@ -58,4 +58,10 @@ return [
         'retry_attempts' => (int) env('OPENAI_RETRY_ATTEMPTS', 4),
     ],
 
+    'fcm' => [
+        // Firebase service-account JSON (Project settings -> Service accounts).
+        // Push is silently disabled while the file is absent.
+        'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase/service-account.json')),
+    ],
+
 ];

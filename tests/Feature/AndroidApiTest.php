@@ -53,6 +53,30 @@ class AndroidApiTest extends TestCase
             ->assertJsonStructure(['data' => ['navigation', 'screens', 'menu_mode']]);
     }
 
+    public function test_push_token_is_stored_on_the_session_row(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+
+        $token = $this->postJson(route('api.android.auth.login'), [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->json('data.token');
+
+        $this->postJson(route('api.android.push-token.store'), [
+            'fcm_token' => 'fcm-device-token-123',
+        ], ['Authorization' => 'Bearer ' . $token])
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $row = MobileApiToken::where('token_hash', MobileApiToken::hashPlainTextToken($token))->first();
+        $this->assertSame('fcm-device-token-123', $row->fcm_token);
+
+        // logout deletes the session row — the push token dies with it
+        $this->postJson(route('api.android.auth.logout'), [], ['Authorization' => 'Bearer ' . $token])
+            ->assertOk();
+        $this->assertNull(MobileApiToken::find($row->id));
+    }
+
     public function test_android_login_rejects_bad_credentials(): void
     {
         $user = $this->createUserWithRole('Technician');

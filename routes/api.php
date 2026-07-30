@@ -41,6 +41,7 @@ $registerMobileClientRoutes = function (string $controller) {
         Route::get('/me', [$controller, 'me'])->name('me');
         Route::get('/bootstrap', [$controller, 'bootstrap'])->name('bootstrap');
         Route::post('/auth/logout', [$controller, 'logout'])->name('auth.logout');
+        Route::post('/push-token', [$controller, 'storePushToken'])->name('push-token.store');
         Route::get('/profile', [$controller, 'profile'])->name('profile.show');
         Route::put('/profile', [$controller, 'updateProfile'])->name('profile.update');
         Route::post('/profile/password', [$controller, 'updatePassword'])->name('profile.password.update');

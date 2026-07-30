@@ -26,7 +26,9 @@ class NewMessageNotification extends Notification
 
     public function via($notifiable): array
     {
-        return ['database'];
+        // FCM mirrors the in-app notification to registered mobile devices;
+        // the channel no-ops without Firebase credentials / device tokens.
+        return ['database', \App\Notifications\Channels\FcmChannel::class];
     }
 
     public function toDatabase($notifiable): array

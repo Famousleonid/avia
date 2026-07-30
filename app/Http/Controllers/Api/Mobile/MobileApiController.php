@@ -126,6 +126,18 @@ class MobileApiController extends Controller
         return $this->ok(null, [], 'Logged out.');
     }
 
+    /** FCM device token — stored on the session row (dies with logout). */
+    public function storePushToken(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'fcm_token' => ['required', 'string', 'max:512'],
+        ]);
+
+        $request->attributes->get('mobile_api_token')?->update(['fcm_token' => $data['fcm_token']]);
+
+        return $this->ok(null, [], 'Push token stored.');
+    }
+
     public function me(Request $request): JsonResponse
     {
         return $this->ok([
