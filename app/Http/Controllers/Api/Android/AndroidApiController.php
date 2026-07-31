@@ -32,9 +32,35 @@ class AndroidApiController extends MobileApiController
             'min_sdk' => 26,
             // Brand palette over Material You dynamic colors.
             'dynamic_color' => false,
+            // Self-update: drop aviatechnik-vX.Y.Z.apk into public/app/ —
+            // the newest version is detected from the file name.
+            'update' => $this->latestAndroidBuild(),
         ];
 
         return response()->json($payload, $response->getStatusCode());
+    }
+
+    protected function latestAndroidBuild(): ?array
+    {
+        $dir = public_path('app');
+        if (! is_dir($dir)) {
+            return null;
+        }
+
+        $bestFile = null;
+        $bestVersion = null;
+        foreach (glob($dir . '/aviatechnik-v*.apk') ?: [] as $file) {
+            if (preg_match('/aviatechnik-v(\d+(?:\.\d+)*)\.apk$/i', basename($file), $m)
+                && ($bestVersion === null || version_compare($m[1], $bestVersion, '>'))) {
+                $bestVersion = $m[1];
+                $bestFile = $file;
+            }
+        }
+
+        return $bestFile ? [
+            'version_name' => $bestVersion,
+            'url' => asset('app/' . basename($bestFile)),
+        ] : null;
     }
 
     public function login(Request $request): JsonResponse
