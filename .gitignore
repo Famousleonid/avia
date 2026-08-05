@@ -25,3 +25,5 @@ yarn-error.log
 /manager/log/
 /quantum/log/
 /outputs/process_names_ref/node_modules/
+
+public/app/*.apk
