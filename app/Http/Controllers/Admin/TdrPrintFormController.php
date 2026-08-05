@@ -234,6 +234,7 @@ class TdrPrintFormController extends Controller
                     ->orWhereHas('woBushing', fn ($woBushing) => $woBushing->where('workorder_id', $workorder->id));
             })
             ->whereHas('component')
+            ->where('do_not_order', false)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
@@ -724,11 +725,12 @@ class TdrPrintFormController extends Controller
                     $obj->qty = max(1, (int) ($component['qty'] ?? 1));
                     $obj->manual = $component['manual'] ?? (string) ($manual->number ?? '');
                     $obj->eff_code = trim((string) ($component['eff_code'] ?? ''));
+                    $obj->kit_prl_choice_group = trim((string) ($component['kit_prl_choice_group'] ?? ''));
 
                     return $obj;
                 })->toArray();
 
-            $paint_components = $this->collapseStdSuffixVariantRows($paint_components);
+            $paint_components = $this->collapseStdVariantRows($paint_components);
 
             // Сортируем Paint компоненты: сначала по manual (если есть), потом по ipl_num
             usort($paint_components, function($a, $b) {
@@ -810,11 +812,12 @@ class TdrPrintFormController extends Controller
             $component->process_name = (string) ($row['process'] ?? '');
             $component->manual = trim((string) ($row['manual'] ?? '')) ?: null;
             $component->eff_code = trim((string) ($row['eff_code'] ?? ''));
+            $component->kit_prl_choice_group = trim((string) ($row['kit_prl_choice_group'] ?? ''));
 
             return $component;
         }, $rows));
 
-        return $this->collapseStdSuffixVariantRows($components);
+        return $this->collapseStdVariantRows($components);
     }
 
     /**
@@ -847,7 +850,7 @@ class TdrPrintFormController extends Controller
      * @param  array<int, \stdClass>  $components
      * @return array<int, \stdClass>
      */
-    private function collapseStdSuffixVariantRows(array $components): array
+    private function collapseStdVariantRows(array $components): array
     {
         $collapsed = [];
         $indexByKey = [];
@@ -877,6 +880,8 @@ class TdrPrintFormController extends Controller
             }
             $target->_part_number_values = $this->appendUniqueStdCollapsedValue($target->_part_number_values, (string) ($component->part_number ?? ''));
             $target->_description_values = $this->appendUniqueStdCollapsedValue($target->_description_values, (string) ($component->name ?? ''));
+            $target->_process_values = $this->appendUniqueStdCollapsedValue($target->_process_values, (string) ($component->process_name ?? ''));
+            $target->qty = max((int) ($target->qty ?? 1), (int) ($component->qty ?? 1));
 
             $this->applyCollapsedStdRowDisplay($target);
 
@@ -888,6 +893,15 @@ class TdrPrintFormController extends Controller
 
     private function stdSuffixVariantGroupKey(\stdClass $component): ?string
     {
+        $choiceGroup = trim((string) ($component->kit_prl_choice_group ?? ''));
+        if ($choiceGroup !== '') {
+            return implode('|', [
+                'choice',
+                trim((string) ($component->manual ?? '')),
+                mb_strtolower($choiceGroup),
+            ]);
+        }
+
         $ipl = trim((string) ($component->ipl_num ?? ''));
 
         if (! preg_match('/^(\d+[A-Za-z]*-\d+)(?:[A-Za-z]+)?$/', $ipl, $matches)) {
@@ -907,6 +921,7 @@ class TdrPrintFormController extends Controller
         $component->_ipl_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->ipl_num ?? ''));
         $component->_part_number_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->part_number ?? ''));
         $component->_description_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->name ?? ''));
+        $component->_process_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->process_name ?? ''));
         if (property_exists($component, 'item_display')) {
             $component->_item_display_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->item_display ?? ''));
         }
@@ -932,11 +947,19 @@ class TdrPrintFormController extends Controller
     private function applyCollapsedStdRowDisplay(\stdClass $component): void
     {
         $iplValues = $component->_ipl_values ?? [];
-        $lineCount = max(1, count($iplValues));
+        $lineCount = max(
+            1,
+            count($iplValues),
+            count($component->_part_number_values ?? []),
+            count($component->_description_values ?? []),
+            count($component->_process_values ?? []),
+            count($component->_item_display_values ?? [])
+        );
 
         $component->ipl_num = implode("\n", $iplValues);
         $component->part_number = implode("\n", $component->_part_number_values ?? []);
         $component->name = implode("\n", $component->_description_values ?? []);
+        $component->process_name = implode("\n", $component->_process_values ?? []);
         $component->row_line_count = $lineCount;
         $component->row_height = 32 + (($lineCount - 1) * 16);
 

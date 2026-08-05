@@ -133,6 +133,7 @@ class WorkorderStdProcessItemsService
         $rows = WorkorderStdProcessItem::query()
             ->where('workorder_id', $workorder->id)
             ->where('std_type', $std)
+            ->with('component:id,kit_prl_choice_group')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()

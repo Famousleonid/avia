@@ -53,6 +53,8 @@ class WoBushingSortingTest extends TestCase
         $response->assertSee('bushing-col-process', false);
         $response->assertSee('bushing-col-ndt', false);
         $response->assertSee('>Qty</th>', false);
+        $response->assertSee('>Do Not Order</th>', false);
+        $response->assertSee('[do_not_order]', false);
         $response->assertDontSee('WO Qty', false);
         $response->assertSee('group_bushings[GRP-A][items]', false);
         $response->assertDontSee('[components][]', false);
@@ -101,6 +103,68 @@ class WoBushingSortingTest extends TestCase
         $this->assertNotNull($line);
         $this->assertSame(2, $line->qty);
         $this->assertSame(0, WoBushingProcess::query()->where('wo_bushing_line_id', $line->id)->count());
+    }
+
+    public function test_do_not_order_bushing_keeps_process_assignment_and_edit_state(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+
+        $component = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-231',
+            'part_number' => '1840-0302-OS',
+            'name' => 'Reused bushing with process route',
+            'bush_ipl_num' => '8-230',
+            'is_bush' => true,
+            'units_assy' => 1,
+        ]);
+        $machining = $this->attachProcessToManual($manualId, 'Machining', 'Machine reused bushing');
+
+        $response = $this->actingAs($admin)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->put(route('wo_bushings.update', $woBushing->id), [
+                'group_bushings' => [
+                    '8-230' => [
+                        'items' => [
+                            $component->id => [
+                                'selected' => '1',
+                                'do_not_order' => '1',
+                                'qty' => '1',
+                                'need_processes' => '1',
+                                'machining' => (string) $machining->id,
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertOk()->assertJson(['success' => true]);
+
+        $line = WoBushingLine::query()
+            ->where('wo_bushing_id', $woBushing->id)
+            ->where('component_id', $component->id)
+            ->firstOrFail();
+
+        $this->assertTrue($line->do_not_order);
+        $this->assertDatabaseHas('wo_bushing_processes', [
+            'wo_bushing_line_id' => $line->id,
+            'process_id' => $machining->id,
+            'qty' => 1,
+        ]);
+
+        $edit = $this->actingAs($admin)->get(route('wo_bushings.edit', [
+            'wo_bushing' => $woBushing->id,
+            'fragment' => 1,
+        ]));
+
+        $edit->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/name="group_bushings\[8-230\]\[items\]\['.$component->id.'\]\[do_not_order\]"[^>]*checked/s',
+            $edit->getContent()
+        );
     }
 
     public function test_bushing_create_save_is_logged_on_workorder(): void

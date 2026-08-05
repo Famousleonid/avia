@@ -2267,6 +2267,64 @@ class TdrsTest extends TestCase
         $showResponse->assertSee('>1</span>', false);
     }
 
+    public function test_bushing_prl_crosses_out_selected_do_not_order_bushing(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $ordered = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'BUSH-ORDERED',
+            'name' => 'Ordered bushing',
+            'ipl_num' => '8-230',
+            'bush_ipl_num' => '8-230',
+            'units_assy' => 2,
+            'is_bush' => true,
+        ]);
+        $reused = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'BUSH-REUSED',
+            'name' => 'Reused bushing',
+            'ipl_num' => '8-231',
+            'bush_ipl_num' => '8-230',
+            'units_assy' => 1,
+            'is_bush' => true,
+        ]);
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+        foreach ([
+            [$ordered, 2, false],
+            [$reused, 1, true],
+        ] as $index => [$component, $qty, $doNotOrder]) {
+            WoBushingLine::query()->create([
+                'wo_bushing_id' => $woBushing->id,
+                'workorder_id' => $workorder->id,
+                'component_id' => $component->id,
+                'qty' => $qty,
+                'qty_remaining' => $qty,
+                'do_not_order' => $doNotOrder,
+                'sort_order' => $index,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
+
+        $response->assertOk();
+        $response->assertSee('BUSH-ORDERED');
+        $response->assertSee('BUSH-REUSED');
+        $this->assertMatchesRegularExpression(
+            '/data-prl-component-id="'.$ordered->id.'"(?![^>]*data-prl-part-number-crossed-out)[^>]*>BUSH-ORDERED/s',
+            $response->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/data-prl-component-id="'.$reused->id.'"[^>]*data-prl-part-number-crossed-out="1"[^>]*>BUSH-REUSED/s',
+            $response->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/data-prl-option-qty="2"[^>]*>2<\/span>/s',
+            $response->getContent()
+        );
+    }
+
     public function test_bushing_prl_groups_initial_and_oversize_part_numbers_in_one_cell(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -2472,6 +2530,8 @@ class TdrsTest extends TestCase
         $manualResponse->assertOk();
         $manualResponse->assertDontSee('manual-kit-choice-group-input', false);
         $manualResponse->assertSee('manual-kit-choice-group-apply', false);
+        $manualResponse->assertSee('manual-part-choice-group-select', false);
+        $manualResponse->assertSee("selectChoiceGroup(groupMarker.closest('tr'))", false);
         $manualResponse->assertSee('bi-check2', false);
         $manualResponse->assertDontSee('>Grouped<', false);
 

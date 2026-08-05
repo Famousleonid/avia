@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Code;
 use App\Models\Component;
+use App\Models\ComponentAssembly;
 use App\Models\GeneralTask;
+use App\Models\LogCard;
 use App\Models\Main;
 use App\Models\Material;
 use App\Models\MobileApiToken;
@@ -568,7 +570,7 @@ class MobileApiTest extends TestCase
             ->assertJsonPath('data.attached_components.0.tdrs.0.id', $tdr->id)
             ->assertJsonPath('data.attached_components.0.tdrs.0.qty', 4);
         $processName = ProcessName::query()->create([
-            'name' => 'API Process ' . uniqid(),
+            'name' => 'Machining',
             'process_sheet_name' => 'API',
             'form_number' => 'API',
             'sequence_exempt' => true,
@@ -859,6 +861,181 @@ class MobileApiTest extends TestCase
             'id' => $component->id,
             'log_card' => 1,
         ]);
+    }
+
+    public function test_mobile_api_log_card_can_be_created_viewed_and_fully_updated_like_desktop(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $user->id]);
+        $primaryManual = $workorder->unit->manual;
+        $extraManual = $this->createManual(['number' => 'EXTRA-LOG-CARD']);
+
+        $primary = Component::query()->create([
+            'manual_id' => $primaryManual->id,
+            'name' => 'Primary Log Card Component',
+            'part_number' => 'LC-PRIMARY-1',
+            'ipl_num' => '1-190',
+            'log_card' => true,
+        ]);
+        $variant = Component::query()->create([
+            'manual_id' => $primaryManual->id,
+            'name' => 'Primary Log Card Variant',
+            'part_number' => 'LC-PRIMARY-2',
+            'ipl_num' => '1-190A',
+            'log_card' => true,
+        ]);
+        $variantAssemblyA = ComponentAssembly::query()->create([
+            'component_id' => $variant->id,
+            'assy_part_number' => 'ASSY-A',
+            'assy_ipl_num' => '1-10',
+            'units_assy' => '1',
+            'sort_order' => 0,
+        ]);
+        $variantAssemblyB = ComponentAssembly::query()->create([
+            'component_id' => $variant->id,
+            'assy_part_number' => 'ASSY-B',
+            'assy_ipl_num' => '1-20',
+            'units_assy' => '2',
+            'sort_order' => 1,
+        ]);
+        $extra = Component::query()->create([
+            'manual_id' => $extraManual->id,
+            'name' => 'Extra Manual Component',
+            'part_number' => 'LC-EXTRA-1',
+            'ipl_num' => '2-100',
+            'log_card' => true,
+        ]);
+
+        $primaryTemplate = $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.log-card.template', $workorder->id));
+        $primaryTemplate->assertOk()
+            ->assertJsonPath('data.manual.id', $primaryManual->id)
+            ->assertJsonPath('data.is_primary_manual', true);
+        $this->assertContains(
+            $extraManual->id,
+            collect($primaryTemplate->json('data.available_manuals'))->pluck('id')->all()
+        );
+
+        $extraTemplate = $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.log-card.template', [
+                'workorderId' => $workorder->id,
+                'manual_id' => $extraManual->id,
+            ]));
+        $extraTemplate->assertOk()
+            ->assertJsonPath('data.manual.id', $extraManual->id)
+            ->assertJsonPath('data.is_primary_manual', false)
+            ->assertJsonPath('data.groups.0.variants.0.component_id', $extra->id);
+
+        $create = $this->withMobileToken($user)
+            ->postJson(route('api.mobile.workorders.log-card.store', $workorder->id), [
+                'rows' => [
+                    [
+                        'component_id' => $primary->id,
+                        'serial_number' => 'PRIMARY-SN',
+                        'reason' => '5',
+                    ],
+                    [
+                        'component_id' => $extra->id,
+                        'manual_id' => $extraManual->id,
+                        'serial_number' => 'EXTRA-SN',
+                    ],
+                ],
+            ]);
+        $create->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.rows_count', 2);
+
+        $card = LogCard::query()->where('workorder_id', $workorder->id)->firstOrFail();
+        $show = $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.log-card.show', $workorder->id));
+        $show->assertOk()
+            ->assertJsonPath('data.exists', true)
+            ->assertJsonPath('data.can_edit', true)
+            ->assertJsonPath('data.rows.0.kind', 'manual')
+            ->assertJsonPath('data.rows.1.serial_number', 'PRIMARY-SN')
+            ->assertJsonPath('data.rows.2.kind', 'manual')
+            ->assertJsonPath('data.rows.3.serial_number', 'EXTRA-SN');
+
+        $update = $this->withMobileToken($user)
+            ->putJson(route('api.mobile.workorders.log-card.update', $workorder->id), [
+                'rows' => [
+                    [
+                        'component_id' => $variant->id,
+                        'component_assembly_id' => $variantAssemblyA->id,
+                        'serial_number' => 'UPDATED-SN',
+                        'assy_serial_number' => 'ASSY-SN',
+                        'reason' => '7',
+                        'new_serial_number' => 'NEW-SN',
+                    ],
+                    [
+                        'component_id' => $extra->id,
+                        'manual_id' => $extraManual->id,
+                        'serial_number' => 'EXTRA-SN-2',
+                    ],
+                ],
+            ]);
+        $update->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.log_card_id', $card->id)
+            ->assertJsonPath('data.rows_count', 2);
+
+        $rows = json_decode((string) $card->fresh()->component_data, true);
+        $this->assertSame('manual', $rows[0]['row_type']);
+        $this->assertSame((string) $variant->id, $rows[1]['component_id']);
+        $this->assertSame((string) $variantAssemblyA->id, $rows[1]['component_assembly_id']);
+        $this->assertSame('UPDATED-SN', $rows[1]['serial_number']);
+        $this->assertSame('manual', $rows[2]['row_type']);
+        $this->assertSame((string) $extra->id, $rows[3]['component_id']);
+
+        $this->withMobileToken($user)
+            ->patchJson(route('api.mobile.log-card.rows.assembly.update', [$card->id, 1]), [
+                'component_assembly_id' => $variantAssemblyB->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.component_assembly_id', $variantAssemblyB->id)
+            ->assertJsonPath('data.assy_part_number', 'ASSY-B');
+
+        $this->withMobileToken($user)
+            ->patchJson(route('api.mobile.log-card.rows.update', [$card->id, 1]), [
+                'field' => 'included',
+                'value' => false,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.value', '0');
+    }
+
+    public function test_mobile_api_log_card_row_mutations_respect_review_workorder_scope(): void
+    {
+        $reviewUser = $this->createUserWithRole('Team Leader', ['email' => 'log-card-review@example.test']);
+        $this->createWorkorder(['number' => 100500, 'user_id' => $reviewUser->id]);
+        $production = $this->createWorkorder(['number' => 100501]);
+        $component = Component::query()->create([
+            'manual_id' => $production->unit->manual_id,
+            'name' => 'Protected Log Card Component',
+            'part_number' => 'LC-PROTECTED',
+            'ipl_num' => '9-100',
+            'log_card' => true,
+        ]);
+        $card = LogCard::query()->create([
+            'workorder_id' => $production->id,
+            'component_data' => json_encode([[
+                'component_id' => (string) $component->id,
+                'serial_number' => 'ORIGINAL',
+            ]]),
+        ]);
+        config()->set('mobile_review.accounts', [
+            'log-card-review@example.test' => ['workorder_numbers' => [100500]],
+        ]);
+
+        $this->withMobileToken($reviewUser)
+            ->patchJson(route('api.mobile.log-card.rows.update', [$card->id, 0]), [
+                'field' => 'serial_number',
+                'value' => 'FORBIDDEN',
+            ])
+            ->assertNotFound();
+
+        $rows = json_decode((string) $card->fresh()->component_data, true);
+        $this->assertSame('ORIGINAL', $rows[0]['serial_number']);
     }
 
     public function test_mobile_api_materials_can_be_searched_and_updated(): void

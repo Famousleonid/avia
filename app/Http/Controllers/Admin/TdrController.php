@@ -2502,6 +2502,8 @@ class TdrController extends Controller
 
             if (! array_key_exists($groupKey, $groupedQtyByKey)) {
                 $groupedQtyByKey[$groupKey] = $qty;
+            } else {
+                $groupedQtyByKey[$groupKey] = max($groupedQtyByKey[$groupKey], $qty);
             }
         }
 
@@ -2510,6 +2512,15 @@ class TdrController extends Controller
 
     private function stdSuffixVariantCountGroupKey(array $row): ?string
     {
+        $choiceGroup = trim((string) ($row['kit_prl_choice_group'] ?? ''));
+        if ($choiceGroup !== '') {
+            return implode('|', [
+                'choice',
+                trim((string) ($row['manual'] ?? '')),
+                mb_strtolower($choiceGroup),
+            ]);
+        }
+
         $ipl = trim((string) ($row['ipl_num'] ?? ''));
 
         if (! preg_match('/^(\d+[A-Za-z]*-\d+)(?:[A-Za-z]+)?$/', $ipl, $matches)) {

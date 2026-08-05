@@ -54,6 +54,7 @@ class WorkorderStdProcessItem extends Model
     public function toSnapshotRow(): array
     {
         return [
+            'component_id' => (int) $this->component_id,
             'ipl_num' => $this->ipl_num,
             'part_number' => $this->part_number,
             'description' => $this->description ?? '',
@@ -61,6 +62,7 @@ class WorkorderStdProcessItem extends Model
             'qty' => (int) $this->remaining_qty,
             'manual' => $this->manual,
             'eff_code' => StdProcess::normalizeEffCodeForStorage($this->eff_code) ?? '',
+            'kit_prl_choice_group' => trim((string) ($this->component?->kit_prl_choice_group ?? '')),
         ];
     }
 }

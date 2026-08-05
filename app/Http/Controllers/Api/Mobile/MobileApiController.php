@@ -3,16 +3,20 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Admin\MachiningController as AdminMachiningController;
+use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\TdrProcessController;
 use App\Http\Controllers\Controller;
 use App\Models\Code;
 use App\Models\Component;
+use App\Models\ComponentAssembly;
 use App\Models\Condition;
 use App\Models\Customer;
 use App\Models\GeneralTask;
 use App\Models\Instruction;
+use App\Models\LogCard;
 use App\Models\Main;
 use App\Models\Material;
+use App\Models\Manual;
 use App\Models\MobileApiToken;
 use App\Models\Necessary;
 use App\Models\MachiningWorkStep;
@@ -30,6 +34,8 @@ use App\Models\WoBushingProcess;
 use App\Models\Workorder;
 use App\Notifications\NewMessageNotification;
 use App\Services\MachiningListingRowsBuilder;
+use App\Services\LogCardTdrAccessService;
+use App\Services\ManualIplBranchRuleResolver;
 use App\Services\MobileReviewAccess;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\WorkorderNotifyService;
@@ -130,9 +136,9 @@ class MobileApiController extends Controller
 
     public function logCard(Request $request, int $workorderId): JsonResponse
     {
-        $workorder = $this->findWorkorder($workorderId);
-        $access = app(\App\Services\LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
-        $logCard = \App\Models\LogCard::query()->where('workorder_id', $workorder->id)->first();
+        $workorder = $this->findWorkorder($workorderId, ['unit.manual']);
+        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
+        $logCard = LogCard::query()->where('workorder_id', $workorder->id)->first();
         $rows = $this->decodeMobileLogCardRows($logCard);
 
         $componentIds = collect($rows)
@@ -140,7 +146,11 @@ class MobileApiController extends Controller
             ->map(fn ($r) => (int) $r['component_id'])
             ->unique()
             ->values();
-        $components = Component::query()->whereIn('id', $componentIds)->get()->keyBy('id');
+        $components = Component::query()
+            ->with(['manual:id,number,title', 'assemblies'])
+            ->whereIn('id', $componentIds)
+            ->get()
+            ->keyBy('id');
 
         $missingCode = Code::missing();
         $orderNew = Necessary::query()->where('name', 'Order New')->first();
@@ -154,13 +164,14 @@ class MobileApiController extends Controller
 
         // Variant candidates: same manual, same IPL suffix group (desktop rule),
         // annotated with unit branch-rule permission.
-        $resolver = app(\App\Services\ManualIplBranchRuleResolver::class);
+        $resolver = app(ManualIplBranchRuleResolver::class);
         $primaryManualId = (int) ($workorder->unit->manual_id ?? 0);
         $manualIds = $components->pluck('manual_id')->map(fn ($id) => (int) $id)->filter()->unique()->values();
         $groupComponents = Component::query()
+            ->with('assemblies')
             ->whereIn('manual_id', $manualIds)
             ->where('log_card', 1)
-            ->get(['id', 'name', 'part_number', 'ipl_num', 'manual_id', 'units_assy'])
+            ->get(['id', 'name', 'part_number', 'ipl_num', 'manual_id', 'units_assy', 'assy_part_number', 'assy_ipl_num'])
             ->groupBy(fn (Component $c) => $c->manual_id . '|' . $this->mobileLogCardGroupKey((string) $c->ipl_num));
 
         $payloadRows = collect($rows)->values()->map(function ($row, $index) use (
@@ -195,35 +206,33 @@ class MobileApiController extends Controller
                 $candidates = $groupComponents->get($groupKey, collect())
                     ->filter(fn (Component $c) => ($c->units_assy ?? 1) == 1);
                 if ($candidates->count() > 1) {
-                    $variants = $candidates->sortBy('ipl_num')->map(fn (Component $c) => [
-                        'component_id' => (int) $c->id,
-                        'part_number' => (string) $c->part_number,
-                        'ipl_num' => (string) $c->ipl_num,
+                    $variants = $candidates->sortBy('ipl_num')->map(fn (Component $c) => array_merge(
+                        $this->mobileLogCardComponentPayload($c),
+                        [
                         'allowed' => (int) $c->manual_id !== $primaryManualId
                             || ! $workorder->unit
                             || $resolver->allowsComponentForUnit($workorder->unit, (string) $c->ipl_num, $primaryManualId),
-                    ])->values()->all();
+                        ]
+                    ))->values()->all();
                 }
             }
 
             return [
                 'index' => $index,
                 'kind' => 'component',
-                'component' => $component ? [
-                    'id' => (int) $component->id,
-                    'name' => (string) $component->name,
-                    'part_number' => (string) $component->part_number,
-                    'ipl_num' => (string) $component->ipl_num,
-                ] : null,
+                'component' => $component ? $this->mobileLogCardComponentPayload($component) : null,
+                'manual_id' => (int) ($row['manual_id'] ?? ($component?->manual_id ?? 0)) ?: null,
                 'ipl_group' => $iplGroup,
                 'included' => (string) ($row['included'] ?? '1') === '1',
                 'serial_number' => (string) ($row['serial_number'] ?? ''),
                 'assy_serial_number' => (string) ($row['assy_serial_number'] ?? ''),
                 'reason' => (string) ($row['reason'] ?? ''),
                 'new_serial_number' => (string) ($row['new_serial_number'] ?? ''),
+                'component_assembly_id' => (int) ($row['component_assembly_id'] ?? 0) ?: null,
                 'assy_part_number' => (string) ($row['assy_part_number'] ?? ''),
                 'assy_ipl_num' => (string) ($row['assy_ipl_num'] ?? ''),
                 'units_assy' => (string) ($row['units_assy'] ?? ''),
+                'unit_index' => (int) ($row['unit_index'] ?? 0) ?: null,
                 'hint' => $hint,
                 'variants' => $variants,
             ];
@@ -234,6 +243,7 @@ class MobileApiController extends Controller
             'log_card_id' => $logCard?->id,
             'workorder' => $this->workorderMiniPayload($workorder),
             'read_only' => (bool) ($access['read_only'] ?? false),
+            'can_edit' => ! (bool) ($access['read_only'] ?? false),
             'read_only_message' => $access['message'] ?? null,
             'codes' => Code::query()->orderBy('name')->get(['id', 'name'])
                 ->map(fn (Code $c) => ['id' => (int) $c->id, 'name' => (string) $c->name])->values(),
@@ -245,20 +255,26 @@ class MobileApiController extends Controller
      *  exactly like the desktop create form. */
     public function logCardTemplate(Request $request, int $workorderId): JsonResponse
     {
-        $workorder = $this->findWorkorder($workorderId);
-        $access = app(\App\Services\LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
-        $exists = \App\Models\LogCard::query()->where('workorder_id', $workorder->id)->exists();
+        $data = $request->validate([
+            'manual_id' => ['nullable', 'integer', 'exists:manuals,id'],
+        ]);
+        $workorder = $this->findWorkorder($workorderId, ['unit.manual']);
+        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
+        $exists = LogCard::query()->where('workorder_id', $workorder->id)->exists();
 
-        $manualId = (int) ($workorder->unit->manual_id ?? 0);
-        $manual = $workorder->unit?->manual;
-        $resolver = app(\App\Services\ManualIplBranchRuleResolver::class);
+        $primaryManualId = (int) ($workorder->unit->manual_id ?? 0);
+        $manualId = (int) ($data['manual_id'] ?? $primaryManualId);
+        $manual = Manual::query()->find($manualId);
+        $resolver = app(ManualIplBranchRuleResolver::class);
 
         $components = Component::query()
+            ->with('assemblies')
             ->where('manual_id', $manualId)
             ->where('log_card', 1)
             ->orderBy('ipl_num')
             ->get()
-            ->filter(fn (Component $c) => ! $workorder->unit
+            ->filter(fn (Component $c) => $manualId !== $primaryManualId
+                || ! $workorder->unit
                 || $resolver->allowsComponentForUnit($workorder->unit, (string) $c->ipl_num, $manualId))
             ->values();
 
@@ -287,13 +303,10 @@ class MobileApiController extends Controller
             return null;
         };
 
-        $componentPayload = fn (Component $c) => [
-            'component_id' => (int) $c->id,
-            'name' => (string) $c->name,
-            'part_number' => (string) $c->part_number,
-            'ipl_num' => (string) $c->ipl_num,
-            'hint' => $hintFor($c),
-        ];
+        $componentPayload = fn (Component $c) => array_merge(
+            $this->mobileLogCardComponentPayload($c),
+            ['hint' => $hintFor($c)]
+        );
 
         $groups = $components
             ->filter(fn (Component $c) => ($c->units_assy ?? 1) == 1)
@@ -320,12 +333,16 @@ class MobileApiController extends Controller
         return $this->ok([
             'exists' => $exists,
             'read_only' => (bool) ($access['read_only'] ?? false),
+            'can_edit' => ! (bool) ($access['read_only'] ?? false),
             'read_only_message' => $access['message'] ?? null,
-            'manual' => $manual ? [
-                'id' => (int) $manual->id,
-                'number' => (string) $manual->number,
-                'title' => (string) ($manual->title ?? ''),
-            ] : null,
+            'manual' => $manual ? $this->mobileLogCardManualPayload($manual) : null,
+            'is_primary_manual' => $manualId === $primaryManualId,
+            'available_manuals' => Manual::query()
+                ->orderBy('number')
+                ->get(['id', 'number', 'title'])
+                ->sortBy(fn (Manual $item): string => (string) $item->number, SORT_NATURAL | SORT_FLAG_CASE)
+                ->map(fn (Manual $item) => $this->mobileLogCardManualPayload($item))
+                ->values(),
             'groups' => $groups,
             'separate' => $separate->values(),
         ]);
@@ -335,80 +352,51 @@ class MobileApiController extends Controller
      *  activity logging stay identical. */
     public function storeLogCard(Request $request, int $workorderId): JsonResponse
     {
-        $workorder = $this->findWorkorder($workorderId);
-        $access = app(\App\Services\LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
-        abort_if(($access['read_only'] ?? false), 423, $access['message'] ?? 'Log Card editing is locked.');
+        $workorder = $this->findWorkorder($workorderId, ['unit.manual']);
+        abort_if(LogCard::query()->where('workorder_id', $workorder->id)->exists(), 422, 'Log Card for this workorder already exists.');
 
-        $data = $request->validate([
-            'rows' => ['required', 'array', 'min:1'],
-            'rows.*.component_id' => ['required', 'integer', 'exists:components,id'],
-            'rows.*.ipl_group' => ['nullable', 'string', 'max:50'],
-            'rows.*.included' => ['nullable', 'boolean'],
-        ]);
-
-        $manualId = (int) ($workorder->unit->manual_id ?? 0);
-        $manual = $workorder->unit?->manual;
-        $componentsById = Component::query()
-            ->whereIn('id', collect($data['rows'])->pluck('component_id'))
-            ->get()
-            ->keyBy('id');
-
-        $rows = [];
-        $rows[] = [
-            'row_type' => 'manual',
-            'manual_id' => (string) $manualId,
-            'manual_label' => trim(($manual->number ?? '') . ' ' . ($manual->title ?? '')),
-        ];
-        foreach ($data['rows'] as $row) {
-            $component = $componentsById->get((int) $row['component_id']);
-            abort_unless($component && (int) $component->manual_id === $manualId, 422, 'Component does not belong to the unit manual.');
-            $rows[] = [
-                'component_id' => (string) $component->id,
-                'included' => (! isset($row['included']) || $row['included']) ? '1' : '0',
-                'serial_number' => '',
-                'assy_serial_number' => '',
-                'reason' => '',
-                'new_serial_number' => '',
-                'manual_id' => (string) $manualId,
-                'ipl_group' => (string) ($row['ipl_group'] ?? $this->mobileLogCardGroupKey((string) $component->ipl_num)),
-            ];
-        }
-
-        $inner = Request::create('', 'POST', [
-            'workorder_id' => $workorder->id,
-            'component_data' => json_encode($rows, JSON_UNESCAPED_UNICODE),
-        ]);
-        $inner->headers->set('Accept', 'application/json');
-        $inner->headers->set('X-Requested-With', 'XMLHttpRequest');
-        $inner->setUserResolver(fn () => $request->user());
-
-        $response = app(\App\Http\Controllers\Admin\LogCardController::class)->store($inner);
-        $payload = json_decode($response->getContent(), true) ?: [];
-        if (! ($payload['success'] ?? false)) {
-            return $this->fail($payload['message'] ?? 'Failed to create Log Card.', $response->getStatusCode() >= 400 ? $response->getStatusCode() : 422);
-        }
-
-        return $this->ok(['log_card_id' => (int) ($payload['log_card_id'] ?? 0)], [], 'Log Card created.');
+        return $this->persistMobileLogCard($request, $workorder, null);
     }
 
-    public function updateLogCardRow(Request $request, \App\Models\LogCard $logCard, int $row): JsonResponse
+    /** Full replacement of the selected rows, matching desktop Update Log Card. */
+    public function updateLogCard(Request $request, int $workorderId): JsonResponse
     {
-        $workorder = Workorder::query()->findOrFail($logCard->workorder_id);
-        $access = app(\App\Services\LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
+        $workorder = $this->findWorkorder($workorderId, ['unit.manual']);
+        $logCard = LogCard::query()->where('workorder_id', $workorder->id)->firstOrFail();
+
+        return $this->persistMobileLogCard($request, $workorder, $logCard);
+    }
+
+    public function updateLogCardRow(Request $request, LogCard $logCard, int $row): JsonResponse
+    {
+        $workorder = $this->findWorkorder((int) $logCard->workorder_id);
+        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
         abort_if(($access['read_only'] ?? false), 423, $access['message'] ?? 'Log Card editing is locked.');
 
         $data = $request->validate([
             'field' => ['required', 'in:included,serial_number,assy_serial_number,reason,new_serial_number'],
-            'value' => ['nullable', 'string', 'max:255'],
+            'value' => ['nullable'],
         ]);
 
         $rows = $this->decodeMobileLogCardRows($logCard);
-        abort_unless(isset($rows[$row]) && is_array($rows[$row]), 422, 'Row not found.');
+        abort_unless(
+            isset($rows[$row])
+            && is_array($rows[$row])
+            && ($rows[$row]['row_type'] ?? '') !== 'manual'
+            && ! empty($rows[$row]['component_id']),
+            422,
+            'Component row not found.'
+        );
 
         $before = data_get($rows, $row . '.' . $data['field']);
-        $after = trim((string) ($data['value'] ?? ''));
         if ($data['field'] === 'included') {
-            $after = filter_var($after, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+            $booleanValue = filter_var($data['value'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            abort_if($booleanValue === null, 422, 'Included must be a boolean value.');
+            $after = $booleanValue ? '1' : '0';
+        } else {
+            abort_unless(is_scalar($data['value']) || $data['value'] === null, 422, 'Value must be a string.');
+            $after = trim((string) ($data['value'] ?? ''));
+            abort_if(mb_strlen($after) > 255, 422, 'Value may not be greater than 255 characters.');
         }
 
         if ($before !== $after) {
@@ -426,10 +414,10 @@ class MobileApiController extends Controller
         return $this->ok(['field' => $data['field'], 'value' => $after]);
     }
 
-    public function updateLogCardRowVariant(Request $request, \App\Models\LogCard $logCard, int $row): JsonResponse
+    public function updateLogCardRowVariant(Request $request, LogCard $logCard, int $row): JsonResponse
     {
-        $workorder = Workorder::query()->findOrFail($logCard->workorder_id);
-        $access = app(\App\Services\LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
+        $workorder = $this->findWorkorder((int) $logCard->workorder_id);
+        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
         abort_if(($access['read_only'] ?? false), 423, $access['message'] ?? 'Log Card editing is locked.');
 
         $data = $request->validate([
@@ -437,15 +425,24 @@ class MobileApiController extends Controller
         ]);
 
         $rows = $this->decodeMobileLogCardRows($logCard);
-        abort_unless(isset($rows[$row]) && is_array($rows[$row]), 422, 'Row not found.');
+        abort_unless(
+            isset($rows[$row])
+            && is_array($rows[$row])
+            && ($rows[$row]['row_type'] ?? '') !== 'manual'
+            && ! empty($rows[$row]['component_id']),
+            422,
+            'Component row not found.'
+        );
         $current = Component::query()->find((int) ($rows[$row]['component_id'] ?? 0));
-        $candidate = Component::query()->findOrFail((int) $data['component_id']);
+        $candidate = Component::query()->with('assemblies')->findOrFail((int) $data['component_id']);
         $iplGroup = (string) ($rows[$row]['ipl_group'] ?? '');
 
         // Same manual + same IPL suffix group only (desktop variant rule).
         abort_unless(
             $current
             && (int) $candidate->manual_id === (int) $current->manual_id
+            && (bool) $candidate->log_card
+            && (int) ($candidate->units_assy ?? 1) === 1
             && $iplGroup !== ''
             && $this->mobileLogCardGroupKey((string) $candidate->ipl_num) === $iplGroup,
             422,
@@ -455,7 +452,7 @@ class MobileApiController extends Controller
         $primaryManualId = (int) ($workorder->unit->manual_id ?? 0);
         if ((int) $candidate->manual_id === $primaryManualId && $workorder->unit) {
             abort_unless(
-                app(\App\Services\ManualIplBranchRuleResolver::class)
+                app(ManualIplBranchRuleResolver::class)
                     ->allowsComponentForUnit($workorder->unit, (string) $candidate->ipl_num, $primaryManualId),
                 422,
                 'This variant is not allowed for the unit of this workorder.'
@@ -464,21 +461,292 @@ class MobileApiController extends Controller
 
         $before = (int) ($rows[$row]['component_id'] ?? 0);
         if ($before !== (int) $candidate->id) {
+            $beforeRow = $rows[$row];
             $rows[$row]['component_id'] = (string) $candidate->id;
+            $this->applyMobileLogCardAssembly($rows[$row], $candidate, $candidate->assemblies->first());
             $logCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
             $logCard->save();
+            $changes = LogCard::buildActivityChanges([
+                'component_data' => [[$beforeRow], [$rows[$row]]],
+            ]);
             $logCard->logActivityEvent(
                 'updated',
-                ['component_data.' . $row . '.component_id' => $before],
-                ['component_data.' . $row . '.component_id' => (int) $candidate->id],
+                $this->rebaseMobileLogCardActivityPaths($changes['old'], $row),
+                $this->rebaseMobileLogCardActivityPaths($changes['attributes'], $row),
                 ['row' => $row, 'field' => 'component_id', 'source' => 'api.mobile.log_card_variant'],
             );
         }
 
-        return $this->ok(['component_id' => (int) $candidate->id]);
+        return $this->ok([
+            'component_id' => (int) $candidate->id,
+            'component' => $this->mobileLogCardComponentPayload($candidate),
+            'component_assembly_id' => (int) ($rows[$row]['component_assembly_id'] ?? 0) ?: null,
+        ]);
     }
 
-    protected function decodeMobileLogCardRows(?\App\Models\LogCard $logCard): array
+    public function updateLogCardRowAssembly(Request $request, LogCard $logCard, int $row): JsonResponse
+    {
+        $workorder = $this->findWorkorder((int) $logCard->workorder_id);
+        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
+        abort_if(($access['read_only'] ?? false), 423, $access['message'] ?? 'Log Card editing is locked.');
+
+        $data = $request->validate([
+            'component_assembly_id' => ['nullable', 'integer', 'exists:component_assemblies,id'],
+        ]);
+        $rows = $this->decodeMobileLogCardRows($logCard);
+        abort_unless(
+            isset($rows[$row])
+            && is_array($rows[$row])
+            && ($rows[$row]['row_type'] ?? '') !== 'manual'
+            && ! empty($rows[$row]['component_id']),
+            422,
+            'Component row not found.'
+        );
+
+        $component = Component::query()->with('assemblies')->findOrFail((int) $rows[$row]['component_id']);
+        $assembly = $component->assemblies->first();
+        if (! empty($data['component_assembly_id'])) {
+            $assembly = $component->assemblies->firstWhere('id', (int) $data['component_assembly_id']);
+            abort_unless($assembly, 422, 'Assembly does not belong to this component.');
+        }
+
+        $beforeRow = $rows[$row];
+        $this->applyMobileLogCardAssembly($rows[$row], $component, $assembly);
+        if ($beforeRow !== $rows[$row]) {
+            $logCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
+            $logCard->save();
+            $changes = LogCard::buildActivityChanges([
+                'component_data' => [[$beforeRow], [$rows[$row]]],
+            ]);
+            $logCard->logActivityEvent(
+                'updated',
+                $this->rebaseMobileLogCardActivityPaths($changes['old'], $row),
+                $this->rebaseMobileLogCardActivityPaths($changes['attributes'], $row),
+                ['row' => $row, 'field' => 'component_assembly_id', 'source' => 'api.mobile.log_card_assembly'],
+            );
+        }
+
+        return $this->ok([
+            'component_assembly_id' => (int) ($rows[$row]['component_assembly_id'] ?? 0) ?: null,
+            'assy_part_number' => (string) ($rows[$row]['assy_part_number'] ?? ''),
+            'assy_ipl_num' => (string) ($rows[$row]['assy_ipl_num'] ?? ''),
+            'units_assy' => (string) ($rows[$row]['units_assy'] ?? ''),
+        ]);
+    }
+
+    private function persistMobileLogCard(Request $request, Workorder $workorder, ?LogCard $logCard): JsonResponse
+    {
+        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
+        abort_if(($access['read_only'] ?? false), 423, $access['message'] ?? 'Log Card editing is locked.');
+
+        $data = $request->validate([
+            'rows' => ['required', 'array', 'min:1', 'max:500'],
+            'rows.*.component_id' => ['required', 'integer', 'exists:components,id'],
+            'rows.*.manual_id' => ['nullable', 'integer', 'exists:manuals,id'],
+            'rows.*.ipl_group' => ['nullable', 'string', 'max:50'],
+            'rows.*.included' => ['nullable', 'boolean'],
+            'rows.*.serial_number' => ['nullable'],
+            'rows.*.assy_serial_number' => ['nullable'],
+            'rows.*.reason' => ['nullable'],
+            'rows.*.new_serial_number' => ['nullable'],
+            'rows.*.component_assembly_id' => ['nullable', 'integer', 'exists:component_assemblies,id'],
+            'rows.*.unit_index' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'rows.*.units_assy' => ['nullable', 'string', 'max:100'],
+        ]);
+        $rows = $this->buildMobileLogCardRows($data['rows'], $workorder, $logCard);
+
+        $inner = Request::create('', $logCard ? 'PUT' : 'POST', [
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode($rows, JSON_UNESCAPED_UNICODE),
+        ]);
+        $inner->headers->set('Accept', 'application/json');
+        $inner->headers->set('X-Requested-With', 'XMLHttpRequest');
+        $inner->setUserResolver(fn () => $request->user());
+
+        $controller = app(LogCardController::class);
+        $response = $logCard
+            ? $controller->update($inner, $logCard->id)
+            : $controller->store($inner);
+        $payload = json_decode($response->getContent(), true) ?: [];
+        if (! ($payload['success'] ?? false)) {
+            return $this->fail(
+                $payload['message'] ?? ($logCard ? 'Failed to update Log Card.' : 'Failed to create Log Card.'),
+                $response->getStatusCode() >= 400 ? $response->getStatusCode() : 422,
+                $payload['errors'] ?? []
+            );
+        }
+
+        $saved = LogCard::query()->where('workorder_id', $workorder->id)->firstOrFail();
+
+        return $this->ok([
+            'log_card_id' => (int) $saved->id,
+            'rows_count' => collect($rows)->where('row_type', '!=', 'manual')->count(),
+        ], [], $logCard ? 'Log Card updated.' : 'Log Card created.');
+    }
+
+    /** @param list<array<string, mixed>> $inputRows */
+    private function buildMobileLogCardRows(array $inputRows, Workorder $workorder, ?LogCard $logCard): array
+    {
+        $componentIds = collect($inputRows)->pluck('component_id')->map(fn ($id) => (int) $id)->unique()->values();
+        $components = Component::query()
+            ->with(['manual:id,number,title', 'assemblies'])
+            ->whereIn('id', $componentIds)
+            ->get()
+            ->keyBy('id');
+        $existingComponentIds = collect($this->decodeMobileLogCardRows($logCard))
+            ->pluck('component_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique();
+        $primaryManualId = (int) ($workorder->unit->manual_id ?? 0);
+        $resolver = app(ManualIplBranchRuleResolver::class);
+        $canonicalRows = [];
+
+        foreach ($inputRows as $inputRow) {
+            $component = $components->get((int) $inputRow['component_id']);
+            abort_unless($component, 422, 'Component not found.');
+            $isExistingComponent = $existingComponentIds->contains((int) $component->id);
+            abort_unless((bool) $component->log_card || $isExistingComponent, 422, 'Component is not enabled for Log Card.');
+
+            $manualId = (int) $component->manual_id;
+            abort_if(
+                isset($inputRow['manual_id']) && (int) $inputRow['manual_id'] !== $manualId,
+                422,
+                'Component does not belong to the selected manual.'
+            );
+            if ($manualId === $primaryManualId && $workorder->unit && ! $isExistingComponent) {
+                abort_unless(
+                    $resolver->allowsComponentForUnit($workorder->unit, (string) $component->ipl_num, $primaryManualId),
+                    422,
+                    'Component is not allowed for the unit of this workorder.'
+                );
+            }
+
+            $unitIndex = (int) ($inputRow['unit_index'] ?? 0);
+            $row = [
+                'component_id' => (string) $component->id,
+                'included' => (! array_key_exists('included', $inputRow) || (bool) $inputRow['included']) ? '1' : '0',
+                'serial_number' => $this->mobileLogCardText($inputRow['serial_number'] ?? null),
+                'assy_serial_number' => $this->mobileLogCardText($inputRow['assy_serial_number'] ?? null),
+                'reason' => $this->mobileLogCardText($inputRow['reason'] ?? null),
+                'new_serial_number' => $this->mobileLogCardText($inputRow['new_serial_number'] ?? null),
+                'manual_id' => (string) $manualId,
+            ];
+            if ($unitIndex > 0) {
+                $row['unit_index'] = (string) $unitIndex;
+                $row['units_assy'] = (string) ($inputRow['units_assy'] ?? $component->units_assy ?? '');
+            } else {
+                $row['ipl_group'] = (string) ($inputRow['ipl_group'] ?? $this->mobileLogCardGroupKey((string) $component->ipl_num));
+            }
+
+            $assembly = $component->assemblies->first();
+            if (! empty($inputRow['component_assembly_id'])) {
+                $assembly = $component->assemblies->firstWhere('id', (int) $inputRow['component_assembly_id']);
+                abort_unless($assembly, 422, 'Assembly does not belong to this component.');
+            }
+            if ($assembly) {
+                $this->applyMobileLogCardAssembly($row, $component, $assembly);
+            }
+
+            $canonicalRows[] = $row;
+        }
+
+        $groupedByManual = [];
+        $manualOrder = [];
+        foreach ($canonicalRows as $row) {
+            $manualId = (int) $row['manual_id'];
+            if (! array_key_exists($manualId, $groupedByManual)) {
+                $groupedByManual[$manualId] = [];
+                $manualOrder[] = $manualId;
+            }
+            $groupedByManual[$manualId][] = $row;
+        }
+
+        $rows = [];
+        foreach ($manualOrder as $manualId) {
+            $manual = $components->first(fn (Component $component) => (int) $component->manual_id === $manualId)?->manual;
+            $rows[] = [
+                'row_type' => 'manual',
+                'manual_id' => (string) $manualId,
+                'manual_label' => trim((string) ($manual?->number ?? '') . ' ' . (string) ($manual?->title ?? '')),
+            ];
+            array_push($rows, ...$groupedByManual[$manualId]);
+        }
+
+        return $rows;
+    }
+
+    private function mobileLogCardText(mixed $value): string
+    {
+        abort_unless(is_scalar($value) || $value === null, 422, 'Log Card field values must be scalar.');
+        $value = trim((string) ($value ?? ''));
+        abort_if(mb_strlen($value) > 255, 422, 'Log Card field value may not be greater than 255 characters.');
+
+        return $value;
+    }
+
+    private function mobileLogCardComponentPayload(Component $component): array
+    {
+        return [
+            'id' => (int) $component->id,
+            'component_id' => (int) $component->id,
+            'manual_id' => (int) $component->manual_id,
+            'name' => (string) $component->name,
+            'part_number' => (string) $component->part_number,
+            'ipl_num' => (string) $component->ipl_num,
+            'units_assy' => (string) ($component->units_assy ?? ''),
+            'assemblies' => $component->relationLoaded('assemblies')
+                ? $component->assemblies->map(fn (ComponentAssembly $assembly) => [
+                    'id' => (int) $assembly->id,
+                    'assy_part_number' => (string) ($assembly->assy_part_number ?? ''),
+                    'assy_ipl_num' => (string) ($assembly->assy_ipl_num ?? ''),
+                    'units_assy' => (string) ($assembly->units_assy ?? ''),
+                ])->values()->all()
+                : [],
+        ];
+    }
+
+    private function mobileLogCardManualPayload(Manual $manual): array
+    {
+        return [
+            'id' => (int) $manual->id,
+            'number' => (string) $manual->number,
+            'title' => (string) ($manual->title ?? ''),
+            'label' => trim((string) $manual->number . ' ' . (string) ($manual->title ?? '')),
+        ];
+    }
+
+    private function applyMobileLogCardAssembly(array &$row, Component $component, ?ComponentAssembly $assembly): void
+    {
+        unset($row['component_assembly_id'], $row['assy_part_number'], $row['assy_ipl_num']);
+        if ($assembly) {
+            $row['component_assembly_id'] = (string) $assembly->id;
+            $row['assy_part_number'] = (string) ($assembly->assy_part_number ?? '');
+            $row['assy_ipl_num'] = (string) ($assembly->assy_ipl_num ?? '');
+            $row['units_assy'] = (string) ($assembly->units_assy ?? ($row['units_assy'] ?? ''));
+
+            return;
+        }
+
+        if (trim((string) ($component->assy_part_number ?? '')) !== '') {
+            $row['assy_part_number'] = trim((string) $component->assy_part_number);
+        }
+        if (trim((string) ($component->assy_ipl_num ?? '')) !== '') {
+            $row['assy_ipl_num'] = trim((string) $component->assy_ipl_num);
+        }
+    }
+
+    private function rebaseMobileLogCardActivityPaths(array $values, int $row): array
+    {
+        $rebased = [];
+        foreach ($values as $path => $value) {
+            $rebased[preg_replace('/^component_data\.0(?=\.|$)/', 'component_data.' . $row, (string) $path)] = $value;
+        }
+
+        return $rebased;
+    }
+
+    protected function decodeMobileLogCardRows(?LogCard $logCard): array
     {
         if (! $logCard || ! $logCard->component_data) {
             return [];

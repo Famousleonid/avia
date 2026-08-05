@@ -20,7 +20,7 @@ class WoBushingRelationalSync
 
     /**
      * @param  array<string, mixed>  $groupData
-     * @return list<array{component_id: int, qty: int, need_processes: bool, processes: array<string, mixed>}>
+     * @return list<array{component_id: int, qty: int, do_not_order: bool, need_processes: bool, processes: array<string, mixed>}>
      */
     private function normalizeGroupRows(array $groupData): array
     {
@@ -45,6 +45,7 @@ class WoBushingRelationalSync
                 $rows[] = [
                     'component_id' => (int) $componentId,
                     'qty' => max(1, (int) ($item['qty'] ?? 1)),
+                    'do_not_order' => ! empty($item['do_not_order']),
                     'need_processes' => $needProcesses,
                     'processes' => [
                         'machining' => $needProcesses && ! empty($item['machining'] ?? null) ? (int) $item['machining'] : null,
@@ -79,6 +80,7 @@ class WoBushingRelationalSync
             $rows[] = [
                 'component_id' => (int) $componentId,
                 'qty' => max(1, (int) ($groupData['qty'] ?? 1)),
+                'do_not_order' => ! empty($groupData['do_not_order']),
                 'need_processes' => true,
                 'processes' => [
                     'machining' => ! empty($groupData['machining'] ?? null) ? (int) $groupData['machining'] : null,
@@ -149,6 +151,7 @@ class WoBushingRelationalSync
                         'component_id' => $componentId,
                         'qty' => $qty,
                         'qty_remaining' => $qty,
+                        'do_not_order' => (bool) $rowData['do_not_order'],
                         'group_key' => is_string($groupKey) ? $groupKey : (string) $groupKey,
                         'sort_order' => $sortOrder++,
                     ]);
@@ -241,6 +244,7 @@ class WoBushingRelationalSync
                 $bushDataArray[] = [
                     'bushing' => (int) $rowData['component_id'],
                     'qty' => (int) $rowData['qty'],
+                    'do_not_order' => (bool) $rowData['do_not_order'],
                     'need_processes' => (bool) $rowData['need_processes'],
                     'processes' => $rowData['processes'],
                 ];
@@ -322,6 +326,7 @@ class WoBushingRelationalSync
                 'group_key' => $groupKey,
                 'sort_order' => (int) $line->sort_order,
                 'qty' => (int) $line->qty,
+                'do_not_order' => (bool) $line->do_not_order,
                 'need_processes' => $line->processes->isNotEmpty(),
                 'processes' => $processes,
             ];

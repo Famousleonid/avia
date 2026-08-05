@@ -14,6 +14,7 @@ class WoBushingLine extends Model
         'component_id',
         'qty',
         'qty_remaining',
+        'do_not_order',
         'group_key',
         'sort_order',
     ];
@@ -21,6 +22,7 @@ class WoBushingLine extends Model
     protected $casts = [
         'qty' => 'integer',
         'qty_remaining' => 'integer',
+        'do_not_order' => 'boolean',
         'sort_order' => 'integer',
     ];
 

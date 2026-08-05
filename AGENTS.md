@@ -56,6 +56,26 @@ Codex local browser login:
 - For visual QA that requires signing in to `avia.loc`, use the local ignored credentials file at `storage/app/codex/browser-admin-login.json`.
 - The account is `codex.admin@avia.local` with Admin role; do not commit or print the password.
 
+AVIA manual package imports:
+- When the user provides a directory containing numbered scanned IPL/FIG PDFs plus the standard XLS/XLSX workbook and a manual number, use the project skill `$avia-import-manual-package` from `.agents/skills/avia-import-manual-package`.
+- The normal required inputs are only the source directory and manual number. The skill must prepare Parts, Service Bulletins, LLP/Log Card, NDT, CAD, Paint, and PRL/KIT mappings, run a dry audit, and ask only about unresolved data conflicts.
+- Production access remains read-only. Apply reviewed imports locally and prepare exact production handoff artifacts/instructions for the user; never import or deploy through production SSH.
+
+AVIA production SSH access and diagnostics:
+- Production SSH is available at `51.222.203.80`, port `27`, as user `webtaxes`.
+- The production Laravel application directory is `/home/webtaxes/aviatechnik.ca`.
+- Use the local private key `storage/app/codex/production_whc_codexdiag_ed25519` and the pinned host-key file `storage/app/codex/production_known_hosts`. Both files are intentionally ignored by Git through `storage/app/.gitignore`.
+- The expected production ED25519 host-key fingerprint is `SHA256:268W+wKyPHqomq3vlvE1ME2yvzQlsTchMHRZjqw877I`. Stop and report a host-key mismatch; never bypass it with `StrictHostKeyChecking=no`.
+- Use the Windows OpenSSH client with batch mode and strict host-key checking:
+  `C:\WINDOWS\System32\OpenSSH\ssh.exe -i storage\app\codex\production_whc_codexdiag_ed25519 -p 27 -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=storage\app\codex\production_known_hosts webtaxes@51.222.203.80`
+- Production access is strictly read-only and diagnostic even though the hosting account may technically have write permissions. It may be used to inspect code, file metadata, logs, process state, configuration structure, deployed behavior, and database data needed to identify root causes.
+- Never print, copy into chat, or otherwise expose the private key, `.env` contents, database credentials, API tokens, session data, or other production secrets.
+- Allowed database operations are read-only statements such as `SELECT`, `SHOW`, `DESCRIBE`, and `EXPLAIN`. Do not execute stored procedures or functions unless they are confirmed read-only. Never run `INSERT`, `UPDATE`, `DELETE`, `REPLACE`, DDL, migrations, seeders, imports, restores, or any query that can acquire destructive locks or modify server state.
+- Do not edit, create, upload, copy, move, rename, delete, chmod, or chown production files. Do not clear or rebuild caches, run migrations, install dependencies, restart services, change cron or queue state, run jobs, or invoke application commands that can modify data.
+- Do not deploy to production and do not use remote Git operations such as pull, push, checkout, reset, merge, or clean. The user performs production deployment manually by copying files.
+- The production deployment currently has no `.git` directory. Establish deployed state by inspecting the actual production code and file timestamps, without modifying them.
+- Network access may require sandbox escalation. Request it only for a concrete read-only SSH diagnostic command.
+
 AVIA archive bridge access and diagnostics:
 - The archive bridge is a Windows host on the AVIA local network at `192.168.0.212`.
 - The bridge application directory is `C:\Avia`.

@@ -989,12 +989,12 @@
                         <div class="btn-group btn-group-sm d-none"
                              data-tab-target="#nav-parts"
                              role="group"
-                             aria-label="{{ __('KIT grouping') }}">
+                             aria-label="{{ __('KIT and STD grouping') }}">
                             <button type="button"
                                     class="btn btn-outline-warning"
                                     id="manual-kit-choice-group-apply"
                                     data-url="{{ route('manuals.components.kit-prl-choice-group', ['manual' => $cmm]) }}"
-                                    title="{{ __('Group selected KIT variants') }}"
+                                    title="{{ __('Group selected variants for KIT and STD forms') }}"
                                     @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
                                 <i class="bi bi-check2-square"></i>
                                 {{ __('Group') }}
@@ -2507,9 +2507,21 @@
                 }
 
                 function selectedBoxes() {
-                    return visibleSelectableBoxes().filter(function (box) {
+                    return Array.from(table.querySelectorAll('.manual-part-select:not(:disabled)')).filter(function (box) {
                         return box.checked;
                     });
+                }
+
+                function selectChoiceGroup(row) {
+                    const group = row?.dataset.kitChoiceGroup || '';
+                    if (!group) return;
+
+                    Array.from(table.querySelectorAll('tr[data-kit-choice-group]')).forEach(function (groupRow) {
+                        if ((groupRow.dataset.kitChoiceGroup || '') !== group) return;
+                        const box = groupRow.querySelector('.manual-part-select:not(:disabled)');
+                        if (box) box.checked = true;
+                    });
+                    updateSelectAllState();
                 }
 
                 function updateSelectAllState() {
@@ -2529,7 +2541,7 @@
                         const cell = row.querySelector('.manual-part-choice-cell');
                         if (cell) {
                             cell.innerHTML = group
-                                ? '<span class="badge text-bg-warning" aria-label="' + groupedLabel + '"><i class="bi bi-check2"></i></span>'
+                                ? '<span class="badge text-bg-warning manual-part-choice-group-select" role="button" tabindex="0" title="{{ __('Select all parts in this group') }}" aria-label="{{ __('Select all parts in this group') }}"><i class="bi bi-check2"></i></span>'
                                 : '-';
                             cell.title = group ? groupedLabel : '';
                         }
@@ -2589,6 +2601,17 @@
                     if (event.target.closest('.manual-part-select')) {
                         updateSelectAllState();
                     }
+                });
+                table.addEventListener('click', function (event) {
+                    const groupMarker = event.target.closest('.manual-part-choice-group-select');
+                    if (!groupMarker) return;
+                    selectChoiceGroup(groupMarker.closest('tr'));
+                });
+                table.addEventListener('keydown', function (event) {
+                    const groupMarker = event.target.closest('.manual-part-choice-group-select');
+                    if (!groupMarker || !['Enter', ' '].includes(event.key)) return;
+                    event.preventDefault();
+                    selectChoiceGroup(groupMarker.closest('tr'));
                 });
                 table.addEventListener('manual-parts:row-deleted', updateSelectAllState);
                 applyBtn.addEventListener('click', function () {

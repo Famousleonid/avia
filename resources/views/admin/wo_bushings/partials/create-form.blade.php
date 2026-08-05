@@ -18,7 +18,7 @@
     .bushing-create-card { background: transparent; border: 0; }
     .bushing-create-table-wrap { width: 100%; max-height: calc(90vh - 150px); overflow-y: auto; overflow-x: auto; }
     .bushing-itemized-table {
-        --bushing-fixed-cols-width: 604px;
+        --bushing-fixed-cols-width: 708px;
         --bushing-ndt-col-width: 96px;
         --bushing-line-height: 28px;
         width: 100%;
@@ -29,6 +29,7 @@
     .bushing-itemized-table col.bushing-col-bushing { width: 280px; }
     .bushing-itemized-table col.bushing-col-part-qty { width: 74px; }
     .bushing-itemized-table col.bushing-col-select { width: 92px; }
+    .bushing-itemized-table col.bushing-col-no-order { width: 104px; }
     .bushing-itemized-table col.bushing-col-qty { width: 70px; }
     .bushing-itemized-table col.bushing-col-toggle { width: 88px; }
     .bushing-itemized-table col.bushing-col-ndt { width: var(--bushing-ndt-col-width); }
@@ -85,6 +86,7 @@
                             <col class="bushing-col-bushing">
                             <col class="bushing-col-part-qty">
                             <col class="bushing-col-select">
+                            <col class="bushing-col-no-order">
                             <col class="bushing-col-qty">
                             <col class="bushing-col-toggle">
                             <col class="bushing-col-process">
@@ -100,6 +102,7 @@
                                 <th class="text-info text-center">{{ __('Bushing') }}</th>
                                 <th class="text-info text-center">{{ __('Part Qty') }}</th>
                                 <th class="text-info text-center">{{ __('Select') }}</th>
+                                <th class="text-info text-center">{{ __('Do Not Order') }}</th>
                                 <th class="text-info text-center">{{ __('Qty') }}</th>
                                 <th class="text-info text-center">{{ __('Processes') }}</th>
                                 <th class="text-info text-center">{{ __('Machining') }}</th>
@@ -143,6 +146,20 @@
                                                                class="form-check-input component-checkbox">
                                                         <span class="bushing-select-ipl">{{ $bushing->ipl_num }}</span>
                                                     </span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="bushing-line-list align-items-center">
+                                            @foreach($bushingGroup as $bushing)
+                                                <div>
+                                                    <input type="hidden" name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][do_not_order]" value="0">
+                                                    <input type="checkbox"
+                                                           name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][do_not_order]"
+                                                           value="1"
+                                                           class="form-check-input bushing-do-not-order"
+                                                           aria-label="{{ __('Do not order') }} {{ $bushing->ipl_num }}">
                                                 </div>
                                             @endforeach
                                         </div>
@@ -257,6 +274,7 @@
                 var componentPrefix = checkbox.name.replace('[selected]', '');
                 var componentId = componentIdFromName(checkbox.name);
                 var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
+                var doNotOrder = row.querySelector('input[name="' + componentPrefix + '[do_not_order]"][type="checkbox"]');
                 var need = row.querySelector('input[name="' + componentPrefix + '[need_processes]"][type="checkbox"]');
                 var showProcesses = checkbox.checked && need && need.checked;
 
@@ -266,6 +284,7 @@
                         qty.value = qty.getAttribute('data-part-qty') || '1';
                     }
                 }
+                if (doNotOrder) doNotOrder.disabled = !checkbox.checked;
                 if (need) need.disabled = !checkbox.checked;
 
                 row.querySelectorAll('.bushing-process-line[data-component-id="' + componentId + '"]').forEach(function(line) {
@@ -282,10 +301,25 @@
             form.querySelectorAll('.bushing-row').forEach(syncRow);
         }
 
-        window.bushingClearForm = function() {
-            if (!confirm('{{ __("Are you sure you want to clear all data?") }}')) return;
+        window.bushingClearForm = async function() {
+            if (typeof window.confirmDialog !== 'function') {
+                if (typeof window.tdrShowNotify === 'function') {
+                    window.tdrShowNotify('{{ __("Confirmation dialog is unavailable. Data was not cleared.") }}', 'error');
+                } else if (typeof window.showNotification === 'function') {
+                    window.showNotification('{{ __("Confirmation dialog is unavailable. Data was not cleared.") }}', 'error');
+                }
+                return;
+            }
+            var confirmed = await window.confirmDialog({
+                title: '{{ __("Clear Bushing Data") }}',
+                message: '{{ __("Are you sure you want to clear all data?") }}',
+                okText: '{{ __("Clear") }}',
+                danger: true
+            });
+            if (!confirmed) return;
             form.querySelectorAll('.bushing-row').forEach(function(row) {
                 row.querySelectorAll('.component-checkbox').forEach(function(selected) { selected.checked = false; });
+                row.querySelectorAll('.bushing-do-not-order').forEach(function(noOrder) { noOrder.checked = false; });
                 row.querySelectorAll('.bushing-need-processes').forEach(function(need) { need.checked = false; });
                 row.querySelectorAll('.bushing-qty-input').forEach(function(qty) { qty.value = qty.getAttribute('data-part-qty') || '1'; });
                 row.querySelectorAll('.bushing-process-control').forEach(function(control) { control.value = ''; });

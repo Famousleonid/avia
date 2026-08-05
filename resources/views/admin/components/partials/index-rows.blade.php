@@ -108,7 +108,11 @@
         @if($showKitChoiceGroupColumn)
             <td class="text-center manual-part-choice-cell" title="{{ filled($component->kit_prl_choice_group) ? __('Grouped') : '' }}">
                 @if(filled($component->kit_prl_choice_group))
-                    <span class="badge text-bg-warning" aria-label="{{ __('Grouped') }}">
+                    <span class="badge text-bg-warning manual-part-choice-group-select"
+                          role="button"
+                          tabindex="0"
+                          title="{{ __('Select all parts in this group') }}"
+                          aria-label="{{ __('Select all parts in this group') }}">
                         <i class="bi bi-check2"></i>
                     </span>
                 @else

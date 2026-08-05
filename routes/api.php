@@ -68,10 +68,13 @@ $registerMobileClientRoutes = function (string $controller) {
         Route::get('/workorders/{workorderId}/log-card', [$controller, 'logCard'])->name('workorders.log-card.show');
         Route::get('/workorders/{workorderId}/log-card/template', [$controller, 'logCardTemplate'])->name('workorders.log-card.template');
         Route::post('/workorders/{workorderId}/log-card', [$controller, 'storeLogCard'])->name('workorders.log-card.store');
+        Route::put('/workorders/{workorderId}/log-card', [$controller, 'updateLogCard'])->name('workorders.log-card.update');
         Route::patch('/log-card/{logCard}/rows/{row}', [$controller, 'updateLogCardRow'])
             ->whereNumber('row')->name('log-card.rows.update');
         Route::patch('/log-card/{logCard}/rows/{row}/variant', [$controller, 'updateLogCardRowVariant'])
             ->whereNumber('row')->name('log-card.rows.variant.update');
+        Route::patch('/log-card/{logCard}/rows/{row}/assembly', [$controller, 'updateLogCardRowAssembly'])
+            ->whereNumber('row')->name('log-card.rows.assembly.update');
         Route::get('/workorders/{workorderId}/tasks', [$controller, 'tasks'])->name('workorders.tasks.index');
         Route::put('/workorders/{workorderId}/tasks/{task}/dates', [$controller, 'updateTaskDates'])->name('workorders.tasks.dates');
 

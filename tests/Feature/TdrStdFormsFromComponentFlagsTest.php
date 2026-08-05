@@ -1601,6 +1601,71 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         }
     }
 
+    public function test_manual_choice_group_collapses_variants_in_all_four_std_forms_without_summing_qty(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'STD-CHOICE-GROUP']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+
+        foreach ([
+            ['2-10', 'PN-CHOICE-A', 'CHOICE PART A', 2],
+            ['7-80', 'PN-CHOICE-B', 'CHOICE PART B', 3],
+        ] as [$ipl, $partNumber, $name, $qty]) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'ipl_num' => $ipl,
+                'part_number' => $partNumber,
+                'name' => $name,
+                'units_assy' => $qty,
+                'kit_prl_choice_group' => 'std_choice_group',
+                'ndt_list' => true,
+                'cad_list' => true,
+                'stress_relief_list' => true,
+                'paint_list' => true,
+            ]);
+        }
+
+        foreach ([
+            route('tdrs.ndtStd', $workorder->id),
+            route('tdrs.cadStd', $workorder->id),
+            route('tdrs.stressStd', $workorder->id),
+            route('tdrs.paintStd', $workorder->id),
+        ] as $route) {
+            $response = $this->actingAs($admin)->get($route);
+
+            $response->assertOk();
+            $response->assertSee("2-10\n7-80", false);
+            $response->assertSee("PN-CHOICE-A\nPN-CHOICE-B", false);
+            $response->assertSee("CHOICE PART A\nCHOICE PART B", false);
+            $response->assertSee('Total QTY:')
+                ->assertSee('<strong>3</strong>', false)
+                ->assertDontSee('<strong>5</strong>', false);
+        }
+
+        $showHtml = $this->actingAs($admin)
+            ->get(route('tdrs.show', $workorder->id))
+            ->assertOk()
+            ->getContent();
+        $stdNames = ['ndt', 'cad', 'stress', 'paint'];
+        foreach ($stdNames as $index => $std) {
+            $segmentStart = strpos($showHtml, 'tdr-std-paper-'.$std.'-wrap');
+            $this->assertNotFalse($segmentStart);
+            $nextMarker = $stdNames[$index + 1] ?? null;
+            $segmentEnd = $nextMarker
+                ? strpos($showHtml, 'tdr-std-paper-'.$nextMarker.'-wrap', $segmentStart)
+                : strpos($showHtml, 'id="tdr-prl-paper-group"', $segmentStart);
+            $this->assertNotFalse($segmentEnd);
+            $segment = substr($showHtml, $segmentStart, $segmentEnd - $segmentStart);
+            $this->assertStringContainsString('>3</span>', $segment);
+            $this->assertStringNotContainsString('>5</span>', $segment);
+        }
+    }
+
     public function test_ndt_and_cad_std_qr_have_std_label_and_use_the_sheet_as_screen_host(): void
     {
         ProjectSetting::setBoolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true);

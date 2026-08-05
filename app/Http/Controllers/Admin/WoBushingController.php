@@ -69,6 +69,7 @@ class WoBushingController extends Controller
                 'ipl' => (string) ($line->component?->ipl_num ?? ''),
                 'part_number' => (string) ($line->component?->part_number ?? ''),
                 'qty' => (int) $line->qty,
+                'do_not_order' => (bool) $line->do_not_order,
                 'processes' => $processes,
             ];
         }
@@ -110,6 +111,7 @@ class WoBushingController extends Controller
             $rows[] = [
                 'component_id' => (int) ($row['bushing'] ?? 0),
                 'qty' => $qty,
+                'do_not_order' => (bool) ($row['do_not_order'] ?? false),
                 'need_processes' => (bool) ($row['need_processes'] ?? false),
                 'process_count' => $rowProcessCount,
             ];
@@ -672,6 +674,7 @@ class WoBushingController extends Controller
         $request->validate([
             'workorder_id' => 'required|exists:workorders,id',
             'group_bushings' => 'array',
+            'group_bushings.*.items.*.do_not_order' => 'nullable|boolean',
         ]);
 
         $workorderId = $request->workorder_id;
@@ -1062,6 +1065,7 @@ class WoBushingController extends Controller
     {
         $request->validate([
             'group_bushings' => 'array',
+            'group_bushings.*.items.*.do_not_order' => 'nullable|boolean',
         ]);
 
         $woBushing = WoBushing::findOrFail($id);
