@@ -7,8 +7,8 @@
         overflow: hidden;
     }
     #dim-parts-panel {
-        width: 200px;
-        min-width: 200px;
+        width: 280px;
+        min-width: 280px;
         border-right: 1px solid var(--bs-border-color);
         display: flex;
         flex-direction: column;

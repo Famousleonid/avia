@@ -377,16 +377,39 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) { console.error('loadParameters', e); }
     }
 
+    // Inline add-row instead of prompt(): browser "block dialogs" silently
+    // kills prompt() and the + button looks dead.
     document.getElementById('dimAddInspCompBtn').addEventListener('click', function () {
-        const label = prompt('Component label (e.g. "Main Fitting LH", "Bushing"):');
-        if (!label || !label.trim()) return;
-        apiFetch('/manuals/' + MANUAL_ID + '/inspection-components', {
-            method: 'POST',
-            body: JSON.stringify({ label: label.trim() }),
-        }).then(function (ic) {
-            inspComponents.push(ic);
-            renderInspComponents();
-        }).catch(function (e) { alert(e.message); });
+        const list = document.getElementById('dim-insp-comp-list');
+        if (document.getElementById('dimNewInspCompInput')) {
+            document.getElementById('dimNewInspCompInput').focus();
+            return;
+        }
+        const row = document.createElement('div');
+        row.className = 'd-flex align-items-center gap-1 px-2 py-1';
+        row.innerHTML = '<input type="text" id="dimNewInspCompInput" class="form-control form-control-sm" ' +
+            'style="font-size:11px" placeholder="Component label (Enter — add, Esc — cancel)" maxlength="100">';
+        list.prepend(row);
+        const input = row.querySelector('input');
+        input.focus();
+        input.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape') { row.remove(); return; }
+            if (ev.key !== 'Enter') return;
+            const label = input.value.trim();
+            if (!label) { row.remove(); return; }
+            input.disabled = true;
+            apiFetch('/manuals/' + MANUAL_ID + '/inspection-components', {
+                method: 'POST',
+                body: JSON.stringify({ label: label }),
+            }).then(function (ic) {
+                inspComponents.push(ic);
+                renderInspComponents();
+                document.getElementById('dim-insp-components').scrollTop = 1e9;
+            }).catch(function (e) {
+                input.disabled = false;
+                alert(e.message);
+            });
+        });
     });
 
     // ---- Modals ----
