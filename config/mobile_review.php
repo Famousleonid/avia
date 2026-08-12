@@ -7,5 +7,9 @@ return [
         'appreview@aviatechnik.ca' => [
             'workorder_numbers' => [100500],
         ],
+        // Google Play review account (Android app)
+        'googleview@aviatechnik.ca' => [
+            'workorder_numbers' => [100500],
+        ],
     ],
 ];
