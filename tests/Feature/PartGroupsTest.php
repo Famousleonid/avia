@@ -56,7 +56,8 @@ class PartGroupsTest extends TestCase
         $this->actingAs($admin)
             ->get(route('manuals.show', $manual))
             ->assertOk()
-            ->assertSee('Main ASSY');
+            ->assertSee('Main ASSY')
+            ->assertSee('data-part-group-id="'.$groupId.'"', false);
     }
 
     public function test_bundle_selection_covers_quantities_only_in_enabled_forms(): void

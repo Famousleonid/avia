@@ -70,8 +70,8 @@
         }
 
         #manualPartsTable {
-            min-width: 1530px;
-            width: max(100%, 1530px);
+            min-width: 1620px;
+            width: max(100%, 1620px);
         }
 
         #nav-parts .table th,
@@ -279,16 +279,49 @@
         #manualPartsTable col.manual-part-choice-col,
         #manualPartsTable .manual-part-choice-cell,
         #manualPartsTable .manual-part-choice-head {
-            width: 64px !important;
-            min-width: 64px !important;
-            max-width: 64px !important;
+            width: 150px !important;
+            min-width: 150px !important;
+            max-width: 150px !important;
         }
 
         #manualPartsTable .manual-part-choice-cell {
             font-size: .78rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+        }
+
+        #manualPartsTable .manual-part-groups-container {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 3px;
+        }
+
+        #manualPartsTable .manual-part-group-badge {
+            display: block;
+            width: 100%;
+            padding: 4px 6px;
+            border: 0;
+            border-radius: 4px;
+            line-height: 1.05;
+            white-space: normal;
+            cursor: pointer;
+        }
+
+        #manualPartsTable .manual-part-group-badge-name {
+            display: block;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
+
+        #manualPartsTable .manual-part-group-badge-meta {
+            display: block;
+            margin-top: 2px;
+            font-size: .66rem;
+            opacity: .82;
+        }
+
+        #manualPartsTable .manual-part-legacy-group {
+            margin-top: 3px;
         }
 
         #manualPartsTable col.manual-part-flag-col {
@@ -1150,6 +1183,7 @@
                                     'showEffCodeColumn' => true,
                                     'showSelectionColumn' => true,
                                     'showKitChoiceGroupColumn' => true,
+                                    'partGroupsByComponent' => $partGroupsByComponent,
                                     'editButtonClass' => 'open-manual-edit-component-drawer',
                                     'deleteRedirect' => $manualUrlParts,
                                     'useProjectDeleteConfirm' => true,

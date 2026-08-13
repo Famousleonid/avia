@@ -420,6 +420,23 @@ class ManualController extends Controller
             ->orderBy('name')
             ->get();
 
+        $partGroupsByComponent = collect();
+        foreach ($partGroups as $partGroup) {
+            $componentIds = $partGroup->options
+                ->flatMap(fn ($option) => collect([$option->component_id])
+                    ->merge($option->coverages->pluck('component_id')))
+                ->filter(fn ($componentId): bool => (int) $componentId > 0)
+                ->map(fn ($componentId): int => (int) $componentId)
+                ->unique();
+
+            foreach ($componentIds as $componentId) {
+                $partGroupsByComponent->put(
+                    $componentId,
+                    collect($partGroupsByComponent->get($componentId, []))->push($partGroup)
+                );
+            }
+        }
+
         $revisionChecks = ManualRevisionCheck::query()
             ->where('manual_id', $cmm->id)
             ->with('checkedBy:id,name,selection_name_order')
@@ -453,7 +470,7 @@ class ManualController extends Controller
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
         'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins',
         'revisionChecks', 'latestRevisionCheck', 'revisionStatus', 'canRecordRevisionCheck', 'manualShowTab',
-        'dimensionFigures', 'dimManualProcesses', 'codes', 'stdProcessAuditWarnings', 'partGroups'
+        'dimensionFigures', 'dimManualProcesses', 'codes', 'stdProcessAuditWarnings', 'partGroups', 'partGroupsByComponent'
         ));
 
     }

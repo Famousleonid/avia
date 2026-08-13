@@ -148,6 +148,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const sbWrap = document.getElementById('manual-part-group-sb-wrap');
     const tbody = document.getElementById('manual-part-group-members');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const typeLabels = { alternative_pn: 'ALT', oversize: 'O/S', assy: 'ASSY', sb_kit: 'SB KIT' };
+    const statusClasses = { active: 'text-bg-success', draft: 'text-bg-warning', inactive: 'text-bg-secondary' };
 
     function escapeHtml(value) {
         const span = document.createElement('span');
@@ -164,6 +166,50 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function isBundle() { return ['assy', 'sb_kit'].includes(type.value); }
+
+    function groupComponentIds(group) {
+        const ids = [];
+        (group.options || []).forEach(function (option) {
+            if (Number(option.component_id) > 0) ids.push(Number(option.component_id));
+            (option.coverages || []).forEach(function (coverage) {
+                if (Number(coverage.component_id) > 0) ids.push(Number(coverage.component_id));
+            });
+        });
+        return Array.from(new Set(ids));
+    }
+
+    function renderTableGroupBadges() {
+        partsTable.querySelectorAll('tr[data-component-id]').forEach(function (row) {
+            const componentId = Number(row.dataset.componentId || 0);
+            const container = row.querySelector('.manual-part-groups-container');
+            const empty = row.querySelector('.manual-part-group-empty');
+            if (!container || componentId <= 0) return;
+
+            container.replaceChildren();
+            const componentGroups = groups.filter(function (group) {
+                return groupComponentIds(group).includes(componentId);
+            });
+
+            componentGroups.forEach(function (group) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'badge ' + (statusClasses[group.status] || 'text-bg-secondary') + ' manual-part-group-badge';
+                button.dataset.partGroupId = String(group.id);
+                button.title = [group.name, typeLabels[group.type] || group.type, group.status].join(' · ');
+
+                const name = document.createElement('span');
+                name.className = 'manual-part-group-badge-name';
+                name.textContent = group.name || group.code;
+                const meta = document.createElement('span');
+                meta.className = 'manual-part-group-badge-meta';
+                meta.textContent = (typeLabels[group.type] || group.type) + ' · ' + group.status.charAt(0).toUpperCase() + group.status.slice(1);
+                button.append(name, meta);
+                container.append(button);
+            });
+
+            empty?.classList.toggle('d-none', componentGroups.length > 0 || Boolean(row.dataset.kitChoiceGroup));
+        });
+    }
 
     function refreshType() {
         orderFields.classList.toggle('d-none', !isBundle());
@@ -262,6 +308,14 @@ document.addEventListener('DOMContentLoaded', function () {
         members.splice(Number(button.closest('tr').dataset.index), 1); renderMembers();
     });
     list.addEventListener('click', function (event) { const item = event.target.closest('.part-group-list-item'); if (item) editGroup(groups.find(function (group) { return group.id === Number(item.dataset.id); })); });
+    partsTable.addEventListener('click', function (event) {
+        const badge = event.target.closest('.manual-part-group-badge');
+        if (!badge) return;
+        const group = groups.find(function (item) { return item.id === Number(badge.dataset.partGroupId); });
+        if (!group) return;
+        editGroup(group);
+        window.bootstrap?.Modal.getOrCreateInstance(modal).show();
+    });
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
         const id = Number(document.getElementById('manual-part-group-id').value || 0);
@@ -271,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await request(group?.update_url || form.dataset.storeUrl, group ? 'PUT' : 'POST', payload());
             if (group) groups = groups.map(function (item) { return item.id === group.id ? Object.assign(data.group, { update_url: group.update_url, delete_url: group.delete_url }) : item; });
             else window.location.reload();
-            renderList(); showNotification(data.message, 'success');
+            renderList(); renderTableGroupBadges(); showNotification(data.message, 'success');
         } catch (error) { showNotification(error.message, 'error'); } finally { save.disabled = false; }
     });
     document.getElementById('manual-part-group-delete').addEventListener('click', async function () {
@@ -280,9 +334,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (typeof window.confirmDialog !== 'function') { showNotification('{{ __('Confirmation dialog is unavailable. Nothing was deleted.') }}', 'error'); return; }
         const confirmed = await window.confirmDialog({ title: '{{ __('Delete part group?') }}', message: group.name, okText: '{{ __('Delete') }}', cancelText: '{{ __('Cancel') }}' });
         if (!confirmed) return;
-        try { await request(group.delete_url, 'DELETE'); groups = groups.filter(function (item) { return item.id !== group.id; }); renderList(); resetForm(false); showNotification('{{ __('Part group deleted.') }}', 'success'); } catch (error) { showNotification(error.message, 'error'); }
+        try { await request(group.delete_url, 'DELETE'); groups = groups.filter(function (item) { return item.id !== group.id; }); renderList(); renderTableGroupBadges(); resetForm(false); showNotification('{{ __('Part group deleted.') }}', 'success'); } catch (error) { showNotification(error.message, 'error'); }
     });
 
-    renderList(); resetForm(true);
+    renderList(); renderTableGroupBadges(); resetForm(true);
 });
 </script>

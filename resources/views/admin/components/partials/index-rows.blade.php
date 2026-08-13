@@ -3,6 +3,7 @@
     $showEffCodeColumn = $showEffCodeColumn ?? false;
     $showSelectionColumn = $showSelectionColumn ?? false;
     $showKitChoiceGroupColumn = $showKitChoiceGroupColumn ?? false;
+    $partGroupsByComponent = $partGroupsByComponent ?? collect();
     $editButtonClass = $editButtonClass ?? 'open-edit-component-drawer';
     $deleteRedirect = $deleteRedirect ?? null;
     $useProjectDeleteConfirm = $useProjectDeleteConfirm ?? false;
@@ -34,6 +35,7 @@
 
         $firstAssembly = $assemblyRows->first();
         $unitsAssy = trim((string) ($component->units_assy ?? ''));
+        $componentPartGroups = collect($partGroupsByComponent->get((int) $component->id, []));
         $popoverHtml = '<div class="assy-popover-list">';
         foreach ($assemblyRows as $assemblyIndex => $assembly) {
             $assyIpl = trim((string) ($assembly->assy_ipl_num ?? ''));
@@ -106,18 +108,42 @@
             <td class="text-center">{{ filled($component->eff_code) ? $component->eff_code : '-' }}</td>
         @endif
         @if($showKitChoiceGroupColumn)
-            <td class="text-center manual-part-choice-cell" title="{{ filled($component->kit_prl_choice_group) ? __('Grouped') : '' }}">
+            <td class="text-center manual-part-choice-cell">
+                <div class="manual-part-groups-container">
+                    @foreach($componentPartGroups as $partGroup)
+                        @php
+                            $partGroupTypeLabel = match ($partGroup->type) {
+                                \App\Models\ManualPartGroup::TYPE_ALTERNATIVE => 'ALT',
+                                \App\Models\ManualPartGroup::TYPE_OVERSIZE => 'O/S',
+                                \App\Models\ManualPartGroup::TYPE_ASSY => 'ASSY',
+                                \App\Models\ManualPartGroup::TYPE_SB_KIT => 'SB KIT',
+                                default => strtoupper((string) $partGroup->type),
+                            };
+                            $partGroupBadgeClass = match ($partGroup->status) {
+                                \App\Models\ManualPartGroup::STATUS_ACTIVE => 'text-bg-success',
+                                \App\Models\ManualPartGroup::STATUS_DRAFT => 'text-bg-warning',
+                                default => 'text-bg-secondary',
+                            };
+                        @endphp
+                        <button type="button"
+                                class="badge {{ $partGroupBadgeClass }} manual-part-group-badge"
+                                data-part-group-id="{{ $partGroup->id }}"
+                                title="{{ $partGroup->name }} · {{ $partGroupTypeLabel }} · {{ ucfirst($partGroup->status) }}">
+                            <span class="manual-part-group-badge-name">{{ $partGroup->name }}</span>
+                            <span class="manual-part-group-badge-meta">{{ $partGroupTypeLabel }} · {{ ucfirst($partGroup->status) }}</span>
+                        </button>
+                    @endforeach
+                </div>
                 @if(filled($component->kit_prl_choice_group))
-                    <span class="badge text-bg-warning manual-part-choice-group-select"
+                    <span class="badge text-bg-warning manual-part-choice-group-select manual-part-legacy-group"
                           role="button"
                           tabindex="0"
                           title="{{ __('Select all parts in this group') }}"
                           aria-label="{{ __('Select all parts in this group') }}">
-                        <i class="bi bi-check2"></i>
+                        {{ __('Legacy') }}
                     </span>
-                @else
-                    -
                 @endif
+                <span class="manual-part-group-empty {{ $componentPartGroups->isNotEmpty() || filled($component->kit_prl_choice_group) ? 'd-none' : '' }}">-</span>
             </td>
         @endif
         <td class="text-center" style="width:120px;">
