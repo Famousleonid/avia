@@ -1002,23 +1002,23 @@
                             <i class="bi bi-diagram-3"></i> {{ __('Part Groups') }}
                         </button>
                         <div class="btn-group btn-group-sm d-none"
-                             data-tab-target="#nav-parts"
+                             hidden
+                             aria-hidden="true"
                              role="group"
-                             aria-label="{{ __('KIT and STD grouping') }}">
+                             aria-label="{{ __('Legacy KIT and STD grouping') }}">
                             <button type="button"
                                     class="btn btn-outline-warning"
                                     id="manual-kit-choice-group-apply"
                                     data-url="{{ route('manuals.components.kit-prl-choice-group', ['manual' => $cmm]) }}"
-                                    title="{{ __('Legacy KIT/STD choice grouping') }}"
+                                    tabindex="-1"
                                     @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
-                                <i class="bi bi-check2-square"></i>
                                 {{ __('Legacy Group') }}
                             </button>
                             <button type="button"
                                     class="btn btn-outline-secondary"
                                     id="manual-kit-choice-group-clear"
                                     data-url="{{ route('manuals.components.kit-prl-choice-group', ['manual' => $cmm]) }}"
-                                    title="{{ __('Ungroup selected KIT variants') }}"
+                                    tabindex="-1"
                                     @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
                                 <i class="bi bi-x-circle"></i>
                             </button>
