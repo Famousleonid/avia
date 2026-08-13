@@ -117,7 +117,7 @@
                         $component = $paintEntry['component'];
                         $rowHeight = max(34, (int) ($component->row_height ?? 32));
                     @endphp
-                    <div class="data-row std-grid-row" data-row-index="{{ $paintGlobalRowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;">
+                    <div class="data-row std-grid-row {{ ! empty($component->group_crossed_out) ? 'std-group-crossed-out' : '' }}" data-row-index="{{ $paintGlobalRowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;" @if(!empty($component->group_crossout_reason)) title="{{ $component->group_crossout_reason }}" @endif>
                         <div class="std-cell">
                             <span class="std-cell--multiline">{{ $component->item_display ?? $component->ipl_num }}</span>
                         </div>
@@ -128,7 +128,7 @@
                         <div class="std-cell">
                             <span @if(strlen($component->process_name) > 30) class="std-description-long" @endif>{!! nl2br(e(format_process_number($component->process_name))) !!}</span>
                         </div>
-                        <div class="std-cell">{{ $component->qty }}</div>
+                        <div class="std-cell">{{ $component->display_qty ?? $component->qty }}@if(!empty($component->group_crossout_reason))<span class="std-group-crossout-reason">{{ $component->group_crossout_reason }}</span>@endif</div>
                         <div class="std-cell">{{ format_cmm_number($component->manual ?? $manual->number ?? '') }}</div>
                     </div>
                     @php $paintGlobalRowIndex++; @endphp

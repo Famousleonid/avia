@@ -25,4 +25,4 @@
       @if($partNumberMode) data-prl-component-id="{{ $componentId }}" @endif
       @if($partNumberMode && $crossedOut) data-prl-part-number-crossed-out="1" @endif
       @if($interactive) data-kit-prl-toggle-url="{{ route('tdrs.kit-crossouts.update', ['workorder' => $current_wo->id, 'component' => $componentId]) }}" @endif
-      @if($kitInteractive ?? false) title="{{ $controllerCrossedOut ? 'Automatically crossed out; change the source selection to restore it.' : 'Click to cross out or restore this KIT position.' }}" @endif>{{ $kitPrlDisplayValue ?? '' }}</span>
+      @if(!empty($option['crossout_reason'])) title="{{ $option['crossout_reason'] }}" @elseif($kitInteractive ?? false) title="{{ $controllerCrossedOut ? 'Automatically crossed out; change the source selection to restore it.' : 'Click to cross out or restore this KIT position.' }}" @endif>{{ $kitPrlDisplayValue ?? '' }}</span>

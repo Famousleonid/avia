@@ -34,6 +34,7 @@ use App\Http\Controllers\Admin\ToolController;
 use App\Http\Controllers\Admin\TransferController;
 use App\Http\Controllers\Admin\QualityAssuranceController;
 use App\Http\Controllers\Admin\ManualController;
+use App\Http\Controllers\Admin\ManualPartGroupController;
 use App\Http\Controllers\Admin\MaterialController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\MainController;
@@ -45,6 +46,7 @@ use App\Http\Controllers\Admin\VendorTrackingController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WorkorderStdProcessController;
 use App\Http\Controllers\Admin\WorkorderKitPrlCrossoutController;
+use App\Http\Controllers\Admin\WorkorderPartGroupSelectionController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\ManualDimensionFigureController;
 use App\Http\Controllers\Admin\ManualDimensionPointController;
@@ -514,6 +516,10 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/components/{component}/flags', [ComponentController::class, 'updateFlags'])->name('components.updateFlags');
     Route::delete('/components/{component}/image/{media}', [ComponentController::class, 'destroyImage'])->name('components.image.destroy');
     Route::patch('/manuals/{manual}/components/kit-prl-choice-group', [ComponentController::class, 'updateKitPrlChoiceGroup'])->name('manuals.components.kit-prl-choice-group');
+    Route::post('/manuals/{manual}/part-groups', [ManualPartGroupController::class, 'store'])->name('manuals.part-groups.store');
+    Route::put('/manuals/{manual}/part-groups/{partGroup}', [ManualPartGroupController::class, 'update'])->name('manuals.part-groups.update');
+    Route::delete('/manuals/{manual}/part-groups/{partGroup}', [ManualPartGroupController::class, 'destroy'])->name('manuals.part-groups.destroy');
+    Route::patch('/workorders/{workorder}/part-groups/{partGroup}/selection', [WorkorderPartGroupSelectionController::class, 'update'])->name('workorders.part-groups.selection.update');
     Route::post('/components/{component}/update-from-inspection', [ComponentController::class, 'updateFromInspection'])->name('components.updateFromInspection');
 
     Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');

@@ -992,6 +992,15 @@
                                 @if($manualPartsLocked && ! $userCanManageLockedManualParts) title="{{ __('Manual parts are locked') }}" @endif>
                             <i class="bi bi-upload"></i> {{__('Upload CSV')}}
                         </button>
+                        <button type="button"
+                                class="btn btn-outline-success btn-sm d-none"
+                                id="manual-part-groups-open"
+                                data-tab-target="#nav-parts"
+                                data-bs-toggle="modal"
+                                data-bs-target="#manualPartGroupsModal"
+                                @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
+                            <i class="bi bi-diagram-3"></i> {{ __('Part Groups') }}
+                        </button>
                         <div class="btn-group btn-group-sm d-none"
                              data-tab-target="#nav-parts"
                              role="group"
@@ -1000,10 +1009,10 @@
                                     class="btn btn-outline-warning"
                                     id="manual-kit-choice-group-apply"
                                     data-url="{{ route('manuals.components.kit-prl-choice-group', ['manual' => $cmm]) }}"
-                                    title="{{ __('Group selected variants for KIT and STD forms') }}"
+                                    title="{{ __('Legacy KIT/STD choice grouping') }}"
                                     @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
                                 <i class="bi bi-check2-square"></i>
-                                {{ __('Group') }}
+                                {{ __('Legacy Group') }}
                             </button>
                             <button type="button"
                                     class="btn btn-outline-secondary"
@@ -1153,6 +1162,11 @@
                             </tbody>
                         </table>
                     </div>
+                    @include('admin.manuals.partials.part-groups-modal', [
+                        'partGroups' => $partGroups,
+                        'serviceBulletins' => $serviceBulletins,
+                        'cmm' => $cmm,
+                    ])
                     <script>
                         document.addEventListener('change', function (event) {
                             const input = event.target.closest('.manual-process-requirement');

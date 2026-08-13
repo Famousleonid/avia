@@ -117,14 +117,14 @@
                             $component = $stressEntry['component'];
                             $rowHeight = max(34, (int) ($component->row_height ?? 32));
                         @endphp
-                        <div class="data-row std-grid-row" data-row-index="{{ $stressGlobalRowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;">
+                        <div class="data-row std-grid-row {{ ! empty($component->group_crossed_out) ? 'std-group-crossed-out' : '' }}" data-row-index="{{ $stressGlobalRowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;" @if(!empty($component->group_crossout_reason)) title="{{ $component->group_crossout_reason }}" @endif>
                             <div class="std-cell">
                                 <span class="std-cell--multiline">{{ $component->ipl_num }}</span>
                             </div>
                             <div class="std-cell">{{ $component->part_number }}</div>
                             <div class="std-cell">{{ $component->name }}</div>
                             <div class="std-cell">{!! nl2br(e(format_process_number($component->process_name))) !!}</div>
-                            <div class="std-cell">{{ $component->qty }}</div>
+                            <div class="std-cell">{{ $component->display_qty ?? $component->qty }}@if(!empty($component->group_crossout_reason))<span class="std-group-crossout-reason">{{ $component->group_crossout_reason }}</span>@endif</div>
                             <div class="std-cell"></div>
                         </div>
                         @php $stressGlobalRowIndex++; @endphp

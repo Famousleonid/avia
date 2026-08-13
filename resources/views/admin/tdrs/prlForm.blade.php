@@ -775,6 +775,7 @@
                     $bushingGroup = $isArray ? ($tdr['prl_bushing_group'] ?? null) : ($tdr->prl_bushing_group ?? null);
                     $partNumberOptions = $isArray ? ($tdr['prl_part_numbers'] ?? []) : ($tdr->prl_part_numbers ?? []);
                     $kitComponentOptions = $isArray ? ($tdr['kit_component_options'] ?? []) : [];
+                    $groupCrossoutReason = $isArray ? ($tdr['group_crossout_reason'] ?? '') : ($tdr->group_crossout_reason ?? '');
                 @endphp
 
                 @if($shouldInsertManualRow)
@@ -821,6 +822,7 @@
                      style="width: 100%"
                      data-row-index="{{ $rowIndex }}"
                      @if($bushingGroup !== null) data-prl-bushing-group="{{ $bushingGroup }}" @endif
+                    @if($groupCrossoutReason !== '') title="{{ $groupCrossoutReason }}" @endif
                     @if($isCrossedOut) data-prl-crossed-out="1" @endif>
                     <div class="col-1 prl-col-fig border-l-b text-center pt-1 align-content-center">
                         <h6>
@@ -944,7 +946,7 @@
                                 <h6>{{ $poDisplay }}</h6>
                             </div>
                     <div class="col-1 prl-col-notes border-l-b-r text-center pt-1 align-content-center">
-                                <h6>{{ $isArray ? ($tdr['notes'] ?? '') : ($tdr->notes ?? '') }}</h6>
+                                <h6>{{ $groupCrossoutReason !== '' ? $groupCrossoutReason : ($isArray ? ($tdr['notes'] ?? '') : ($tdr->notes ?? '')) }}</h6>
                     </div>
                 </div>
                 @php

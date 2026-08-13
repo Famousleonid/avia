@@ -24,6 +24,9 @@ use App\Models\WoBushingLine;
 use App\Models\Workorder;
 use App\Models\WorkorderKitPrlCrossout;
 use App\Models\WorkorderUnitInspection;
+use App\Models\ManualPartGroupCoverage;
+use App\Models\WorkorderPartGroupSelection;
+use App\Services\PartGroupCoverageResolver;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\TdrInspectionLinesBuilder;
 use App\Services\WorkorderStdProcessItemsService;
@@ -99,6 +102,33 @@ class TdrPrintFormController extends Controller
             return $tdr;
         });
 
+        $groupCoverage = app(PartGroupCoverageResolver::class)
+            ->coverageForWorkorder($current_wo, \App\Models\ManualPartGroup::SCOPE_PRL);
+        $legacyAssemblyOptionIds = ManualPartGroupCoverage::query()
+            ->whereIn('legacy_component_assembly_id', $ordersParts->pluck('order_component_assembly_id')->filter()->all())
+            ->pluck('manual_part_group_option_id', 'legacy_component_assembly_id');
+        $ordersParts->each(function (Tdr $tdr) use ($groupCoverage, $legacyAssemblyOptionIds): void {
+            $component = $tdr->orderComponent ?? $tdr->component;
+            $covered = $component ? ($groupCoverage[(int) $component->id] ?? null) : null;
+            if (! $covered) {
+                return;
+            }
+
+            $selectedAssemblyOptionId = (int) ($legacyAssemblyOptionIds[(int) ($tdr->order_component_assembly_id ?? 0)] ?? 0);
+            if ($selectedAssemblyOptionId > 0 && $selectedAssemblyOptionId === (int) $covered['option_id']) {
+                return;
+            }
+
+            $requiredQty = max(1, (int) ($tdr->qty ?? 1));
+            $coveredQty = min($requiredQty, (int) $covered['covered_qty']);
+            $tdr->group_crossout_reason = (string) $covered['reason'];
+            $tdr->group_covered_qty = $coveredQty;
+            $tdr->prl_crossed_out = $coveredQty >= $requiredQty;
+            if (! $tdr->prl_crossed_out) {
+                $tdr->qty = max(1, $requiredQty - $coveredQty);
+            }
+        });
+
         // Сортируем TDR записи: сначала по manual (если есть), потом по IPL номерам компонентов
         $ordersParts = $ordersParts->sort(function($a, $b) {
             // Сначала сравниваем по manual
@@ -141,6 +171,10 @@ class TdrPrintFormController extends Controller
 
             return $aSecond - $bSecond;
         })->values(); // values() переиндексирует коллекцию после сортировки
+
+        $ordersParts = $ordersParts
+            ->concat($this->selectedPartGroupPrlRows($current_wo, $ordersParts))
+            ->values();
 
         // Собираем все уникальные номера manual из компонентов
         $uniqueManuals = $ordersParts->map(function($tdr) {
@@ -246,7 +280,12 @@ class TdrPrintFormController extends Controller
             $workorder
         );
 
-        return $this->buildBushingPrlRowsForComponents($bushingComponents, $selectedByComponent, 'K');
+        return $this->buildBushingPrlRowsForComponents(
+            $bushingComponents,
+            $selectedByComponent,
+            'K',
+            $this->partGroupCrossedOutIdentities($workorder)
+        );
     }
 
     private function selectedBushingComponents(Workorder $workorder)
@@ -278,6 +317,7 @@ class TdrPrintFormController extends Controller
     ) {
         $additionalCrossedOutComponentIds = $additionalCrossedOutIdentities['component_ids'] ?? [];
         $additionalCrossedOutPartNumbers = $additionalCrossedOutIdentities['part_numbers'] ?? [];
+        $additionalCrossedOutReasons = $additionalCrossedOutIdentities['reasons'] ?? [];
 
         return $bushingComponents
             ->sort(function (Component $left, Component $right): int {
@@ -303,7 +343,7 @@ class TdrPrintFormController extends Controller
                 );
             })
             ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component))
-            ->map(function ($group) use ($selectedByComponent, $code, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $manualCrossedOutComponentIds): array {
+            ->map(function ($group) use ($selectedByComponent, $code, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $additionalCrossedOutReasons, $manualCrossedOutComponentIds): array {
                 $components = $group->values();
                 $initial = $components->first(function (Component $component): bool {
                     return trim((string) ($component->ipl_num ?? '')) === trim((string) ($component->bush_ipl_num ?? ''));
@@ -335,26 +375,29 @@ class TdrPrintFormController extends Controller
                             ? 'part-number|' . $partNumber
                             : 'component|' . (int) $component->id;
                     })
-                    ->map(function ($partNumberComponents) use ($selectedByComponent, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $manualCrossedOutComponentIds): array {
+                    ->map(function ($partNumberComponents) use ($selectedByComponent, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $additionalCrossedOutReasons, $manualCrossedOutComponentIds): array {
                         $component = $partNumberComponents->first();
                         $selectedPartNumberComponents = $partNumberComponents
                             ->filter(fn (Component $candidate): bool => $selectedByComponent->has($candidate->id))
                             ->values();
                         $selectedComponent = $selectedPartNumberComponents->first();
                         $displayComponent = $selectedComponent ?? $component;
-                        $additionallyCrossedOut = $partNumberComponents->contains(function (Component $candidate) use ($additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers): bool {
-                            $partNumber = $this->normalizePrlPartNumber($candidate->part_number);
-
-                            return isset($additionalCrossedOutComponentIds[(int) $candidate->id])
-                                || ($partNumber !== '' && isset($additionalCrossedOutPartNumbers[$partNumber]));
-                        });
-                        $controllerCrossedOut = $selectedComponent === null || $additionallyCrossedOut;
-                        $manualCrossedOut = isset($manualCrossedOutComponentIds[(int) $displayComponent->id]);
                         $optionQty = $selectedPartNumberComponents->isNotEmpty()
                             ? $selectedPartNumberComponents->sum(function (Component $candidate) use ($selectedByComponent): int {
                                 return max(1, (int) ($selectedByComponent->get($candidate->id)['qty'] ?? 1));
                             })
                             : null;
+                        $additionallyCrossedOut = $partNumberComponents->contains(function (Component $candidate) use ($additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $optionQty): bool {
+                            $partNumber = $this->normalizePrlPartNumber($candidate->part_number);
+                            $componentCoverage = $additionalCrossedOutComponentIds[(int) $candidate->id] ?? null;
+                            $partNumberCoverage = $partNumber !== '' ? ($additionalCrossedOutPartNumbers[$partNumber] ?? null) : null;
+                            $requiredQty = max(1, (int) ($optionQty ?? $candidate->units_assy ?? 1));
+
+                            return $this->coverageIdentityFullyCovers($componentCoverage, $requiredQty)
+                                || $this->coverageIdentityFullyCovers($partNumberCoverage, $requiredQty);
+                        });
+                        $controllerCrossedOut = $selectedComponent === null || $additionallyCrossedOut;
+                        $manualCrossedOut = isset($manualCrossedOutComponentIds[(int) $displayComponent->id]);
 
                         return [
                             'component_id' => (int) $displayComponent->id,
@@ -363,6 +406,10 @@ class TdrPrintFormController extends Controller
                             'manual_crossed_out' => $manualCrossedOut,
                             'crossed_out' => $controllerCrossedOut || $manualCrossedOut,
                             'qty' => $optionQty,
+                            'crossout_reason' => $partNumberComponents
+                                ->map(fn (Component $candidate) => $additionalCrossedOutReasons[(int) $candidate->id] ?? null)
+                                ->filter()
+                                ->first(),
                         ];
                     })
                     ->values()
@@ -379,6 +426,10 @@ class TdrPrintFormController extends Controller
     {
         $manualIds = $workorder->usedManualIds();
         $crossedOutIdentities = $this->kitCrossedOutIdentities($workorder);
+        $groupCrossedOutIdentities = $this->partGroupCrossedOutIdentities($workorder);
+        $crossedOutIdentities['component_ids'] = ($crossedOutIdentities['component_ids'] ?? []) + ($groupCrossedOutIdentities['component_ids'] ?? []);
+        $crossedOutIdentities['part_numbers'] = ($crossedOutIdentities['part_numbers'] ?? []) + ($groupCrossedOutIdentities['part_numbers'] ?? []);
+        $crossedOutIdentities['reasons'] = ($crossedOutIdentities['reasons'] ?? []) + ($groupCrossedOutIdentities['reasons'] ?? []);
         $kitComponents = $this->filterComponentsForUnit(
             Component::query()
                 ->whereIn('manual_id', $manualIds)
@@ -420,10 +471,11 @@ class TdrPrintFormController extends Controller
     {
         $crossedOutComponentIds = $crossedOutIdentities['component_ids'] ?? [];
         $crossedOutPartNumbers = $crossedOutIdentities['part_numbers'] ?? [];
+        $crossedOutReasons = $crossedOutIdentities['reasons'] ?? [];
 
         $rows = $components
             ->groupBy(fn (Component $component): string => KitPrlGrouping::groupKeyForComponent($component))
-            ->map(function ($group) use ($code, $crossedOutComponentIds, $crossedOutPartNumbers, $manualCrossedOutComponentIds) {
+            ->map(function ($group) use ($code, $crossedOutComponentIds, $crossedOutPartNumbers, $crossedOutReasons, $manualCrossedOutComponentIds) {
                 /** @var \Illuminate\Support\Collection<int, Component> $group */
                 $sorted = $group->sort(function (Component $left, Component $right): int {
                     $iplCompare = StdProcess::compareIplValues(
@@ -459,10 +511,16 @@ class TdrPrintFormController extends Controller
                     ->implode("\n");
                 $row['codes'] = ['code' => $code];
                 $row['kit_component_options'] = $sorted
-                    ->map(function (Component $component) use ($crossedOutComponentIds, $crossedOutPartNumbers, $manualCrossedOutComponentIds): array {
+                    ->map(function (Component $component) use ($crossedOutComponentIds, $crossedOutPartNumbers, $crossedOutReasons, $manualCrossedOutComponentIds): array {
                         $partNumber = $this->normalizePrlPartNumber($component->part_number);
-                        $controllerCrossedOut = isset($crossedOutComponentIds[(int) $component->id])
-                            || ($partNumber !== '' && isset($crossedOutPartNumbers[$partNumber]));
+                        $requiredQty = max(1, (int) ($component->units_assy ?? 1));
+                        $controllerCrossedOut = $this->coverageIdentityFullyCovers(
+                            $crossedOutComponentIds[(int) $component->id] ?? null,
+                            $requiredQty
+                        ) || $this->coverageIdentityFullyCovers(
+                            $partNumber !== '' ? ($crossedOutPartNumbers[$partNumber] ?? null) : null,
+                            $requiredQty
+                        );
                         $manualCrossedOut = isset($manualCrossedOutComponentIds[(int) $component->id]);
 
                         return [
@@ -472,6 +530,7 @@ class TdrPrintFormController extends Controller
                             'controller_crossed_out' => $controllerCrossedOut,
                             'manual_crossed_out' => $manualCrossedOut,
                             'crossed_out' => $controllerCrossedOut || $manualCrossedOut,
+                            'crossout_reason' => $crossedOutReasons[(int) $component->id] ?? null,
                         ];
                     })
                     ->values()
@@ -542,6 +601,41 @@ class TdrPrintFormController extends Controller
     private function normalizePrlPartNumber(?string $partNumber): string
     {
         return (string) preg_replace('/\s+/', '', mb_strtoupper(trim((string) $partNumber)));
+    }
+
+    private function partGroupCrossedOutIdentities(Workorder $workorder): array
+    {
+        $coverage = app(PartGroupCoverageResolver::class)
+            ->coverageForWorkorder($workorder, \App\Models\ManualPartGroup::SCOPE_PRL);
+        $componentIds = collect($coverage)->mapWithKeys(fn (array $item, $componentId): array => [
+            (int) $componentId => (int) $item['covered_qty'],
+        ])->all();
+        $partNumbers = Component::query()
+            ->whereKey(array_keys($componentIds))
+            ->get(['id', 'part_number'])
+            ->groupBy(fn (Component $component): string => $this->normalizePrlPartNumber($component->part_number))
+            ->reject(fn ($components, string $partNumber): bool => $partNumber === '')
+            ->mapWithKeys(function ($components, string $partNumber) use ($componentIds): array {
+                $coveredQty = $components->max(fn (Component $component): int => $componentIds[(int) $component->id] ?? 0);
+
+                return [$partNumber => (int) $coveredQty];
+            })
+            ->all();
+
+        return [
+            'component_ids' => $componentIds,
+            'part_numbers' => $partNumbers,
+            'reasons' => collect($coverage)->mapWithKeys(fn (array $item, $componentId): array => [(int) $componentId => $item['reason']])->all(),
+        ];
+    }
+
+    private function coverageIdentityFullyCovers(mixed $coverage, int $requiredQty): bool
+    {
+        if ($coverage === true) {
+            return true;
+        }
+
+        return is_numeric($coverage) && (int) $coverage >= max(1, $requiredQty);
     }
 
     private function makePrlArrayRow(Component $component, int $qty): array
@@ -863,7 +957,14 @@ class TdrPrintFormController extends Controller
                     $obj->part_number = $partDisp;
                     $obj->name = $descDisp;
                     $obj->process_name = $process ? $process->process->name : 'No Paint process configured';
-                    $obj->qty = max(1, (int) ($component['qty'] ?? 1));
+                    $obj->group_crossed_out = ! empty($component['group_crossed_out']);
+                    $obj->qty = $obj->group_crossed_out ? 0 : max(1, (int) ($component['qty'] ?? 1));
+                    $obj->display_qty = $obj->group_crossed_out
+                        ? max(1, (int) ($component['group_required_qty'] ?? $component['group_covered_qty'] ?? 1))
+                        : $obj->qty;
+                    $obj->group_covered_qty = (int) ($component['group_covered_qty'] ?? 0);
+                    $obj->group_remaining_qty = (int) ($component['group_remaining_qty'] ?? $obj->qty);
+                    $obj->group_crossout_reason = trim((string) ($component['group_crossout_reason'] ?? ''));
                     $obj->manual = $component['manual'] ?? (string) ($manual->number ?? '');
                     $obj->eff_code = trim((string) ($component['eff_code'] ?? ''));
                     $obj->kit_prl_choice_group = trim((string) ($component['kit_prl_choice_group'] ?? ''));
@@ -950,11 +1051,20 @@ class TdrPrintFormController extends Controller
             $component->manual_id = (int) ($row['manual_id'] ?? 0);
             $component->part_number = (string) ($row['part_number'] ?? '');
             $component->name = (string) ($row['description'] ?? '');
-            $component->qty = max(1, (int) ($row['qty'] ?? 1));
+            $component->group_crossed_out = ! empty($row['group_crossed_out']);
+            $component->qty = $component->group_crossed_out
+                ? 0
+                : max(1, (int) ($row['qty'] ?? 1));
+            $component->display_qty = $component->group_crossed_out
+                ? max(1, (int) ($row['group_required_qty'] ?? $row['group_covered_qty'] ?? 1))
+                : $component->qty;
             $component->process_name = (string) ($row['process'] ?? '');
             $component->manual = trim((string) ($row['manual'] ?? '')) ?: null;
             $component->eff_code = trim((string) ($row['eff_code'] ?? ''));
             $component->kit_prl_choice_group = trim((string) ($row['kit_prl_choice_group'] ?? ''));
+            $component->group_covered_qty = (int) ($row['group_covered_qty'] ?? 0);
+            $component->group_remaining_qty = (int) ($row['group_remaining_qty'] ?? $component->qty);
+            $component->group_crossout_reason = trim((string) ($row['group_crossout_reason'] ?? ''));
 
             return $component;
         }, $rows));
@@ -1038,12 +1148,14 @@ class TdrPrintFormController extends Controller
         $manualKey = (int) ($component->manual_id ?? 0) > 0
             ? 'id:' . (int) $component->manual_id
             : 'number:' . trim((string) ($component->manual ?? ''));
+        $coverageState = ! empty($component->group_crossed_out) ? 'group-crossed' : 'group-open';
         $choiceGroup = trim((string) ($component->kit_prl_choice_group ?? ''));
         if ($choiceGroup !== '') {
             return implode('|', [
                 'choice',
                 $manualKey,
                 mb_strtolower($choiceGroup),
+                $coverageState,
             ]);
         }
 
@@ -1056,7 +1168,7 @@ class TdrPrintFormController extends Controller
         $baseIpl = strtoupper((string) ($matches[1] ?? ''));
         $process = trim((string) ($component->process_name ?? ''));
 
-        return implode('|', [$manualKey, $baseIpl, $process]);
+        return implode('|', [$manualKey, $baseIpl, $process, $coverageState]);
     }
 
     private function initializeCollapsedStdRowValues(\stdClass $component): void
@@ -1105,7 +1217,7 @@ class TdrPrintFormController extends Controller
         $component->name = implode("\n", $component->_description_values ?? []);
         $component->process_name = implode("\n", $component->_process_values ?? []);
         $component->row_line_count = $lineCount;
-        $component->row_height = 32 + (($lineCount - 1) * 16);
+        $component->row_height = 32 + (($lineCount - 1) * 16) + (! empty($component->group_crossout_reason) ? 14 : 0);
 
         if (property_exists($component, '_item_display_values')) {
             $component->item_display = implode("\n", $component->_item_display_values ?? []);
@@ -2170,6 +2282,54 @@ class TdrPrintFormController extends Controller
                 'total_components' => $hasCad ? 1 : 0,
             ],
         ];
+    }
+
+    private function selectedPartGroupPrlRows(Workorder $workorder, $existingRows): array
+    {
+        $existingComponentIds = collect($existingRows)
+            ->map(fn ($row): int => $row instanceof Tdr
+                ? (int) ($row->order_component_id ?: $row->component_id)
+                : 0)
+            ->filter()
+            ->all();
+
+        return WorkorderPartGroupSelection::query()
+            ->where('workorder_id', $workorder->id)
+            ->with(['group.manual:id,number', 'option.component'])
+            ->get()
+            ->filter(function (WorkorderPartGroupSelection $selection) use ($existingComponentIds): bool {
+                if (! $selection->group || ! $selection->option || ! $selection->group->appliesTo(\App\Models\ManualPartGroup::SCOPE_PRL)) {
+                    return false;
+                }
+
+                $componentId = (int) ($selection->option->component_id ?? 0);
+
+                return $componentId <= 0 || ! in_array($componentId, $existingComponentIds, true);
+            })
+            ->map(function (WorkorderPartGroupSelection $selection): array {
+                $option = $selection->option;
+                $group = $selection->group;
+
+                return [
+                    'manual' => $group->manual?->number,
+                    'component' => [
+                        'id' => $option->component_id,
+                        'name' => $option->component?->name ?: $group->name,
+                        'part_number' => $option->part_number,
+                        'ipl_num' => $option->ipl_num,
+                        'assy_part_number' => null,
+                        'assy_ipl_num' => null,
+                    ],
+                    'qty' => max(1, (int) $selection->qty),
+                    'codes' => ['code' => $group->type === \App\Models\ManualPartGroup::TYPE_SB_KIT
+                        ? 'KIT'
+                        : ($group->type === \App\Models\ManualPartGroup::TYPE_ASSY ? 'ASSY' : 'G')],
+                    'po_num' => '',
+                    'notes' => $group->code,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function normalizePartNumberForComparison(?string $partNumber): string

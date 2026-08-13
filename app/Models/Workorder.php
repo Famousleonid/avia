@@ -59,6 +59,11 @@ class Workorder extends Model implements HasMedia
         return $this->hasMany(WorkorderStdProcessItem::class);
     }
 
+    public function partGroupSelections(): HasMany
+    {
+        return $this->hasMany(WorkorderPartGroupSelection::class);
+    }
+
     public function unitInspections(): HasMany
     {
         return $this->hasMany(WorkorderUnitInspection::class);

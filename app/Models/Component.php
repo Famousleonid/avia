@@ -108,6 +108,16 @@ class Component extends Model implements  hasMedia
         return $this->hasMany(ComponentAssembly::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function partGroupOptions(): HasMany
+    {
+        return $this->hasMany(ManualPartGroupOption::class);
+    }
+
+    public function partGroupCoverages(): HasMany
+    {
+        return $this->hasMany(ManualPartGroupCoverage::class);
+    }
+
     protected static function booted(): void
     {
         static::saving(function (Component $component): void {

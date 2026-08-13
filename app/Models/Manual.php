@@ -169,6 +169,11 @@ class Manual extends Model implements HasMedia
         return $this->hasMany(ManualServiceBulletin::class, 'manual_id');
     }
 
+    public function partGroups()
+    {
+        return $this->hasMany(ManualPartGroup::class, 'manual_id');
+    }
+
     public function revisionChecks()
     {
         return $this->hasMany(ManualRevisionCheck::class);

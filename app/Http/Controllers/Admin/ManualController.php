@@ -10,6 +10,7 @@ use App\Models\ManualProcess;
 use App\Models\ManualProcessNameLock;
 use App\Models\ManualRevisionCheck;
 use App\Models\ManualServiceBulletin;
+use App\Models\ManualPartGroup;
 use App\Models\StdProcess;
 use App\Models\Plane;
 use App\Models\Process;
@@ -412,6 +413,13 @@ class ManualController extends Controller
             ->orderBy('id')
             ->get();
 
+        $partGroups = ManualPartGroup::query()
+            ->where('manual_id', $cmm->id)
+            ->with(['options.coverages.component:id,ipl_num,part_number,name', 'options.component:id,ipl_num,part_number,name', 'serviceBulletin'])
+            ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'draft' THEN 1 ELSE 2 END")
+            ->orderBy('name')
+            ->get();
+
         $revisionChecks = ManualRevisionCheck::query()
             ->where('manual_id', $cmm->id)
             ->with('checkedBy:id,name,selection_name_order')
@@ -445,7 +453,7 @@ class ManualController extends Controller
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
         'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins',
         'revisionChecks', 'latestRevisionCheck', 'revisionStatus', 'canRecordRevisionCheck', 'manualShowTab',
-        'dimensionFigures', 'dimManualProcesses', 'codes', 'stdProcessAuditWarnings'
+        'dimensionFigures', 'dimManualProcesses', 'codes', 'stdProcessAuditWarnings', 'partGroups'
         ));
 
     }

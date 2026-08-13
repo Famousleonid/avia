@@ -145,6 +145,7 @@ class WorkorderStdProcessItemsService
             $this->rebuild($workorder);
         }
 
+        $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($workorder, $std);
         $rows = WorkorderStdProcessItem::query()
             ->where('workorder_id', $workorder->id)
             ->where('std_type', $std)
@@ -152,7 +153,24 @@ class WorkorderStdProcessItemsService
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
-            ->map(fn (WorkorderStdProcessItem $item): array => $item->toSnapshotRow())
+            ->map(function (WorkorderStdProcessItem $item) use ($coverage): array {
+                $row = $item->toSnapshotRow();
+                $covered = $coverage[(int) $item->component_id] ?? null;
+                if (! $covered) {
+                    return $row;
+                }
+
+                $requiredQty = max(1, (int) $row['qty']);
+                $coveredQty = min($requiredQty, (int) $covered['covered_qty']);
+                $row['group_required_qty'] = $requiredQty;
+                $row['group_covered_qty'] = $coveredQty;
+                $row['group_remaining_qty'] = max(0, $requiredQty - $coveredQty);
+                $row['group_crossed_out'] = $coveredQty >= $requiredQty;
+                $row['group_crossout_reason'] = (string) $covered['reason'];
+                $row['qty'] = $row['group_crossed_out'] ? 0 : $row['group_remaining_qty'];
+
+                return $row;
+            })
             ->all();
 
         return StdProcess::sortRowsForSnapshot($rows);

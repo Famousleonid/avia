@@ -1,4 +1,78 @@
 {{-- Missing Modal --}}
+@if(($workorderPartGroups ?? collect())->isNotEmpty())
+<div class="modal fade" id="workorderPartGroupsModal" tabindex="-1" aria-labelledby="workorderPartGroupsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content bg-gradient">
+            <div class="modal-header">
+                <h5 class="modal-title" id="workorderPartGroupsModalLabel">{{ __('WO Part Group Selections') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">{{ __('Selections control cross-outs in PRL and the enabled STD forms. Clearing a selection restores the group members.') }}</p>
+                @foreach($workorderPartGroups as $partGroup)
+                    @php $selection = $workorderPartGroupSelections->get($partGroup->id); @endphp
+                    <div class="card mb-2 workorder-part-group" data-group-id="{{ $partGroup->id }}" data-update-url="{{ route('workorders.part-groups.selection.update', ['workorder' => $current_wo, 'partGroup' => $partGroup]) }}">
+                        <div class="card-body py-2">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <div>
+                                    <strong>{{ $partGroup->name }}</strong>
+                                    <span class="badge text-bg-secondary">{{ $partGroup->type }}</span>
+                                    <div class="small text-muted">{{ $partGroup->code }} · {{ implode(', ', $partGroup->applies_to ?: []) }}</div>
+                                </div>
+                                <div class="d-flex gap-2 align-items-end">
+                                    <div>
+                                        <label class="form-label small mb-0">{{ __('Option') }}</label>
+                                        <select class="form-select form-select-sm workorder-part-group-option" style="min-width:260px">
+                                            <option value="">{{ __('Not selected') }}</option>
+                                            @foreach($partGroup->options as $option)
+                                                <option value="{{ $option->id }}" @selected((int) ($selection?->manual_part_group_option_id ?? 0) === (int) $option->id)>
+                                                    {{ $option->ipl_num ? $option->ipl_num.' / ' : '' }}{{ $option->part_number }}{{ $option->component?->name ? ' — '.$option->component->name : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label small mb-0">Qty</label>
+                                        <input type="number" min="1" max="9999" class="form-control form-control-sm workorder-part-group-qty" value="{{ max(1, (int) ($selection?->qty ?? 1)) }}" style="width:80px">
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-primary workorder-part-group-save">{{ __('Save') }}</button>
+                                </div>
+                            </div>
+                            @if($partGroup->behavior === \App\Models\ManualPartGroup::BEHAVIOR_BUNDLE)
+                                <div class="small mt-2">
+                                    {{ __('Covers:') }}
+                                    {{ $partGroup->options->flatMap->coverages->map(fn ($coverage) => trim(($coverage->component?->ipl_num ? $coverage->component->ipl_num.' / ' : '').($coverage->component?->part_number ?? '').' × '.$coverage->qty))->implode('; ') }}
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('workorderPartGroupsModal')?.addEventListener('click', async function (event) {
+        const button = event.target.closest('.workorder-part-group-save');
+        if (!button) return;
+        const card = button.closest('.workorder-part-group');
+        button.disabled = true;
+        try {
+            const response = await fetch(card.dataset.updateUrl, {
+                method: 'PATCH', credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ option_id: card.querySelector('.workorder-part-group-option').value || null, qty: Number(card.querySelector('.workorder-part-group-qty').value || 1) })
+            });
+            const data = await response.json().catch(function () { return {}; });
+            if (!response.ok || !data.success) throw new Error(Object.values(data.errors || {}).flat().find(Boolean) || data.message || '{{ __('Could not save group selection.') }}');
+            showNotification('{{ __('Group selection saved. Reopen PRL/STD to see the result.') }}', 'success');
+        } catch (error) { showNotification(error.message, 'error'); } finally { button.disabled = false; }
+    });
+});
+</script>
+@endif
+
 <div class="modal fade" id="inlineProcessDefinitionModal" tabindex="-1" aria-labelledby="inlineProcessDefinitionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content bg-gradient">

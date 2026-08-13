@@ -72,6 +72,20 @@
         width: 100%;
     }
 
+    .std-group-crossed-out > .std-cell {
+        color: #666;
+        text-decoration: line-through;
+        text-decoration-thickness: 1.5px;
+    }
+
+    .std-group-crossout-reason {
+        display: block;
+        font-size: 10px;
+        font-style: italic;
+        line-height: 1.05;
+        text-decoration: none;
+    }
+
     .std-header {
         display: grid;
         gap: 12px;

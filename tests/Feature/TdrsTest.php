@@ -2962,7 +2962,7 @@ class TdrsTest extends TestCase
         $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
 
         $kitResponse->assertOk();
-        $kitResponse->assertSee('320<br />' . "\n" . '321<br />' . "\n" . '321A', false);
+        $kitResponse->assertSeeInOrder(['>320</span>', '>321</span>', '>321A</span>'], false);
         $this->assertSame(1, substr_count($kitResponse->getContent(), 'BEARING, SPHERICAL'));
     }
 

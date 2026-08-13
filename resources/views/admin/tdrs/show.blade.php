@@ -607,6 +607,11 @@
                         </div>
                         <div class="tdr-show-paper-divider" aria-hidden="true"></div>
                         <div class="tdr-show-paper-extra ms-2" id="tdr-prl-paper-group">
+                            @if(($workorderPartGroups ?? collect())->isNotEmpty())
+                                <button type="button" class="btn btn-sm btn-outline-warning me-1" data-bs-toggle="modal" data-bs-target="#workorderPartGroupsModal" title="{{ __('Select ASSY, KIT, alternative or oversize ordering option') }}">
+                                    <i class="bi bi-diagram-3"></i> {{ __('Order Groups') }}
+                                </button>
+                            @endif
                             @if(($kitPrlCount ?? 0) > 0)
                                 <div class="position-relative d-inline-block ">
                                     <x-paper-button text="KIT"
