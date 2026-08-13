@@ -39,12 +39,7 @@
             <div class="modal-body">
                 <div class="row g-3">
                     <div class="col-lg-4 border-end">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong>{{ __('Existing groups') }}</strong>
-                            <button type="button" class="btn btn-sm btn-outline-primary" id="manual-part-group-new">{{ __('New from selected') }}</button>
-                        </div>
                         <div class="list-group" id="manual-part-group-list"></div>
-                        <div class="small text-muted mt-3">{{ __('Delete a group to ungroup its parts.') }}</div>
                     </div>
                     <div class="col-lg-8">
                         <form id="manual-part-group-form" data-store-url="{{ route('manuals.part-groups.store', ['manual' => $cmm]) }}">
@@ -281,7 +276,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('manual-part-groups-open')?.addEventListener('click', function () { resetForm(true); });
-    document.getElementById('manual-part-group-new').addEventListener('click', function () { resetForm(true); });
     type.addEventListener('change', refreshType);
     tbody.addEventListener('click', function (event) {
         const button = event.target.closest('.part-group-member-remove'); if (!button) return;

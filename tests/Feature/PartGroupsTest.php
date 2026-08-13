@@ -59,7 +59,10 @@ class PartGroupsTest extends TestCase
             ->assertSee('Main ASSY')
             ->assertSee('data-part-group-id="'.$groupId.'"', false)
             ->assertDontSee('manual-part-group-status')
-            ->assertDontSee('manual-part-group-badge-meta');
+            ->assertDontSee('manual-part-group-badge-meta')
+            ->assertDontSee('manual-part-group-new')
+            ->assertDontSee('Existing groups')
+            ->assertDontSee('Delete a group to ungroup its parts.');
     }
 
     public function test_bundle_selection_covers_quantities_only_in_enabled_forms(): void
