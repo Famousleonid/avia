@@ -52,6 +52,7 @@ function initTdrProcesses() {
 
     // Инициализируем обработчик ссылок на формы
     FormLinkHandler.init();
+    CombinedProcessFormHandler.init();
 
     // Инициализируем обработчик групповых форм
     GroupProcessFormsHandler.init();

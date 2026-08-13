@@ -407,9 +407,7 @@
             </div>
             <div class="field-row">
                 <div class="field-label">CMM No.:</div>
-                <div class="field-value border-b">{{ optional(optional(optional($transfer->workorderSource)->unit)->manuals)
-                ->number ??
-                 '—' }}</div>
+                <div class="field-value border-b">{{ format_cmm_number(optional(optional(optional($transfer->workorderSource)->unit)->manuals)->number) ?: '—' }}</div>
             </div>
         </div>
     </div>

@@ -205,6 +205,7 @@ class QuantumRoBufferApplyService
 
         $bushingMap = [
             'NDTB' => ['key' => 'ndt', 'label' => 'NDTB'],
+            'MACHINING' => ['key' => 'machining', 'label' => 'Machining'],
             'CADB' => ['key' => 'cad', 'label' => 'CADB'],
             'CADPLATEB' => ['key' => 'cad', 'label' => 'CAD Plate B'],
             'ANODIZING' => ['key' => 'anodizing', 'label' => 'Anodizing'],

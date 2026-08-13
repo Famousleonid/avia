@@ -6,17 +6,23 @@
         $tdrFormConfig = config('tdr_forms.ndtFormStd');
         $componentName = $current_wo->unit->name;
         $componentName = (string) $componentName;
-        $manualNumber = (string) ($manual->number ?? '');
+        $manualNumber = collect($manuals ?? [$manual])
+            ->map(fn ($item) => format_cmm_number($item->number ?? ''))
+            ->filter()
+            ->unique()
+            ->implode(' / ');
         $findNdtProcess = function ($processNameId) use ($ndt_processes) {
             if (!$processNameId) {
                 return '';
             }
 
-            $process = collect($ndt_processes)->first(function ($item) use ($processNameId) {
-                return (int) ($item->process_names_id ?? 0) === (int) $processNameId;
-            });
-
-            return (string) ($process->process ?? '');
+            return collect($ndt_processes)
+                ->filter(fn ($item) => (int) ($item->process_names_id ?? 0) === (int) $processNameId)
+                ->pluck('process')
+                ->map(fn ($process) => trim((string) $process))
+                ->filter()
+                ->unique()
+                ->implode("\n");
         };
         $ndtProcessMap = [
             1 => $findNdtProcess($ndt1_name_id ?? null),
@@ -260,7 +266,7 @@
                     <div class="std-ndt-line std-ndt-line--one">
                             <div class="std-ndt-index">#1</div>
                             <div class="std-ndt-value">
-                                <span @if(strlen($ndtProcessMap[1]) > 25) class="std-process-long" @endif>{{ $ndtProcessMap[1] }}</span>
+                                <span @if(strlen($ndtProcessMap[1]) > 25) class="std-process-long" @endif>{!! nl2br(e(format_process_number($ndtProcessMap[1]))) !!}</span>
                             </div>
                     </div>
                     <div class="std-ndt-line std-ndt-line--two">
@@ -275,16 +281,16 @@
                     <div class="std-ndt-line std-ndt-line--four">
                             <div class="std-ndt-index">#4</div>
                             <div class="std-ndt-value">
-                                <span @if(strlen($ndtProcessMap[4]) > 25) class="std-process-long" @endif>{{ $ndtProcessMap[4] }}</span>
+                                <span @if(strlen($ndtProcessMap[4]) > 25) class="std-process-long" @endif>{!! nl2br(e(format_process_number($ndtProcessMap[4]))) !!}</span>
                             </div>
                     </div>
                     <div class="std-ndt-line std-ndt-line--five">
                         <div class="std-ndt-index">#5</div>
-                        <div class="std-ndt-value">{{ $ndtProcessMap[5] }}</div>
+                        <div class="std-ndt-value">{!! nl2br(e(format_process_number($ndtProcessMap[5]))) !!}</div>
                     </div>
                     <div class="std-ndt-line std-ndt-line--six">
                         <div class="std-ndt-index">#6</div>
-                        <div class="std-ndt-value">{{ $ndtProcessMap[6] }}</div>
+                        <div class="std-ndt-value">{!! nl2br(e(format_process_number($ndtProcessMap[6]))) !!}</div>
                     </div>
 
                     <div class="std-ndt-line std-ndt-line--seven">
@@ -332,7 +338,7 @@
                             </div>
                             <div class="std-cell">{{ $component->part_number }}</div>
                             <div class="std-cell">{{ $component->name }}</div>
-                            <div class="std-cell">{{ $component->process_name }}</div>
+                            <div class="std-cell">{!! nl2br(e(format_process_number($component->process_name))) !!}</div>
                             <div class="std-cell">{{ $component->qty }}</div>
                             <div class="std-cell"></div>
                             <div class="std-cell"></div>

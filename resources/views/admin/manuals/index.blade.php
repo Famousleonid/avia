@@ -676,7 +676,45 @@
                 });
             }
 
-            const STORAGE_KEY = 'cmm_search';
+            const MANUALS_SEARCH_BROWSER_COOKIE = 'avia_manuals_search_browser';
+
+            function getCookieValue(name) {
+                const prefix = `${encodeURIComponent(name)}=`;
+                const cookie = document.cookie
+                    .split(';')
+                    .map(value => value.trim())
+                    .find(value => value.startsWith(prefix));
+
+                return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : '';
+            }
+
+            function createManualsSearchBrowserId() {
+                if (window.crypto?.randomUUID) {
+                    return window.crypto.randomUUID();
+                }
+
+                if (window.crypto?.getRandomValues) {
+                    const bytes = new Uint8Array(16);
+                    window.crypto.getRandomValues(bytes);
+
+                    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+                }
+
+                return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+            }
+
+            function getManualsSearchBrowserId() {
+                let browserId = getCookieValue(MANUALS_SEARCH_BROWSER_COOKIE);
+                if (!/^[a-zA-Z0-9_-]{16,64}$/.test(browserId)) {
+                    browserId = createManualsSearchBrowserId();
+                    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+                    document.cookie = `${encodeURIComponent(MANUALS_SEARCH_BROWSER_COOKIE)}=${encodeURIComponent(browserId)}; Path=/manuals; Max-Age=157680000; SameSite=Lax${secure}`;
+                }
+
+                return browserId;
+            }
+
+            const STORAGE_KEY = `manuals_search:${getManualsSearchBrowserId()}`;
             const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
             const headers = document.querySelectorAll('.sortable');
 

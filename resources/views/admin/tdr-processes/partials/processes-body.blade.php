@@ -150,13 +150,13 @@
     }
     .tdr-processes-table {
         table-layout: fixed;
-        min-width: 980px;
+        min-width: 1100px;
     }
     .tdr-processes-table col:nth-child(2) {
-        width: {{ $showDocColumn ? 35 : 40 }}% !important;
+        width: {{ $showDocColumn ? 31 : 36 }}% !important;
     }
     .tdr-processes-table col:nth-child(6) {
-        width: 15% !important;
+        width: 19% !important;
     }
     .tdr-processes-table th,
     .tdr-processes-table td {
@@ -166,6 +166,17 @@
     .tdr-processes-table .process-action-cell,
     .tdr-processes-table .process-form-col {
         white-space: nowrap;
+    }
+    .tdr-processes-table .process-form-controls {
+        min-width: 185px;
+    }
+    .tdr-processes-table .combined-form-select {
+        cursor: pointer;
+        flex: 0 0 auto;
+    }
+    .tdr-processes-table .combined-form-select:disabled {
+        cursor: not-allowed;
+        opacity: .35;
     }
     .tdr-processes-table .traveler-vendor-select {
         min-width: 112px;
@@ -225,9 +236,19 @@
      data-component-pn="{{ $comp->part_number ?? 'N/A' }}"
      data-serial-number="{{ $current_tdr->serial_number ?? 'N/A' }}"
      data-traveler-block="{{ $hasTravelerBlock ? '1' : '0' }}"
+     data-combined-form-url="{{ route('tdr-processes.combinedForm', ['tdrId' => $current_tdr->id]) }}"
+     data-omit-form-header-date="{{ !empty($omitFormHeaderDate) ? '1' : '0' }}"
      data-traveler-group-url="{{ route('tdr-processes.traveler-group', ['tdrId' => $current_tdr->id]) }}"
      data-traveler-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $current_tdr->id]) }}">
-    <div class="processes-toolbar"></div>
+    <div class="processes-toolbar gap-2">
+        <button type="button"
+                class="btn btn-sm btn-outline-primary"
+                data-combined-form-button
+                disabled
+                title="{{ __('Select at least two processes with the same name') }}">
+            {{ __('Combined Form') }} (0)
+        </button>
+    </div>
     <div class="table-wrapper me-3">
         <table class="display table table-sm table-hover align-middle bg-gradient dir-table sortable-table tdr-processes-table">
             <colgroup>
@@ -336,19 +357,7 @@
                                 @endif
                             @else
                             <td class="text-center">
-                                @if($canPrintForm)
-                                    <div class="d-flex gap-2 justify-content-center">
-                                        <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $tdrProcessRow->id }}">
-                                            <option value="">Select Vendor</option>
-                                            @foreach($vendors as $vendor)
-                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link d-inline-flex align-items-center justify-content-center" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" target="_blank">{{ __('Form') }}</a>
-                                    </div>
-                                @else
-                                    <div class="d-flex gap-2 justify-content-center"></div>
-                                @endif
+                                @include('admin.tdr-processes.partials.processes-body-standard-form-controls', ['combinedFormProcessId' => null])
                             </td>
                             @endif
                             @include('admin.tdr-processes.partials.processes-body-document-cell')
@@ -392,19 +401,7 @@
                                 @endif
                             @else
                             <td class="text-center">
-                                @if($canPrintForm)
-                                    <div class="d-flex gap-2 justify-content-center">
-                                        <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $tdrProcessRow->id }}">
-                                            <option value="">Select Vendor</option>
-                                            @foreach($vendors as $vendor)
-                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link d-inline-flex align-items-center justify-content-center" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" target="_blank">{{ __('Form') }}</a>
-                                    </div>
-                                @else
-                                    <div class="d-flex gap-2 justify-content-center"></div>
-                                @endif
+                                @include('admin.tdr-processes.partials.processes-body-standard-form-controls', ['combinedFormProcessId' => null])
                             </td>
                             @endif
                             @include('admin.tdr-processes.partials.processes-body-document-cell')
@@ -442,19 +439,7 @@
                                         @endif
                                     @else
                                     <td class="text-center">
-                                        @if($canPrintForm)
-                                            <div class="d-flex gap-2 justify-content-center">
-                                                <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $tdrProcessRow->id }}" data-process="{{ $process }}">
-                                                    <option value="">Select Vendor</option>
-                                                    @foreach($vendors as $vendor)
-                                                        <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id, 'process_id' => $process], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link d-inline-flex align-items-center justify-content-center" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" data-process="{{ $process }}" target="_blank">{{ __('Form') }}</a>
-                                            </div>
-                                        @else
-                                            <div class="d-flex gap-2 justify-content-center"></div>
-                                        @endif
+                                        @include('admin.tdr-processes.partials.processes-body-standard-form-controls', ['combinedFormProcessId' => $process])
                                     </td>
                                     @endif
                                     @include('admin.tdr-processes.partials.processes-body-document-cell')
@@ -488,19 +473,7 @@
                                     @endif
                                 @else
                                 <td class="text-center">
-                                    @if($canPrintForm)
-                                        <div class="d-flex gap-2 justify-content-center">
-                                            <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $tdrProcessRow->id }}">
-                                                <option value="">Select Vendor</option>
-                                                @foreach($vendors as $vendor)
-                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                @endforeach
-                                            </select>
-                                            <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link d-inline-flex align-items-center justify-content-center" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" target="_blank">{{ __('Form') }}</a>
-                                        </div>
-                                    @else
-                                        <div class="d-flex gap-2 justify-content-center"></div>
-                                    @endif
+                                    @include('admin.tdr-processes.partials.processes-body-standard-form-controls', ['combinedFormProcessId' => null])
                                 </td>
                                 @endif
                                 @include('admin.tdr-processes.partials.processes-body-document-cell')

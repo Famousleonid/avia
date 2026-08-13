@@ -53,7 +53,7 @@ class RmReportController extends Controller
         $validated = $request->validate([
             'part_description' => 'required|string|max:255',
             'mod_repair' => 'required|in:Mod,Repair,SB',
-            'mod_repair_description' => 'required|string|max:60',
+            'mod_repair_description' => 'required|string|max:250',
             'ident_method' => 'nullable|string|max:255',
             'workorder_id' => 'required|exists:workorders,id',
         ]);
@@ -536,19 +536,19 @@ public function rmRecordForm(Request $request, $id)
 
         $newDescription = (string) $validated['mod_repair_description'];
         $oldDescription = (string) ($rmReport->description ?? '');
-        if ($newDescription !== $oldDescription && mb_strlen($newDescription) > 60) {
+        if ($newDescription !== $oldDescription && mb_strlen($newDescription) > 250) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Description may not be greater than 60 characters.',
+                    'message' => 'Description may not be greater than 250 characters.',
                     'errors' => [
-                        'mod_repair_description' => ['Description may not be greater than 60 characters.'],
+                        'mod_repair_description' => ['Description may not be greater than 250 characters.'],
                     ],
                 ], 422);
             }
 
             return back()
-                ->withErrors(['mod_repair_description' => 'Description may not be greater than 60 characters.'])
+                ->withErrors(['mod_repair_description' => 'Description may not be greater than 250 characters.'])
                 ->withInput();
         }
         

@@ -763,8 +763,13 @@
 
 
         // Функция для загрузки компонентов по manual_id
+        let componentLoadSequence = 0;
+
         function loadComponentsByManual(manualId) {
             const ajaxUrl = '{{ route("api.get-components-by-manual") }}';
+            const requestSequence = ++componentLoadSequence;
+            $('#i_component_id').empty().append('<option value="">{{ __("Loading...") }}</option>').trigger('change');
+            $('#order_component_id').empty().append('<option value="">{{ __("Loading...") }}</option>').trigger('change');
 
             $.ajax({
                 url: ajaxUrl,
@@ -775,6 +780,9 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
+                    const selectedManualId = $('#i_manual_id').val() || {{ $manual_id }};
+                    if (requestSequence !== componentLoadSequence || String(selectedManualId) !== String(manualId)) return;
+
                     // Очищаем текущие опции в основном дропдауне компонентов
                     $('#i_component_id').empty().append('<option value="">---</option>');
 
@@ -782,7 +790,9 @@
                     $('#order_component_id').empty().append('<option value="">---</option>');
 
                     // Добавляем новые опции в основной дропдаун
-                    response.components.forEach(function(component) {
+                    (response.components || [])
+                        .filter(function(component) { return String(component.manual_id) === String(manualId); })
+                        .forEach(function(component) {
                         $('#i_component_id').append(
                             '<option value="' + component.id + '" ' +
                             'data-has_assy="' + ((component.assy_part_number || (Array.isArray(component.assemblies) && component.assemblies.length)) ? 'true' : 'false') + '" ' +
@@ -817,6 +827,9 @@
                     $('#order_component_id').trigger('change');
                 },
                 error: function(xhr, status, error) {
+                    if (status === 'abort' || requestSequence !== componentLoadSequence) return;
+                    $('#i_component_id').empty().append('<option value="">---</option>').trigger('change');
+                    $('#order_component_id').empty().append('<option value="">---</option>').trigger('change');
                     console.error('Error loading parts:', error);
                 }
             });

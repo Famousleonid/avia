@@ -24,7 +24,7 @@
     <div class="col-3 border-all text-center" style="height: 55px">
         @foreach($manuals as $manual)
             @if($manual->id == $current_wo->unit->manual_id)
-                <h6 class="text-center mt-3"><strong>{{ $manual->number }}</strong></h6>
+                <h6 class="text-center mt-3"><strong>{{ format_cmm_number($manual->number) }}</strong></h6>
             @endif
         @endforeach
     </div>
@@ -62,7 +62,7 @@
                     @foreach($process_components ?? [] as $component_process)
                         @if($component_process->id == ($proc->id ?? $proc))
                             <span @if(strlen($component_process->process) > 40) class="process-text-long" @endif>
-                                {{ $component_process->process }}
+                                {!! nl2br(e(format_process_number($component_process->process))) !!}
                                 @if(isset($data['description']) && $data['description'])<br><span>{{ $data['description'] }}</span>@endif
                             </span>
                         @endif
@@ -89,7 +89,7 @@
                     @foreach($process_components ?? [] as $component_process)
                         @if($component_process->id == $process)
                             <span @if(strlen($component_process->process) > 25) class="process-text-long" @endif>
-                                {{ $component_process->process }}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif
+                                {!! nl2br(e(format_process_number($component_process->process))) !!}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif
                                 @if($component->description)<br><span>{{ $component->description }}</span>@endif
                             </span>
                         @endif

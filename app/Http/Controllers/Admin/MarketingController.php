@@ -47,6 +47,7 @@ class MarketingController extends Controller
     public function index(): View
     {
         $users = User::query()
+            ->withoutReviewAccounts()
             ->with(['role', 'featureAccesses'])
             ->orderBy('name')
             ->get(['id', 'name', 'selection_name_order', 'email', 'role_id']);

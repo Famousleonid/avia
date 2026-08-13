@@ -24,6 +24,27 @@ class UserSelectionNameTest extends TestCase
         $this->assertSame('Volker', (new User(['name' => 'Volker']))->selection_name);
     }
 
+    public function test_review_accounts_are_excluded_from_operational_user_queries_case_insensitively(): void
+    {
+        config()->set('mobile_review.accounts', [
+            'appreview@aviatechnik.ca' => ['workorder_numbers' => [100500]],
+            'googleview@aviatechnik.ca' => ['workorder_numbers' => [100500]],
+        ]);
+
+        $regular = $this->createUserWithRole('Technician');
+        $appReview = $this->createUserWithRole('Team Leader', ['email' => 'appreview@aviatechnik.ca']);
+        $googleReview = $this->createUserWithRole('Team Leader', ['email' => 'googleview@avIatechnik.ca']);
+
+        $visibleIds = User::query()
+            ->withoutReviewAccounts()
+            ->whereIn('id', [$regular->id, $appReview->id, $googleReview->id])
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        $this->assertSame([$regular->id], $visibleIds);
+    }
+
     public function test_message_recipient_list_uses_and_sorts_by_selection_name(): void
     {
         $admin = $this->createUserWithRole('Admin', ['name' => 'Administrator Current']);
@@ -39,6 +60,10 @@ class UserSelectionNameTest extends TestCase
             'name' => 'Alpha Zoe',
             'selection_name_order' => 'last_first',
         ]);
+        $reviewRecipient = $this->createUserWithRole('Team Leader', [
+            'name' => 'Hidden Review',
+            'email' => 'appreview@aviatechnik.ca',
+        ]);
 
         $response = $this->actingAs($admin)
             ->getJson(route('admin.messages.users'))
@@ -46,7 +71,8 @@ class UserSelectionNameTest extends TestCase
             ->assertJsonFragment([
                 'id' => $recipient->id,
                 'name' => 'Eduard Lyfar',
-            ]);
+            ])
+            ->assertJsonMissing(['id' => $reviewRecipient->id]);
 
         $sortedNames = collect($response->json())
             ->whereIn('id', [$firstRecipient->id, $recipient->id, $lastRecipient->id])

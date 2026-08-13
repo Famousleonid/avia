@@ -28,7 +28,7 @@ class NotificationEventRuleController extends Controller
         $rulesByEvent = $rules->groupBy('event_key')->map(fn ($group) => $group->first());
 
         $roles = Role::query()->orderBy('name')->get(['id', 'name']);
-        $users = User::query()->orderBy('name')->get(['id', 'name', 'selection_name_order', 'email'])
+        $users = User::query()->withoutReviewAccounts()->orderBy('name')->get(['id', 'name', 'selection_name_order', 'email'])
             ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
             ->values();
         $events = $this->registry->all();

@@ -90,7 +90,7 @@ class TrainingController extends Controller
 
         $users = collect();
         if ($canViewAllUsers) {
-            $users = User::whereNotNull('stamp')
+            $users = User::query()->withoutReviewAccounts()->whereNotNull('stamp')
                 ->where('stamp', '<>', '')
                 ->whereNull('deleted_at')
                 ->get()
@@ -576,7 +576,7 @@ class TrainingController extends Controller
                 ->get();
 
             // Сортируем так же, как имя отображается в пользовательских списках.
-            $users = User::whereNotNull('stamp')
+            $users = User::query()->withoutReviewAccounts()->whereNotNull('stamp')
                 ->where('stamp', '<>', '')
                 ->where('is_admin', false)
                 ->whereNull('deleted_at') // Исключаем удаленных пользователей

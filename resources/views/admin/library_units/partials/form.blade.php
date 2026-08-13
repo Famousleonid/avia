@@ -19,10 +19,25 @@
             <option value="">{{ __('Manual pending') }}</option>
             @foreach($manuals as $manual)
                 <option value="{{ $manual->id }}">
-                    {{ $manual->number ?: '-' }} {{ $manual->title }}
+                    {{ $manual->number ?: '-' }}@if(filled($manual->lib)) ({{ $manual->lib }})@endif {{ $manual->title }}
                 </option>
             @endforeach
         </select>
+    </div>
+
+    <div class="col-12">
+        <label for="{{ $prefix }}AdditionalManualIds" class="form-label">{{ __('Additional Manuals') }}</label>
+        <select id="{{ $prefix }}AdditionalManualIds"
+                class="form-select unit-additional-manual-select"
+                name="additional_manual_ids[]"
+                multiple>
+            @foreach($manuals as $manual)
+                <option value="{{ $manual->id }}">
+                    {{ $manual->number ?: '-' }}@if(filled($manual->lib)) ({{ $manual->lib }})@endif {{ $manual->title }}
+                </option>
+            @endforeach
+        </select>
+        <div class="form-text">{{ __('The primary CMM is excluded from this list automatically.') }}</div>
     </div>
 
     <div class="col-12 col-md-6">

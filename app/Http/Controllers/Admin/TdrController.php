@@ -22,11 +22,11 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Training;
 use App\Models\Transfer;
+use App\Models\User;
 use App\Models\Vendor;
 use App\Models\WoBushing;
 use App\Models\WoBushingLine;
 use App\Models\WorkorderUnitInspection;
-use http\Client\Curl\User;
 use Illuminate\Support\Facades\Cache;
 use App\Models\Unit;
 //use App\Models\Wo_Code;
@@ -49,6 +49,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use League\Csv\Reader;
 
 class TdrController extends Controller
@@ -58,6 +59,79 @@ class TdrController extends Controller
     const PROCESS_TYPE_NDT = 'ndt';
     const PROCESS_TYPE_CAD = 'cad';
     const PROCESS_TYPE_LOG = 'log';
+
+    /**
+     * Manuals remain browseable in TDR; edit permissions only control Add/Edit Part actions.
+     *
+     * @return array{manuals: \Illuminate\Database\Eloquent\Collection, can_manage_all: bool, allowed_manual_ids: list<int>}
+     */
+    private function tdrManualSelectionAccess(?User $user): array
+    {
+        $manuals = Manual::query()
+            ->orderBy('number')
+            ->orderBy('title')
+            ->get();
+        $canManageAll = (bool) ($user?->roleIs('Admin') ?? false);
+
+        if ($canManageAll) {
+            return [
+                'manuals' => $manuals,
+                'can_manage_all' => true,
+                'allowed_manual_ids' => $manuals->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+            ];
+        }
+
+        $explicitManualIds = collect($user?->permittedManuals()->pluck('manuals.id')->all() ?? [])
+            ->map(fn ($id) => (int) $id);
+        $assignedManualIds = DB::table('manual_user_permissions')
+            ->distinct()
+            ->pluck('manual_id')
+            ->map(fn ($id) => (int) $id);
+
+        $allowedManualIds = $manuals->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => ! $assignedManualIds->contains($id) || $explicitManualIds->contains($id))
+            ->values()
+            ->all();
+
+        return [
+            'manuals' => $manuals,
+            'can_manage_all' => false,
+            'allowed_manual_ids' => $allowedManualIds,
+        ];
+    }
+
+    /**
+     * First saved Log Card serial for each component in this workorder.
+     *
+     * @return array<int, string>
+     */
+    private function logCardSerialsByComponent(?LogCard $logCard): array
+    {
+        $rows = $logCard?->component_data;
+        if (is_string($rows)) {
+            $rows = json_decode($rows, true);
+        }
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        $serials = [];
+        foreach ($rows as $row) {
+            if (! is_array($row) || ($row['row_type'] ?? '') === 'manual') {
+                continue;
+            }
+
+            $componentId = (int) ($row['component_id'] ?? 0);
+            $serial = trim((string) ($row['serial_number'] ?? ''));
+            if ($componentId > 0 && $serial !== '' && ! isset($serials[$componentId])) {
+                $serials[$componentId] = $serial;
+            }
+        }
+
+        return $serials;
+    }
 
     private function inferTdrTypeFromPayload(array $payload, ?Code $manufactureCode = null, ?Necessary $orderNew = null, ?Necessary $repair = null): string
     {
@@ -438,31 +512,17 @@ class TdrController extends Controller
         $manual_id = $current_wo->unit->manual_id;
         $user = Auth::user();
 
-        $canManageAllManualParts = (bool) ($user?->roleIs('Admin') ?? false);
-        $allowedManualIds = $canManageAllManualParts
-            ? []
-            : $user?->permittedManuals()->pluck('manuals.id')->all();
-
-        $manualHasAnyPermissions = DB::table('manual_user_permissions')
-            ->where('manual_id', $manual_id)
-            ->exists();
-
+        $manualAccess = $this->tdrManualSelectionAccess($user);
+        $manuals = $manualAccess['manuals'];
+        $canManageAllManualParts = $manualAccess['can_manage_all'];
+        $allowedManualIds = $manualAccess['allowed_manual_ids'];
         $canManageManualParts = $canManageAllManualParts
-            || !$manualHasAnyPermissions
-            || in_array((int)$manual_id, array_map('intval', $allowedManualIds ?? []), true);
-
-        // Для фронта: чтобы JS-разрешения совпадали с правилом "если manual не задан никому — разрешено всем"
-        if (!$canManageAllManualParts && !$manualHasAnyPermissions) {
-            $allowedManualIds = array_values(array_unique(array_merge(
-                array_map('intval', $allowedManualIds ?? []),
-                [(int) $manual_id]
-            )));
-        }
+            || in_array((int) $manual_id, $allowedManualIds, true);
 
         // Компоненты для данного manual
         $componentsQuery = Component::where('manual_id', $manual_id)
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
+            ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
 
         if ($request->boolean('exclude_kits')) {
             $componentsQuery
@@ -482,19 +542,6 @@ class TdrController extends Controller
         // Получаем коды и necessaries
         $codes = Code::all();
         $necessaries = Necessary::all();
-        if ($canManageAllManualParts) {
-            $manuals = Manual::all();
-        } else {
-            $manualIdsToShow = array_unique(array_merge(
-                array_map('intval', $allowedManualIds ?? []),
-                [(int)$manual_id]
-            ));
-            $manuals = Manual::query()
-                ->whereIn('id', $manualIdsToShow)
-                ->orderBy('number')
-                ->get();
-        }
-
         return view('admin.tdrs.component-inspection', compact('current_wo', 'component_conditions',
             'components', 'codes', 'necessaries', 'manual_id', 'manuals',
             'canManageManualParts', 'canManageAllManualParts', 'allowedManualIds'));
@@ -510,7 +557,7 @@ class TdrController extends Controller
 
         $componentsQuery = Component::where('manual_id', $manual_id)
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
+            ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
 
         if ($request->boolean('exclude_kits')) {
             $componentsQuery
@@ -531,7 +578,10 @@ class TdrController extends Controller
 
         $components = $this->sortComponentsForIplSelection($components);
 
-        return response()->json(['components' => $components]);
+        return response()->json([
+            'manual_id' => (int) $manual_id,
+            'components' => $components,
+        ]);
     }
 
 
@@ -615,6 +665,18 @@ class TdrController extends Controller
                     ->withInput()
                     ->withErrors(['error' => __('Failed to save unit inspection')]);
             }
+        }
+
+        if (empty($validated['component_id'])) {
+            throw ValidationException::withMessages([
+                'component_id' => __('Select a part before saving.'),
+            ]);
+        }
+
+        if (empty($validated['codes_id'])) {
+            throw ValidationException::withMessages([
+                'codes_id' => __('Select a code before saving.'),
+            ]);
         }
 
         // Manufacture: создаём 2 записи (Order New + Repair)
@@ -782,16 +844,30 @@ class TdrController extends Controller
 
         $isMissingPayload = $codeIdInt !== null && $validatedCodesId === $codeIdInt;
         $isOrderNewPayload = $necessaryIdInt !== null && $validatedNecessaryId === $necessaryIdInt;
-        if (($isMissingPayload || $isOrderNewPayload) && ! empty($validated['order_component_id'])) {
-            $orderComponentIsNp = Component::query()
-                ->whereKey((int) $validated['order_component_id'])
-                ->where('np', true)
-                ->exists();
+        $repairNecessaryId = $repairNecessary ? (int) $repairNecessary->id : null;
+        $isRepairPayload = $repairNecessaryId !== null && $validatedNecessaryId === $repairNecessaryId;
 
-            if ($orderComponentIsNp) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['order_component_id' => __('NP parts cannot be ordered')]);
+        if ($isRepairPayload && trim((string) ($validated['serial_number'] ?? '')) === '') {
+            $logCard = LogCard::query()->where('workorder_id', $workorder->id)->first();
+            $logCardSerial = $this->logCardSerialsByComponent($logCard)[(int) $validated['component_id']] ?? null;
+            if ($logCardSerial !== null) {
+                $validated['serial_number'] = $logCardSerial;
+            }
+        }
+
+        if (($isMissingPayload || $isOrderNewPayload) && ! empty($validated['order_component_id'])) {
+            $orderComponent = Component::query()->find((int) $validated['order_component_id']);
+
+            if ($orderComponent?->np) {
+                throw ValidationException::withMessages([
+                    'order_component_id' => __('NP parts cannot be ordered'),
+                ]);
+            }
+
+            if ($orderComponent?->kit) {
+                throw ValidationException::withMessages([
+                    'order_component_id' => __('This part is already included in KIT and must not be duplicated in PRL.'),
+                ]);
             }
         }
 
@@ -1659,7 +1735,6 @@ class TdrController extends Controller
         $user_wo = $current_wo->user_id;
         $customers = Customer::all();
         $manual_id = $current_wo->unit->manual_id;
-
         $form_type = 112;
         $trainings = Training::where('manuals_id', $manual_id)
             ->where('user_id', $user_wo)
@@ -1667,39 +1742,14 @@ class TdrController extends Controller
             ->orderBy('date_training', 'desc')
             ->first();
 
-        $canManageAllManualParts = (bool) ($user?->roleIs('Admin') ?? false);
-        $allowedManualIds = $canManageAllManualParts
-            ? []
-            : $user?->permittedManuals()->pluck('manuals.id')->all();
-
-        $manualHasAnyPermissions = DB::table('manual_user_permissions')
-            ->where('manual_id', $manual_id)
-            ->exists();
-
+        $manualAccess = $this->tdrManualSelectionAccess($user);
+        $manuals = $manualAccess['manuals'];
+        $canManageAllManualParts = $manualAccess['can_manage_all'];
+        $allowedManualIds = $manualAccess['allowed_manual_ids'];
         $canManageManualParts = $canManageAllManualParts
-            || !$manualHasAnyPermissions
-            || in_array((int)$manual_id, array_map('intval', $allowedManualIds ?? []), true);
-
-        if (!$canManageAllManualParts && !$manualHasAnyPermissions) {
-            $allowedManualIds = array_values(array_unique(array_merge(
-                array_map('intval', $allowedManualIds ?? []),
-                [(int) $manual_id]
-            )));
-        }
-
-        if ($canManageAllManualParts) {
-            $manuals = Manual::all();
-        } else {
-            $manualIdsToShow = array_unique(array_merge(
-                array_map('intval', $allowedManualIds ?? []),
-                [(int)$manual_id]
-            ));
-            $manuals = Manual::query()
-                ->whereIn('id', $manualIdsToShow)
-                ->orderBy('number')
-                ->get();
-        }
+            || in_array((int) $manual_id, $allowedManualIds, true);
         $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
+        $logCardSerialsByComponent = $this->logCardSerialsByComponent($log_card);
         $logCardTdrAccess = app(LogCardTdrAccessService::class)->forWorkorder($current_wo, $user);
         $showDestructionCert = LogCardDestructionCertificate::availableFor($current_wo);
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
@@ -1714,7 +1764,16 @@ class TdrController extends Controller
         $bushingPrlCount = $bushingComponents
             ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component))
             ->count();
-        $kitComponents = $components->filter(fn ($component): bool => ! (bool) ($component->is_bush ?? false));
+        $kitComponents = $this->filterComponentsForUnit(
+            Component::query()
+                ->whereIn('manual_id', $current_wo->usedManualIds())
+                ->where('kit', true)
+                ->where(function ($query): void {
+                    $query->where('is_bush', false)->orWhereNull('is_bush');
+                })
+                ->get(),
+            $current_wo
+        );
         $kitPrlCount = $this->countKitPrlGroups($kitComponents->where('kit', true));
         $stdFormCounts = [
             'ndt' => $this->countStdFormQty($current_wo, StdProcess::STD_NDT),
@@ -1786,7 +1845,7 @@ class TdrController extends Controller
 
         $ordersPartsNew = (clone $orderedPartsQuery)
             ->with(['codes', 'orderComponent' => function($query) {
-                $query->withTrashed()->select('id', 'name', 'part_number', 'ipl_num', 'deleted_at');
+                $query->withTrashed()->select('id', 'name', 'part_number', 'ipl_num', 'deleted_at')->with('media');
             }, 'orderComponentAssembly' => function($query) {
                 $query->select('id', 'component_id', 'assy_part_number', 'assy_ipl_num');
             }])
@@ -1815,12 +1874,25 @@ class TdrController extends Controller
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->with([
-                'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
+                'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num')->with('media'); },
                 'conditions'
             ])
+            ->inDisplayOrder()
             ->get();
 
-        $tdr_proc = TdrProcess::where('ec', 1)->get();
+        $ecRelatedProcessNameIds = ProcessName::query()
+            ->whereIn('name', ['EC', 'Machining (EC)', 'Machining(EC)'])
+            ->pluck('id');
+        $tdrEcIds = TdrProcess::query()
+            ->whereIn('tdrs_id', $tdrs->pluck('id'))
+            ->where(function ($query) use ($ecRelatedProcessNameIds) {
+                $query->where('ec', true)
+                    ->orWhereIn('process_names_id', $ecRelatedProcessNameIds);
+            })
+            ->pluck('tdrs_id')
+            ->map(fn ($tdrId) => (int) $tdrId)
+            ->unique()
+            ->values();
         $vendors = Vendor::all();
 
         $groupFormTdrs = Tdr::where('workorder_id', $current_wo->id)
@@ -1869,15 +1941,67 @@ class TdrController extends Controller
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'bushingPrlCount', 'kitPrlCount', 'prl_parts', 'prlPartsCount', 'tdr_proc', 'vendors', 'processGroups', 'totalQty', 'hasTransfers',
+            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'bushingPrlCount', 'kitPrlCount', 'prl_parts', 'prlPartsCount', 'tdrEcIds', 'vendors', 'processGroups', 'totalQty', 'hasTransfers',
             'transfersIncomingGroupsWithMultiple', 'transfersHasOutgoingGroup',
             'hasMissingParts', 'missingCondition', 'missingPartsCount', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs',
             'stdFormCounts', 'spFormColumnsCount', 'bushingSpFormColumnsCount', 'rmFormRowsCount', 'tdrFormRowsCount',
             'hasExtraProcessRecords', 'hasExtraProcessRecordsMoreThanOne', 'showLogCardTab',
             'showDestructionCert', 'logCardTdrAccess',
+            'logCardSerialsByComponent',
             'allowedManualIds', 'canManageManualParts', 'canManageAllManualParts',
             'dimensionFigures'
         );
+    }
+
+    public function reorder(Request $request, Workorder $workorder)
+    {
+        $validated = $request->validate([
+            'tdr_ids' => ['required', 'array', 'min:1'],
+            'tdr_ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+
+        $submittedIds = collect($validated['tdr_ids'])
+            ->map(fn ($id): int => (int) $id)
+            ->values();
+
+        $visibleIds = Tdr::query()
+            ->where('workorder_id', $workorder->id)
+            ->where('use_tdr', true)
+            ->where('use_process_forms', true)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->values();
+
+        if ($submittedIds->count() !== $visibleIds->count()
+            || $submittedIds->diff($visibleIds)->isNotEmpty()
+            || $visibleIds->diff($submittedIds)->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'tdr_ids' => __('The TDR list changed. Refresh the page and try again.'),
+            ]);
+        }
+
+        $remainingIds = Tdr::query()
+            ->where('workorder_id', $workorder->id)
+            ->where('use_process_forms', true)
+            ->whereNotIn('id', $submittedIds)
+            ->inDisplayOrder()
+            ->pluck('id');
+
+        $orderedIds = $submittedIds->concat($remainingIds)->values();
+
+        DB::transaction(function () use ($orderedIds, $workorder): void {
+            foreach ($orderedIds as $index => $tdrId) {
+                Tdr::query()
+                    ->where('workorder_id', $workorder->id)
+                    ->whereKey($tdrId)
+                    ->update(['sort_order' => $index + 1]);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'tdr_ids' => $submittedIds->all(),
+        ]);
     }
 
 
@@ -2451,7 +2575,7 @@ class TdrController extends Controller
 
         $excludedTdrQuery = Tdr::where('workorder_id', $workorder->id)
             ->whereNotNull('component_id')
-            ->with('component:id,ipl_num');
+            ->with('component:id,manual_id,ipl_num');
 
         if ($missingCode || $repairCode || $orderNewNecessary) {
             $excludedTdrQuery->where(function ($query) use ($missingCode, $repairCode, $orderNewNecessary): void {
@@ -2470,7 +2594,7 @@ class TdrController extends Controller
                 $ipl = (string) ($tdr->component->ipl_num ?? '');
                 $normalizedIpl = $this->normalizeIplNum($ipl);
                 if ($normalizedIpl !== '') {
-                    $excludedIplNums[$normalizedIpl] = true;
+                    $excludedIplNums[(int) $tdr->component->manual_id . '|' . $normalizedIpl] = true;
                 }
             }
         }
@@ -2478,8 +2602,9 @@ class TdrController extends Controller
         $rows = collect(StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_PAINT))
             ->filter(function (array $row) use ($excludedIplNums): bool {
                 $normalizedIpl = $this->normalizeIplNum((string) ($row['ipl_num'] ?? ''));
+                $manualIplKey = (int) ($row['manual_id'] ?? 0) . '|' . $normalizedIpl;
 
-                return ! isset($excludedIplNums[$normalizedIpl]);
+                return ! isset($excludedIplNums[$manualIplKey]);
             })
             ->all();
 
@@ -2644,10 +2769,11 @@ class TdrController extends Controller
 
         return $components
             ->filter(function (Component $component) use ($resolver, $workorder, $manualId, $unitEff): bool {
+                $componentManualId = (int) ($component->manual_id ?: $manualId);
                 if (! $resolver->allowsComponentForUnit(
                     $workorder->unit,
                     (string) ($component->ipl_num ?? ''),
-                    $manualId
+                    $componentManualId
                 )) {
                     return false;
                 }

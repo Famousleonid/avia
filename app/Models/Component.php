@@ -12,6 +12,7 @@ use Spatie\Activitylog\Models\Activity;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Component extends Model implements  hasMedia
 {
@@ -154,6 +155,37 @@ class Component extends Model implements  hasMedia
     public function tdrs()
     {
         return $this->hasMany(\App\Models\Tdr::class, 'component_id', 'id');
+    }
+
+    public function primaryImageMedia(): ?Media
+    {
+        return $this->getFirstMediaFromCollection('components')
+            ?? $this->getFirstMediaFromCollection('component');
+    }
+
+    public function primaryImageThumbnailUrl(): string
+    {
+        $media = $this->primaryImageMedia();
+
+        return $this->generateMediaUrl($media, 'thumb', $media?->collection_name ?? 'components');
+    }
+
+    public function primaryImageBigUrl(): string
+    {
+        $media = $this->primaryImageMedia();
+
+        return $this->generateMediaUrl($media, '', $media?->collection_name ?? 'components');
+    }
+
+    public function replacePrimaryImage($file): Media
+    {
+        $this->clearMediaCollection('components');
+        $this->clearMediaCollection('component');
+
+        $media = $this->addMedia($file)->toMediaCollection('components');
+        $this->unsetRelation('media');
+
+        return $media;
     }
 
     public function registerAllMediaConversions(): void

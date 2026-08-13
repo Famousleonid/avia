@@ -87,6 +87,7 @@
                 @csrf
                 <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                 <input type="hidden" name="manual_id" value="{{ $current_wo->unit->manual_id }}">
+                <input type="hidden" name="redirect" value="{{ route('tdrs.show', ['id' => $current_wo->id]) }}">
                 <div class="modal-body">
                     <div class="form-group mb-2">
                         <label for="edit_name">{{ __('Name') }}</label>
@@ -108,6 +109,23 @@
                             </div>
                             <div class="mb-2">
                                 <label>{{ __('Image') }}</label>
+                                <div id="edit_component_image_preview" class="d-none align-items-center gap-2 mb-2">
+                                    <a id="edit_component_image_link" href="#" data-fancybox="edit-component-image">
+                                        <img id="edit_component_image_thumb"
+                                             src=""
+                                             alt="{{ __('Part image') }}"
+                                             class="tdr-component-thumb"
+                                             width="30"
+                                             height="30">
+                                    </a>
+                                    <button type="button"
+                                            id="edit_component_image_delete"
+                                            class="btn btn-outline-danger btn-sm"
+                                            title="{{ __('Delete image') }}"
+                                            aria-label="{{ __('Delete image') }}">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </div>
                                 <input type="file" name="img" class="form-control">
                             </div>
                         </div>

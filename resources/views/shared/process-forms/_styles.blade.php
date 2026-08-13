@@ -79,13 +79,34 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
     min-width: 0;
 }
 .process-sheet-title-row--machining {
+    box-sizing: border-box;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
     padding-right: var(--process-header-qr-clearance, calc(var(--print-mark-qr-size, 40px) + 8mm));
+    width: 100%;
+}
+.process-sheet-title-row--machining > h4 {
+    min-width: 0;
 }
 .machining-sheet-header-meta {
+    justify-self: end;
+    max-width: 240px;
+    overflow-wrap: anywhere;
     position: relative;
+    text-align: right;
     top: -8px;
     line-height: 1.1;
     min-width: 0;
+    white-space: normal;
+}
+@media (max-width: 767.98px) {
+    .process-sheet-title-row--machining {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .machining-sheet-header-meta {
+        justify-self: start;
+        text-align: left;
+    }
 }
 .process-ro-line {
     display: flex;

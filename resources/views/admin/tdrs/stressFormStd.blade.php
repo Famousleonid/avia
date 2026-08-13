@@ -5,7 +5,11 @@
     @php
         $tdrFormConfig = config('tdr_forms.stressFormStd');
         $componentName = (string) $current_wo->displayDescription();
-        $manualNumber = (string) ($manual->number ?? '');
+        $manualNumber = collect($manuals ?? [$manual])
+            ->map(fn ($item) => format_cmm_number($item->number ?? ''))
+            ->filter()
+            ->unique()
+            ->implode(' / ');
         $stress_table_pages = $stress_table_pages ?? [[]];
         $stress_total_pages = max(1, count($stress_table_pages));
         $stressGlobalRowIndex = 1;
@@ -119,7 +123,7 @@
                             </div>
                             <div class="std-cell">{{ $component->part_number }}</div>
                             <div class="std-cell">{{ $component->name }}</div>
-                            <div class="std-cell">{{ $component->process_name }}</div>
+                            <div class="std-cell">{!! nl2br(e(format_process_number($component->process_name))) !!}</div>
                             <div class="std-cell">{{ $component->qty }}</div>
                             <div class="std-cell"></div>
                         </div>

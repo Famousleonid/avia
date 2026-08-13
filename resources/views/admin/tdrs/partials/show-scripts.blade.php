@@ -5,6 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ asset('js/tdr-processes/sortable-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/form-link-handler.js') }}"></script>
+<script src="{{ asset('js/tdr-processes/combined-form-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/edit-process/edit-process.js') }}"></script>
 <script src="{{ asset('js/delete-confirm-handler.js') }}"></script>
 <script>
@@ -25,6 +26,91 @@
         }
         console[level === 'error' ? 'error' : 'log'](message);
     };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var table = document.getElementById('tdr_process_Table');
+        var tbody = table ? table.querySelector('tbody') : null;
+        var reorderUrl = table ? table.getAttribute('data-reorder-url') : '';
+        if (!tbody || !reorderUrl || typeof window.Sortable === 'undefined') return;
+
+        var rows = tbody.querySelectorAll('tr[data-tdr-id]');
+        if (rows.length < 2) return;
+
+        var originalIds = [];
+        var sortable = null;
+
+        function currentIds() {
+            return Array.from(tbody.querySelectorAll('tr[data-tdr-id]')).map(function(row) {
+                return Number(row.getAttribute('data-tdr-id'));
+            });
+        }
+
+        function setSaving(isSaving) {
+            tbody.querySelectorAll('.tdr-row-drag-handle').forEach(function(handle) {
+                handle.disabled = isSaving;
+            });
+            if (sortable) sortable.option('disabled', isSaving);
+        }
+
+        function restoreOrder(ids) {
+            var rowsById = {};
+            tbody.querySelectorAll('tr[data-tdr-id]').forEach(function(row) {
+                rowsById[row.getAttribute('data-tdr-id')] = row;
+            });
+            var firstUtilityRow = tbody.querySelector('#tdrInlineCreateRow, #tdrInlineAddRow');
+            ids.forEach(function(id) {
+                var row = rowsById[String(id)];
+                if (row) tbody.insertBefore(row, firstUtilityRow);
+            });
+        }
+
+        sortable = window.Sortable.create(tbody, {
+            animation: 150,
+            draggable: 'tr[data-tdr-id]',
+            handle: '.tdr-row-drag-handle',
+            ghostClass: 'tdr-sortable-ghost',
+            fallbackOnBody: true,
+            swapThreshold: 0.65,
+            onStart: function() {
+                originalIds = currentIds();
+            },
+            onEnd: function(event) {
+                if (event.oldIndex === event.newIndex) return;
+
+                setSaving(true);
+                fetch(reorderUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ tdr_ids: currentIds() }),
+                    spinner: false
+                })
+                    .then(function(response) {
+                        return response.json().catch(function() { return {}; }).then(function(data) {
+                            if (!response.ok || data.success !== true) {
+                                var validationMessage = data.errors && data.errors.tdr_ids
+                                    ? data.errors.tdr_ids[0]
+                                    : null;
+                                throw new Error(validationMessage || data.message || '{{ __('Unable to save TDR order.') }}');
+                            }
+                        });
+                    })
+                    .catch(function(error) {
+                        restoreOrder(originalIds);
+                        window.tdrShowNotify(error.message || '{{ __('Unable to save TDR order.') }}', 'error');
+                    })
+                    .finally(function() {
+                        setSaving(false);
+                });
+            }
+        });
+        table.setAttribute('data-sortable-ready', 'true');
+    });
 
     window.syncTdrPrlPaperGroupFromDocument = function(freshDocument) {
         var currentGroup = document.getElementById('tdr-prl-paper-group');
@@ -664,6 +750,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (row.dataset.assyPartNumber) item.assy_part_number = row.dataset.assyPartNumber;
             if (row.dataset.assyIplNum) item.assy_ipl_num = row.dataset.assyIplNum;
             if (row.dataset.unitsAssy) item.units_assy = row.dataset.unitsAssy;
+            if (row.dataset.unitIndex) item.unit_index = row.dataset.unitIndex;
             row.querySelectorAll('input, select').forEach(function(field) {
                 if (!field.name) return;
                 if (field.type === 'checkbox') {
@@ -702,11 +789,18 @@ document.addEventListener('DOMContentLoaded', function() {
             var manualId = (tr && tr.dataset.manualId) || '';
             var manualLabel = (tr && tr.dataset.manualLabel) || '';
             if (manualId && !emittedManuals.has(manualId)) {
-                data.push({
+                var originalManualRow = originalRows.find(function(candidate) {
+                    return candidate
+                        && candidate.row_type === 'manual'
+                        && String(candidate.manual_id || '') === String(manualId);
+                }) || {};
+                var manualRow = Object.assign({}, originalManualRow, {
                     row_type: 'manual',
                     manual_id: manualId,
                     manual_label: manualLabel
                 });
+                delete manualRow._storage_index;
+                data.push(manualRow);
                 emittedManuals.add(manualId);
             }
 
@@ -723,14 +817,21 @@ document.addEventListener('DOMContentLoaded', function() {
             var snEl = groupKey ? logCardTabFindByName(root, 'lc_serial_numbers[' + groupKey + ']') : null;
             var asEl = groupKey ? logCardTabFindByName(root, 'lc_assy_serial_numbers[' + groupKey + ']') : null;
             var rsEl = groupKey ? logCardTabFindByName(root, 'lc_reasons[' + groupKey + ']') : null;
-            var row = {
+            var hasOriginalRow = Object.keys(originalRow).length > 0;
+            var row = Object.assign({}, originalRow, {
                 component_id: componentInput.value,
-                included: '1',
-                serial_number: snEl ? snEl.value : (originalRow.serial_number || ''),
-                assy_serial_number: asEl ? asEl.value : (originalRow.assy_serial_number || ''),
-                reason: rsEl && rsEl.value ? rsEl.value : (originalRow.reason || ''),
-                new_serial_number: originalRow.new_serial_number || ''
-            };
+                included: '1'
+            });
+            if (snEl) row.serial_number = snEl.value;
+            if (asEl) row.assy_serial_number = asEl.value;
+            if (rsEl) row.reason = rsEl.value;
+            if (!hasOriginalRow) {
+                if (!snEl) row.serial_number = '';
+                if (!asEl) row.assy_serial_number = '';
+                if (!rsEl) row.reason = '';
+                row.new_serial_number = '';
+            }
+            delete row._storage_index;
             if (manualId) row.manual_id = manualId;
             if (!isSeparate && componentInput.dataset.iplGroup) row.ipl_group = componentInput.dataset.iplGroup;
             if (componentInput.dataset.unitIndex) row.unit_index = componentInput.dataset.unitIndex;
@@ -1311,6 +1412,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     bindProcessHandlers(wrapper, target);
                     if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
+                    if (typeof CombinedProcessFormHandler !== 'undefined') CombinedProcessFormHandler.init(target);
                     initTravelerGroupHandlers(target);
                     if (isTabTarget && addProcessBtn) {
                         addProcessBtn.disabled = false;
@@ -2325,6 +2427,21 @@ document.addEventListener('DOMContentLoaded', function() {
     var logCardInlineQueuedUpdates = [];
     var logCardEditOriginalRows = null;
 
+    function logCardWaitForInlineSaves() {
+        return new Promise(function(resolve) {
+            function check() {
+                if (!logCardInlineSaveTimer && !logCardInlineSaveInFlight && logCardInlineQueuedUpdates.length === 0) {
+                    resolve();
+                    return;
+                }
+
+                setTimeout(check, 40);
+            }
+
+            check();
+        });
+    }
+
     function logCardTabPersistPayload(payload, options) {
         options = options || {};
         if (!payload || payload.length < 1) {
@@ -2483,13 +2600,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var logCardId = logCardEnterBtn.getAttribute('data-log-card-id') || '';
             if (logCardId) {
-                var root = document.getElementById('log-card-partial-shell');
-                logCardEditOriginalRows = logCardTabSavedPayload(root) || [];
+                logCardEditOriginalRows = null;
                 logCardEnterBtn.disabled = true;
                 logCardEnterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Opening...") }}';
-                loadLogCardPartial({ edit: true }).then(function(opened) {
-                    if (!opened) logCardEditOriginalRows = null;
-                });
+                logCardWaitForInlineSaves()
+                    .then(function() {
+                        return loadLogCardPartial({ edit: true });
+                    })
+                    .then(function(opened) {
+                        if (!opened) logCardEditOriginalRows = null;
+                    });
                 return;
             }
 
@@ -2616,6 +2736,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var fieldValue = field.type === 'checkbox' ? (field.checked ? '1' : '0') : field.value;
 
             logCardInlineSaveTimer = setTimeout(function() {
+                logCardInlineSaveTimer = null;
                 logCardEnqueueInlineSave(rowIndex, fieldName, fieldValue);
             }, 350);
         }

@@ -946,6 +946,14 @@ class MobileApiTest extends TestCase
             ->assertJsonPath('data.rows_count', 2);
 
         $card = LogCard::query()->where('workorder_id', $workorder->id)->firstOrFail();
+        $protectedRows = json_decode((string) $card->component_data, true);
+        $protectedRows[0]['qa_header_part_number'] = 'QA-HEADER';
+        $protectedRows[1]['name'] = 'QA component description';
+        $protectedRows[1]['qa_fit_date'] = '05/aug/2026';
+        $protectedRows[1]['qa_cell_colors'] = ['description' => '#d3f9d8'];
+        $card->component_data = json_encode($protectedRows, JSON_UNESCAPED_UNICODE);
+        $card->save();
+
         $show = $this->withMobileToken($user)
             ->getJson(route('api.mobile.workorders.log-card.show', $workorder->id));
         $show->assertOk()
@@ -984,6 +992,10 @@ class MobileApiTest extends TestCase
         $this->assertSame((string) $variant->id, $rows[1]['component_id']);
         $this->assertSame((string) $variantAssemblyA->id, $rows[1]['component_assembly_id']);
         $this->assertSame('UPDATED-SN', $rows[1]['serial_number']);
+        $this->assertSame('QA-HEADER', $rows[0]['qa_header_part_number']);
+        $this->assertSame('QA component description', $rows[1]['name']);
+        $this->assertSame('05/aug/2026', $rows[1]['qa_fit_date']);
+        $this->assertSame('#d3f9d8', $rows[1]['qa_cell_colors']['description']);
         $this->assertSame('manual', $rows[2]['row_type']);
         $this->assertSame((string) $extra->id, $rows[3]['component_id']);
 

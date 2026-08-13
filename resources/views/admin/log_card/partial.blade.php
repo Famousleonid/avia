@@ -81,7 +81,7 @@
                                 <span>{{ __('Include') }}</span>
                             </label>
                         </th>
-                        <th class="text-primary text-center" style="width: 55%;">{{ __('Description') }} / {{ __('Part Number') }}</th>
+                        <th class="text-primary text-center" style="width: 55%;">{{ __('Part Number') }} / {{ __('IPL') }} / {{ __('Description') }}</th>
                         <th class="text-primary text-center">{{ __('Assy') }} ({{ __('IPL') }} / {{ __('Part Number') }})</th>
                     </tr>
                 </thead>
@@ -91,6 +91,7 @@
                             'manual' => $manual,
                             'sectionKey' => '',
                             'componentData' => $componentData,
+                            'orderedComponents' => $orderedComponents,
                         ])
                     @endif
                     @foreach($savedExtraManualSections as $savedManualSection)
@@ -100,6 +101,7 @@
                             'manual' => $savedManualSection['manual'],
                             'sectionKey' => $savedManualSection['sectionKey'],
                             'componentData' => $componentData,
+                            'orderedComponents' => $savedManualSection['orderedComponents'],
                         ])
                     @endforeach
                 </tbody>
@@ -129,7 +131,7 @@
             <table class="table table-bordered table-hover dir-table align-middle bg-gradient">
                 <thead class="table-dark">
                     <tr>
-                        <th class="text-primary text-center">{{ __('Description') }} / {{ __('Part Number') }}</th>
+                        <th class="text-primary text-center">{{ __('Part Number') }} / {{ __('IPL') }} / {{ __('Description') }}</th>
                         <th class="text-primary text-center">{{ __('Serial Number') }}</th>
                         <th class="text-primary text-center">{{ __('Part Number Assy') }}</th>
                         <th class="text-primary text-center">{{ __('ASSY Serial Number') }}</th>
@@ -182,17 +184,18 @@
                             }
                         @endphp
                         <tr class="lc-saved-row"
-                            data-row-index="{{ $index }}"
+                            data-row-index="{{ $item['_storage_index'] ?? $index }}"
                             data-component-id="{{ $component->id }}"
                             data-ipl-group="{{ $item['ipl_group'] ?? '' }}"
                             data-component-assembly-id="{{ $assemblyId }}"
                             data-assy-part-number="{{ $assyPartNumber }}"
                             data-assy-ipl-num="{{ $assyIplNum }}"
-                            data-units-assy="{{ $item['units_assy'] ?? '' }}">
+                            data-units-assy="{{ $item['units_assy'] ?? '' }}"
+                            data-unit-index="{{ $item['unit_index'] ?? '' }}">
                             <td>
-                                {{ $item['name'] ?? $item['description'] ?? $component->name }} ({{ $component->ipl_num }}) / {{ $item['part_number'] ?? $component->part_number }}
+                                {{ $item['part_number'] ?? $component->part_number }} <span class="lc-ipl text-secondary">({{ $component->ipl_num }})</span> {{ $item['name'] ?? $item['description'] ?? $component->name }}
                                 @if(!empty($item['unit_index']) && !empty($item['units_assy']))
-                                    <br><small class="text-muted">{{ __('Unit') }} {{ $item['unit_index'] }} {{ __('of') }} {{ $item['units_assy'] }}</small>
+                                    <small class="text-muted text-nowrap ms-2">{{ __('Unit') }} {{ $item['unit_index'] }} {{ __('of') }} {{ $item['units_assy'] }}</small>
                                 @endif
                             </td>
                             <td>
@@ -219,10 +222,18 @@
                                        placeholder="{{ __('ASSY Serial Number') }}">
                             </td>
                             <td>
+                                @php
+                                    $savedReasonValue = trim((string) ($item['reason'] ?? ''));
+                                    $hasSavedReasonOption = $savedReasonValue !== ''
+                                        && $codes->contains(fn ($code) => (string) $code->id === $savedReasonValue);
+                                @endphp
                                 <select class="form-control form-control-sm lc-inline-input lc-saved-field" name="reason" @disabled($logCardTdrReadOnly)>
                                     <option value="">{{ __('Reason') }}</option>
+                                    @if($savedReasonValue !== '' && !$hasSavedReasonOption)
+                                        <option value="{{ $savedReasonValue }}" selected>{{ $savedReasonValue }}</option>
+                                    @endif
                                     @foreach($codes as $c)
-                                        <option value="{{ $c->id }}" @selected((string) ($item['reason'] ?? '') === (string) $c->id)>{{ $c->name }}</option>
+                                        <option value="{{ $c->id }}" @selected($savedReasonValue === (string) $c->id)>{{ $c->name }}</option>
                                     @endforeach
                                 </select>
                             </td>

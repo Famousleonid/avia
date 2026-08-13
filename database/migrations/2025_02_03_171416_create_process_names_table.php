@@ -18,7 +18,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('process_sheet_name');
-            $table->string('form_number');
+            $table->string('form_number')->nullable();
         });
         DB::table('process_names')->insert([
             ['name' => 'NDT-1','process_sheet_name'=>'NDT','form_number'=>'016'],

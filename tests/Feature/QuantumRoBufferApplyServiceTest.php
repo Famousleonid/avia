@@ -892,6 +892,45 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame('2026-06-03', $secondBatch->date_finish?->format('Y-m-d'));
     }
 
+    public function test_machining_pn_writes_to_machining_bushing_batch_selected_by_ref(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Machining Bushing Vendor']);
+        $firstBatch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_column_key' => 'machining',
+        ]);
+        $secondBatch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_column_key' => 'machining',
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => 'Machining',
+            'class' => 'BUSHING_MACHINING',
+            'bom_ref' => 'B2',
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['applied']);
+
+        $line->refresh();
+        $firstBatch->refresh();
+        $secondBatch->refresh();
+
+        $this->assertSame('applied', $line->apply_status);
+        $this->assertSame('wo_bushing_batches', $line->applied_target_table);
+        $this->assertSame($secondBatch->id, $line->applied_target_id);
+        $this->assertNull($firstBatch->repair_order);
+        $this->assertSame($line->ro_number, $secondBatch->repair_order);
+        $this->assertSame($vendor->id, $secondBatch->vendor_id);
+        $this->assertSame('2026-06-01', $secondBatch->date_start?->format('Y-m-d'));
+        $this->assertSame('2026-06-03', $secondBatch->date_finish?->format('Y-m-d'));
+    }
+
     public function test_cad_plate_b_pn_writes_to_cad_bushing_batch(): void
     {
         $workorder = $this->createWorkorder();

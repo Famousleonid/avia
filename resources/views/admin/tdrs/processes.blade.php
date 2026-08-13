@@ -291,7 +291,7 @@
                                                    <div class="d-flex">
                                                        <div class="me-2">
                                                            <img class=""
-                                                                src="{{ $tdr->component->getFirstMediaBigUrl('component')}}"
+                                                                src="{{ $tdr->component->primaryImageBigUrl() }}"
                                                                 width="200"  alt="Image"/>
                                                        </div>
                                                        <div>

@@ -9,6 +9,7 @@
     }
 
     #tdr_process_Table {
+        --tdr-drag-col-width: 32px;
         --tdr-action-button-size: 34px;
         --tdr-action-col-width: 172px;
         --tdr-action-gap: 6px;
@@ -26,6 +27,44 @@
 
     #tdr_process_Table col.tdr-action-col {
         width: var(--tdr-action-col-width);
+    }
+
+    #tdr_process_Table col.tdr-drag-col {
+        width: var(--tdr-drag-col-width);
+    }
+
+    #tdr_process_Table .tdr-drag-cell {
+        overflow: visible;
+        padding: 0;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    #tdr_process_Table .tdr-row-drag-handle {
+        align-items: center;
+        background: transparent;
+        border: 0;
+        color: var(--bs-info);
+        cursor: grab;
+        display: inline-flex;
+        height: 32px;
+        justify-content: center;
+        padding: 0;
+        touch-action: none;
+        width: 100%;
+    }
+
+    #tdr_process_Table .tdr-row-drag-handle:active {
+        cursor: grabbing;
+    }
+
+    #tdr_process_Table .tdr-row-drag-handle:disabled {
+        cursor: wait;
+        opacity: .45;
+    }
+
+    #tdr_process_Table .tdr-sortable-ghost > td {
+        background: rgba(13, 202, 240, .18);
     }
 
     #tdr_process_Table th:not(:last-child),
@@ -181,6 +220,21 @@
         line-height: 1.1;
     }
 
+    .tdr-component-thumb {
+        border: 1px solid rgba(13, 202, 240, .45);
+        border-radius: 4px;
+        display: inline-block;
+        height: 30px;
+        object-fit: cover;
+        width: 30px;
+    }
+
+    #tdr_process_Table .tdr-image-cell {
+        overflow: visible;
+        padding: 2px;
+        text-align: center;
+    }
+
     .select2-dropdown.tdr-inline-select-dropdown {
         min-width: min(520px, 90vw) !important;
     }
@@ -224,6 +278,13 @@
         min-width: var(--tdr-action-button-size);
         overflow: hidden;
         width: var(--tdr-action-button-size);
+    }
+
+    #tdr_process_Table .tdr-action-cell .tdr-inline-save-btn {
+        border-color: var(--bs-info);
+        color: var(--bs-info);
+        font-size: 10px;
+        font-weight: 500;
     }
 
     #tdr_process_Table .tdr-action-cell form {
@@ -590,6 +651,7 @@
     <div class="tdr-show-right-pane">
         <form id="tdrInlineCreateForm" class="d-none" method="POST" action="{{ route('tdrs.store') }}" data-no-spinner>
             @csrf
+            <input type="hidden" name="inline_create" value="1">
             <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
             <input type="hidden" name="return_to" value="show">
             <input type="hidden" name="use_tdr" id="tdr_inline_use_tdr" value="0">
@@ -673,10 +735,14 @@
             }
         @endphp
         <div class="table-wrapper p-1 tdr-show-right-table-wrapper">
-            <table id="tdr_process_Table" class="table table-sm table-hover align-middle dir-table small shadow-lg">
+            <table id="tdr_process_Table"
+                   class="table table-sm table-hover align-middle dir-table small shadow-lg"
+                   data-reorder-url="{{ route('tdrs.reorder', ['workorder' => $current_wo->id]) }}">
                 <colgroup>
+                    <col class="tdr-drag-col">
                     <col style="width: 12ch;">
-                    <col style="width: 22%;">
+                    <col style="width: 19%;">
+                    <col style="width: 42px;">
                     <col style="width: 12%;">
                     <col style="width: 10ch;">
                     <col style="width: 14%;">
@@ -686,8 +752,12 @@
                 </colgroup>
                 <thead class="bg-gradient">
                 <tr>
+                    <th class="tdr-drag-cell" aria-label="{{ __('Move row') }}">
+                        <i class="bi bi-grip-vertical" aria-hidden="true"></i>
+                    </th>
                     <th class="text-center text-primary sortable">{{__('IPL')}}</th>
                     <th class="text-center text-primary sortable">{{__('P/N')}}</th>
+                    <th class="text-center text-primary">{{__('Img')}}</th>
                     <th class="text-center text-primary">{{__('Code')}}</th>
                     <th class="text-center text-primary">{{__('Necessary')}}</th>
                     <th class="text-center text-primary sortable">{{__('S/N')}}</th>
@@ -701,9 +771,23 @@
                 <tbody>
                 @foreach($tdrs as $tdr)
                     @if($tdr->use_tdr == true && $tdr->use_process_forms == true)
-                        <tr>
+                        <tr data-tdr-id="{{ $tdr->id }}" data-tdr-ec="{{ $tdrEcIds->contains((int) $tdr->id) ? '1' : '0' }}">
+                            <td class="tdr-drag-cell">
+                                <button type="button"
+                                        class="tdr-row-drag-handle"
+                                        title="{{ __('Move row') }}"
+                                        aria-label="{{ __('Move row') }}">
+                                    <i class="bi bi-grip-vertical" aria-hidden="true"></i>
+                                </button>
+                            </td>
                             <td class="text-center">{{ $tdr->component->ipl_num ?? '' }}</td>
                             <td class="text-center">{{ $tdr->component->part_number ?? '' }}</td>
+                            <td class="tdr-image-cell">
+                                @include('admin.tdrs.partials.component-image', [
+                                    'component' => $tdr->component,
+                                    'gallery' => 'tdr-component-images-'.$current_wo->id,
+                                ])
+                            </td>
                             <td class="text-center">
                                 @foreach($codes as $c)
                                     @if($c->id == $tdr->codes_id) {{ $c->name }} @endif
@@ -722,14 +806,9 @@
                                 @endif
                             </td>
                             <td class="text-center">
-                                @php $found = false; @endphp
-                                @foreach($tdr_proc as $tdr_ec)
-                                    @if($tdr_ec->tdrs_id == $tdr->id)
-                                        @php $found = true; @endphp
-                                        <img src="{{ asset('img/ok.png') }}" alt="{{ __('EC') }}" width="20">
-                                        @break
-                                    @endif
-                                @endforeach
+                                @if($tdrEcIds->contains((int) $tdr->id))
+                                    <img src="{{ asset('img/ok.png') }}" alt="{{ __('EC') }}" width="20">
+                                @endif
                             </td>
                             <td class="text-start tdr-action-cell">
                                 <div class="d-flex">
@@ -782,6 +861,7 @@
                     @endif
                 @endforeach
                 <tr id="tdrInlineCreateRow" class="tdr-inline-create-row d-none">
+                    <td class="tdr-drag-cell"></td>
                     <td class="text-center text-muted" id="tdr_inline_ipl_display"></td>
                     <td>
                         <div id="tdrInlineComponentPicker" class="tdr-inline-field">
@@ -810,6 +890,7 @@
                                             data-assy-ipl="{{ $component->assy_ipl_num }}"
                                             data-units-assy="{{ $component->units_assy }}"
                                             data-np="{{ $component->np ? '1' : '0' }}"
+                                            data-kit="{{ $component->kit ? '1' : '0' }}"
                                             data-assemblies='{{ $componentAssembliesJson }}'>
                                         {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
                                     </option>
@@ -832,6 +913,7 @@
                             </div>
                         </div>
                     </td>
+                    <td class="tdr-image-cell"></td>
                     <td class="tdr-inline-cell tdr-inline-cell-disabled" data-tdr-inline-cell data-inline-step="code">
                         <div class="tdr-inline-placeholder text-info">{{ __('Click code') }}</div>
                         <div class="tdr-inline-field d-none">
@@ -886,15 +968,16 @@
                     <td class="text-center text-muted"></td>
                     <td class="text-start tdr-action-cell">
                         <div class="d-flex">
-                            <button type="submit" form="tdrInlineCreateForm" class="btn btn-outline-primary tdr-inline-save-btn">{{ __('Save') }}</button>
+                            <button type="submit" form="tdrInlineCreateForm" class="btn btn-outline-info tdr-inline-save-btn">{{ __('Save') }}</button>
                         </div>
                     </td>
                 </tr>
                 <tr id="tdrInlineAddRow">
+                    <td class="tdr-drag-cell"></td>
                     <td class="text-start">
                         <button type="button" class="btn btn-outline-info btn-sm" id="tdrInlineAddBtn">{{ __('Add') }}</button>
                     </td>
-                    <td colspan="7"></td>
+                    <td colspan="8"></td>
                 </tr>
                 </tbody>
             </table>

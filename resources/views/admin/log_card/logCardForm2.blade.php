@@ -8,7 +8,9 @@
 
     <style>
         :root {
+            --log-card-description-font-size: 14px;
             --log-card-table-font-size: 14px;
+            --log-card-grid-columns: repeat(2, minmax(0, 1.15fr)) repeat(2, minmax(0, 1fr)) repeat(6, minmax(0, 0.95fr)) repeat(2, minmax(0, 1fr));
         }
 
         body {
@@ -262,8 +264,8 @@
 
         .parent {
             display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            grid-template-rows: repeat(5, 27px); /* Фиксированная высота строк */
+            grid-template-columns: var(--log-card-grid-columns);
+            grid-auto-rows: minmax(27px, auto);
             gap: 0px;
         }
 
@@ -274,12 +276,29 @@
             line-height: 1.12;
         }
 
+        .log-card-table .log-card-data-row > .div13 {
+            font-size: var(--log-card-description-font-size, 14px) !important;
+        }
+
         .log-card-record-row {
             display: grid;
             grid-column: 1 / -1;
-            grid-template-columns: repeat(12, 1fr);
+            grid-template-columns: var(--log-card-grid-columns);
             break-inside: avoid;
             page-break-inside: avoid;
+        }
+
+        .log-card-data-row {
+            --log-card-data-row-height: 27px;
+            min-height: var(--log-card-data-row-height);
+        }
+
+        .log-card-data-row > div {
+            min-height: var(--log-card-data-row-height) !important;
+        }
+
+        .log-card-data-row--dual-part-number {
+            --log-card-data-row-height: 39px;
         }
 
         .log-card-print-page {
@@ -700,9 +719,10 @@
                 $hasAssyPartNumber = $assyPartNumber !== '';
                 $displayName = $item['name'] ?? $item['description'] ?? ($comp->name ?? '');
                 $displayPartNumber = $item['part_number'] ?? ($comp->part_number ?? '');
+                $hasDualPartNumber = $hasAssyPartNumber && trim((string) $displayPartNumber) !== '';
             @endphp
-            <div class="log-card-record-row">
-            <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
+            <div class="log-card-record-row log-card-data-row{{ $hasDualPartNumber ? ' log-card-data-row--dual-part-number' : '' }}">
+            <div class="div13 border-l-b-r text-center pt-1 fs-7">
                 {{ $displayName }}
 {{--                --}}
 {{--                {{ $comp ? $comp->name : '' }}--}}
@@ -868,9 +888,10 @@
                     $hasAssyPartNumber = $assyPartNumber !== '';
                     $displayName = $item['name'] ?? $item['description'] ?? ($comp->name ?? '');
                     $displayPartNumber = $item['part_number'] ?? ($comp->part_number ?? '');
+                    $hasDualPartNumber = $hasAssyPartNumber && trim((string) $displayPartNumber) !== '';
                 @endphp
-                <div class="log-card-record-row">
-                <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
+                <div class="log-card-record-row log-card-data-row{{ $hasDualPartNumber ? ' log-card-data-row--dual-part-number' : '' }}">
+                <div class="div13 border-l-b-r text-center pt-1 fs-7">
 
                     {{ $displayName }}
 

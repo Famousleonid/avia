@@ -25,7 +25,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('marketing:send-wo-estimate-date-emails')->dailyAt('07:20');
         $schedule->command('marketing:send-wo-file-emails')->everyTenMinutes();
         $schedule->command('db:backup')->dailyAt('00:00');
-        $schedule->command('activitylog:clean')->dailyAt('01:00');
+        $schedule->command('activitylog:clean --force')->dailyAt('01:00');
     }
 
     /**

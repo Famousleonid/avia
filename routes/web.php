@@ -44,6 +44,7 @@ use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\VendorTrackingController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WorkorderStdProcessController;
+use App\Http\Controllers\Admin\WorkorderKitPrlCrossoutController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\ManualDimensionFigureController;
 use App\Http\Controllers\Admin\ManualDimensionPointController;
@@ -134,6 +135,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/user-ui-settings', [UserUiSettingController::class, 'index'])->name('user-ui-settings.index');
     Route::post('/user-ui-settings', [UserUiSettingController::class, 'store'])->name('user-ui-settings.store');
 });
+
+Route::view('/admin/user-guide', 'admin.user-guide')
+    ->middleware(['auth', 'verified', 'desktop', 'isAdmin'])
+    ->name('admin.user-guide');
 
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
@@ -276,6 +281,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/workorders/quick-open-search', [WorkorderController::class, 'quickOpenSearch'])->name('workorders.quick-open-search');
     Route::get('/workorders/draft-matches', [WorkorderController::class, 'draftMatches'])->name('workorders.draft-matches');
     Route::resource('/workorders', WorkorderController::class);
+    Route::post('/workorders/{workorder}/manuals/sync', [WorkorderController::class, 'syncAdditionalManuals'])->name('workorders.manuals.sync');
+    Route::patch('/workorders/{workorder}/manuals/usage', [WorkorderController::class, 'updateManualUsage'])->name('workorders.manuals.usage');
     Route::delete('/workorders/{workorder}/force', [WorkorderController::class, 'forceDestroy'])->name('workorders.forceDestroy');
 
     Route::post('/workorders/{workorder}/approve', [WorkorderController::class, 'approveAjax'])->name('workorders.approve.ajax');
@@ -302,6 +309,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/edit-form/{id}', [TdrController::class, 'editForm'])->name('tdrs.editForm');
 
         Route::get('tdrs/show/{id}', [TdrController::class, 'show'])->name('tdrs.show');
+        Route::post('workorders/{workorder}/tdrs/order', [TdrController::class, 'reorder'])->name('tdrs.reorder');
         Route::get('tdrs/{workorder}/service-bulletin-log', [ServiceBulletinLogController::class, 'show'])->name('tdrs.serviceBulletinLog');
         Route::post('tdrs/{workorder}/service-bulletin-log', [ServiceBulletinLogController::class, 'update'])->name('tdrs.serviceBulletinLog.update');
 
@@ -344,6 +352,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/bushingPrlForm/{id}', [TdrPrintFormController::class, 'bushingPrlForm'])->name('tdrs.bushingPrlForm');
         Route::get('tdrs/bushPrlForm/{id}', [TdrPrintFormController::class, 'bushPrlForm'])->name('tdrs.bushPrlForm');
         Route::get('tdrs/kitForm/{id}', [TdrPrintFormController::class, 'kitForm'])->name('tdrs.kitForm');
+        Route::patch('workorders/{workorder}/kit-prl-crossouts/{component}', [WorkorderKitPrlCrossoutController::class, 'update'])->name('tdrs.kit-crossouts.update');
         Route::get('tdrs/specProcessForm/{id}', [TdrPrintFormController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
     Route::get('tdrs/specProcessFormEmp/{id}', [TdrPrintFormController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
         Route::post('tdrs/update-part-field/{id}', [TdrController::class, 'updatePartField'])->name('tdrs.updatePartField');
@@ -512,7 +521,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/processes', [ProcessController::class, 'store'])->name('processes.store');
     Route::patch('/process-names/{processName}/scope', [ProcessController::class, 'updateScope'])->name('process-names.update-scope');
     Route::resource('/tdr-processes',TdrProcessController::class);
-    Route::get('/manual_processes/{manual_process}/edit', [ManualProcessController::class, 'edit'])->name('manual_processes.edit');
     Route::patch('/manual_processes/{manual_process}/requirements', [ManualProcessController::class, 'updateRequirements'])->name('manual_processes.update-requirements');
     Route::put('/manual_processes/{manual_process}', [ManualProcessController::class, 'update'])->name('manual_processes.update');
     Route::patch('/manual_processes/{manual_process}', [ManualProcessController::class, 'update']);
@@ -643,6 +651,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/tdr/{tdrId}/processes', [TdrProcessController::class, 'processes'])->name('tdr-processes.processes');
     Route::get('/tdr/{tdrId}/processes-body', [TdrProcessController::class, 'processesBodyPartial'])->name('tdr-processes.processesBody');
     Route::get('tdr-processes/edit-form/{id}', [TdrProcessController::class, 'editFormPartial'])->name('tdr-processes.editForm');
+    Route::post('/tdr/{tdrId}/combined-form', [TdrProcessController::class, 'combinedForm'])->name('tdr-processes.combinedForm');
     Route::get('/tdr/{tdrId}/package-forms', [TdrProcessController::class, 'packageForms'])->name('tdr-processes.packageForms');
     Route::get('/tdr/{tdrId}/traveler', [TdrProcessController::class, 'traveler'])->name('tdr-processes.traveler');
     Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');

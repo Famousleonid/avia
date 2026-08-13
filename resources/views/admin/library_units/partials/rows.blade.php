@@ -10,6 +10,7 @@
             'description' => $unit->description,
             'eff_code' => $unit->eff_code,
             'manual_id' => $unit->manual_id,
+            'additional_manual_ids' => $unit->additionalManualIds(),
             'verified' => (bool) $unit->verified,
         ];
     @endphp
@@ -19,6 +20,11 @@
         <td>{{ $unit->name ?: '-' }}</td>
         <td>{{ $unit->description ?: '-' }}</td>
         <td class="{{ $unit->manual ? '' : 'text-warning' }}">{{ $manualLabel }}</td>
+        <td>
+            @include('admin.partials.additional-manuals', [
+                'additionalManuals' => $unit->additional_manuals_display ?? [],
+            ])
+        </td>
         <td class="text-center">
             <span class="badge {{ $unit->verified ? 'text-bg-success' : 'text-bg-secondary' }}">
                 {{ $unit->verified ? 'Yes' : 'No' }}
@@ -42,7 +48,7 @@
 @empty
     @if($showEmpty ?? false)
         <tr>
-            <td colspan="9" class="text-center unit-muted py-4">{{ __('No units found') }}</td>
+            <td colspan="10" class="text-center unit-muted py-4">{{ __('No units found') }}</td>
         </tr>
     @endif
 @endforelse

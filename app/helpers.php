@@ -53,3 +53,31 @@ if (!function_exists('parse_project_date')) {
         return \Carbon\Carbon::createFromFormat('d/M/Y', (string) $normalized)->format('Y-m-d');
     }
 }
+
+if (!function_exists('format_cmm_number')) {
+    function format_cmm_number($value): string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return '';
+        }
+
+        if (!preg_match('/\d[\p{L}\d]*(?:[-.\/][\p{L}\d]+)*/u', $raw, $matches)) {
+            return '';
+        }
+
+        return $matches[0];
+    }
+}
+
+if (!function_exists('format_process_number')) {
+    function format_process_number($value): string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return '';
+        }
+
+        return preg_replace('/\s*;\s*/', "\n", $raw) ?? $raw;
+    }
+}

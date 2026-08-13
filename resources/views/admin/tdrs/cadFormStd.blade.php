@@ -5,7 +5,11 @@
     @php
         $tdrFormConfig = config('tdr_forms.cadFormStd');
         $componentName = (string) $current_wo->displayDescription();
-        $manualNumber = (string) ($manual->number ?? '');
+        $manualNumber = collect($manuals ?? [$manual])
+            ->map(fn ($item) => format_cmm_number($item->number ?? ''))
+            ->filter()
+            ->unique()
+            ->implode(' / ');
         $cad_table_pages = $cad_table_pages ?? [[]];
         $cad_total_pages = max(1, count($cad_table_pages));
         $cadGlobalRowIndex = 1;
@@ -214,10 +218,10 @@
                             <div class="std-cell">{{ $component->part_number }}</div>
                             <div class="std-cell">{{ $component->name }}</div>
                             <div class="std-cell std-process-cell">
-                                <span>{{ $processText }}</span>
+                                <span>{!! nl2br(e(format_process_number($processText))) !!}</span>
                             </div>
                             <div class="std-cell">{{ $component->qty }}</div>
-                            <div class="std-cell">{{ $manualNumber }}</div>
+                            <div class="std-cell">{{ format_cmm_number($component->manual ?? $manual->number ?? '') }}</div>
                         </div>
                         @php $cadGlobalRowIndex++; @endphp
                     @else

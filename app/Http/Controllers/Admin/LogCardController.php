@@ -9,9 +9,11 @@ use App\Models\Component;
 use App\Models\LogCard;
 use App\Models\Manual;
 use App\Models\Necessary;
+use App\Models\StdProcess;
 use App\Models\Workorder;
 use App\Models\Tdr;
 use App\Services\LogCardTdrAccessService;
+use App\Services\LogCardPayloadProtectionService;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Contracts\Foundation\Application;
@@ -20,6 +22,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class LogCardController extends Controller
@@ -52,6 +55,15 @@ class LogCardController extends Controller
                 : json_decode($log_card->component_data, true);
         }
         $componentData = is_array($componentData) ? $componentData : [];
+        $componentData = collect($componentData)
+            ->map(function ($row, int $storageIndex) {
+                if (is_array($row)) {
+                    $row['_storage_index'] = $storageIndex;
+                }
+
+                return $row;
+            })
+            ->all();
         $editMode = $request->boolean('edit') && $log_card && ! empty($componentData);
 
         $savedComponentRows = collect($componentData)
@@ -68,6 +80,7 @@ class LogCardController extends Controller
             ->whereIn('id', $savedComponentIds)
             ->get()
             ->keyBy('id');
+        $componentData = $this->sortSavedLogCardRowsByPartNumber($componentData, $savedComponentsById);
 
         $primaryManualId = (int) ($current_wo->unit->manual_id ?? 0);
         $primarySavedIds = $savedComponentIds
@@ -140,7 +153,15 @@ class LogCardController extends Controller
             'log_card_id' => $log_card ? (int) $log_card->id : null,
             'has_saved_log_card' => (bool) ($log_card && ! empty($componentData)),
             'editing_saved_log_card' => (bool) $editMode,
-            'original_component_data' => $editMode ? array_values($componentData) : [],
+            'original_component_data' => $log_card
+                ? collect($componentData)->map(function ($row) {
+                    if (is_array($row)) {
+                        unset($row['_storage_index']);
+                    }
+
+                    return $row;
+                })->values()->all()
+                : [],
             'group_map' => $tabMetaGroupMap,
             'group_keys_ordered' => $groupKeysOrdered,
             'read_only' => (bool) ($logCardTdrAccess['read_only'] ?? false),
@@ -194,6 +215,7 @@ class LogCardController extends Controller
      * @return array{
      *   groupedComponents: \Illuminate\Support\Collection,
      *   separateComponents: \Illuminate\Support\Collection,
+     *   orderedComponents: \Illuminate\Support\Collection,
      *   components: \Illuminate\Database\Eloquent\Collection,
      *   tdrs: \Illuminate\Database\Eloquent\Collection,
      *   code: ?\App\Models\Code,
@@ -243,7 +265,6 @@ class LogCardController extends Controller
                     $query->orWhereIn('id', $alwaysIncludeComponentIds);
                 }
             })
-            ->orderBy('ipl_num', 'asc')
             ->get();
         if ($filterForWorkorderUnit) {
             $components = $this->filterLogCardComponentsForUnit($components, $current_wo);
@@ -254,18 +275,15 @@ class LogCardController extends Controller
                     ->get();
                 $components = $components
                     ->merge($savedComponents)
-                    ->unique('id')
-                    ->sortBy('ipl_num', SORT_NATURAL | SORT_FLAG_CASE)
-                    ->values();
+                    ->unique('id');
             }
-        } else {
-            $components = $components->values();
         }
+        $components = $this->sortLogCardComponentsByPartNumber($components);
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
 
         $groupedComponents = $components->groupBy(function ($component) {
-            if (preg_match('/^(\d+-\d+)/', $component->ipl_num, $matches)) {
+            if (preg_match('/^([A-Za-z0-9]+-\d+)/', $component->ipl_num, $matches)) {
                 return $matches[1];
             }
 
@@ -278,7 +296,7 @@ class LogCardController extends Controller
             return [
                 'ipl_group' => $baseIplKey,
                 'group_key' => $baseIplKey,
-                'components' => $filteredGroup->sortBy('ipl_num')->map(function ($component) use ($tdrs, $code, $necessary) {
+                'components' => $this->sortLogCardComponentsByPartNumber($filteredGroup)->map(function ($component) use ($tdrs, $code, $necessary) {
                     $tdr = $tdrs->where('component_id', $component->id)->first();
                     $reasonForRemove = '';
                     if ($tdr) {
@@ -302,12 +320,20 @@ class LogCardController extends Controller
             return $group['count'] > 0;
         });
 
-        $groupedComponents = $groupedComponents->sortBy(function ($group, $key) {
-            if (preg_match('/^(\d+)-(\d+)$/', (string) $key, $matches)) {
-                return (int) $matches[1] * 1000 + (int) $matches[2];
-            }
+        $groupedComponents = $groupedComponents->sort(function (array $left, array $right): int {
+            $leftComponent = data_get($left['components']->first(), 'component');
+            $rightComponent = data_get($right['components']->first(), 'component');
+            $partNumberCompare = strnatcasecmp(
+                (string) ($leftComponent?->part_number ?? ''),
+                (string) ($rightComponent?->part_number ?? '')
+            );
 
-            return $key;
+            return $partNumberCompare !== 0
+                ? $partNumberCompare
+                : StdProcess::compareIplValues(
+                    (string) ($left['ipl_group'] ?? ''),
+                    (string) ($right['ipl_group'] ?? '')
+                );
         });
 
         $separateComponents = collect();
@@ -341,9 +367,73 @@ class LogCardController extends Controller
             }
         }
 
+        $separateComponents = $separateComponents
+            ->sort(function (array $left, array $right): int {
+                $partNumberCompare = strnatcasecmp(
+                    (string) ($left['component']->part_number ?? ''),
+                    (string) ($right['component']->part_number ?? '')
+                );
+
+                return $partNumberCompare !== 0
+                    ? $partNumberCompare
+                    : ((int) ($left['unit_index'] ?? 0) <=> (int) ($right['unit_index'] ?? 0));
+            })
+            ->values();
+
+        $orderedComponents = $groupedComponents
+            ->flatMap(function (array $group, $groupIndex) {
+                return $group['components']->map(function (array $componentDataRow) use ($group, $groupIndex): array {
+                    return [
+                        'row_type' => 'component',
+                        'component' => $componentDataRow['component'],
+                        'component_data_row' => $componentDataRow,
+                        'group' => $group,
+                        'group_index' => (string) $groupIndex,
+                        'unit_index' => 0,
+                    ];
+                });
+            })
+            ->concat($separateComponents->map(function (array $row, int $index): array {
+                return [
+                    'row_type' => 'unit',
+                    'component' => $row['component'],
+                    'unit_row' => $row,
+                    'separate_index' => $index,
+                    'unit_index' => (int) ($row['unit_index'] ?? 0),
+                ];
+            }))
+            ->sort(function (array $left, array $right): int {
+                $leftComponent = $left['component'];
+                $rightComponent = $right['component'];
+                $partNumberCompare = strnatcasecmp(
+                    (string) ($leftComponent->part_number ?? ''),
+                    (string) ($rightComponent->part_number ?? '')
+                );
+                if ($partNumberCompare !== 0) {
+                    return $partNumberCompare;
+                }
+
+                $iplCompare = StdProcess::compareIplValues(
+                    (string) ($leftComponent->ipl_num ?? ''),
+                    (string) ($rightComponent->ipl_num ?? '')
+                );
+                if ($iplCompare !== 0) {
+                    return $iplCompare;
+                }
+
+                $componentCompare = (int) $leftComponent->id <=> (int) $rightComponent->id;
+                if ($componentCompare !== 0) {
+                    return $componentCompare;
+                }
+
+                return (int) ($left['unit_index'] ?? 0) <=> (int) ($right['unit_index'] ?? 0);
+            })
+            ->values();
+
         return [
             'groupedComponents' => $groupedComponents,
             'separateComponents' => $separateComponents,
+            'orderedComponents' => $orderedComponents,
             'components' => $components,
             'tdrs' => $tdrs,
             'code' => $code,
@@ -390,6 +480,86 @@ class LogCardController extends Controller
                         (string) ($component->ipl_num ?? ''),
                         $manualId
                     );
+            })
+            ->values();
+    }
+
+    private function sortSavedLogCardRowsByPartNumber(array $rows, $componentsById): array
+    {
+        $sections = [];
+        $section = ['header' => null, 'rows' => []];
+
+        foreach ($rows as $row) {
+            if (is_array($row) && ($row['row_type'] ?? '') === 'manual') {
+                if ($section['header'] !== null || $section['rows'] !== []) {
+                    $sections[] = $section;
+                }
+                $section = ['header' => $row, 'rows' => []];
+
+                continue;
+            }
+
+            $section['rows'][] = $row;
+        }
+
+        if ($section['header'] !== null || $section['rows'] !== []) {
+            $sections[] = $section;
+        }
+
+        return collect($sections)
+            ->flatMap(function (array $section) use ($componentsById): array {
+                $sortedRows = collect($section['rows'])
+                    ->sort(function ($left, $right) use ($componentsById): int {
+                        if (! is_array($left) || ! is_array($right)) {
+                            return is_array($left) <=> is_array($right);
+                        }
+
+                        $leftComponent = $componentsById->get((int) ($left['component_id'] ?? 0));
+                        $rightComponent = $componentsById->get((int) ($right['component_id'] ?? 0));
+                        $partNumberCompare = strnatcasecmp(
+                            trim((string) ($left['part_number'] ?? $leftComponent?->part_number ?? '')),
+                            trim((string) ($right['part_number'] ?? $rightComponent?->part_number ?? ''))
+                        );
+                        if ($partNumberCompare !== 0) {
+                            return $partNumberCompare;
+                        }
+
+                        $iplCompare = StdProcess::compareIplValues(
+                            (string) ($leftComponent?->ipl_num ?? ''),
+                            (string) ($rightComponent?->ipl_num ?? '')
+                        );
+
+                        return $iplCompare !== 0
+                            ? $iplCompare
+                            : ((int) ($left['unit_index'] ?? 0) <=> (int) ($right['unit_index'] ?? 0));
+                    })
+                    ->values()
+                    ->all();
+
+                return $section['header'] === null
+                    ? $sortedRows
+                    : array_merge([$section['header']], $sortedRows);
+            })
+            ->values()
+            ->all();
+    }
+
+    private function sortLogCardComponentsByPartNumber($components)
+    {
+        return $components
+            ->sort(function (Component $left, Component $right): int {
+                $partNumberCompare = strnatcasecmp(
+                    (string) ($left->part_number ?? ''),
+                    (string) ($right->part_number ?? '')
+                );
+                if ($partNumberCompare !== 0) {
+                    return $partNumberCompare;
+                }
+
+                return StdProcess::compareIplValues(
+                    (string) ($left->ipl_num ?? ''),
+                    (string) ($right->ipl_num ?? '')
+                );
             })
             ->values();
     }
@@ -522,6 +692,8 @@ class LogCardController extends Controller
 
     public function updateDestructionCertificate(Request $request, $id)
     {
+        abort_unless($request->user()?->can('manager.qa'), 403);
+
         $current_wo = Workorder::findOrFail($id);
         $data = $request->validate([
             'selected_keys' => ['nullable', 'array'],
@@ -608,7 +780,12 @@ class LogCardController extends Controller
             return redirect()->back()->withErrors(['workorder_id' => $message])->withInput();
         }
 
-        $componentData = $this->normalizeLogCardComponentData($request->input('component_data'), $workorder);
+        $incomingRows = $this->decodeLogCardRows($request->input('component_data'));
+        $protectedRows = app(LogCardPayloadProtectionService::class)->protectCreate($incomingRows);
+        $componentData = $this->normalizeLogCardComponentData(
+            json_encode($protectedRows, JSON_UNESCAPED_UNICODE),
+            $workorder
+        );
 
 //        dd($componentData);
 
@@ -791,19 +968,35 @@ class LogCardController extends Controller
         ]);
         $this->validateLogCardComponentData($request);
 
-        $beforeWorkorderId = $log_card->workorder_id;
-        $beforeComponentData = $log_card->component_data;
-
-        $log_card->workorder_id = $request->input('workorder_id');
-        $log_card->component_data = $this->normalizeLogCardComponentData($request->input('component_data'), $workorder);
-        if ($log_card->isDirty()) {
-            $changes = LogCard::buildActivityChanges([
-                'workorder_id' => [$beforeWorkorderId, $log_card->workorder_id],
-                'component_data' => [$beforeComponentData, $log_card->component_data],
+        if ((int) $request->input('workorder_id') !== (int) $log_card->workorder_id) {
+            throw ValidationException::withMessages([
+                'workorder_id' => __('A Log Card cannot be moved to another workorder.'),
             ]);
-            $log_card->save();
-            $log_card->logActivityEvent('updated', $changes['old'], $changes['attributes']);
         }
+
+        $incomingRows = $this->decodeLogCardRows($request->input('component_data'));
+        $protector = app(LogCardPayloadProtectionService::class);
+
+        $log_card = DB::transaction(function () use ($id, $incomingRows, $workorder, $protector) {
+            $lockedLogCard = LogCard::query()->lockForUpdate()->findOrFail($id);
+            $beforeComponentData = $lockedLogCard->component_data;
+            $storedRows = $this->decodeLogCardRows($beforeComponentData);
+            $protectedRows = $protector->protectUpdate($incomingRows, $storedRows);
+
+            $lockedLogCard->component_data = $this->normalizeLogCardComponentData(
+                json_encode($protectedRows, JSON_UNESCAPED_UNICODE),
+                $workorder
+            );
+            if ($lockedLogCard->isDirty()) {
+                $changes = LogCard::buildActivityChanges([
+                    'component_data' => [$beforeComponentData, $lockedLogCard->component_data],
+                ]);
+                $lockedLogCard->save();
+                $lockedLogCard->logActivityEvent('updated', $changes['old'], $changes['attributes']);
+            }
+
+            return $lockedLogCard;
+        });
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['success' => true, 'message' => 'Log Card updated successfully!']);
@@ -826,38 +1019,43 @@ class LogCardController extends Controller
             'value' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $rows = $this->decodeLogCardRows($log_card->component_data);
         $rowIndex = (int) $data['row'];
-        abort_unless(isset($rows[$rowIndex]) && is_array($rows[$rowIndex]), 422);
-
-        $beforeValue = data_get($rows, $rowIndex.'.'.$data['field']);
         $afterValue = trim((string) ($data['value'] ?? ''));
         if ($data['field'] === 'included') {
             $afterValue = filter_var($afterValue, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
         }
 
-        if ($beforeValue === $afterValue) {
-            return response()->json([
-                'success' => true,
-                'field' => $data['field'],
-                'value' => $afterValue,
-            ]);
-        }
+        DB::transaction(function () use ($log_card, $rowIndex, $data, $afterValue) {
+            $lockedLogCard = LogCard::query()->lockForUpdate()->findOrFail($log_card->id);
+            $rows = $this->decodeLogCardRows($lockedLogCard->component_data);
+            abort_unless(
+                isset($rows[$rowIndex])
+                && is_array($rows[$rowIndex])
+                && ($rows[$rowIndex]['row_type'] ?? '') !== 'manual'
+                && ! empty($rows[$rowIndex]['component_id']),
+                422
+            );
 
-        $rows[$rowIndex][$data['field']] = $afterValue;
-        $log_card->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
-        $log_card->save();
-        $log_card->logActivityEvent(
-            'updated',
-            ['component_data.'.$rowIndex.'.'.$data['field'] => $beforeValue],
-            ['component_data.'.$rowIndex.'.'.$data['field'] => $afterValue],
-            [
-                'row' => $rowIndex,
-                'field' => $data['field'],
-                'source' => 'tdrs_show_log_card_inline',
-                'side' => 'left',
-            ]
-        );
+            $beforeValue = data_get($rows, $rowIndex.'.'.$data['field']);
+            if ($beforeValue === $afterValue) {
+                return;
+            }
+
+            $rows[$rowIndex][$data['field']] = $afterValue;
+            $lockedLogCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
+            $lockedLogCard->save();
+            $lockedLogCard->logActivityEvent(
+                'updated',
+                ['component_data.'.$rowIndex.'.'.$data['field'] => $beforeValue],
+                ['component_data.'.$rowIndex.'.'.$data['field'] => $afterValue],
+                [
+                    'row' => $rowIndex,
+                    'field' => $data['field'],
+                    'source' => 'tdrs_show_log_card_inline',
+                    'side' => 'left',
+                ]
+            );
+        });
 
         return response()->json([
             'success' => true,
@@ -881,9 +1079,22 @@ class LogCardController extends Controller
         }
 
         $workorderId = $log_card->workorder_id;
-        $summary = LogCard::summarizeForActivity($log_card);
-        $log_card->logActivityEvent('deleted', $summary, []);
-        $log_card->delete();
+        DB::transaction(function () use ($log_card) {
+            $lockedLogCard = LogCard::query()->lockForUpdate()->findOrFail($log_card->id);
+            if (app(LogCardPayloadProtectionService::class)->logCardContainsQaOwnedData(
+                $lockedLogCard->component_data,
+                $lockedLogCard->component_data_out,
+                $lockedLogCard->destruction_certificate_data
+            )) {
+                throw ValidationException::withMessages([
+                    'log_card' => __('A Log Card containing QA data cannot be reset from the ordinary Log Card screen.'),
+                ]);
+            }
+
+            $summary = LogCard::summarizeForActivity($lockedLogCard);
+            $lockedLogCard->logActivityEvent('deleted', $summary, []);
+            $lockedLogCard->delete();
+        });
 
         request()->session()->flash('success', 'Log Card reset successfully!');
 
@@ -935,6 +1146,16 @@ class LogCardController extends Controller
             ->groupBy('component_id')
             ->map(fn ($items) => $items->first()->orderComponentAssembly);
 
+        $missingCode = Code::missing();
+        $orderNew = Necessary::query()->where('name', 'Order New')->first();
+        $tdrByComponent = Tdr::query()
+            ->where('workorder_id', $workorder->id)
+            ->whereIn('component_id', $componentIds)
+            ->with(['codes', 'necessaries'])
+            ->get()
+            ->groupBy('component_id')
+            ->map(fn ($items) => $items->first());
+
         foreach ($rows as &$row) {
             if (! is_array($row) || ($row['row_type'] ?? '') === 'manual' || empty($row['component_id'])) {
                 continue;
@@ -942,12 +1163,19 @@ class LogCardController extends Controller
 
             $componentId = (int) $row['component_id'];
             $component = $components->get($componentId);
+            if (! array_key_exists('reason', $row)) {
+                $row['reason'] = $this->getReasonForRemove(
+                    $tdrByComponent->get($componentId),
+                    $missingCode,
+                    $orderNew
+                );
+            }
             $assemblyId = (int) ($row['component_assembly_id'] ?? 0);
             $assyPartNumber = trim((string) ($row['assy_part_number'] ?? ''));
             $assyIplNum = trim((string) ($row['assy_ipl_num'] ?? ''));
             $assembly = null;
 
-            if ($component && $assemblyId > 1) {
+            if ($component && $assemblyId > 0) {
                 $assembly = $component->assemblies->firstWhere('id', $assemblyId);
             }
 
@@ -970,6 +1198,10 @@ class LogCardController extends Controller
 
             if ($component && $assyPartNumber === '' && trim((string) ($component->assy_part_number ?? '')) !== '') {
                 $row['assy_part_number'] = trim((string) $component->assy_part_number);
+            }
+
+            if ($component && ! empty($row['unit_index'])) {
+                $row['units_assy'] = (string) ($component->units_assy ?? ($row['units_assy'] ?? ''));
             }
 
             if ($assemblyId === 1 && trim((string) ($row['assy_part_number'] ?? '')) === '' && $assyIplNum === '') {
@@ -1037,7 +1269,7 @@ class LogCardController extends Controller
 
     private function denyLockedTdrLogCardMutation(Request $request, Workorder $workorder): JsonResponse|RedirectResponse|null
     {
-        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, auth()->user());
+        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
         if (! ($access['read_only'] ?? false)) {
             return null;
         }

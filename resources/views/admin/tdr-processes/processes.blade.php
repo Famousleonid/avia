@@ -991,6 +991,7 @@
     <script src="{{ asset('js/tdr-processes/delete-modal-handler.js') }}"></script>
     <script src="{{ asset('js/tdr-processes/vendor-handler.js') }}"></script>
     <script src="{{ asset('js/tdr-processes/form-link-handler.js') }}"></script>
+    <script src="{{ asset('js/tdr-processes/combined-form-handler.js') }}"></script>
     <script src="{{ asset('js/tdr-processes/group-process-forms-handler.js') }}"></script>
     <script src="{{ asset('js/tdr-processes/package-modal-handler.js') }}"></script>
 

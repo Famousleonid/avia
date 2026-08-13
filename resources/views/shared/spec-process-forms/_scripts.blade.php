@@ -46,14 +46,46 @@
         root.style.setProperty('--spec-component-serial-no-font-size', (settings.componentSerialNoFontSize || defaultSettings.componentSerialNoFontSize) + 'px');
     }
 
+    function syncDescriptionRowHeight() {
+        document.querySelectorAll('.container-fluid').forEach(function(page) {
+            page.classList.remove('spec-description-row-expanded');
+
+            const needsExtraRow = Array.from(page.querySelectorAll('.spec-component-description-text'))
+                .some(function(content) {
+                    const cell = content.closest('.spec-component-description');
+                    if (!cell) {
+                        return false;
+                    }
+
+                    const styles = window.getComputedStyle(cell);
+                    const availableHeight = cell.clientHeight
+                        - (parseFloat(styles.paddingTop) || 0)
+                        - (parseFloat(styles.paddingBottom) || 0);
+
+                    const verticalBreathingRoom = 4;
+
+                    return content.getBoundingClientRect().height + verticalBreathingRoom > availableHeight + 0.5;
+                });
+
+            page.classList.toggle('spec-description-row-expanded', needsExtraRow);
+        });
+    }
+
     function addEmptyProcessRows(extraEmptyRows, columnCount) {
         const containers = document.querySelectorAll('.spec-process-table-body');
         containers.forEach(function(container, index) {
+            container.querySelectorAll('.spec-process-compensation-hidden').forEach(function(row) {
+                row.classList.remove('spec-process-compensation-hidden');
+            });
+
             const dataRows = container.querySelectorAll('.spec-process-name-row').length;
             const existing = container.querySelectorAll('.spec-process-empty-row').length;
             const minRows = Math.max(10, dataRows);
             const minEmpty = Math.max(0, minRows - dataRows);
-            const totalNeeded = minEmpty + (extraEmptyRows || 0);
+            const needsCompensation = container.closest('.container-fluid')
+                ?.classList.contains('spec-description-row-expanded') ?? false;
+            const normalTotal = minEmpty + (extraEmptyRows || 0);
+            const totalNeeded = Math.max(0, normalTotal - (needsCompensation ? 1 : 0));
             const toAdd = Math.max(0, totalNeeded - existing);
             for (let i = 0; i < toAdd; i++) {
                 const row = document.createElement('div');
@@ -73,11 +105,31 @@
                     emptyRows[emptyRows.length - 1 - i].remove();
                 }
             }
+
+            if (needsCompensation && normalTotal === 0) {
+                const placeholderRows = Array.from(container.querySelectorAll('.spec-process-name-row'))
+                    .filter(function(row) {
+                        return !(row.querySelector('.spec-process-name-inner')?.textContent || '').trim();
+                    });
+                const lastPlaceholder = placeholderRows[placeholderRows.length - 1];
+                lastPlaceholder?.classList.add('spec-process-compensation-hidden');
+            }
         });
     }
 
     function removeAllEmptyRows() {
         document.querySelectorAll('.spec-process-empty-row').forEach(el => el.remove());
+        document.querySelectorAll('.spec-process-compensation-hidden').forEach(function(row) {
+            row.classList.remove('spec-process-compensation-hidden');
+        });
+    }
+
+    function refreshProcessFormLayout(settings) {
+        applyPrintSettings(settings);
+        removeAllEmptyRows();
+        syncDescriptionRowHeight();
+        const columnCount = parseInt(document.querySelector('.spec-process-table-body')?.dataset?.columnCount) || 6;
+        addEmptyProcessRows(settings.processTableExtraEmptyRows || 0, columnCount);
     }
 
     window.specProcessFormSavePrintSettings = function() {
@@ -93,9 +145,7 @@
             };
             settings._version = SETTINGS_VERSION;
             window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
-            applyPrintSettings(settings);
-            removeAllEmptyRows();
-            addEmptyProcessRows(settings.processTableExtraEmptyRows, 6);
+            refreshProcessFormLayout(settings);
             const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 document.getElementById('printSettingsModal').addEventListener('hidden.bs.modal', function reload() {
@@ -115,9 +165,7 @@
     window.specProcessFormResetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
             window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
-            applyPrintSettings(defaultSettings);
-            removeAllEmptyRows();
-            addEmptyProcessRows(defaultSettings.processTableExtraEmptyRows, 6);
+            refreshProcessFormLayout(defaultSettings);
             const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 document.getElementById('printSettingsModal').addEventListener('hidden.bs.modal', function reload() {
@@ -133,9 +181,15 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         const settings = loadPrintSettings();
-        applyPrintSettings(settings);
-        const columnCount = parseInt(document.querySelector('.spec-process-table-body')?.dataset?.columnCount) || 6;
-        addEmptyProcessRows(settings.processTableExtraEmptyRows || 0, columnCount);
+        refreshProcessFormLayout(settings);
+        window.specProcessFormRefreshLayout = function() {
+            refreshProcessFormLayout(loadPrintSettings());
+        };
+
+        if (document.fonts?.ready) {
+            document.fonts.ready.then(window.specProcessFormRefreshLayout);
+        }
+        window.addEventListener('beforeprint', window.specProcessFormRefreshLayout);
 
         const modal = document.getElementById('printSettingsModal');
         if (modal) {

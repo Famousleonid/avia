@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ManualServiceBulletin;
+use App\Models\UserUiSetting;
 use App\Models\Workorder;
 use App\Models\WorkorderServiceBulletinLog;
 use App\Services\LogCardTdrAccessService;
+use App\Support\ServiceBulletinPrintPaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,11 +37,15 @@ class ServiceBulletinLogController extends Controller
 
         $logsByBulletin = $workorder->serviceBulletinLogs
             ->keyBy('manual_service_bulletin_id');
+        $tableFontSize = $this->tableFontSizeForUser((int) Auth::id());
+        $bulletinPages = app(ServiceBulletinPrintPaginator::class)
+            ->paginate($serviceBulletins, $tableFontSize);
 
         return view('admin.tdrs.serviceBulletinLog', [
             'current_wo' => $workorder,
             'manual' => $manual,
             'serviceBulletins' => $serviceBulletins,
+            'bulletinPages' => $bulletinPages,
             'logsByBulletin' => $logsByBulletin,
             'statusOptions' => $this->statusOptions(),
             'serviceBulletinAccess' => $serviceBulletinAccess,
@@ -122,5 +128,21 @@ class ServiceBulletinLogController extends Controller
             WorkorderServiceBulletinLog::STATUS_PREVIOUSLY_CARRIED_OUT => 'Previously Carried Out',
             WorkorderServiceBulletinLog::STATUS_AT_CARRIED_OUT => 'AT Carried Out',
         ];
+    }
+
+    private function tableFontSizeForUser(int $userId): float
+    {
+        $setting = UserUiSetting::query()
+            ->where('user_id', $userId)
+            ->where('scope', 'tdrs.service-bulletin-log')
+            ->where('key', 'table_font_size_pt')
+            ->first();
+        $value = $setting?->value;
+
+        if (is_array($value)) {
+            $value = $value[0] ?? null;
+        }
+
+        return is_numeric($value) ? (float) $value : 8.3;
     }
 }

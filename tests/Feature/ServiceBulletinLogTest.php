@@ -16,6 +16,63 @@ class ServiceBulletinLogTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_print_settings_use_current_table_font_as_default_and_persist_per_user(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $workorder = $this->createWorkorder(['user_id' => $manager->id]);
+        $this->createManualServiceBulletinForWorkorder($workorder);
+
+        $response = $this->actingAs($manager)->get(
+            route('tdrs.serviceBulletinLog', ['workorder' => $workorder->id])
+        );
+
+        $response
+            ->assertOk()
+            ->assertSee('Print Settings', false)
+            ->assertSee('Table Font (pt)', false)
+            ->assertSee("data-note-preset-text=\"P/N doesn't match\"", false)
+            ->assertSee('data-note-preset-text="Superseded by"', false)
+            ->assertSee("data-note-preset-text=\"S/N doesn't match\"", false)
+            ->assertSee('data-note-preset-color="violet"', false)
+            ->assertSee("var activeNotesInput = null;", false)
+            ->assertSee('insertNotePreset(', false)
+            ->assertSee('var defaultTableFontSize = 8.3;', false)
+            ->assertSee("var settingsScope = 'tdrs.service-bulletin-log';", false)
+            ->assertSee('window.UserUiSettings.get(settingsScope, tableFontSizeKey, defaultTableFontSize)', false)
+            ->assertSee('window.UserUiSettings.set(settingsScope, tableFontSizeKey, value)', false)
+            ->assertDontSee('localStorage', false)
+            ->assertDontSee('sessionStorage', false);
+
+        $this->assertStringContainsString(
+            '--sb-table-font-size: 8.3pt;',
+            file_get_contents(public_path('css/forms/service-bulletin-log.css'))
+        );
+        $this->assertStringContainsString(
+            'font-size: var(--sb-table-font-size);',
+            file_get_contents(public_path('css/forms/service-bulletin-log.css'))
+        );
+        $this->assertStringContainsString(
+            'font-size: calc(var(--sb-table-font-size) + 2pt);',
+            file_get_contents(public_path('css/forms/service-bulletin-log.css'))
+        );
+        $this->assertStringContainsString(
+            '.sb-stamp-option:has(.sb-print-stamp.is-selected)',
+            file_get_contents(public_path('css/forms/service-bulletin-log.css'))
+        );
+        $this->assertStringContainsString(
+            '.sb-notes-row input.is-note-preset-danger',
+            file_get_contents(public_path('css/forms/service-bulletin-log.css'))
+        );
+        $this->assertStringContainsString(
+            '.sb-notes-row input.is-note-preset-primary',
+            file_get_contents(public_path('css/forms/service-bulletin-log.css'))
+        );
+        $this->assertStringContainsString(
+            '.sb-notes-row input.is-note-preset-violet',
+            file_get_contents(public_path('css/forms/service-bulletin-log.css'))
+        );
+    }
+
     public function test_technician_cannot_update_service_bulletin_log_after_post_disassembly_inspection_is_finished(): void
     {
         $technician = $this->createUserWithRole('Technician');

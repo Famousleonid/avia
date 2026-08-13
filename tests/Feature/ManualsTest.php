@@ -42,6 +42,20 @@ class ManualsTest extends TestCase
         $response->assertSee('name="revision_number" maxlength="255"', false);
     }
 
+    public function test_manuals_search_is_scoped_to_the_current_browser(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+
+        $response = $this->actingAs($admin)->get(route('manuals.index'));
+
+        $response->assertOk();
+        $response->assertSee("const MANUALS_SEARCH_BROWSER_COOKIE = 'avia_manuals_search_browser';", false);
+        $response->assertSee('document.cookie = `${encodeURIComponent(MANUALS_SEARCH_BROWSER_COOKIE)}=', false);
+        $response->assertSee('const STORAGE_KEY = `manuals_search:${getManualsSearchBrowserId()}`;', false);
+        $response->assertSee('window.UserScopedStorage.setItem(STORAGE_KEY, v);', false);
+        $response->assertDontSee("const STORAGE_KEY = 'cmm_search';", false);
+    }
+
     public function test_system_admin_sees_and_can_permanently_delete_manual(): void
     {
         $systemAdmin = $this->createUserWithRole('Admin', ['is_admin' => true]);
@@ -205,6 +219,59 @@ class ManualsTest extends TestCase
             'manual_id' => $manual->id,
             'part_number' => 'UNIT-200-B',
         ]);
+    }
+
+    public function test_duplicate_manual_number_returns_clear_validation_error(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $existingManual = $this->createManual([
+            'number' => '32-10-03',
+            'title' => 'Existing Manual',
+        ]);
+
+        $response = $this->actingAs($admin)->postJson(route('manuals.store'), [
+            'number' => ' 32-10-03 ',
+            'title' => 'Duplicate Manual',
+            'revision_date' => '2026-08-10',
+            'planes_id' => $existingManual->planes_id,
+            'builders_id' => $existingManual->builders_id,
+            'scopes_id' => $existingManual->scopes_id,
+            'lib' => '321',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('errors.number.0', 'Manual 32-10-03 already exists.');
+
+        $this->assertSame(1, Manual::query()->where('number', '32-10-03')->count());
+        $this->assertDatabaseMissing('manuals', ['title' => 'Duplicate Manual']);
+    }
+
+    public function test_manual_cannot_be_renamed_to_an_existing_number(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual([
+            'number' => 'CMM-RENAME-SOURCE',
+            'title' => 'Source Manual',
+        ]);
+        $existingManual = $this->createManual([
+            'number' => 'CMM-RENAME-TARGET',
+            'title' => 'Target Manual',
+        ]);
+
+        $response = $this->actingAs($admin)->putJson(route('manuals.update', $manual), [
+            'number' => $existingManual->number,
+            'title' => $manual->title,
+            'revision_date' => $manual->revision_date ?: '2026-08-10',
+            'planes_id' => $manual->planes_id,
+            'builders_id' => $manual->builders_id,
+            'scopes_id' => $manual->scopes_id,
+            'lib' => $manual->lib,
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('errors.number.0', 'Manual CMM-RENAME-TARGET already exists.');
+
+        $this->assertSame('CMM-RENAME-SOURCE', $manual->fresh()->number);
     }
 
     public function test_admin_can_update_manual_core_fields_and_permissions(): void
@@ -546,7 +613,7 @@ class ManualsTest extends TestCase
         $this->assertTrue(Route::has('processes.create'));
         $this->assertTrue(Route::has('processes.store'));
         $this->assertTrue(Route::has('processes.getProcesses'));
-        $this->assertTrue(Route::has('manual_processes.edit'));
+        $this->assertFalse(Route::has('manual_processes.edit'));
         $this->assertTrue(Route::has('manual_processes.update'));
         $this->assertTrue(Route::has('manual_processes.destroy'));
     }

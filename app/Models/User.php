@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasMediaHelpers;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -92,6 +93,29 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         $lastName = array_shift($parts);
 
         return implode(' ', [...$parts, $lastName]);
+    }
+
+    public function scopeWithoutReviewAccounts(Builder $query): Builder
+    {
+        $emails = collect(config('mobile_review.accounts', []))
+            ->keys()
+            ->map(fn ($email): string => mb_strtolower(trim((string) $email)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($emails === []) {
+            return $query;
+        }
+
+        $emailColumn = $query->getModel()->qualifyColumn('email');
+        $placeholders = implode(', ', array_fill(0, count($emails), '?'));
+
+        return $query->where(function (Builder $users) use ($emailColumn, $placeholders, $emails): void {
+            $users->whereNull($emailColumn)
+                ->orWhereRaw("LOWER({$emailColumn}) NOT IN ({$placeholders})", $emails);
+        });
     }
 
     public function permittedManuals()

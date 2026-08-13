@@ -21,6 +21,7 @@ use App\Models\WorkorderUnitInspection;
 use App\Services\Quality\QualityAssuranceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -437,6 +438,7 @@ class QualityAssuranceController extends Controller
             : collect();
         $user = $request->user();
         $managerOptions = User::query()
+            ->withoutReviewAccounts()
             ->with('role')
             ->whereHas('featureAccesses', fn ($query) => $query->where('feature_key', 'certificates.sign'))
             ->orderBy('name')
@@ -624,6 +626,7 @@ class QualityAssuranceController extends Controller
             $value = trim((string) $value);
             if ($value !== '') {
                 User::query()
+                    ->withoutReviewAccounts()
                     ->whereHas('featureAccesses', fn ($query) => $query->where('feature_key', 'certificates.sign'))
                     ->findOrFail((int) $value);
             }
@@ -772,8 +775,16 @@ class QualityAssuranceController extends Controller
         };
         abort_unless(in_array($data['field'], $allowedFields, true), 422);
 
-        $logCard = LogCard::firstOrCreate(['workorder_id' => $workorder->id]);
-        $wasRecentlyCreated = $logCard->wasRecentlyCreated;
+        return DB::transaction(function () use ($data, $workorder) {
+        $logCard = LogCard::query()
+            ->where('workorder_id', $workorder->id)
+            ->lockForUpdate()
+            ->first();
+        $wasRecentlyCreated = false;
+        if (! $logCard) {
+            $logCard = LogCard::query()->create(['workorder_id' => $workorder->id]);
+            $wasRecentlyCreated = true;
+        }
         $sourceRows = $this->decodeLogCardRows($logCard->component_data);
         $targetColumn = $data['side'] === 'right' ? 'component_data_out' : 'component_data';
         $rows = $data['side'] === 'right'
@@ -890,6 +901,7 @@ class QualityAssuranceController extends Controller
             'style' => $style,
             'value' => trim((string) ($data['value'] ?? '')),
         ]);
+        });
     }
 
     private function updateCertificateManualRevision(

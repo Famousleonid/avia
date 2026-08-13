@@ -63,7 +63,7 @@
                     @endphp
                     @if($procText)
                         <span @if(strlen($procText) > 40) class="process-text-long" @endif>
-                            {{ $procText }}
+                            {!! nl2br(e(format_process_number($procText))) !!}
                             @if(isset($data['description']) && $data['description'])<br><span>{{ $data['description'] }}</span>@endif
                         </span>
                     @endif
@@ -72,7 +72,7 @@
                 <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
                     @foreach($manuals ?? [] as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-2">{{ $manual->number }}</h6>
+                            <h6 class="text-center mt-2">{{ format_cmm_number($manual->number) }}</h6>
                         @endif
                     @endforeach
                 </div>
@@ -107,7 +107,7 @@
                     @endphp
                     @if($procText)
                         <span @if(strlen($procText) > 25) class="process-text-long" @endif>
-                            {{ $procText }}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif
+                            {!! nl2br(e(format_process_number($procText))) !!}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif
                             @if($component->description)<br><span>{{ $component->description }}</span>@endif
                         </span>
                     @endif
@@ -116,7 +116,7 @@
                 <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
                     @foreach($manuals ?? [] as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-2">{{ $manual->number }}</h6>
+                            <h6 class="text-center mt-2">{{ format_cmm_number($manual->number) }}</h6>
                         @endif
                     @endforeach
                 </div>

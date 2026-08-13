@@ -28,6 +28,12 @@
     font-size: var(--spec-process-name-font-size);
 }
 .spec-component-description { font-size: var(--spec-component-description-font-size); }
+.container-fluid.spec-description-row-expanded .spec-component-description {
+    height: calc(32px + var(--spec-process-row-height)) !important;
+}
+.spec-process-compensation-hidden {
+    display: none !important;
+}
 .spec-component-part-no { font-size: var(--spec-component-part-no-font-size); }
 .spec-component-serial-no { font-size: var(--spec-component-serial-no-font-size); }
 .print-settings-modal .form-label { font-weight: 500; margin-bottom: 0.5rem; }

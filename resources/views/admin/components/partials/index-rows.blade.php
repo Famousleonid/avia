@@ -121,10 +121,10 @@
             </td>
         @endif
         <td class="text-center" style="width:120px;">
-            @if($component->getMedia('components')->isNotEmpty())
-                <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">
+            @if($component->primaryImageMedia())
+                <a href="{{ $component->primaryImageBigUrl() }}" data-fancybox="gallery">
                     <img
-                        src="{{ $component->getFirstMediaThumbnailUrl('components') }}"
+                        src="{{ $component->primaryImageThumbnailUrl() }}"
                         class="component-avatar"
                         alt="IMG"
                     >

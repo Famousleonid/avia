@@ -53,6 +53,36 @@ class LibraryUnitController extends Controller
             ->paginate(50)
             ->withQueryString();
 
+        $additionalManualsById = Manual::query()
+            ->withTrashed()
+            ->whereKey(
+                $units->getCollection()
+                    ->flatMap(fn (Unit $unit): array => $unit->additionalManualIds())
+                    ->unique()
+                    ->all()
+            )
+            ->get(['id', 'number', 'lib'])
+            ->keyBy('id');
+
+        $units->getCollection()->each(function (Unit $unit) use ($additionalManualsById): void {
+            $unit->setAttribute(
+                'additional_manuals_display',
+                collect($unit->additionalManualIds())
+                    ->map(function (int $manualId) use ($additionalManualsById): ?array {
+                        $manual = $additionalManualsById->get($manualId);
+
+                        return $manual ? [
+                            'id' => (int) $manual->id,
+                            'number' => (string) ($manual->number ?? ''),
+                            'lib' => (string) ($manual->lib ?? ''),
+                        ] : null;
+                    })
+                    ->filter()
+                    ->values()
+                    ->all()
+            );
+        });
+
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
                 'html' => view('admin.library_units.partials.rows', [
@@ -111,13 +141,15 @@ class LibraryUnitController extends Controller
     }
 
     /**
-     * @return array{part_number:string, manual_id:?int, verified:bool, eff_code:?string, name:?string, description:?string}
+     * @return array{part_number:string, manual_id:?int, additional_manual_ids:list<int>, verified:bool, eff_code:?string, name:?string, description:?string}
      */
     private function validatedUnitData(Request $request): array
     {
         $data = $request->validate([
             'part_number' => ['required', 'string', 'max:255'],
             'manual_id' => ['nullable', 'integer', 'exists:manuals,id'],
+            'additional_manual_ids' => ['nullable', 'array'],
+            'additional_manual_ids.*' => ['integer', 'distinct', 'exists:manuals,id'],
             'verified' => ['nullable', 'boolean'],
             'eff_code' => ['nullable', 'string', 'max:255'],
             'name' => ['nullable', 'string', 'max:255'],
@@ -130,6 +162,12 @@ class LibraryUnitController extends Controller
         return [
             'part_number' => trim((string) $data['part_number']),
             'manual_id' => $manualId,
+            'additional_manual_ids' => collect($data['additional_manual_ids'] ?? [])
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0 && $id !== $manualId)
+                ->unique()
+                ->values()
+                ->all(),
             'verified' => $request->boolean('verified'),
             'eff_code' => $this->nullableString($data['eff_code'] ?? null),
             'name' => $this->nullableString($data['name'] ?? null),
@@ -174,7 +212,7 @@ class LibraryUnitController extends Controller
             ->orderByRaw('CASE WHEN number IS NULL OR number = "" THEN 1 ELSE 0 END')
             ->orderBy('number')
             ->orderBy('title')
-            ->get(['id', 'number', 'title']);
+            ->get(['id', 'number', 'title', 'lib']);
     }
 
     /**

@@ -18,6 +18,7 @@ class MessageController extends Controller
         $me = auth()->id();
 
         $users = User::query()
+            ->withoutReviewAccounts()
             ->where('id', '!=', $me) // себя не показываем
             ->orderBy('name')
             ->get(['id', 'name', 'selection_name_order'])
@@ -54,6 +55,7 @@ class MessageController extends Controller
 
         // грузим получателей вместе с prefs
         $recipients = User::query()
+            ->withoutReviewAccounts()
             ->whereIn('id', $data['user_ids'])
             ->get(['id', 'name', 'selection_name_order', 'notification_prefs']);
 

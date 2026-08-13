@@ -29,6 +29,8 @@
             --print-footer-width: 100%;
             --print-footer-font-size: 12px;
             --print-footer-padding: 3px 3px;
+            --prl-printable-width: calc(215.9mm - var(--prl-print-edge-margin) - var(--prl-print-edge-margin));
+            --prl-printable-height: calc(279.4mm - var(--prl-print-edge-margin) - var(--prl-print-edge-margin));
         }
 
         .container-fluid {
@@ -71,7 +73,7 @@
             }
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
-                height: var(--print-body-height);
+                height: auto;
                 width: var(--print-body-width);
                 margin: 0;
                 padding: 0;
@@ -86,10 +88,18 @@
             }
 
             .page {
-                min-height: calc(279.4mm - (var(--prl-print-edge-margin) * 2));
+                width: 100%;
+                height: var(--prl-printable-height);
+                min-height: var(--prl-printable-height);
                 display: flex;
                 flex-direction: column;
                 box-sizing: border-box;
+                overflow: visible;
+            }
+
+            .container-fluid.dynamic-page-wrapper {
+                break-before: page;
+                page-break-before: always;
             }
 
             /* Отключаем разрывы страниц внутри элементов */
@@ -121,6 +131,7 @@
                 font-size: var(--print-footer-font-size);
                 background-color: #fff;
                 padding: var(--print-footer-padding);
+                box-sizing: border-box;
             }
 
             /* Обрезка контента и размещение на одной странице */
@@ -425,6 +436,63 @@
         /* Минимальная высота для строк PRL (в т.ч. пустых) — настраивается в Print Settings */
         .data-row-prl {
             min-height: var(--prl-row-height, 32px);
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        /*
+         * Hidden print-width canvas used by the height paginator. The same
+         * width, gutter resets and page height are used by @media print, so
+         * multiline PRL/KIT rows are measured after their real wrapping.
+         */
+        .prl-print-measurement-stage {
+            position: absolute;
+            top: 0;
+            left: -100000px;
+            width: var(--prl-printable-width);
+            max-width: none;
+            visibility: hidden;
+            pointer-events: none;
+            contain: layout style;
+        }
+
+        .prl-print-measurement-stage .page {
+            width: 100%;
+            height: var(--prl-printable-height);
+            min-height: var(--prl-printable-height);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .prl-print-measurement-stage .row {
+            --bs-gutter-x: 0;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+
+        .prl-print-measurement-stage .ms-2,
+        .prl-print-measurement-stage .ms-3 {
+            margin-left: 0 !important;
+        }
+
+        .prl-print-measurement-stage .header-page .row.ms-3,
+        .prl-print-measurement-stage .all-rows-container .data-row-prl,
+        .prl-print-measurement-stage .stamps-block-clone .data-row-prl {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            --bs-gutter-x: 0;
+            box-sizing: border-box;
+        }
+
+        .prl-print-measurement-stage footer {
+            margin-top: auto;
+            width: var(--print-footer-width);
+            font-size: var(--print-footer-font-size);
+            padding: var(--print-footer-padding);
+            box-sizing: border-box;
         }
 
         .prl-row-crossed-out .prl-col-fig h6,
@@ -450,6 +518,39 @@
             text-decoration-thickness: 1px;
         }
 
+        .kit-prl-option-line {
+            display: block;
+            min-height: 1.2em;
+            line-height: 1.2;
+            border-radius: 2px;
+        }
+
+        .kit-prl-option-crossed-out {
+            text-decoration-line: line-through;
+            text-decoration-thickness: 1px;
+        }
+
+        .kit-prl-manual-toggle {
+            cursor: pointer;
+        }
+
+        .kit-prl-manual-toggle:hover {
+            background: rgba(13, 110, 253, .12);
+            outline: 1px dashed rgba(13, 110, 253, .45);
+        }
+
+        .kit-prl-option-locked {
+            cursor: not-allowed;
+            opacity: .72;
+        }
+
+        @media print {
+            .kit-prl-manual-toggle:hover {
+                background: transparent;
+                outline: 0;
+            }
+        }
+
     </style>
 </head>
 
@@ -470,6 +571,11 @@
         ⚙️ Print Settings
     </button>
 </div>
+@if($kitInteractive ?? false)
+    <div class="mx-3 mb-2 text-secondary small no-print kit-prl-interaction-hint">
+        Click an unlocked KIT position to cross it out or restore it. Automatic cross-outs are locked.
+    </div>
+@endif
 
 <div class="container-fluid">
     <!-- Первая страница с заголовком -->
@@ -537,12 +643,12 @@
                             @endphp
                             @if($hasMultipleManuals && count($uniqueManuals) > 0)
                                 {{-- Показываем все номера manual через ';' --}}
-                                <h6 class=""><strong>{{ implode('; ', $uniqueManuals) }}</strong></h6>
+                                <h6 class=""><strong>{{ collect($uniqueManuals)->map(fn ($number) => format_cmm_number($number))->filter()->implode('; ') }}</strong></h6>
                             @else
                                 {{-- Показываем основной manual --}}
                                 @foreach($manuals as $manual)
                                     @if($manual->id == $current_wo->unit->manual_id)
-                                        <h6 class=""><strong> {{ $manual->number }}</strong></h6>
+                                        <h6 class=""><strong> {{ format_cmm_number($manual->number) }}</strong></h6>
                                     @endif
                                 @endforeach
                             @endif
@@ -668,6 +774,7 @@
                     $isCrossedOut = $isArray ? ! empty($tdr['prl_crossed_out']) : ! empty($tdr->prl_crossed_out ?? false);
                     $bushingGroup = $isArray ? ($tdr['prl_bushing_group'] ?? null) : ($tdr->prl_bushing_group ?? null);
                     $partNumberOptions = $isArray ? ($tdr['prl_part_numbers'] ?? []) : ($tdr->prl_part_numbers ?? []);
+                    $kitComponentOptions = $isArray ? ($tdr['kit_component_options'] ?? []) : [];
                 @endphp
 
                 @if($shouldInsertManualRow)
@@ -714,12 +821,46 @@
                      style="width: 100%"
                      data-row-index="{{ $rowIndex }}"
                      @if($bushingGroup !== null) data-prl-bushing-group="{{ $bushingGroup }}" @endif
-                     @if($isCrossedOut) data-prl-crossed-out="1" @endif>
+                    @if($isCrossedOut) data-prl-crossed-out="1" @endif>
                     <div class="col-1 prl-col-fig border-l-b text-center pt-1 align-content-center">
-                        <h6>{!! nl2br(e($first_part)) !!}</h6>
+                        <h6>
+                            @if(!empty($kitComponentOptions))
+                                @foreach($kitComponentOptions as $kitOption)
+                                    @php
+                                        $option = is_array($kitOption) ? $kitOption : (array) $kitOption;
+                                        $optionIplParts = explode('-', (string) ($option['ipl_num'] ?? ''), 2);
+                                        $optionLabel = trim((string) ($option['ipl_num'] ?? '') . ' / ' . (string) ($option['part_number'] ?? ''));
+                                    @endphp
+                                    @include('admin.tdrs.partials.kit-prl-option-line', [
+                                        'kitPrlOption' => $option,
+                                        'kitPrlDisplayValue' => $optionIplParts[0] ?? '',
+                                        'kitPrlLabel' => $optionLabel,
+                                    ])
+                                @endforeach
+                            @else
+                                {!! nl2br(e($first_part)) !!}
+                            @endif
+                        </h6>
                             </div>
                     <div class="col-1 prl-col-item border-l-b text-center pt-2 align-content-center">
-                                <h6>{!! nl2br(e($second_part)) !!}</h6>
+                                <h6>
+                                    @if(!empty($kitComponentOptions))
+                                        @foreach($kitComponentOptions as $kitOption)
+                                            @php
+                                                $option = is_array($kitOption) ? $kitOption : (array) $kitOption;
+                                                $optionIplParts = explode('-', (string) ($option['ipl_num'] ?? ''), 2);
+                                                $optionLabel = trim((string) ($option['ipl_num'] ?? '') . ' / ' . (string) ($option['part_number'] ?? ''));
+                                            @endphp
+                                            @include('admin.tdrs.partials.kit-prl-option-line', [
+                                                'kitPrlOption' => $option,
+                                                'kitPrlDisplayValue' => $optionIplParts[1] ?? '',
+                                                'kitPrlLabel' => $optionLabel,
+                                            ])
+                                        @endforeach
+                                    @else
+                                        {!! nl2br(e($second_part)) !!}
+                                    @endif
+                                </h6>
                             </div>
                     <div class="col-3 prl-col-desc border-l-b text-center pt-1 align-content-center">
                                 {!! nl2br(e($descriptionDisplay)) !!}
@@ -730,11 +871,29 @@
                                         @foreach($partNumberOptions as $partNumberOption)
                                             @php
                                                 $option = is_array($partNumberOption) ? $partNumberOption : (array) $partNumberOption;
-                                                $optionCrossedOut = ! empty($option['crossed_out']);
+                                                $optionLabel = trim((string) ($bushingGroup ?? '') . ' / ' . (string) ($option['part_number'] ?? ''));
                                             @endphp
-                                            <span class="prl-part-number-line {{ $optionCrossedOut ? 'prl-part-number-crossed-out' : '' }}"
-                                                  data-prl-component-id="{{ $option['component_id'] ?? '' }}"
-                                                  @if($optionCrossedOut) data-prl-part-number-crossed-out="1" @endif>{{ $option['part_number'] ?? '' }}</span>
+                                            @include('admin.tdrs.partials.kit-prl-option-line', [
+                                                'kitPrlOption' => $option,
+                                                'kitPrlDisplayValue' => $option['part_number'] ?? '',
+                                                'kitPrlLabel' => $optionLabel,
+                                                'kitPrlExtraClass' => 'prl-part-number-line',
+                                                'kitPrlPartNumberMode' => true,
+                                            ])
+                                        @endforeach
+                                    </h6>
+                                @elseif(!empty($kitComponentOptions))
+                                    <h6>
+                                        @foreach($kitComponentOptions as $kitOption)
+                                            @php
+                                                $option = is_array($kitOption) ? $kitOption : (array) $kitOption;
+                                                $optionLabel = trim((string) ($option['ipl_num'] ?? '') . ' / ' . (string) ($option['part_number'] ?? ''));
+                                            @endphp
+                                            @include('admin.tdrs.partials.kit-prl-option-line', [
+                                                'kitPrlOption' => $option,
+                                                'kitPrlDisplayValue' => $option['part_number'] ?? '',
+                                                'kitPrlLabel' => $optionLabel,
+                                            ])
                                         @endforeach
                                     </h6>
                                 @elseif($component)
@@ -853,33 +1012,20 @@
                     <div class="mb-4">
                         <h5 class="mb-3" data-bs-toggle="tooltip"
                             data-bs-placement="top"
-                            title="Настройки количества строк в таблице PRL. Строки сверх лимита скрываются при печати. Настройки применяются автоматически при загрузке страницы."
-                            data-tooltip-ru="Настройки количества строк в таблице PRL. Строки сверх лимита скрываются при печати. Настройки применяются автоматически при загрузке страницы."
-                            data-tooltip-en="PRL table row settings. Rows exceeding the limit are hidden when printing. Settings are applied automatically on page load.">
+                            title="Размер текста таблицы PRL. Количество строк на листе рассчитывается автоматически по их фактической высоте."
+                            data-tooltip-ru="Размер текста таблицы PRL. Количество строк на листе рассчитывается автоматически по их фактической высоте."
+                            data-tooltip-en="PRL table font size. Rows are automatically paginated by their actual rendered height.">
                             📊 Tables
                         </h5>
 
                         <div class="row mb-3">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <label for="tableFontSize" class="form-label">
                                     Table Data Font (px)
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="tableFontSize" name="tableFontSize"
                                            min="6" max="24" step="0.5" value="13">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="prlTableRows" class="form-label" data-bs-toggle="tooltip"
-                                        data-bs-placement="top"
-                                        title="Максимальное количество строк в таблице PRL на одной странице. По умолчанию: 19 строк. Используется для всех страниц формы."
-                                        data-tooltip-ru="Максимальное количество строк в таблице PRL на одной странице. По умолчанию: 19 строк. Используется для всех страниц формы."
-                                        data-tooltip-en="Maximum number of rows in PRL table per page. Default: 19 rows. Used for all pages of the form.">
-                                    Table (row)
-                                </label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" id="prlTableRows" name="prlTableRows"
-                                           min="1" max="100" step="1" value="18">
                                 </div>
                             </div>
                         </div>
@@ -1109,7 +1255,7 @@
     // Ключ для сохранения настроек печати
     const PRINT_SETTINGS_PROFILE = @json($printSettingsProfile ?? 'prl');
     const PRINT_SETTINGS_KEY = `prlForm_print_settings:${PRINT_SETTINGS_PROFILE}`;
-    const PRINT_SETTINGS_LAYOUT_VERSION = 'prl-family-v2';
+    const PRINT_SETTINGS_LAYOUT_VERSION = 'prl-family-height-v3';
     const TOOLTIP_LANG_KEY = 'prlForm_tooltip_lang';
 
     // Настройки по умолчанию
@@ -1124,7 +1270,6 @@
         footerWidth: '100%',
         footerFontSize: '12px',
         footerPadding: '3px 3px',
-        prlTableRows: '18',
         prlRowHeight: '32px'
     };
 
@@ -1176,8 +1321,7 @@
             };
 
             const settings = normalizePrintSettings({
-                tableFontSize: getValue('tableFontSize', '13', 'px'),
-                prlTableRows: getValue('prlTableRows', '18', '')
+                tableFontSize: getValue('tableFontSize', '13', 'px')
             });
 
             window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
@@ -1220,8 +1364,7 @@
     // Загрузка настроек в форму
     function loadSettingsToForm(settings) {
         const elements = {
-            'tableFontSize': { suffix: 'px', default: '13' },
-            'prlTableRows': { suffix: '', default: '18' }
+            'tableFontSize': { suffix: 'px', default: '13' }
         };
 
         Object.keys(elements).forEach(function(id) {
@@ -1241,264 +1384,14 @@
     }
 
     // Применение ограничений строк таблицы - создание физических страниц
-    function applyTableRowLimits(settings) {
-        const prlMaxRows = parseInt(settings.prlTableRows) || 18;
-        console.log('Применение ограничений строк PRL:', { prlMaxRows, settings });
-
-        const allRowsContainer = document.querySelector('.all-rows-container');
-        if (!allRowsContainer) {
-            console.warn('Контейнер .all-rows-container не найден!');
-            return;
+    function applyTableRowLimits() {
+        if (!window.PrlPrintPaginator) {
+            console.error('PRL height paginator is unavailable.');
+            return 0;
         }
 
-        // Удаляем все созданные ранее дополнительные страницы и их контейнеры
-        // Находим оригинальный container-fluid (содержит первую страницу с data-page-index="1")
-        let originalContainerFluid = null;
-        document.querySelectorAll('.container-fluid').forEach(function(container) {
-            if (container.querySelector('.data-page[data-page-index="1"]')) {
-                originalContainerFluid = container;
-            }
-        });
-
-        // Если не нашли, берем первый контейнер без класса dynamic-page-wrapper
-        if (!originalContainerFluid) {
-            originalContainerFluid = document.querySelector('.container-fluid:not(.dynamic-page-wrapper)')
-                || document.querySelector('.container-fluid');
-        }
-
-        // Удаляем все container-fluid, которые были созданы динамически (помечены классом dynamic-page-wrapper)
-        document.querySelectorAll('.container-fluid.dynamic-page-wrapper').forEach(function(container) {
-            container.remove();
-        });
-
-        // Удаляем все созданные ранее страницы внутри оригинального контейнера (на случай, если они там остались)
-        if (originalContainerFluid) {
-            originalContainerFluid.querySelectorAll('.data-page[data-page-index]').forEach(function(page) {
-                const pageIndex = page.getAttribute('data-page-index');
-                if (pageIndex && parseInt(pageIndex) > 1) {
-                    page.remove();
-                }
-            });
-        }
-
-        // Удаляем все пустые строки, созданные ранее
-        document.querySelectorAll('.all-rows-container .data-row-prl.empty-row').forEach(function(row) {
-            row.remove();
-        });
-
-        // Удаляем ранее добавленные клоны блока печатей
-        document.querySelectorAll('.stamps-block-clone').forEach(function(block) {
-            block.remove();
-        });
-
-        // Собираем все строки из контейнера
-        const allRows = Array.from(allRowsContainer.querySelectorAll('.data-row-prl:not(.empty-row)'));
-
-        // Разделяем на manual-row и data-rows
-        const manualRows = allRows.filter(function(row) {
-            return row.classList.contains('manual-row');
-        });
-        const dataRows = allRows.filter(function(row) {
-            return !row.classList.contains('manual-row');
-        });
-
-        const hasManualRows = manualRows.length > 0;
-        console.log('Найдено manual-row:', hasManualRows);
-        console.log('Найдено строк с данными:', dataRows.length);
-
-        let totalRows;
-        let rowsToProcess;
-
-        if (hasManualRows) {
-            // Случай с manual-row: считаем все строки (manual + data)
-            totalRows = allRows.length;
-            rowsToProcess = allRows;
-        } else {
-            // Случай без manual-row: считаем только data-rows
-            totalRows = dataRows.length;
-            rowsToProcess = dataRows;
-        }
-
-        // Вычисляем количество страниц
-        const totalPages = Math.max(1, Math.ceil(totalRows / prlMaxRows));
-        console.log('Всего строк:', totalRows, ', Лимит на странице:', prlMaxRows, ', Создано страниц:', totalPages);
-
-        // Находим элементы для копирования
-        const originalHeader = document.querySelector('.header-page');
-        const originalFooter = document.querySelector('footer');
-        const containerFluid = originalContainerFluid || document.querySelector('.container-fluid');
-        const stampsBlock = document.querySelector('.stamps-block');
-        let pageInsertAnchor = containerFluid;
-
-        // Скрываем строки, которые не на первой странице
-        rowsToProcess.forEach(function(row, index) {
-            if (index < prlMaxRows) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-
-        // Создаём дополнительные страницы (начиная со второй)
-        for (let pageIndex = 1; pageIndex < totalPages; pageIndex++) {
-            const startIndex = pageIndex * prlMaxRows;
-            const endIndex = Math.min(startIndex + prlMaxRows, rowsToProcess.length);
-            const pageRows = rowsToProcess.slice(startIndex, endIndex);
-
-            // Пропускаем создание страницы, если нет строк для неё
-            if (pageRows.length === 0) {
-                console.warn('Пропущена пустая страница:', pageIndex + 1);
-                continue;
-            }
-
-            // Создаём контейнер для новой страницы (как container-fluid)
-            const pageContainer = document.createElement('div');
-            pageContainer.className = 'container-fluid dynamic-page-wrapper';
-
-            // Создаём новую страницу
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'page data-page';
-            pageDiv.setAttribute('data-page-index', pageIndex + 1);
-            pageDiv.style.pageBreakBefore = 'always';
-
-            // Копируем header
-            if (originalHeader) {
-                const headerClone = originalHeader.cloneNode(true);
-                pageDiv.appendChild(headerClone);
-            }
-
-            // Создаём контейнер для строк этой страницы (как all-rows-container)
-            const rowsContainer = document.createElement('div');
-            rowsContainer.className = 'all-rows-container';
-
-            // Клонируем строки для этой страницы
-            pageRows.forEach(function(row) {
-                const rowClone = row.cloneNode(true);
-                rowClone.style.display = '';
-                rowsContainer.appendChild(rowClone);
-            });
-
-            // Добавляем пустые строки на последней странице, если нужно
-            if (pageIndex === totalPages - 1) {
-                const rowsOnLastPage = totalRows % prlMaxRows;
-                const emptyRowsNeeded = rowsOnLastPage === 0 ? 0 : (prlMaxRows - rowsOnLastPage);
-
-                if (emptyRowsNeeded > 0) {
-                    for (let i = 0; i < emptyRowsNeeded; i++) {
-                        const emptyRow = document.createElement('div');
-                        emptyRow.className = 'row data-row-prl ms-3 empty-row';
-                        emptyRow.style.width = '100%';
-                        emptyRow.innerHTML = `
-                            <div class="prl-col-fig border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-item border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-desc border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-part border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-qty border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-code border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-po border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-notes border-l-b-r text-center align-content-center"><h6></h6></div>
-                        `;
-                        rowsContainer.appendChild(emptyRow);
-                    }
-                    console.log('Добавлено пустых строк на последнюю страницу:', emptyRowsNeeded);
-                }
-
-                // Добавляем блок с печатями на последнюю страницу
-                if (stampsBlock) {
-                    const stampsClone = stampsBlock.cloneNode(true);
-                    stampsClone.style.display = 'block';
-                    stampsClone.classList.add('stamps-block-clone');
-                    rowsContainer.appendChild(stampsClone);
-                    console.log('Блок печатей добавлен на последнюю страницу');
-            } else {
-                    console.warn('Блок печатей не найден для последней страницы');
-                }
-            }
-
-            pageDiv.appendChild(rowsContainer);
-
-            // Копируем footer
-            if (originalFooter) {
-                const footerClone = originalFooter.cloneNode(true);
-                pageDiv.appendChild(footerClone);
-            }
-
-            // Добавляем pageDiv в pageContainer
-            pageContainer.appendChild(pageDiv);
-
-            // Вставляем страницу сразу после предыдущей (первая — после container-fluid)
-            if (containerFluid && containerFluid.parentNode) {
-                containerFluid.parentNode.insertBefore(pageContainer, pageInsertAnchor.nextSibling);
-                pageInsertAnchor = pageContainer;
-            } else {
-                document.body.appendChild(pageContainer);
-            }
-        }
-
-        // Добавляем пустые строки на первую страницу, если это единственная страница и нужно
-        if (totalPages === 1) {
-            const rowsOnLastPage = totalRows % prlMaxRows;
-            const emptyRowsNeeded = rowsOnLastPage === 0 ? 0 : (prlMaxRows - rowsOnLastPage);
-
-            console.log('Расчет пустых строк для первой страницы:', {
-                totalRows: totalRows,
-                prlMaxRows: prlMaxRows,
-                rowsOnLastPage: rowsOnLastPage,
-                emptyRowsNeeded: emptyRowsNeeded
-            });
-
-            if (emptyRowsNeeded > 0 && allRowsContainer) {
-                // Находим все видимые строки (не скрытые через display: none)
-                const visibleRows = Array.from(allRowsContainer.querySelectorAll('.data-row-prl:not(.empty-row)')).filter(function(row) {
-                    return row.style.display !== 'none';
-                });
-
-                console.log('Найдено видимых строк:', visibleRows.length);
-
-                if (visibleRows.length > 0) {
-                    const lastVisibleRow = visibleRows[visibleRows.length - 1];
-
-                    for (let i = 0; i < emptyRowsNeeded; i++) {
-                        const emptyRow = document.createElement('div');
-                        emptyRow.className = 'row data-row-prl ms-3 empty-row';
-                        emptyRow.style.width = '100%';
-                        emptyRow.innerHTML = `
-                            <div class="prl-col-fig border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-item border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-desc border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-part border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-qty border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-code border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-po border-l-b text-center align-content-center"><h6></h6></div>
-                            <div class="prl-col-notes border-l-b-r text-center align-content-center"><h6></h6></div>
-                        `;
-                        // Вставляем после последней видимой строки
-                        lastVisibleRow.insertAdjacentElement('afterend', emptyRow);
-                    }
-                    console.log('Добавлено пустых строк на первую страницу:', emptyRowsNeeded);
-                } else {
-                    console.warn('Не найдено видимых строк для добавления пустых строк');
-                }
-            }
-
-            // Добавляем блок с печатями на первую страницу, если это единственная страница
-            if (stampsBlock && allRowsContainer) {
-                const stampsClone = stampsBlock.cloneNode(true);
-                stampsClone.style.display = 'block';
-                stampsClone.classList.add('stamps-block-clone');
-                allRowsContainer.appendChild(stampsClone);
-                console.log('Блок печатей добавлен на первую страницу');
-            } else {
-                if (!stampsBlock) {
-                    console.warn('Блок печатей не найден для первой страницы');
-                }
-                if (!allRowsContainer) {
-                    console.warn('Контейнер all-rows-container не найден');
-                }
-            }
-        }
-
-        console.log('Ограничения строк применены. Создано страниц:', totalPages);
+        const result = window.PrlPrintPaginator.paginate({ safetyGap: 3 });
+        return result.totalPages;
     }
 
     // Сброс настроек к значениям по умолчанию
@@ -1588,11 +1481,11 @@
         applyPrintSettings(settings);
         loadSettingsToForm(settings);
 
-        // Применяем ограничения строк при загрузке
-        setTimeout(function() {
-            applyTableRowLimits(settings);
-            updatePrlPageCounters();
-        }, 300);
+        // Wait for fonts and images so wrapping and header height match print.
+        window.PrlPrintPaginator?.whenReady(function() {
+            const totalPages = applyTableRowLimits(settings);
+            updatePrlPageCounters(totalPages);
+        });
 
         // Загружаем настройки в форму при открытии модального окна
         const modal = document.getElementById('printSettingsModal');
@@ -1620,6 +1513,15 @@
 
 <!-- Модули для PRL формы -->
 <script src="{{ asset('js/tdrs/forms/prl/prl-row-manager.js') }}"></script>
+<script src="{{ asset('js/tdrs/forms/prl/prl-print-paginator.js') }}?v={{ filemtime(public_path('js/tdrs/forms/prl/prl-print-paginator.js')) }}"></script>
 <script src="{{ asset('js/tdrs/forms/prl/prl-form-main.js') }}"></script>
+@if($kitInteractive ?? false)
+    <script>
+        window.kitPrlCrossoutConfig = {
+            csrfToken: @json(csrf_token()),
+        };
+    </script>
+    <script src="{{ asset('js/tdrs/forms/prl/kit-manual-crossouts.js') }}?v={{ filemtime(public_path('js/tdrs/forms/prl/kit-manual-crossouts.js')) }}"></script>
+@endif
 </body>
 </html>

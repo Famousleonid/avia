@@ -100,6 +100,7 @@
                             <th class="text-primary bg-gradient" style="width: 8%">{{__('IPL')}}</th>
                             <th class="text-primary bg-gradient" style="width: 20%">{{__('Part Description')}}</th>
                             <th class="text-primary bg-gradient" style="width: 15%">{{__('Part Number')}}</th>
+                            <th class="text-primary bg-gradient text-center" style="width: 42px">{{__('Img')}}</th>
                             <th class="text-primary bg-gradient" style="min-width: 30%;">{{ __('Description') }}</th>
                             <th class="text-primary bg-gradient text-center" style="width: 4%">{{__('QTY')}}</th>
                             <th class="text-primary bg-gradient" style="width: 7%">{{__('Conditions')}}</th>
@@ -119,6 +120,12 @@
                                 <td class="p-2">{{ $displayIpl }}</td>
                                 <td class="p-2">{{ $displayName }}</td>
                                 <td class="p-2">{{ $displayPartNumber }}</td>
+                                <td class="p-1 text-center">
+                                    @include('admin.tdrs.partials.component-image', [
+                                        'component' => $part->orderComponent,
+                                        'gallery' => 'ordered-component-images-'.$current_wo->id,
+                                    ])
+                                </td>
                                 <td class="p-2 align-middle" style="min-width: 10rem;">
                                     @if($part->isManufacturePairMember())
                                         <span>{{ $part->description ?? '' }}</span>

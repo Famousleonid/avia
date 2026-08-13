@@ -23,7 +23,7 @@
             <div class="col-1 fs-7">#1</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt1_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt1_name_id]->process) > 20) class="process-text-long" @endif>{{ $ndt_processes_by_id[$ndt1_name_id]->process }}</span>
+                    <span @if(strlen($ndt_processes_by_id[$ndt1_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt1_name_id]->process))) !!}</span>
                 @endif
             </div>
         </div>
@@ -32,7 +32,7 @@
             <div class="col-1 fs-7">#4</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt4_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt4_name_id]->process) > 20) class="process-text-long" @endif>{{ $ndt_processes_by_id[$ndt4_name_id]->process }}</span>
+                    <span @if(strlen($ndt_processes_by_id[$ndt4_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt4_name_id]->process))) !!}</span>
                 @endif
             </div>
         </div>
@@ -41,7 +41,7 @@
             <div class="col-1 fs-7">#7</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt7_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt7_name_id]->process) > 20) class="process-text-long" @endif>{{ $ndt_processes_by_id[$ndt7_name_id]->process }}</span>
+                    <span @if(strlen($ndt_processes_by_id[$ndt7_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt7_name_id]->process))) !!}</span>
                 @endif
             </div>
         </div>
@@ -51,7 +51,7 @@
             <div class="col-1 fs-7">#2</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt2_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt2_name_id]->process) > 20) class="process-text-long" @endif>{{ $ndt_processes_by_id[$ndt2_name_id]->process }}</span>
+                    <span @if(strlen($ndt_processes_by_id[$ndt2_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt2_name_id]->process))) !!}</span>
                 @endif
             </div>
         </div>
@@ -59,7 +59,7 @@
             <div class="col-1 fs-7">#5</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt5_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt5_name_id]->process) > 25) class="process-text-long" @endif>{{ $ndt_processes_by_id[$ndt5_name_id]->process }}</span>
+                    <span @if(strlen($ndt_processes_by_id[$ndt5_name_id]->process) > 25) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt5_name_id]->process))) !!}</span>
                 @endif
             </div>
         </div>
@@ -67,7 +67,7 @@
             <div class="col-1 fs-7">#8</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt8_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt8_name_id]->process) > 25) class="process-text-long" @endif>{{ $ndt_processes_by_id[$ndt8_name_id]->process }}</span>
+                    <span @if(strlen($ndt_processes_by_id[$ndt8_name_id]->process) > 25) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt8_name_id]->process))) !!}</span>
                 @endif
             </div>
         </div>
@@ -77,7 +77,7 @@
             <div class="col-1 fs-7">#3</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt3_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt3_name_id]->process) > 20) class="process-text-long" @endif>{{ $ndt_processes_by_id[$ndt3_name_id]->process }}</span>
+                    <span @if(strlen($ndt_processes_by_id[$ndt3_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt3_name_id]->process))) !!}</span>
                 @endif
             </div>
         </div>
@@ -86,7 +86,7 @@
             <div class="col-1 fs-7 text-end">#6</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt6_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt6_name_id]->process) > 40) class="process-text-long" @endif>{{ $ndt_processes_by_id[$ndt6_name_id]->process }}</span>
+                    <span @if(strlen($ndt_processes_by_id[$ndt6_name_id]->process) > 40) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt6_name_id]->process))) !!}</span>
                 @endif
             </div>
         </div>
@@ -95,7 +95,7 @@
             <div class="col-8 border-all">
                 @foreach($manuals as $manual)
                     @if($manual->id == $current_wo->unit->manual_id)
-                        <h6 class="text-center mt-3"><strong>{{ $manual->number }}</strong></h6>
+                        <h6 class="text-center mt-3"><strong>{{ format_cmm_number($manual->number) }}</strong></h6>
                     @endif
                 @endforeach
             </div>

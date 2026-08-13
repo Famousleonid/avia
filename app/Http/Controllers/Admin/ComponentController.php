@@ -344,7 +344,7 @@ class ComponentController extends Controller
             'assemblies.*.assy_ipl_num' => 'nullable|string|max:50',
             'assemblies.*.units_assy' => 'nullable|string|max:100',
             'assemblies.*.notes' => 'nullable|string|max:1000',
-            'assemblies.*.assy_img' => 'nullable|file|image|max:5120',
+            'assemblies.*.assy_img' => 'nullable|file|image|max:15360',
 
         ]);
 
@@ -402,7 +402,7 @@ class ComponentController extends Controller
         }
 
         if ($request->hasFile('img')) {
-            $component->addMedia($request->file('img'))->toMediaCollection('components');
+            $component->replacePrimaryImage($request->file('img'));
         }
         if ($request->hasFile('assy_img')) {
             if ($createdAssemblies->isNotEmpty()) {
@@ -446,8 +446,8 @@ class ComponentController extends Controller
             'bush_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
             'eff_code' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
-//            'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-//            'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'img' => 'nullable|file|image|max:15360',
+            'assy_img' => 'nullable|file|image|max:15360',
         ]);
         unset($validated['current_wo']);
         $user = auth()->user();
@@ -473,12 +473,13 @@ class ComponentController extends Controller
         $validated['units_assy'] = $request->units_assy;
         $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
+        unset($validated['img'], $validated['assy_img']);
 
         try {
             $component = Component::create($validated);
 
             if ($request->hasFile('img')) {
-                $component->addMedia($request->file('img'))->toMediaCollection('component');
+                $component->replacePrimaryImage($request->file('img'));
             }
 
             if ($request->hasFile('assy_img')) {
@@ -565,7 +566,7 @@ class ComponentController extends Controller
 
             // Добавление изображений, если они есть
             if ($request->hasFile('img')) {
-                $component->addMedia($request->file('img'))->toMediaCollection('component');
+                $component->replacePrimaryImage($request->file('img'));
             }
 
             if ($request->hasFile('assy_img')) {
@@ -627,15 +628,15 @@ class ComponentController extends Controller
             'kit_prl_choice_group' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
             'eff_code' => 'nullable|string|max:100',
-            'img' => 'nullable|file|image|max:5120',
-            'assy_img' => 'nullable|file|image|max:5120',
+            'img' => 'nullable|file|image|max:15360',
+            'assy_img' => 'nullable|file|image|max:15360',
             'assemblies' => 'nullable|array',
             'assemblies.*.id' => 'nullable|integer',
             'assemblies.*.assy_part_number' => 'nullable|string|max:100',
             'assemblies.*.assy_ipl_num' => 'nullable|string|max:50',
             'assemblies.*.units_assy' => 'nullable|string|max:100',
             'assemblies.*.notes' => 'nullable|string|max:1000',
-            'assemblies.*.assy_img' => 'nullable|file|image|max:5120',
+            'assemblies.*.assy_img' => 'nullable|file|image|max:15360',
         ]);
         if ((int) $validated['manual_id'] !== (int) $component->manual_id) {
             $targetManual = Manual::with('partLock.lockedBy')->findOrFail((int) $validated['manual_id']);
@@ -664,10 +665,7 @@ class ComponentController extends Controller
         $component->update($validated);
 
         if ($request->hasFile('img')) {
-            if ($component->getMedia('components')->isNotEmpty()) {
-                $component->getMedia('components')->first()->delete();
-            }
-            $component->addMedia($request->file('img'))->toMediaCollection('components');
+            $component->replacePrimaryImage($request->file('img'));
         }
         if ($request->hasFile('assy_img')) {
             if ($component->getMedia('assy_components')->isNotEmpty()) {
@@ -772,11 +770,12 @@ class ComponentController extends Controller
         abort_unless(
             $media->model_type === $component->getMorphClass()
             && (int) $media->model_id === (int) $component->id
-            && $media->collection_name === 'components',
+            && in_array($media->collection_name, ['components', 'component'], true),
             404
         );
 
-        $media->delete();
+        $component->clearMediaCollection('components');
+        $component->clearMediaCollection('component');
 
         return response()->json([
             'success' => true,
@@ -875,8 +874,8 @@ class ComponentController extends Controller
             'eff_code'         => 'nullable|string|max:100',
             'kit_prl_choice_group' => 'nullable|string|max:100',
             'bush_ipl_num'     => 'nullable|string|max:50',
-            'img'              => 'nullable|file|image|max:5120',
-            'assy_img'         => 'nullable|file|image|max:5120',
+            'img'              => 'nullable|file|image|max:15360',
+            'assy_img'         => 'nullable|file|image|max:15360',
         ]);
 
         $validated['assy_ipl_num'] = $request->input('assy_ipl_num');
@@ -890,10 +889,7 @@ class ComponentController extends Controller
         $component->update($validated);
 
         if ($request->hasFile('img')) {
-            if ($component->getMedia('components')->isNotEmpty()) {
-                $component->getMedia('components')->first()->delete();
-            }
-            $component->addMedia($request->file('img'))->toMediaCollection('components');
+            $component->replacePrimaryImage($request->file('img'));
         }
         if ($request->hasFile('assy_img')) {
             if ($component->getMedia('assy_components')->isNotEmpty()) {
@@ -911,7 +907,7 @@ class ComponentController extends Controller
     public function showJson($id)
     {
         $component = Component::with(['assemblies'])->findOrFail($id);
-        $image = $component->getFirstMedia('components');
+        $image = $component->primaryImageMedia();
 
         $user = auth()->user();
         $manualId = (int) ($component->manual_id ?? 0);
@@ -953,8 +949,8 @@ class ComponentController extends Controller
                 'bush_ipl_num'     => $component->bush_ipl_num,
                 'image'            => $image ? [
                     'id' => $image->id,
-                    'url' => $component->getFirstMediaBigUrl('components'),
-                    'thumb_url' => $component->getFirstMediaThumbnailUrl('components'),
+                    'url' => $component->primaryImageBigUrl(),
+                    'thumb_url' => $component->primaryImageThumbnailUrl(),
                     'delete_url' => route('components.image.destroy', [
                         'component' => $component->id,
                         'media' => $image->id,
@@ -986,6 +982,8 @@ class ComponentController extends Controller
             'bush_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
             'eff_code'     => 'nullable|string|max:100',
             'units_assy'   => 'nullable|string|max:100',
+            'img'           => 'nullable|file|image|max:15360',
+            'assy_img'      => 'nullable|file|image|max:15360',
         ]);
         $user = auth()->user();
         $manualId = (int) $validated['manual_id'];
@@ -1015,13 +1013,10 @@ class ComponentController extends Controller
         $validated['assy_ipl_num']     = $request->assy_ipl_num;
         $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num']     = $request->bush_ipl_num;
+        unset($validated['img'], $validated['assy_img']);
 
         if ($request->hasFile('img')) {
-            if ($component->getMedia('component')->isNotEmpty()) {
-                $component->getMedia('component')->first()->delete();
-            }
-
-            $component->addMedia($request->file('img'))->toMediaCollection('component');
+            $component->replacePrimaryImage($request->file('img'));
         }
 
         if ($request->hasFile('assy_img')) {
@@ -1034,8 +1029,19 @@ class ComponentController extends Controller
 
         $component->update($validated);
 
-        return redirect()
-            ->route('tdrs.inspection.component', ['workorder_id' => $request->workorder_id])
+        $fallbackRedirect = route('tdrs.show', ['id' => $request->workorder_id]);
+        $redirect = $this->safeInspectionRedirect($request, $fallbackRedirect);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Component updated successfully.',
+                'component' => $component->fresh(),
+                'redirect' => $redirect,
+            ]);
+        }
+
+        return redirect($redirect)
             ->with('success', 'Component updated successfully.');
     }
     public function destroy(Request $request, $id)

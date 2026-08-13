@@ -155,6 +155,12 @@
                 <div class="print-mark-label">Printed By</div>
                 <div class="print-mark-value">{{ $printedBy }}</div>
             </div>
+            @if(!empty($manualLibs))
+                <div class="print-mark-row">
+                    <div class="print-mark-label">LIB</div>
+                    <div class="print-mark-value">{{ implode(', ', $manualLibs) }}</div>
+                </div>
+            @endif
             <div class="print-mark-row">
                 <div class="print-mark-label">Printed Date</div>
                 <div class="print-mark-value">{{ $printedDate }}</div>

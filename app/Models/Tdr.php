@@ -51,6 +51,7 @@ class Tdr extends Model
         'necessaries_id',
         'description',
         'qty',
+        'sort_order',
         'po_num',
         'received',
         'use_tdr',
@@ -66,7 +67,21 @@ class Tdr extends Model
         'use_tdr'            => 'boolean',
         'use_process_forms'  => 'boolean',
         'replaced_by_tdr_id' => 'integer',
+        'sort_order'         => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Tdr $tdr): void {
+            if ($tdr->sort_order || ! $tdr->workorder_id) {
+                return;
+            }
+
+            $tdr->sort_order = ((int) static::query()
+                ->where('workorder_id', $tdr->workorder_id)
+                ->max('sort_order')) + 1;
+        });
+    }
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -80,6 +95,13 @@ class Tdr extends Model
     public function scopeForWorkorder($query, int $workorderId)
     {
         return $query->where('workorder_id', $workorderId);
+    }
+
+    public function scopeInDisplayOrder($query)
+    {
+        return $query
+            ->orderByRaw('CASE WHEN sort_order = 0 THEN id ELSE sort_order END')
+            ->orderBy('id');
     }
 
     public function scopeOfType($query, string $type)

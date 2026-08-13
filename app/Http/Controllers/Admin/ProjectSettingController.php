@@ -23,6 +23,7 @@ class ProjectSettingController extends Controller
             ? (string) $request->query('section')
             : 'printed-forms';
         $users = User::query()
+            ->withoutReviewAccounts()
             ->with('role')
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'role_id']);

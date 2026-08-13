@@ -34,7 +34,12 @@
     @include('shared.process-forms._styles')
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null, 'printMarkWarnings' => $processRequirementWarnings])
+@include('shared.print-mark.qr', array_merge(
+    ['printMarkWorkorder' => $current_wo ?? null, 'printMarkWarnings' => $processRequirementWarnings],
+    isset($process_name) && \App\Models\ProcessName::isMachiningPrintedForm($process_name)
+        ? ['printMarkQrHostSelector' => '.process-sheet-title-row--machining']
+        : []
+))
 @if(!isset($hidePrintButton) || !$hidePrintButton)
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" onclick="window.print()">Print Form</button>

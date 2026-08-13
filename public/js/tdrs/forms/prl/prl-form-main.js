@@ -1,8 +1,8 @@
 /**
  * PRLFormMain - главный файл инициализации для PRL формы
  * 
- * Примечание: table-height-adjuster.js отключен для prlForm.
- * Управление количеством строк осуществляется через Print Settings.
+ * PRL/KIT/Bush PRL pages are split by the actual rendered row height.
+ * The user controls the font size; page row counts are calculated automatically.
  */
 
 /**
@@ -16,12 +16,7 @@ function initPRLForm() {
         return;
     }
 
-    console.log('Инициализация PRL формы (table-height-adjuster.js отключен)');
-    console.log('Управление количеством строк осуществляется через Print Settings');
-
-    // Управление строками теперь осуществляется через Print Settings
-    // Лимиты строк применяются автоматически при загрузке страницы и перед печатью
-    // через функции в основном скрипте prlForm.blade.php
+    console.log('PRL form initialized with automatic height pagination');
 }
 
 // Инициализация при загрузке DOM

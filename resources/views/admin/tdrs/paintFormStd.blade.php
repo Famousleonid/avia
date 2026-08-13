@@ -5,7 +5,11 @@
     @php
         $tdrFormConfig = config('tdr_forms.paintFormStd');
         $componentName = (string) $current_wo->displayDescription();
-        $manualNumber = (string) ($manual->number ?? '');
+        $manualNumber = collect($manuals ?? [$manual])
+            ->map(fn ($item) => format_cmm_number($item->number ?? ''))
+            ->filter()
+            ->unique()
+            ->implode(' / ');
         $paint_table_pages = $paint_table_pages ?? [[]];
         $paint_total_pages = max(1, count($paint_table_pages));
         $paintGlobalRowIndex = 1;
@@ -122,10 +126,10 @@
                             <span @if(strlen($component->name) > 15) class="std-description-long" @endif>{{ $component->name }}</span>
                         </div>
                         <div class="std-cell">
-                            <span @if(strlen($component->process_name) > 30) class="std-description-long" @endif>{{ $component->process_name }}</span>
+                            <span @if(strlen($component->process_name) > 30) class="std-description-long" @endif>{!! nl2br(e(format_process_number($component->process_name))) !!}</span>
                         </div>
                         <div class="std-cell">{{ $component->qty }}</div>
-                        <div class="std-cell">{{ $manualNumber }}</div>
+                        <div class="std-cell">{{ format_cmm_number($component->manual ?? $manual->number ?? '') }}</div>
                     </div>
                     @php $paintGlobalRowIndex++; @endphp
                 @else

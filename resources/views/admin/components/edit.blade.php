@@ -115,8 +115,8 @@
                                         <div class="form-group mt-3">
                                             <strong>{{__('Image:')}}</strong>
                                             <div class="d-flex mt-2">
-                                                <a href="{{ $current_component->getFirstMediaBigUrl('component') }}" data-fancybox="gallery">
-                                                    <img class="me-1" src="{{$current_component->getFirstMediaThumbnailUrl('component') }}"
+                                                <a href="{{ $current_component->primaryImageBigUrl() }}" data-fancybox="gallery">
+                                                    <img class="me-1" src="{{$current_component->primaryImageThumbnailUrl() }}"
                                                          width="40" height="40" alt="IMG"/>
                                                 </a>
                                                 <input type="file" name="img" class="form-control" placeholder="Image">

@@ -62,12 +62,15 @@ AVIA manual package imports:
 - Production access remains read-only. Apply reviewed imports locally and prepare exact production handoff artifacts/instructions for the user; never import or deploy through production SSH.
 
 AVIA production SSH access and diagnostics:
-- Production SSH is available at `51.222.203.80`, port `27`, as user `webtaxes`.
-- The production Laravel application directory is `/home/webtaxes/aviatechnik.ca`.
-- Use the local private key `storage/app/codex/production_whc_codexdiag_ed25519` and the pinned host-key file `storage/app/codex/production_known_hosts`. Both files are intentionally ignored by Git through `storage/app/.gitignore`.
-- The expected production ED25519 host-key fingerprint is `SHA256:268W+wKyPHqomq3vlvE1ME2yvzQlsTchMHRZjqw877I`. Stop and report a host-key mismatch; never bypass it with `StrictHostKeyChecking=no`.
+- RETIRED/DO NOT USE: `51.222.203.80` is the old server and must never be used for production diagnostics, even if SSH still accepts the saved key.
+- Current production SSH is `72.251.11.16`, port `27`, user `mcxq8917`. This SSH host is separate from the public web A record for `aviatechnik.ca`; do not substitute the web IP as the SSH host.
+- The current production Laravel application directory is `/home/mcxq8917/aviatechnik.ca`.
+- Use private key `storage/app/codex/aviatechnik_target_whc_codexdiag_ed25519` and pinned host-key file `storage/app/codex/target_whc_known_hosts`. Both are intentionally ignored by Git through `storage/app/.gitignore`.
+- The verified current-production ED25519 host-key fingerprint is `SHA256:BY4ZcFoK0bYDGPzhRMbhVaCThrJcAyKZ+HDLK6RF/MI`.
 - Use the Windows OpenSSH client with batch mode and strict host-key checking:
-  `C:\WINDOWS\System32\OpenSSH\ssh.exe -i storage\app\codex\production_whc_codexdiag_ed25519 -p 27 -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=storage\app\codex\production_known_hosts webtaxes@51.222.203.80`
+  `C:\WINDOWS\System32\OpenSSH\ssh.exe -i storage\app\codex\aviatechnik_target_whc_codexdiag_ed25519 -p 27 -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=storage\app\codex\target_whc_known_hosts mcxq8917@72.251.11.16`
+- The old key `storage/app/codex/production_whc_codexdiag_ed25519`, old host-key file `storage/app/codex/production_known_hosts`, and old fingerprint `SHA256:268W+wKyPHqomq3vlvE1ME2yvzQlsTchMHRZjqw877I` belong to the retired server and must never be used for current production.
+- Never bypass host verification with `StrictHostKeyChecking=no`. Stop and report any mismatch against the pinned current-production fingerprint.
 - Production access is strictly read-only and diagnostic even though the hosting account may technically have write permissions. It may be used to inspect code, file metadata, logs, process state, configuration structure, deployed behavior, and database data needed to identify root causes.
 - Never print, copy into chat, or otherwise expose the private key, `.env` contents, database credentials, API tokens, session data, or other production secrets.
 - Allowed database operations are read-only statements such as `SELECT`, `SHOW`, `DESCRIBE`, and `EXPLAIN`. Do not execute stored procedures or functions unless they are confirmed read-only. Never run `INSERT`, `UPDATE`, `DELETE`, `REPLACE`, DDL, migrations, seeders, imports, restores, or any query that can acquire destructive locks or modify server state.

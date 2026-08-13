@@ -57,6 +57,7 @@
             --bs-table-striped-color: var(--avia-text);
             background: var(--avia-panel) !important;
             color: var(--avia-text);
+            min-width: 1500px;
         }
 
         .library-units-page .table > :not(caption) > * > * {
@@ -144,6 +145,10 @@
         .unit-manual-select + .select2 {
             width: 100% !important;
         }
+
+        .unit-additional-manual-select + .select2 {
+            width: 100% !important;
+        }
     </style>
 
     <div class="container-fluid library-units-page">
@@ -206,9 +211,10 @@
                             <th class="text-primary">ID</th>
                             <th class="text-primary">{{ __('Part Number') }}</th>
                             <th class="text-primary">{{ __('Name') }}</th>
-                            <th class="text-primary">{{ __('Description') }}</th>
-                            <th class="text-primary">{{ __('CMM') }}</th>
-                            <th class="text-primary text-center">{{ __('Verified') }}</th>
+                                <th class="text-primary">{{ __('Description') }}</th>
+                                <th class="text-primary">{{ __('CMM') }}</th>
+                                <th class="text-primary">{{ __('Additional Manuals') }}</th>
+                                <th class="text-primary text-center">{{ __('Verified') }}</th>
                             <th class="text-primary text-center">{{ __('WO') }}</th>
                             <th class="text-primary">{{ __('Created') }}</th>
                             <th class="text-primary text-center unit-actions">{{ __('Actions') }}</th>
@@ -434,17 +440,77 @@
 
             function initializeModalManualSelect(modal) {
                 const manualSelect = modal?.querySelector('.unit-manual-select');
-                if (!manualSelect || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
-                    return;
+                const additionalManualSelect = modal?.querySelector('.unit-additional-manual-select');
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    [manualSelect, additionalManualSelect].forEach(function (select) {
+                        if (!select) return;
+
+                        const $select = window.jQuery(select);
+                        if (!$select.hasClass('select2-hidden-accessible')) {
+                            $select.select2({
+                                width: '100%',
+                                dropdownParent: window.jQuery(modal),
+                                placeholder: select === manualSelect ? 'Manual pending' : 'Additional Manuals',
+                            });
+                        }
+                    });
                 }
 
-                const $manualSelect = window.jQuery(manualSelect);
-                if (!$manualSelect.hasClass('select2-hidden-accessible')) {
-                    $manualSelect.select2({
-                        width: '100%',
-                        dropdownParent: window.jQuery(modal),
-                        placeholder: 'Manual pending',
+                if (manualSelect && manualSelect.dataset.additionalManualSync !== '1') {
+                    manualSelect.dataset.additionalManualSync = '1';
+                    const syncAdditionalManuals = function () {
+                        syncPrimaryManualExclusion(modal?.querySelector('form'));
+                    };
+                    if (window.jQuery && window.jQuery.fn) {
+                        window.jQuery(manualSelect).on('change.additionalManuals', syncAdditionalManuals);
+                    } else {
+                        manualSelect.addEventListener('change', syncAdditionalManuals);
+                    }
+                }
+
+                syncPrimaryManualExclusion(modal?.querySelector('form'));
+            }
+
+            function syncPrimaryManualExclusion(form) {
+                const manualSelect = form?.querySelector('[name="manual_id"]');
+                const additionalManualSelect = form?.querySelector('[name="additional_manual_ids[]"]');
+                if (!manualSelect || !additionalManualSelect) return;
+
+                const primaryManualId = String(manualSelect.value || '');
+                Array.from(additionalManualSelect.options).forEach(function (option) {
+                    const isPrimary = primaryManualId !== '' && option.value === primaryManualId;
+                    if (isPrimary) option.selected = false;
+                    option.disabled = isPrimary;
+                });
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2 && additionalManualSelect.classList.contains('select2-hidden-accessible')) {
+                    window.jQuery(additionalManualSelect).trigger('change.select2');
+                }
+            }
+
+            function fillManualFields(form, unit) {
+                const manualSelect = form?.querySelector('[name="manual_id"]');
+                const additionalManualSelect = form?.querySelector('[name="additional_manual_ids[]"]');
+
+                if (manualSelect) manualSelect.value = unit.manual_id || '';
+
+                if (additionalManualSelect) {
+                    const selectedIds = new Set((unit.additional_manual_ids || []).map(function (id) { return String(id); }));
+                    Array.from(additionalManualSelect.options).forEach(function (option) {
+                        option.selected = selectedIds.has(option.value);
                     });
+                }
+
+                syncPrimaryManualExclusion(form);
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    if (manualSelect?.classList.contains('select2-hidden-accessible')) {
+                        window.jQuery(manualSelect).trigger('change.select2');
+                    }
+                    if (additionalManualSelect?.classList.contains('select2-hidden-accessible')) {
+                        window.jQuery(additionalManualSelect).trigger('change.select2');
+                    }
                 }
             }
 
@@ -456,13 +522,7 @@
                     if (input) input.value = unit[field] || '';
                 });
 
-                const manualSelect = createForm.querySelector('[name="manual_id"]');
-                if (manualSelect) {
-                    manualSelect.value = unit.manual_id || '';
-                    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                        window.jQuery(manualSelect).trigger('change.select2');
-                    }
-                }
+                fillManualFields(createForm, unit);
 
                 const verified = createForm.querySelector('[name="verified"]');
                 if (verified) verified.checked = unit.verified !== false;
@@ -477,8 +537,7 @@
                     if (input) input.value = unit[field] || '';
                 });
 
-                const manualSelect = editForm.querySelector('[name="manual_id"]');
-                if (manualSelect) manualSelect.value = unit.manual_id || '';
+                fillManualFields(editForm, unit);
 
                 const verified = editForm.querySelector('[name="verified"]');
                 if (verified) verified.checked = Boolean(unit.verified);

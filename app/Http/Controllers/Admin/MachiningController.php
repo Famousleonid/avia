@@ -132,6 +132,7 @@ class MachiningController extends Controller
         $user = auth()->user();
 
         $machiningMachinists = User::query()
+            ->withoutReviewAccounts()
             ->whereHas('role', static fn ($q) => $q->where('name', 'Machining'))
             ->orderBy('name')
             ->get(['id', 'name', 'selection_name_order'])

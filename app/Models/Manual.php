@@ -204,16 +204,15 @@ class Manual extends Model implements HasMedia
      */
     public static function manualIdsForWorkorder(int $workorderId): array
     {
-        $workorder = Workorder::findOrFail($workorderId);
-        $manualIds = collect();
-
-        if ($workorder->unit && $workorder->unit->manual_id) {
-            $manualIds->push($workorder->unit->manual_id);
-        }
+        $workorder = Workorder::withDrafts()->findOrFail($workorderId);
+        $manualIds = collect($workorder->usedManualIds());
+        $notUsedManualIds = $workorder->notUsedManualIds();
 
         $tdrs = Tdr::with('component')->where('workorder_id', $workorderId)->get();
         foreach ($tdrs as $tdr) {
-            if ($tdr->component && $tdr->component->manual_id) {
+            if ($tdr->component
+                && $tdr->component->manual_id
+                && ! in_array((int) $tdr->component->manual_id, $notUsedManualIds, true)) {
                 $manualIds->push($tdr->component->manual_id);
             }
         }

@@ -14,11 +14,15 @@ class LogCardTdrAccessService
     public function forWorkorder(Workorder $workorder, ?User $user, string $documentName = 'Log Card'): array
     {
         $locked = $this->isLockedByPostDisassemblyInspection($workorder);
+        $canEditAfterInspection = ($user?->isSystemAdmin() ?? false)
+            || ($user?->can('manager.qa') ?? false);
+        $isLogCard = strcasecmp($documentName, 'Log Card') === 0;
         $restrictedRole = $user?->roleIs(self::RESTRICTED_ROLES) ?? false;
-        $readOnly = $locked && $restrictedRole;
+        $readOnly = $locked && ($isLogCard ? ! $canEditAfterInspection : $restrictedRole);
 
         return [
             'locked' => $locked,
+            'can_edit_after_inspection' => $canEditAfterInspection,
             'restricted_role' => $restrictedRole,
             'read_only' => $readOnly,
             'message' => $readOnly

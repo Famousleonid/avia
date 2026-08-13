@@ -7,6 +7,7 @@ use App\Models\Code;
 use App\Models\Component;
 use App\Models\MachiningWorkStep;
 use App\Models\Main;
+use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\Process;
 use App\Models\StdProcess;
@@ -160,7 +161,7 @@ class MainController extends Controller
 
         $this->syncWaitingApproveMain($current_workorder);
 
-        $users = User::all()
+        $users = User::query()->withoutReviewAccounts()->get()
             ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
             ->values();
 
@@ -185,10 +186,11 @@ class MainController extends Controller
 
         // Components & TDRs
         $components = collect();
+        $usedManualIds = $current_workorder->usedManualIds();
 
-        if ($current_workorder->unit?->manual) {
-            $components = $current_workorder->unit->manual
-                ->components()
+        if ($usedManualIds !== []) {
+            $components = Component::query()
+                ->whereIn('manual_id', $usedManualIds)
                 ->whereHas('tdrs', function ($q) use ($current_workorder ) {
                     $q->where('workorder_id', $current_workorder->id)
                         ->whereHas('tdrProcesses', function ($qq)  {
@@ -215,6 +217,25 @@ class MainController extends Controller
 
         // Manual images (thumb/big)
         $manual = optional($current_workorder->unit)->manual;
+        $manualPackageIds = $current_workorder->manualPackageIds();
+        $manualPackageOrder = array_flip($manualPackageIds);
+        $workorderManualPackage = Manual::query()
+            ->whereIn('id', $manualPackageIds)
+            ->get()
+            ->sortBy(fn (Manual $packageManual): int => $manualPackageOrder[(int) $packageManual->id] ?? PHP_INT_MAX)
+            ->values();
+        $notUsedManualIds = $current_workorder->notUsedManualIds();
+        $unitAdditionalManualIds = $current_workorder->unit?->additionalManualIds() ?? [];
+        $manualPackageNeedsSync = $current_workorder->additionalManualIds() !== $unitAdditionalManualIds;
+        $canUpdateWorkorderManuals = auth()->user()?->can('workorders.manageManuals') ?? false;
+        $additionalManualLibValues = [];
+        if ($manual) {
+            $additionalManualIds = collect(Manual::manualIdsForWorkorder((int) $current_workorder->id))
+                ->reject(fn (int $manualId): bool => $manualId === (int) $manual->id)
+                ->values()
+                ->all();
+            $additionalManualLibValues = Manual::orderedLibValuesForManualIds($additionalManualIds);
+        }
         $imgThumb = asset('img/noimage.png');
         $imgFull = null;
 
@@ -582,6 +603,11 @@ class MainController extends Controller
             'imgThumb',
             'imgFull',
             'manual',
+            'workorderManualPackage',
+            'notUsedManualIds',
+            'manualPackageNeedsSync',
+            'canUpdateWorkorderManuals',
+            'additionalManualLibValues',
             'components',
             'ordersPartsNew',
             'prl_parts',

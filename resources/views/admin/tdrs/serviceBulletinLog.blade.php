@@ -4,21 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Service Bulletin Log - {{ $current_wo->number }}</title>
-    <link rel="stylesheet" href="{{ asset('css/forms/service-bulletin-log.css') }}">
+    @include('partials.user-ui-settings')
+    <link rel="stylesheet" href="{{ asset('css/forms/service-bulletin-log.css') }}?v={{ filemtime(public_path('css/forms/service-bulletin-log.css')) }}">
 </head>
 <body>
 @php
-    $firstPageRows = 10;
-    $rowsPerPage = 9;
     $serviceBulletinReadOnly = (bool) ($serviceBulletinAccess['read_only'] ?? false);
     $serviceBulletinReadOnlyMessage = $serviceBulletinAccess['message'] ?? null;
-    $bulletinPages = collect();
-    if ($serviceBulletins->isNotEmpty()) {
-        $bulletinPages->push($serviceBulletins->take($firstPageRows)->values());
-        $serviceBulletins->slice($firstPageRows)->chunk($rowsPerPage)->each(function ($chunk) use ($bulletinPages) {
-            $bulletinPages->push($chunk->values());
-        });
-    }
     $totalPages = max(1, $bulletinPages->count());
 @endphp
 
@@ -28,7 +20,32 @@
         <input type="hidden" name="clear_status_bulletin_id" value="">
 
         <div class="sb-screen-actions">
+            <div class="sb-note-presets" aria-label="Notes templates">
+                <span class="sb-note-presets-label">Notes templates:</span>
+                <button
+                    class="sb-note-preset sb-note-preset-danger"
+                    type="button"
+                    data-note-preset-text="P/N doesn't match"
+                    data-note-preset-color="danger"
+                    disabled
+                >P/N doesn't match</button>
+                <button
+                    class="sb-note-preset sb-note-preset-primary"
+                    type="button"
+                    data-note-preset-text="Superseded by"
+                    data-note-preset-color="primary"
+                    disabled
+                >Superseded by</button>
+                <button
+                    class="sb-note-preset sb-note-preset-violet"
+                    type="button"
+                    data-note-preset-text="S/N doesn't match"
+                    data-note-preset-color="violet"
+                    disabled
+                >S/N doesn't match</button>
+            </div>
             <button class="sb-print" type="button" onclick="window.print()">Print</button>
+            <button class="sb-settings" type="button" data-open-print-settings>Print Settings</button>
             <button class="sb-save" type="submit" @disabled($serviceBulletinReadOnly)>
                 <span class="sb-save-spinner" aria-hidden="true"></span>
                 <span class="sb-save-text">Save</span>
@@ -156,11 +173,142 @@
             @endforeach
         @endif
     </form>
+
+    <dialog class="sb-settings-dialog" id="serviceBulletinPrintSettings" aria-labelledby="serviceBulletinPrintSettingsTitle">
+        <form class="sb-settings-panel" method="dialog">
+            <div class="sb-settings-header">
+                <h2 id="serviceBulletinPrintSettingsTitle">Print Settings</h2>
+                <button class="sb-settings-close" type="submit" value="cancel" aria-label="Close">&times;</button>
+            </div>
+            <div class="sb-settings-body">
+                <label for="serviceBulletinTableFontSize">Table Font (pt)</label>
+                <input id="serviceBulletinTableFontSize" type="number" min="6" max="14" step="0.1" value="8.3">
+            </div>
+            <div class="sb-settings-footer">
+                <button class="sb-settings-reset" type="button" data-reset-print-settings>Reset</button>
+                <button class="sb-settings-save" type="button" data-save-print-settings>Save</button>
+            </div>
+        </form>
+    </dialog>
 </main>
 <script>
     (function () {
+        var settingsScope = 'tdrs.service-bulletin-log';
+        var tableFontSizeKey = 'table_font_size_pt';
+        var defaultTableFontSize = 8.3;
+        var appliedTableFontSize = defaultTableFontSize;
+        var settingsDialog = document.getElementById('serviceBulletinPrintSettings');
+        var fontSizeInput = document.getElementById('serviceBulletinTableFontSize');
         var form = document.querySelector('.sb-log-form');
         var saveButton = document.querySelector('.sb-save');
+        var notePresetButtons = Array.from(document.querySelectorAll('[data-note-preset-text]'));
+        var notesInputs = Array.from(document.querySelectorAll('.sb-notes-row input[type="text"]'));
+        var activeNotesInput = null;
+
+        function noteColorFromValue(value) {
+            var normalized = String(value || '').toLowerCase();
+            if (normalized.includes("p/n doesn't match")) return 'danger';
+            if (normalized.includes("s/n doesn't match")) return 'violet';
+            if (normalized.includes('superseded by')) return 'primary';
+            return null;
+        }
+
+        function applyNoteColor(input, color) {
+            input.classList.remove('is-note-preset-danger', 'is-note-preset-primary', 'is-note-preset-violet');
+            var resolvedColor = color || noteColorFromValue(input.value);
+            if (resolvedColor === 'danger') input.classList.add('is-note-preset-danger');
+            if (resolvedColor === 'primary') input.classList.add('is-note-preset-primary');
+            if (resolvedColor === 'violet') input.classList.add('is-note-preset-violet');
+        }
+
+        function selectNotesInput(input) {
+            activeNotesInput?.classList.remove('is-note-target');
+            activeNotesInput = input;
+            activeNotesInput.classList.add('is-note-target');
+            notePresetButtons.forEach(function (button) {
+                button.disabled = false;
+            });
+        }
+
+        function insertNotePreset(input, text, color) {
+            var currentValue = input.value || '';
+            var selectionStart = input.selectionStart ?? currentValue.length;
+            var selectionEnd = input.selectionEnd ?? selectionStart;
+            var before = currentValue.slice(0, selectionStart);
+            var after = currentValue.slice(selectionEnd);
+            var leadingSeparator = before !== '' && !/\s$/.test(before) ? ' ' : '';
+            var trailingSeparator = text === 'Superseded by' ? ' ' : '';
+            var insertedText = leadingSeparator + text + trailingSeparator;
+
+            input.value = before + insertedText + after;
+            var caretPosition = before.length + insertedText.length;
+            input.focus();
+            input.setSelectionRange(caretPosition, caretPosition);
+            applyNoteColor(input, color);
+            markDirty();
+        }
+
+        notesInputs.forEach(function (input) {
+            applyNoteColor(input);
+            input.addEventListener('focus', function () {
+                selectNotesInput(input);
+            });
+            input.addEventListener('input', function () {
+                applyNoteColor(input);
+            });
+        });
+
+        notePresetButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                if (!activeNotesInput || activeNotesInput.disabled) return;
+                insertNotePreset(
+                    activeNotesInput,
+                    button.getAttribute('data-note-preset-text') || '',
+                    button.getAttribute('data-note-preset-color') || ''
+                );
+            });
+        });
+
+        function normalizeTableFontSize(value) {
+            var parsed = Number.parseFloat(String(value));
+            if (!Number.isFinite(parsed)) return defaultTableFontSize;
+            return Math.min(14, Math.max(6, Math.round(parsed * 10) / 10));
+        }
+
+        function applyTableFontSize(value) {
+            appliedTableFontSize = normalizeTableFontSize(value);
+            document.documentElement.style.setProperty('--sb-table-font-size', appliedTableFontSize + 'pt');
+            if (fontSizeInput) fontSizeInput.value = String(appliedTableFontSize);
+        }
+
+        async function loadPrintSettings() {
+            var savedValue = await window.UserUiSettings.get(settingsScope, tableFontSizeKey, defaultTableFontSize);
+            applyTableFontSize(savedValue);
+        }
+
+        document.querySelector('[data-open-print-settings]')?.addEventListener('click', function () {
+            if (!settingsDialog || typeof settingsDialog.showModal !== 'function') return;
+            if (fontSizeInput) fontSizeInput.value = String(appliedTableFontSize);
+            settingsDialog.showModal();
+        });
+
+        document.querySelector('[data-save-print-settings]')?.addEventListener('click', async function () {
+            var value = normalizeTableFontSize(fontSizeInput?.value);
+            applyTableFontSize(value);
+            await window.UserUiSettings.set(settingsScope, tableFontSizeKey, value);
+            settingsDialog?.close();
+        });
+
+        document.querySelector('[data-reset-print-settings]')?.addEventListener('click', async function () {
+            applyTableFontSize(defaultTableFontSize);
+            await window.UserUiSettings.set(settingsScope, tableFontSizeKey, null);
+        });
+
+        loadPrintSettings().catch(function (error) {
+            console.error('Failed to load Service Bulletin Log print settings', error);
+            applyTableFontSize(defaultTableFontSize);
+        });
+
         if (!form || !saveButton) return;
 
         function markDirty() {

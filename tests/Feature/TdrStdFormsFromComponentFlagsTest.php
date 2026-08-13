@@ -395,7 +395,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertSee('PN-NDT-ROUTE');
     }
 
-    public function test_ndt_std_form_displays_the_complete_manual_number(): void
+    public function test_ndt_std_form_keeps_a_cmm_suffix_attached_without_a_space(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual(['number' => '32-11-15RM']);

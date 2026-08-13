@@ -104,6 +104,31 @@
         .preview-papyrus .table-scroll-rm-records td {
             border-color: #6c757d !important;
         }
+        .preview-papyrus .dir-table {
+            background: transparent !important;
+            color: #111 !important;
+            --bs-table-bg: transparent !important;
+            --bs-table-color: #111 !important;
+            --bs-table-striped-bg: transparent !important;
+            --bs-table-striped-color: #111 !important;
+            --bs-table-hover-bg: rgba(76, 61, 38, 0.08) !important;
+            --bs-table-hover-color: #111 !important;
+        }
+        .preview-papyrus .dir-table > tbody > tr > td,
+        .preview-papyrus .dir-table > tbody > tr > th {
+            background: transparent !important;
+            color: #111 !important;
+            box-shadow: none !important;
+        }
+        .preview-papyrus .dir-table > thead > tr > th {
+            background: #f0e0c0 !important;
+            color: #111 !important;
+        }
+        html[data-bs-theme="dark"] .preview-papyrus .dir-table.table-striped > tbody > tr:nth-of-type(odd) > * {
+            background: transparent !important;
+            color: #111 !important;
+            box-shadow: none !important;
+        }
     </style>
 
     <div class="row g-3">
@@ -263,7 +288,7 @@
                         </div>
                         <div class="form-group mt-3">
                             <label for="mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
-                            <input type="text" class="form-control" id="mod_repair_description" name="mod_repair_description" maxlength="60" required>
+                            <input type="text" class="form-control" id="mod_repair_description" name="mod_repair_description" maxlength="250" required>
                         </div>
                         <div class="form-group mt-3">
                             <label for="ident_method">{{ __('Identification Method') }}</label>
@@ -315,7 +340,7 @@
                         </div>
                         <div class="form-group mt-3">
                             <label for="edit_mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
-                            <input type="text" class="form-control" id="edit_mod_repair_description" name="mod_repair_description" maxlength="60" required>
+                            <input type="text" class="form-control" id="edit_mod_repair_description" name="mod_repair_description" maxlength="250" required>
                         </div>
                         <div class="form-group mt-3">
                             <label for="edit_ident_method">{{ __('Identification Method') }}</label>

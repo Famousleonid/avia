@@ -360,6 +360,7 @@ class DirectoryController extends Controller
 
         return match ($source) {
             'users' => \App\Models\User::query()
+                ->withoutReviewAccounts()
                 ->orderBy('name')
                 ->get(['id', 'name', 'selection_name_order'])
                 ->sortBy(fn (\App\Models\User $user) => mb_strtolower($user->selection_name))

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Code;
 use App\Models\Component;
+use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\StdProcess;
 use App\Models\Tdr;
@@ -28,88 +29,102 @@ class WorkorderStdProcessItemsService
                 ->where('workorder_id', $workorder->id)
                 ->delete();
 
-            $manual = $workorder->unit->manuals ?? null;
-            if (! $manual) {
+            $manualIds = $workorder->usedManualIds();
+            if ($manualIds === []) {
                 return;
             }
 
-            $manualId = (int) $manual->id;
+            $manualsById = Manual::query()
+                ->whereIn('id', $manualIds)
+                ->get()
+                ->keyBy(fn (Manual $manual): int => (int) $manual->id);
             $excludedQtyByComponent = $this->excludedQtyByComponent($workorder);
             $excludedQtyByBaseIpl = $this->excludedQtyByBaseIpl($workorder);
             $now = now();
             $insertRows = [];
+            $sortOrderByStd = array_fill_keys(StdProcess::validStdValues(), 1);
 
-            StdProcess::syncFromComponentFlagsForManualWhenCountsDiffer($manual);
-
-            foreach (StdProcess::validStdValues() as $std) {
-                $manualRows = $this->manualStdRowsForManualStd($manualId, $std);
-                $flagColumn = $this->componentFlagColumnForStd($std);
-                $sortOrder = 1;
-
-                $eligibleRows = [];
-
-                foreach ($manualRows as $manualRow) {
-                    $component = $manualRow->component;
-                    if (! $component || ! (bool) $component->{$flagColumn}) {
-                        continue;
-                    }
-
-                    if (! $branchResolver->allowsComponentForUnit($workorder->unit, (string) ($component->ipl_num ?? ''), $manualId)) {
-                        continue;
-                    }
-
-                    $rowEff = $manualRow->eff_code ?? $component->eff_code;
-                    if (! StdProcess::stdRowEffMatchesUnit($rowEff, (string) ($workorder->unit->eff_code ?? ''))) {
-                        continue;
-                    }
-
-                    $eligibleRows[] = [
-                        'manual_row' => $manualRow,
-                        'component' => $component,
-                        'row_eff' => $rowEff,
-                    ];
+            foreach ($manualIds as $manualId) {
+                /** @var Manual|null $manual */
+                $manual = $manualsById->get($manualId);
+                if (! $manual) {
+                    continue;
                 }
 
-                foreach ($eligibleRows as $eligibleRow) {
-                    /** @var StdProcess $manualRow */
-                    $manualRow = $eligibleRow['manual_row'];
-                    /** @var Component $component */
-                    $component = $eligibleRow['component'];
-                    $rowEff = $eligibleRow['row_eff'];
+                StdProcess::syncFromComponentFlagsForManualWhenCountsDiffer($manual);
 
-                    $baseQty = $this->baseQty($component, $manualRow);
-                    $excludedSourceQty = (int) ($excludedQtyByComponent[$component->id] ?? 0);
+                foreach (StdProcess::validStdValues() as $std) {
+                    $manualRows = $this->manualStdRowsForManualStd($manualId, $std);
+                    $flagColumn = $this->componentFlagColumnForStd($std);
 
-                    foreach ($this->baseIplKeys((string) ($component->ipl_num ?? '')) as $baseKey) {
-                        $manualBaseKey = $this->manualBaseIplKey($manualId, $baseKey);
-                        $excludedSourceQty = max($excludedSourceQty, (int) ($excludedQtyByBaseIpl[$manualBaseKey] ?? 0));
+                    $eligibleRows = [];
+
+                    foreach ($manualRows as $manualRow) {
+                        $component = $manualRow->component;
+                        if (! $component || ! (bool) $component->{$flagColumn}) {
+                            continue;
+                        }
+
+                        if (! $branchResolver->allowsComponentForUnit($workorder->unit, (string) ($component->ipl_num ?? ''), $manualId)) {
+                            continue;
+                        }
+
+                        $rowEff = $manualRow->eff_code ?? $component->eff_code;
+                        if (! StdProcess::stdRowEffMatchesUnit($rowEff, (string) ($workorder->unit->eff_code ?? ''))) {
+                            continue;
+                        }
+
+                        $eligibleRows[] = [
+                            'manual_row' => $manualRow,
+                            'component' => $component,
+                            'row_eff' => $rowEff,
+                        ];
                     }
 
-                    $excludedQty = min($baseQty, $excludedSourceQty);
-                    $remainingQty = $baseQty - $excludedQty;
+                    $eligibleRows = $this->preferEffSpecificVariants($eligibleRows);
 
-                    if ($remainingQty <= 0) {
-                        continue;
+                    foreach ($eligibleRows as $eligibleRow) {
+                        /** @var StdProcess $manualRow */
+                        $manualRow = $eligibleRow['manual_row'];
+                        /** @var Component $component */
+                        $component = $eligibleRow['component'];
+                        $rowEff = $eligibleRow['row_eff'];
+
+                        $baseQty = $this->baseQty($component, $manualRow);
+                        $excludedSourceQty = (int) ($excludedQtyByComponent[$component->id] ?? 0);
+
+                        foreach ($this->baseIplKeys((string) ($component->ipl_num ?? '')) as $baseKey) {
+                            $manualBaseKey = $this->manualBaseIplKey($manualId, $baseKey);
+                            $excludedSourceQty = max($excludedSourceQty, (int) ($excludedQtyByBaseIpl[$manualBaseKey] ?? 0));
+                        }
+
+                        $excludedQty = min($baseQty, $excludedSourceQty);
+                        $remainingQty = $baseQty - $excludedQty;
+
+                        if ($remainingQty <= 0) {
+                            continue;
+                        }
+
+                        $insertRows[] = [
+                            'workorder_id' => $workorder->id,
+                            'manual_id' => $manualId,
+                            'component_id' => $component->id,
+                            'std_process_id' => $manualRow?->id,
+                            'std_type' => $std,
+                            'ipl_num' => (string) ($component->ipl_num ?? ''),
+                            'part_number' => (string) ($component->part_number ?? ''),
+                            'description' => (string) ($component->name ?? ''),
+                            'process' => (string) $manualRow->process,
+                            'base_qty' => $baseQty,
+                            'excluded_qty' => $excludedQty,
+                            'remaining_qty' => $remainingQty,
+                            'manual' => (string) ($component->manual?->number ?? $manual->number ?? ''),
+                            'eff_code' => StdProcess::normalizeEffCodeForStorage($rowEff),
+                            'sort_order' => $sortOrderByStd[$std]++,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
                     }
-
-                    $insertRows[] = [
-                        'workorder_id' => $workorder->id,
-                        'component_id' => $component->id,
-                        'std_process_id' => $manualRow?->id,
-                        'std_type' => $std,
-                        'ipl_num' => (string) ($component->ipl_num ?? ''),
-                        'part_number' => (string) ($component->part_number ?? ''),
-                        'description' => (string) ($component->name ?? ''),
-                        'process' => (string) $manualRow->process,
-                        'base_qty' => $baseQty,
-                        'excluded_qty' => $excludedQty,
-                        'remaining_qty' => $remainingQty,
-                        'manual' => (string) ($component->manual?->number ?? $manual->number ?? ''),
-                        'eff_code' => StdProcess::normalizeEffCodeForStorage($rowEff),
-                        'sort_order' => $sortOrder++,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ];
                 }
             }
 
@@ -160,7 +175,10 @@ class WorkorderStdProcessItemsService
             ->whereIn('workorder_id', Workorder::query()
                 ->select('workorders.id')
                 ->join('units', 'units.id', '=', 'workorders.unit_id')
-                ->where('units.manual_id', $manualId))
+                ->where(function ($query) use ($manualId): void {
+                    $query->where('units.manual_id', $manualId)
+                        ->orWhereJsonContains('workorders.additional_manual_ids', $manualId);
+                }))
             ->delete();
     }
 
@@ -320,6 +338,49 @@ class WorkorderStdProcessItemsService
             ->with('component.manual:id,number')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * A universal multiline row is a fallback for an IPL variant group. When an
+     * EFF-specific row from the same manual and process matches the Unit, keep the
+     * specific row only so the same physical position is not emitted twice.
+     *
+     * @param  array<int, array{manual_row: StdProcess, component: Component, row_eff: mixed}>  $rows
+     * @return array<int, array{manual_row: StdProcess, component: Component, row_eff: mixed}>
+     */
+    protected function preferEffSpecificVariants(array $rows): array
+    {
+        $specificKeys = [];
+
+        foreach ($rows as $row) {
+            if (StdProcess::normalizeEffCodeForStorage($row['row_eff']) === null) {
+                continue;
+            }
+
+            $process = trim((string) $row['manual_row']->process);
+            foreach ($this->baseIplKeys((string) ($row['component']->ipl_num ?? '')) as $baseIpl) {
+                $specificKeys[$baseIpl . '|' . $process] = true;
+            }
+        }
+
+        if ($specificKeys === []) {
+            return $rows;
+        }
+
+        return array_values(array_filter($rows, function (array $row) use ($specificKeys): bool {
+            if (StdProcess::normalizeEffCodeForStorage($row['row_eff']) !== null) {
+                return true;
+            }
+
+            $process = trim((string) $row['manual_row']->process);
+            foreach ($this->baseIplKeys((string) ($row['component']->ipl_num ?? '')) as $baseIpl) {
+                if (isset($specificKeys[$baseIpl . '|' . $process])) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
     }
 
     /**

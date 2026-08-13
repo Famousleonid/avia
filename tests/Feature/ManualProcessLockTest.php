@@ -37,28 +37,68 @@ class ManualProcessLockTest extends TestCase
             'form_number' => 'QA-001',
         ]);
 
-        $this->actingAs($user)->post(route('manuals.process-name-locks.lock', [
+        $this->actingAs($user)->postJson(route('manuals.process-name-locks.lock', [
             'manual' => $manual,
             'processName' => $processName,
-        ]), [
-            'return_to' => route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']),
-        ])->assertRedirect();
+        ]))->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('locked', true)
+            ->assertJsonPath('locked_by', $user->selection_name);
 
         $this->assertDatabaseHas('manual_process_name_locks', [
             'manual_id' => $manual->id,
             'process_name_id' => $processName->id,
         ]);
 
-        $this->actingAs($user)->delete(route('manuals.process-name-locks.unlock', [
+        $this->actingAs($user)->deleteJson(route('manuals.process-name-locks.unlock', [
             'manual' => $manual,
             'processName' => $processName,
-        ]), [
-            'return_to' => route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']),
-        ])->assertRedirect();
+        ]))->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('locked', false)
+            ->assertJsonPath('locked_by', null);
 
         $this->assertDatabaseMissing('manual_process_name_locks', [
             'manual_id' => $manual->id,
             'process_name_id' => $processName->id,
+        ]);
+    }
+
+    public function test_lock_manager_can_lock_and_unlock_manual_process_as_json(): void
+    {
+        $user = $this->createUserWithRole('Technician', [
+            'can_manage_locked_manual_processes' => true,
+        ]);
+        $manual = $this->createManual();
+        $manual->permittedUsers()->attach($user->id);
+        [, $manualProcess] = $this->createManualProcessFixture($manual->id);
+
+        $this->actingAs($user)->postJson(route('manuals.manual-process-locks.lock', [
+            'manual' => $manual,
+            'manualProcess' => $manualProcess,
+        ]))->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('locked', true)
+            ->assertJsonPath('locked_by', $user->selection_name);
+
+        $this->assertDatabaseHas('manual_processes', [
+            'id' => $manualProcess->id,
+            'is_locked' => true,
+            'locked_by_user_id' => $user->id,
+        ]);
+
+        $this->actingAs($user)->deleteJson(route('manuals.manual-process-locks.unlock', [
+            'manual' => $manual,
+            'manualProcess' => $manualProcess,
+        ]))->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('locked', false)
+            ->assertJsonPath('locked_by', null);
+
+        $this->assertDatabaseHas('manual_processes', [
+            'id' => $manualProcess->id,
+            'is_locked' => false,
+            'locked_by_user_id' => null,
         ]);
     }
 
@@ -73,15 +113,13 @@ class ManualProcessLockTest extends TestCase
             'is_locked' => true,
         ]);
 
-        $response = $this->from(route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']))
-            ->actingAs($user)
-            ->put(route('manual_processes.update', $manualProcess), [
+        $response = $this->actingAs($user)
+            ->putJson(route('manual_processes.update', $manualProcess), [
                 'process' => 'Updated forbidden text',
-                'return_to' => route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']),
             ]);
 
-        $response->assertRedirect(route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
-        $response->assertSessionHas('error');
+        $response->assertForbidden();
+        $response->assertJsonPath('success', false);
 
         $this->assertSame('Initial QA Process', $process->fresh()->process);
     }
@@ -129,15 +167,50 @@ class ManualProcessLockTest extends TestCase
             'locked_at' => now(),
         ]);
 
-        $response = $this->actingAs($user)->put(route('manual_processes.update', $manualProcess), [
+        $response = $this->actingAs($user)->putJson(route('manual_processes.update', $manualProcess), [
             'process' => 'Updated allowed text',
-            'return_to' => route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']),
         ]);
 
-        $response->assertRedirect(route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
-        $response->assertSessionHasNoErrors();
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
 
         $this->assertSame('Updated allowed text', $process->fresh()->process);
+    }
+
+    public function test_unlocked_manual_process_can_be_updated_as_json_without_page_redirect(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $manual = $this->createManual();
+        $manual->permittedUsers()->attach($user->id);
+        [$processName, $manualProcess] = $this->createManualProcessFixture($manual->id);
+
+        $page = $this->actingAs($user)->get(route('manuals.show', [
+            'manual' => $manual->id,
+            'tab' => 'processes',
+        ]));
+        $page->assertOk();
+        $page->assertSee('id="manualProcessEditModal"', false);
+        $page->assertSee('data-update-url="'.route('manual_processes.update', $manualProcess).'"', false);
+        $page->assertSee('data-manual-process-lock-toggle', false);
+        $page->assertSee('class="manual-process-specification-text"', false);
+        $page->assertSee("if (specificationText) specificationText.textContent = updated.process || '';", false);
+        $page->assertDontSee("if (specificationCell) specificationCell.textContent = updated.process || '';", false);
+
+        $response = $this->actingAs($user)->putJson(route('manual_processes.update', $manualProcess), [
+            'process' => 'Updated in modal',
+            'process_comment' => 'Saved without reloading the manual page',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('manual_process.id', $manualProcess->id);
+        $response->assertJsonPath('manual_process.process', 'Updated in modal');
+        $response->assertJsonPath('manual_process.process_comment', 'Saved without reloading the manual page');
+        $response->assertJsonPath('manual_process.process_name', $processName->name);
+        $this->assertDatabaseHas('manual_processes', [
+            'id' => $manualProcess->id,
+            'process_comment' => 'Saved without reloading the manual page',
+        ]);
     }
 
     public function test_authenticated_user_without_manual_access_can_browse_process_catalog(): void

@@ -65,6 +65,42 @@ class WorkordersIndexTest extends TestCase
         $response->assertDontSee('dropdownCssClass', false);
     }
 
+    public function test_review_accounts_are_absent_from_workorder_technician_selects(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $technician = $this->createUserWithRole('Technician');
+        $appReview = $this->createUserWithRole('Team Leader', [
+            'name' => 'Apple Review Account',
+            'email' => 'appreview@aviatechnik.ca',
+        ]);
+        $googleReview = $this->createUserWithRole('Team Leader', [
+            'name' => 'Google Review Account',
+            'email' => 'googleview@avIatechnik.ca',
+        ]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $appReview->id,
+        ]);
+
+        foreach ([route('workorders.index'), route('workorders.create')] as $url) {
+            $this->actingAs($admin)
+                ->get($url)
+                ->assertOk()
+                ->assertViewHas('users', function ($users) use ($technician, $appReview, $googleReview): bool {
+                    $ids = $users->pluck('id')->map(fn ($id): int => (int) $id);
+
+                    return $ids->contains($technician->id)
+                        && ! $ids->contains($appReview->id)
+                        && ! $ids->contains($googleReview->id);
+                });
+        }
+
+        $this->actingAs($admin)
+            ->get(route('workorders.edit', $workorder))
+            ->assertOk()
+            ->assertViewHas('users', fn ($users): bool => ! $users->contains('id', $appReview->id))
+            ->assertSee('value="'.$appReview->id.'" selected hidden', false);
+    }
+
     /**
      * @group smoke
      */

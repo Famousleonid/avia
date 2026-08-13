@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.$ && window.$.fn.select2) {
             const $ = window.$;
             const defaultManualId = {{ $manual_id }};
+            const logCardSerialsByComponent = @json($logCardSerialsByComponent ?? []);
 
             const canManageAllManualParts = {!! json_encode($canManageAllManualParts ?? false) !!};
             const allowedManualIds = {!! json_encode($allowedManualIds ?? []) !!};
@@ -115,6 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     part_number: option?.dataset?.partNumber || '',
                     name: option?.dataset?.title || '',
                     np: option?.dataset?.np === '1',
+                    kit: option?.dataset?.kit === '1',
                     assemblies: componentAssembliesFromOption(option)
                 };
             }
@@ -139,7 +141,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     .attr('data-component-id', componentId)
                     .attr('data-assembly-id', '')
                     .attr('data-ipl', component.ipl_num || '')
-                    .attr('data-np', component.np ? '1' : '0'));
+                    .attr('data-np', component.np ? '1' : '0')
+                    .attr('data-kit', component.kit ? '1' : '0'));
 
                 assemblies.forEach(function(assembly) {
                     const assyPart = assembly.assy_part_number || '';
@@ -151,7 +154,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         .attr('data-component-id', componentId)
                         .attr('data-assembly-id', assembly.id || '')
                         .attr('data-ipl', assyIpl || component.ipl_num || '')
-                        .attr('data-np', component.np ? '1' : '0'));
+                        .attr('data-np', component.np ? '1' : '0')
+                        .attr('data-kit', component.kit ? '1' : '0'));
                 });
             }
 
@@ -216,6 +220,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 $('#conditions').hide();
             }
 
+            function syncRepairSerialFromLogCard() {
+                const input = document.getElementById('serial_number');
+                if (!input) return;
+
+                const necessaryName = ($('#necessaries_id option:selected').attr('data-title') || '').toString().trim().toLowerCase();
+                const componentId = ($('#i_component_id').val() || '').toString();
+                const candidate = (logCardSerialsByComponent[componentId] || '').toString();
+                const previousAuto = input.dataset.autoLogCardSerial || '';
+                const current = input.value.trim();
+
+                if (necessaryName !== 'repair') {
+                    if (previousAuto && current === previousAuto) input.value = '';
+                    input.dataset.autoLogCardSerial = '';
+                    return;
+                }
+
+                if (candidate && (!current || current === previousAuto)) {
+                    input.value = candidate;
+                }
+                input.dataset.autoLogCardSerial = candidate;
+            }
+
             function updateFieldVisibility() {
                 const codeName = ($('#codes_id option:selected').attr('data-title') || '').toString().trim().toLowerCase();
                 const necessaryName = ($('#necessaries_id option:selected').attr('data-title') || '').toString().trim();
@@ -254,9 +280,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     $('#order_component_group').hide();
                     $('#order_component_id').val('').trigger('change');
                 }
+
+                syncRepairSerialFromLogCard();
             }
 
             $('#i_component_id').on('change', function() {
+                $('#serial_number, #assy_serial_number').val('');
+                document.getElementById('serial_number')?.removeAttribute('data-auto-log-card-serial');
                 $('#codes_id').val(null).trigger('change');
                 $('#necessaries_id').val(null).trigger('change');
                 rebuildOrderComponentOptions();
@@ -322,15 +352,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 updatePartsActions(manualId);
             });
 
+            let componentLoadSequence = 0;
+
             function loadComponentsByManual(manualId) {
+                const requestSequence = ++componentLoadSequence;
+                $('#i_component_id').empty().append('<option value="">{{ __("Loading...") }}</option>').trigger('change');
+                $('#order_component_id').empty().append('<option value="">{{ __("Loading...") }}</option>').trigger('change');
+
                 $.ajax({
                     url: '{{ route("api.get-components-by-manual") }}',
                     method: 'GET',
                     data: { manual_id: manualId, workorder_id: {{ $current_wo->id }}, _token: '{{ csrf_token() }}' },
                     success: function(response) {
+                        const selectedManualId = $('#i_manual_id').val() || defaultManualId;
+                        if (requestSequence !== componentLoadSequence || String(selectedManualId) !== String(manualId)) return;
+
                         $('#i_component_id').empty().append('<option value="">---</option>');
                         $('#order_component_id').empty().append('<option value="">---</option>');
-                        response.components.forEach(function(component) {
+                        (response.components || [])
+                            .filter(function(component) { return String(component.manual_id) === String(manualId); })
+                            .forEach(function(component) {
                             const assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
                             $('#i_component_id').append($('<option>')
                                 .val(component.id)
@@ -340,10 +381,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                 .attr('data-ipl', component.ipl_num || '')
                                 .attr('data-part-number', component.part_number || '')
                                 .attr('data-np', component.np ? '1' : '0')
+                                .attr('data-kit', component.kit ? '1' : '0')
                                 .attr('data-assemblies', JSON.stringify(assemblies)));
                         });
                         $('#i_component_id').trigger('change');
                         rebuildOrderComponentOptions();
+                    },
+                    error: function(_xhr, status) {
+                        if (status === 'abort' || requestSequence !== componentLoadSequence) return;
+                        $('#i_component_id').empty().append('<option value="">---</option>').trigger('change');
+                        $('#order_component_id').empty().append('<option value="">---</option>').trigger('change');
                     }
                 });
             }
@@ -380,6 +427,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     setHiddenInput('use_tdr', '1');
                     setHiddenInput('use_process_forms', '1');
                 }
+
+                if (
+                    (codeName === 'missing' || necessaryName === 'order new')
+                    && $('#order_component_id option:selected').attr('data-kit') === '1'
+                ) {
+                    e.preventDefault();
+                    (window.tdrShowNotify || function(m) { console.warn(m); })('{{ __('This part is already included in KIT and must not be duplicated in PRL.') }}', 'warning');
+                }
             });
         }
     };
@@ -406,6 +461,7 @@ function initTdrInlineCreate() {
 
     const $ = window.$ || null;
     const defaultManualId = {{ $manual_id }};
+    const logCardSerialsByComponent = @json($logCardSerialsByComponent ?? []);
     const missingConditionId = @json($missingCondition?->id);
     const orderNewNecessaryId = @json($necessary?->id);
     const canManageAllManualParts = {!! json_encode($canManageAllManualParts ?? false) !!};
@@ -436,6 +492,20 @@ function initTdrInlineCreate() {
     const partsActionsEl = document.getElementById('tdr-inline-parts-actions');
     const addComponentManualId = document.getElementById('addComponentManualId');
     const iplDisplay = document.getElementById('tdr_inline_ipl_display');
+    const editImagePreview = document.getElementById('edit_component_image_preview');
+    const editImageLink = document.getElementById('edit_component_image_link');
+    const editImageThumb = document.getElementById('edit_component_image_thumb');
+    const editImageDeleteButton = document.getElementById('edit_component_image_delete');
+    let editImageDeleteUrl = '';
+
+    function renderEditComponentImage(image) {
+        editImageDeleteUrl = image?.delete_url || '';
+        const hasImage = !!(image?.url && image?.thumb_url);
+        editImagePreview?.classList.toggle('d-none', !hasImage);
+        editImagePreview?.classList.toggle('d-flex', hasImage);
+        if (editImageLink) editImageLink.href = hasImage ? image.url : '#';
+        if (editImageThumb) editImageThumb.src = hasImage ? image.thumb_url : '';
+    }
 
     function selectedTitle(select) {
         if (!select) return '';
@@ -633,6 +703,7 @@ function initTdrInlineCreate() {
             orderOption.dataset.componentId = componentId;
             orderOption.dataset.assemblyId = '';
             orderOption.dataset.np = componentOption?.dataset?.np || '0';
+            orderOption.dataset.kit = componentOption?.dataset?.kit || '0';
             orderComponentSelect.appendChild(orderOption);
 
             assemblies.forEach(function(assembly) {
@@ -648,6 +719,7 @@ function initTdrInlineCreate() {
                 assemblyOption.dataset.assemblyId = assembly.id || '';
                 assemblyOption.dataset.isAssy = '1';
                 assemblyOption.dataset.np = componentOption?.dataset?.np || '0';
+                assemblyOption.dataset.kit = componentOption?.dataset?.kit || '0';
                 orderComponentSelect.appendChild(assemblyOption);
             });
         });
@@ -827,6 +899,27 @@ function initTdrInlineCreate() {
         setPlaceholder('description', description);
     }
 
+    function syncRepairSerialFromLogCard() {
+        if (!serialInput) return;
+
+        const isRepair = selectedTitle(necessarySelect).toLowerCase() === 'repair';
+        const componentId = (componentSelect?.value || '').toString();
+        const candidate = (logCardSerialsByComponent[componentId] || '').toString();
+        const previousAuto = serialInput.dataset.autoLogCardSerial || '';
+        const current = serialInput.value.trim();
+
+        if (!isRepair) {
+            if (previousAuto && current === previousAuto) serialInput.value = '';
+            serialInput.dataset.autoLogCardSerial = '';
+            return;
+        }
+
+        if (candidate && (!current || current === previousAuto)) {
+            serialInput.value = candidate;
+        }
+        serialInput.dataset.autoLogCardSerial = candidate;
+    }
+
     function syncDescriptionFromComponent(option) {
         if (!descriptionInput) return;
         const nextDescription = option && option.value ? (option.dataset.title || '') : '';
@@ -975,17 +1068,32 @@ function initTdrInlineCreate() {
             setInlineCellVisible('description', false);
         }
 
+        syncRepairSerialFromLogCard();
         updatePlaceholders();
     }
 
+    let componentLoadSequence = 0;
+
     function loadComponentsByManual(manualId) {
         if (!manualId || !$) return;
+        const requestSequence = ++componentLoadSequence;
+        $(componentSelect).empty().append('<option value="">{{ __("Loading...") }}</option>');
+        $(orderComponentSelect).empty().append('<option value="">{{ __("Loading...") }}</option>');
+        setSelectValue(componentSelect, '');
+        setSelectValue(orderComponentSelect, '');
+        if (orderComponentIdInput) orderComponentIdInput.value = '';
+        if (orderComponentAssemblyInput) orderComponentAssemblyInput.value = '';
+
         $.ajax({
             url: '{{ route("api.get-components-by-manual") }}',
             method: 'GET',
-            data: { manual_id: manualId, workorder_id: {{ $current_wo->id }}, exclude_kits: 1, _token: '{{ csrf_token() }}' },
+            data: { manual_id: manualId, workorder_id: {{ $current_wo->id }}, _token: '{{ csrf_token() }}' },
             success: function(response) {
-                const components = response.components || [];
+                const selectedManualId = manualSelect?.value || defaultManualId;
+                if (requestSequence !== componentLoadSequence || String(selectedManualId) !== String(manualId)) return;
+
+                const components = (response.components || [])
+                    .filter(function(component) { return String(component.manual_id) === String(manualId); });
                 $(componentSelect).empty().append('<option value="">---</option>');
                 $(orderComponentSelect).empty().append('<option value="">---</option>');
                 components.forEach(function(component) {
@@ -1006,6 +1114,7 @@ function initTdrInlineCreate() {
                             .attr('data-assy-ipl', component.assy_ipl_num || '')
                             .attr('data-units-assy', component.units_assy || '')
                             .attr('data-np', component.np ? '1' : '0')
+                            .attr('data-kit', component.kit ? '1' : '0')
                             .attr('data-assemblies', JSON.stringify(assemblies))
                     );
                 });
@@ -1013,6 +1122,15 @@ function initTdrInlineCreate() {
                 setSelectValue(orderComponentSelect, '');
                 if (orderComponentIdInput) orderComponentIdInput.value = '';
                 if (orderComponentAssemblyInput) orderComponentAssemblyInput.value = '';
+                populateOrderComponentChoices(null);
+                updatePlaceholders();
+            },
+            error: function(_xhr, status) {
+                if (status === 'abort' || requestSequence !== componentLoadSequence) return;
+                $(componentSelect).empty().append('<option value="">---</option>');
+                $(orderComponentSelect).empty().append('<option value="">---</option>');
+                setSelectValue(componentSelect, '');
+                setSelectValue(orderComponentSelect, '');
                 populateOrderComponentChoices(null);
                 updatePlaceholders();
             }
@@ -1106,6 +1224,11 @@ function initTdrInlineCreate() {
     });
 
     componentSelect?.addEventListener('change', function() {
+        if (serialInput) {
+            serialInput.value = '';
+            serialInput.dataset.autoLogCardSerial = '';
+        }
+        if (assySerialInput) assySerialInput.value = '';
         setSelectValue(codeSelect, '');
         setSelectValue(necessarySelect, '');
         setSelectValue(orderComponentSelect, '');
@@ -1173,13 +1296,21 @@ function initTdrInlineCreate() {
     });
     serialInput?.addEventListener('input', updatePlaceholders);
 
-    manualSelect?.addEventListener('change', function() {
+    function handleInlineManualChange() {
         const manualId = manualSelect.value || defaultManualId;
         if (addComponentManualId) addComponentManualId.value = manualId;
         updatePartsActions(manualId);
         loadComponentsByManual(manualId);
         updatePlaceholders();
-    });
+    }
+
+    if ($ && manualSelect) {
+        $(manualSelect)
+            .off('change.tdrInlineManual')
+            .on('change.tdrInlineManual', handleInlineManualChange);
+    } else {
+        manualSelect?.addEventListener('change', handleInlineManualChange);
+    }
 
     document.getElementById('tdr-inline-edit-part-btn')?.addEventListener('click', function(event) {
         event.preventDefault();
@@ -1196,6 +1327,7 @@ function initTdrInlineCreate() {
                 return;
             }
             const c = response.component;
+            renderEditComponentImage(c.image);
             $('#edit_name').val(c.name);
             $('#edit_ipl_num').val(c.ipl_num);
             $('#edit_part_number').val(c.part_number);
@@ -1216,6 +1348,47 @@ function initTdrInlineCreate() {
         }).fail(function() {
             (window.tdrShowNotify || function(m) { console.error(m); })('Error loading part.', 'error');
         });
+    });
+
+    editImageDeleteButton?.addEventListener('click', async function() {
+        if (!editImageDeleteUrl) return;
+        if (typeof window.confirmDialog !== 'function') {
+            (window.tdrShowNotify || function(m) { console.error(m); })('{{ __('Confirmation dialog is unavailable. Image was not deleted.') }}', 'error');
+            return;
+        }
+
+        const confirmed = await window.confirmDialog({
+            title: '{{ __('Delete image') }}',
+            message: '{{ __('Delete the current part image?') }}',
+            okText: '{{ __('Delete') }}',
+            cancelText: '{{ __('Cancel') }}',
+            danger: true,
+        });
+        if (!confirmed) return;
+
+        editImageDeleteButton.disabled = true;
+        try {
+            const response = await fetch(editImageDeleteUrl, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+                credentials: 'same-origin',
+            });
+            const data = await response.json().catch(function() { return {}; });
+            if (!response.ok || data.success !== true) {
+                throw new Error(data.message || '{{ __('Failed to delete image.') }}');
+            }
+            renderEditComponentImage(null);
+            (window.tdrShowNotify || function(m) { console.log(m); })('{{ __('Image deleted.') }}', 'success');
+            await refreshInlineTdrTableRows();
+        } catch (error) {
+            (window.tdrShowNotify || function(m) { console.error(m); })(error.message || '{{ __('Failed to delete image.') }}', 'error');
+        } finally {
+            editImageDeleteButton.disabled = false;
+        }
     });
 
     document.getElementById('is_bush')?.addEventListener('change', function() {
@@ -1247,6 +1420,18 @@ function initTdrInlineCreate() {
     form.addEventListener('submit', function(event) {
         const codeName = selectedTitle(codeSelect).toLowerCase();
         const necessaryName = selectedTitle(necessarySelect).toLowerCase();
+
+        if (!componentSelect?.value) {
+            event.preventDefault();
+            (window.tdrShowNotify || function(m) { console.warn(m); })('{{ __('Select a part before saving.') }}', 'warning');
+            return;
+        }
+
+        if (!codeName) {
+            event.preventDefault();
+            (window.tdrShowNotify || function(m) { console.warn(m); })('{{ __('Select a code before saving.') }}', 'warning');
+            return;
+        }
 
         useTdrInput.value = '0';
         useProcessFormsInput.value = '0';
@@ -1282,6 +1467,16 @@ function initTdrInlineCreate() {
         if ((codeName === 'missing' || necessaryName === 'order new') && !orderComponentIdInput?.value) {
             event.preventDefault();
             (window.tdrShowNotify || function(m) { console.warn(m); })('{{ __("Select order component.") }}', 'warning');
+            return;
+        }
+
+        const selectedOrderOption = orderComponentSelect?.options[orderComponentSelect.selectedIndex] || null;
+        if (
+            (codeName === 'missing' || necessaryName === 'order new')
+            && selectedOrderOption?.dataset?.kit === '1'
+        ) {
+            event.preventDefault();
+            (window.tdrShowNotify || function(m) { console.warn(m); })('{{ __('This part is already included in KIT and must not be duplicated in PRL.') }}', 'warning');
             return;
         }
 

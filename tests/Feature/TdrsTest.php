@@ -19,6 +19,7 @@ use App\Models\TdrProcess;
 use App\Models\UserUiSetting;
 use App\Models\WoBushing;
 use App\Models\WoBushingLine;
+use App\Models\WorkorderKitPrlCrossout;
 use App\Models\WorkorderUnitInspection;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\BuildsDomainData;
@@ -1077,6 +1078,118 @@ class TdrsTest extends TestCase
         $savedShow->assertDontSee('function logCardTabReset', false);
     }
 
+    public function test_log_card_partial_sorts_natural_part_number_and_renders_part_number_gray_ipl_description(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        foreach ([
+            ['ipl_num' => '1A-1000', 'part_number' => '47202-1', 'name' => 'Harness Assembly, Steering'],
+            ['ipl_num' => '1A-200', 'part_number' => '40000-1', 'name' => 'First Part Number Component'],
+            ['ipl_num' => '1A-100', 'part_number' => '50000-1', 'name' => 'Last Part Number Component'],
+        ] as $row) {
+            Component::query()->create([
+                'manual_id' => $workorder->unit->manual_id,
+                'part_number' => $row['part_number'],
+                'name' => $row['name'],
+                'ipl_num' => $row['ipl_num'],
+                'log_card' => true,
+            ]);
+        }
+        $multiUnitComponent = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '45000-1',
+            'name' => 'Multi Unit Component',
+            'ipl_num' => '1A-500',
+            'units_assy' => 2,
+            'log_card' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSeeInOrder([
+            '40000-1 <span class="lc-ipl text-secondary">(1A-200)</span> First Part Number Component',
+            '45000-1 <span class="lc-ipl text-secondary">(1A-500)</span> Multi Unit Component',
+            'Unit 1 of 2',
+            '45000-1 <span class="lc-ipl text-secondary">(1A-500)</span> Multi Unit Component',
+            'Unit 2 of 2',
+            '47202-1 <span class="lc-ipl text-secondary">(1A-1000)</span> Harness Assembly, Steering',
+            '50000-1 <span class="lc-ipl text-secondary">(1A-100)</span> Last Part Number Component',
+        ], false);
+        $response->assertSee('text-muted text-nowrap ms-2', false);
+        $response->assertDontSee('<br><small class="text-muted">Unit', false);
+        $response->assertDontSee('(1A-1000) 47202-1 Harness Assembly, Steering', false);
+        $response->assertSee('>Part Number / IPL / Description</th>', false);
+
+        $componentsByPartNumber = Component::query()
+            ->where('manual_id', $workorder->unit->manual_id)
+            ->whereIn('part_number', ['40000-1', '47202-1', '50000-1'])
+            ->get()
+            ->keyBy('part_number');
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                ['component_id' => $componentsByPartNumber->get('50000-1')->id],
+                [
+                    'component_id' => $multiUnitComponent->id,
+                    'unit_index' => 2,
+                    'units_assy' => 2,
+                    'serial_number' => 'MULTI-SN-2',
+                    'assy_serial_number' => 'MULTI-ASSY-SN-2',
+                    'reason' => '4',
+                    'new_serial_number' => 'MULTI-NEW-SN-2',
+                ],
+                ['component_id' => $componentsByPartNumber->get('47202-1')->id],
+                [
+                    'component_id' => $multiUnitComponent->id,
+                    'unit_index' => 1,
+                    'units_assy' => 2,
+                    'serial_number' => 'MULTI-SN-1',
+                    'assy_serial_number' => 'MULTI-ASSY-SN-1',
+                    'reason' => '3',
+                    'new_serial_number' => 'MULTI-NEW-SN-1',
+                ],
+                ['component_id' => $componentsByPartNumber->get('40000-1')->id],
+            ]),
+        ]);
+
+        $savedResponse = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
+
+        $savedResponse->assertOk();
+        $savedResponse->assertSeeInOrder([
+            '40000-1 <span class="lc-ipl text-secondary">(1A-200)</span> First Part Number Component',
+            '45000-1 <span class="lc-ipl text-secondary">(1A-500)</span> Multi Unit Component',
+            'Unit 1 of 2',
+            '45000-1 <span class="lc-ipl text-secondary">(1A-500)</span> Multi Unit Component',
+            'Unit 2 of 2',
+            '47202-1 <span class="lc-ipl text-secondary">(1A-1000)</span> Harness Assembly, Steering',
+            '50000-1 <span class="lc-ipl text-secondary">(1A-100)</span> Last Part Number Component',
+        ], false);
+        $savedResponse->assertSee('text-muted text-nowrap ms-2', false);
+        $savedResponse->assertDontSee('<br><small class="text-muted">Unit', false);
+        $savedResponse->assertSee('data-unit-index="1"', false);
+        $savedResponse->assertSee('data-unit-index="2"', false);
+        $savedResponse->assertSee('MULTI-SN-1', false);
+        $savedResponse->assertSee('MULTI-SN-2', false);
+        $this->assertMatchesRegularExpression(
+            '/data-row-index="3"[^>]*data-component-id="'.$multiUnitComponent->id.'"[^>]*data-unit-index="1"/s',
+            $savedResponse->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/data-row-index="1"[^>]*data-component-id="'.$multiUnitComponent->id.'"[^>]*data-unit-index="2"/s',
+            $savedResponse->getContent()
+        );
+
+        $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+        $showResponse->assertOk();
+        $showResponse->assertSee('if (row.dataset.unitIndex) item.unit_index = row.dataset.unitIndex;', false);
+        $showResponse->assertSee('var row = Object.assign({}, originalRow, {', false);
+        $showResponse->assertSee('var manualRow = Object.assign({}, originalManualRow, {', false);
+        $showResponse->assertSee('function logCardWaitForInlineSaves()', false);
+        $showResponse->assertSee('logCardInlineSaveTimer = null;', false);
+    }
+
     public function test_tdr_show_persists_measurements_tab_id(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -1267,6 +1380,9 @@ class TdrsTest extends TestCase
         $print->assertSee('Print Settings', false);
         $print->assertSee('log_card_print_settings', false);
         $print->assertSee('--log-card-table-font-size', false);
+        $print->assertSee('--log-card-description-font-size', false);
+        $print->assertSee('Description Font (px)', false);
+        $print->assertSee('--log-card-grid-columns', false);
         $print->assertSee('font-size: var(--log-card-table-font-size, 14px) !important;', false);
         $print->assertSee('window.UserScopedStorage', false);
         $print->assertDontSee('MANUAL:', false);
@@ -1282,6 +1398,7 @@ class TdrsTest extends TestCase
         $component = Component::query()->create([
             'manual_id' => $manual->id,
             'part_number' => 'LC-SINGLE-100',
+            'assy_part_number' => 'LC-SINGLE-ASSY',
             'name' => 'Single Manual Log Part',
             'ipl_num' => '1-10',
             'log_card' => true,
@@ -1309,6 +1426,8 @@ class TdrsTest extends TestCase
         $print->assertOk();
         $print->assertSee('Single Manual Log Part', false);
         $print->assertSee('SN-SINGLE', false);
+        $print->assertSee('log-card-data-row--dual-part-number', false);
+        $print->assertSee('--log-card-data-row-height: 39px;', false);
         $print->assertDontSee('LC-SINGLE-ONLY', false);
     }
 
@@ -1322,6 +1441,7 @@ class TdrsTest extends TestCase
             $component = Component::query()->create([
                 'manual_id' => $workorder->unit->manual_id,
                 'part_number' => 'LC-PAGE-'.$i,
+                'assy_part_number' => $i === 1 ? 'LC-PAGE-ASSY-1' : null,
                 'name' => 'Long Print Row '.$i,
                 'ipl_num' => '1-'.$i,
                 'log_card' => true,
@@ -1351,9 +1471,16 @@ class TdrsTest extends TestCase
         $this->assertStringContainsString('Print Settings', $html);
         $this->assertStringContainsString('log_card_print_settings', $html);
         $this->assertStringContainsString('--log-card-table-font-size', $html);
+        $this->assertStringContainsString('--log-card-description-font-size', $html);
+        $this->assertStringContainsString('Description Font (px)', $html);
+        $this->assertStringContainsString('--log-card-grid-columns', $html);
+        $this->assertStringContainsString('grid-auto-rows: minmax(27px, auto);', $html);
+        $this->assertStringNotContainsString('grid-template-rows: repeat(5, 27px)', $html);
         $this->assertStringContainsString('font-size: var(--log-card-table-font-size, 14px) !important;', $html);
+        $this->assertStringContainsString('log-card-data-row--dual-part-number', $html);
+        $this->assertStringContainsString('--log-card-data-row-height: 39px;', $html);
         $this->assertStringContainsString('window.UserScopedStorage', $html);
-        $this->assertGreaterThanOrEqual(30, substr_count($html, 'class="log-card-record-row"'));
+        $this->assertGreaterThanOrEqual(30, substr_count($html, 'log-card-record-row'));
         $this->assertStringContainsString('1 of 3', $html);
         $this->assertStringContainsString('2 of 3', $html);
         $this->assertStringContainsString('3 of 3', $html);
@@ -2115,7 +2242,7 @@ class TdrsTest extends TestCase
         Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'KIT-BUSH-PN-80',
-            'name' => 'Kit Bushing Excluded',
+            'name' => 'Kit Bushing Included',
             'ipl_num' => '2-80',
             'units_assy' => 1,
             'kit' => true,
@@ -2167,13 +2294,29 @@ class TdrsTest extends TestCase
         $kitResponse->assertSee('50B');
         $kitResponse->assertSee('KIT-PN-50A');
         $kitResponse->assertSee('KIT-PN-50B');
-        $this->assertMatchesRegularExpression(
-            '/50A<br \/>\\s*50B.*?KIT-PN-50A<br \/>\\s*KIT-PN-50B.*?<div class="col-1 prl-col-qty[^"]*"[^>]*>\\s*<h6>2<\\/h6>/s',
-            $kitResponse->getContent()
-        );
+        $kitResponse->assertViewHas('ordersParts', function ($rows): bool {
+            $row = collect($rows)->first(fn (array $candidate): bool =>
+                collect($candidate['kit_component_options'] ?? [])->contains(
+                    fn (array $option): bool => ($option['part_number'] ?? null) === 'KIT-PN-50A'
+                )
+            );
+
+            return (int) ($row['qty'] ?? 0) === 2
+                && collect($row['kit_component_options'] ?? [])->pluck('part_number')->all() === [
+                    'KIT-PN-50A',
+                    'KIT-PN-50B',
+                ];
+        });
         $kitResponse->assertDontSee('<h6>3</h6>', false);
         $kitResponse->assertSee('KIT-PN-60');
-        $kitResponse->assertDontSee('KIT-BUSH-PN-80');
+        $kitResponse->assertSee('KIT-BUSH-PN-80');
+        $kitResponse->assertViewHas('ordersParts', function ($rows): bool {
+            $kitBushing = collect($rows)->first(
+                fn (array $row): bool => ($row['component']['part_number'] ?? null) === 'KIT-BUSH-PN-80'
+            );
+
+            return $kitBushing !== null && ! empty($kitBushing['prl_crossed_out']);
+        });
         $kitResponse->assertDontSee('EXTRA PARTS');
         $kitResponse->assertDontSee('KIT-E-PN-70');
         $kitResponse->assertSee('<h6>KIT</h6>', false);
@@ -2201,9 +2344,12 @@ class TdrsTest extends TestCase
         ], false);
         $showResponse->assertSee('>2</span>', false);
         $bushingResponse->assertSee('`prlForm_print_settings:${PRINT_SETTINGS_PROFILE}`', false);
+        $bushingResponse->assertSee('prl-print-paginator.js', false);
+        $bushingResponse->assertSee("PRINT_SETTINGS_LAYOUT_VERSION = 'prl-family-height-v3'", false);
+        $bushingResponse->assertDontSee('id="prlTableRows"', false);
 
-        $bushSettings = json_encode(['prlTableRows' => '9']);
-        $prlSettings = json_encode(['prlTableRows' => '17']);
+        $bushSettings = json_encode(['tableFontSize' => '12px']);
+        $prlSettings = json_encode(['tableFontSize' => '14px']);
         foreach ([
             'prlForm_print_settings:bush-prl' => $bushSettings,
             'prlForm_print_settings:prl' => $prlSettings,
@@ -2225,6 +2371,265 @@ class TdrsTest extends TestCase
             ->pluck('value', 'key');
         $this->assertSame($bushSettings, $savedPrintSettings->get('prlForm_print_settings:bush-prl'));
         $this->assertSame($prlSettings, $savedPrintSettings->get('prlForm_print_settings:prl'));
+    }
+
+    public function test_kit_form_repeats_bushing_prl_original_oversize_selection(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        $damaged = Code::query()->firstOrCreate(['name' => 'Damaged'], ['code' => 'DMG']);
+
+        $prlKitComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'KIT-PRL-CROSSED',
+            'name' => 'KIT part also in PRL',
+            'ipl_num' => '7-10',
+            'kit' => true,
+        ]);
+        $bushingKitComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'KIT-BUSH-SHARED-PN',
+            'name' => 'KIT original bushing',
+            'ipl_num' => '7-20',
+            'bush_ipl_num' => '7-20',
+            'kit' => true,
+            'is_bush' => true,
+        ]);
+        $unselectedBushingKitComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'KIT-BUSH-SHARED-PN',
+            'name' => 'KIT bushing from another unselected group',
+            'ipl_num' => '7-25',
+            'bush_ipl_num' => '7-25',
+            'kit' => true,
+            'is_bush' => true,
+        ]);
+        $untouchedKitComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'KIT-NOT-CROSSED',
+            'name' => 'KIT-only part',
+            'ipl_num' => '7-30',
+            'kit' => true,
+        ]);
+        $inspectedComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'INSPECTED-FOR-PRL',
+            'name' => 'Inspected part',
+            'ipl_num' => '8-10',
+        ]);
+        Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $inspectedComponent->id,
+            'order_component_id' => $prlKitComponent->id,
+            'codes_id' => $damaged->id,
+            'necessaries_id' => $orderNew->id,
+            'qty' => 1,
+        ]);
+
+        $selectedBushing = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'KIT-BUSH-OVERSIZE-SELECTED',
+            'name' => 'Selected oversize bushing',
+            'ipl_num' => '7-21',
+            'bush_ipl_num' => '7-20',
+            'kit' => true,
+            'is_bush' => true,
+        ]);
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+        WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $selectedBushing->id,
+            'qty' => 1,
+            'qty_remaining' => 1,
+            'do_not_order' => false,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.kitForm', $workorder));
+
+        $response
+            ->assertOk()
+            ->assertViewHas('ordersParts', function ($rows) use ($prlKitComponent, $untouchedKitComponent): bool {
+                $rows = collect($rows);
+                $prlRow = $rows->first(fn (array $row): bool => (int) ($row['component']['id'] ?? 0) === $prlKitComponent->id);
+                $untouchedRow = $rows->first(fn (array $row): bool => (int) ($row['component']['id'] ?? 0) === $untouchedKitComponent->id);
+                $selectedBushingGroup = $rows->firstWhere('prl_bushing_group', '7-20');
+                $unselectedBushingGroup = $rows->firstWhere('prl_bushing_group', '7-25');
+                $selectedOptions = collect($selectedBushingGroup['prl_part_numbers'] ?? [])->keyBy('part_number');
+
+                return ! empty($prlRow['prl_crossed_out'])
+                    && empty($untouchedRow['prl_crossed_out'])
+                    && empty($selectedBushingGroup['prl_crossed_out'])
+                    && ! empty($selectedOptions->get('KIT-BUSH-SHARED-PN')['crossed_out'])
+                    && empty($selectedOptions->get('KIT-BUSH-OVERSIZE-SELECTED')['crossed_out'])
+                    && ! empty($unselectedBushingGroup['prl_crossed_out']);
+            })
+            ->assertSee('KIT-PRL-CROSSED')
+            ->assertSee('KIT-BUSH-SHARED-PN')
+            ->assertSee('KIT-BUSH-OVERSIZE-SELECTED')
+            ->assertSee('KIT-NOT-CROSSED');
+
+        $this->assertSame(2, substr_count($response->getContent(), 'data-prl-crossed-out="1"'));
+        $this->assertSame(2, substr_count($response->getContent(), 'data-prl-part-number-crossed-out="1"'));
+    }
+
+    public function test_kit_position_can_be_manually_crossed_out_and_restored_per_component(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = (int) $workorder->unit->manual_id;
+
+        $base = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'NAS1149C0363R',
+            'name' => 'Washer',
+            'ipl_num' => '4-1190',
+            'units_assy' => 1,
+            'kit' => true,
+        ]);
+        $variant = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'NAS1149C0332R',
+            'name' => 'Washer',
+            'ipl_num' => '4-1190A',
+            'units_assy' => 1,
+            'kit' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrs.kit-crossouts.update', [
+                'workorder' => $workorder,
+                'component' => $variant,
+            ]), ['crossed_out' => true])
+            ->assertOk()
+            ->assertJson([
+                'component_id' => $variant->id,
+                'crossed_out' => true,
+            ]);
+
+        $this->assertDatabaseHas('workorder_kit_prl_crossouts', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $variant->id,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
+
+        $response
+            ->assertOk()
+            ->assertViewHas('ordersParts', function ($rows) use ($base, $variant): bool {
+                $row = collect($rows)->first(function (array $candidate) use ($base): bool {
+                    return collect($candidate['kit_component_options'] ?? [])->contains(
+                        fn (array $option): bool => (int) ($option['component_id'] ?? 0) === $base->id
+                    );
+                });
+                $options = collect($row['kit_component_options'] ?? [])->keyBy('component_id');
+
+                return empty($row['prl_crossed_out'])
+                    && empty($options->get($base->id)['manual_crossed_out'])
+                    && empty($options->get($base->id)['crossed_out'])
+                    && ! empty($options->get($variant->id)['manual_crossed_out'])
+                    && ! empty($options->get($variant->id)['crossed_out']);
+            });
+        $content = $response->getContent();
+        $this->assertMatchesRegularExpression(
+            '/data-kit-prl-component-id="'.$base->id.'"[^>]*data-kit-prl-manual-crossed-out="0"[^>]*data-kit-prl-toggle-url=/s',
+            $content
+        );
+        $this->assertMatchesRegularExpression(
+            '/data-kit-prl-component-id="'.$variant->id.'"[^>]*data-kit-prl-manual-crossed-out="1"[^>]*data-kit-prl-toggle-url=/s',
+            $content
+        );
+        $response->assertSee('kit-manual-crossouts.js', false);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrs.kit-crossouts.update', [
+                'workorder' => $workorder,
+                'component' => $variant,
+            ]), ['crossed_out' => false])
+            ->assertOk()
+            ->assertJson(['crossed_out' => false]);
+
+        $this->assertDatabaseMissing('workorder_kit_prl_crossouts', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $variant->id,
+        ]);
+
+        $nonKit = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'NOT-IN-KIT',
+            'name' => 'Not a KIT part',
+            'ipl_num' => '4-9999',
+            'kit' => false,
+        ]);
+        $this->actingAs($admin)
+            ->patchJson(route('tdrs.kit-crossouts.update', [
+                'workorder' => $workorder,
+                'component' => $nonKit,
+            ]), ['crossed_out' => true])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('component');
+    }
+
+    public function test_controller_crossed_kit_position_is_locked_from_manual_restore(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = (int) $workorder->unit->manual_id;
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        $damaged = Code::query()->firstOrCreate(['name' => 'Damaged'], ['code' => 'DMG']);
+        $kitComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'AUTO-CROSSED-KIT',
+            'name' => 'Automatic KIT cross-out',
+            'ipl_num' => '4-1190A',
+            'kit' => true,
+        ]);
+        $inspectedComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'INSPECTED-KIT-SOURCE',
+            'name' => 'Inspected source',
+            'ipl_num' => '4-1191',
+        ]);
+        Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $inspectedComponent->id,
+            'order_component_id' => $kitComponent->id,
+            'codes_id' => $damaged->id,
+            'necessaries_id' => $orderNew->id,
+            'qty' => 1,
+        ]);
+        WorkorderKitPrlCrossout::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $kitComponent->id,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrs.kit-crossouts.update', [
+                'workorder' => $workorder,
+                'component' => $kitComponent,
+            ]), ['crossed_out' => false])
+            ->assertOk();
+
+        $response = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
+        $content = $response->getContent();
+
+        $response->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/class="[^"]*kit-prl-option-locked[^"]*"[^>]*data-kit-prl-component-id="'.$kitComponent->id.'"[^>]*data-kit-prl-controller-crossed-out="1"/s',
+            $content
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/data-kit-prl-component-id="'.$kitComponent->id.'"[^>]*data-kit-prl-toggle-url=/s',
+            $content
+        );
+        $this->assertDatabaseMissing('workorder_kit_prl_crossouts', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $kitComponent->id,
+        ]);
     }
 
     public function test_bushing_prl_prints_all_bushings_crossed_out_when_none_are_ordered(): void
@@ -2376,7 +2781,7 @@ class TdrsTest extends TestCase
             $content
         );
         $this->assertMatchesRegularExpression(
-            '/class="prl-part-number-line "[^>]*>BUSH-GROUP-OS-3<\/span>/',
+            '/class="[^"]*prl-part-number-line[^"]*"[^>]*>BUSH-GROUP-OS-3<\/span>/',
             $content
         );
         $this->assertSame(1, substr_count($content, '>BUSH-GROUP-OS-3</span>'));
@@ -2394,12 +2799,14 @@ class TdrsTest extends TestCase
             'user_id' => $admin->id,
         ]);
 
-        foreach ([
+        $components = collect([
             ['1-320', '170-70165-901'],
             ['1-321', '6620A0001-01RS01'],
             ['1-321A', '6620A0001-01RS02'],
-        ] as [$ipl, $partNumber]) {
-            Component::query()->create([
+        ])->map(function (array $part) use ($manual): Component {
+            [$ipl, $partNumber] = $part;
+
+            return Component::query()->create([
                 'manual_id' => $manual->id,
                 'part_number' => $partNumber,
                 'name' => 'BEARING, SPHERICAL',
@@ -2408,13 +2815,22 @@ class TdrsTest extends TestCase
                 'kit' => true,
                 'kit_prl_choice_group' => 'bearing_spherical_320_321',
             ]);
-        }
+        });
 
         $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
 
         $kitResponse->assertOk();
-        $kitResponse->assertSee('320<br />' . "\n" . '321<br />' . "\n" . '321A', false);
-        $kitResponse->assertSee('170-70165-901<br />' . "\n" . '6620A0001-01RS01<br />' . "\n" . '6620A0001-01RS02', false);
+        $kitResponse->assertViewHas('ordersParts', function ($rows) use ($components): bool {
+            $row = collect($rows)->first(fn (array $candidate): bool =>
+                (int) ($candidate['component']['id'] ?? 0) === $components->first()->id
+            );
+
+            return collect($row['kit_component_options'] ?? [])->pluck('component_id')->all()
+                === $components->pluck('id')->all();
+        });
+        foreach (['320', '321', '321A', '170-70165-901', '6620A0001-01RS01', '6620A0001-01RS02'] as $value) {
+            $kitResponse->assertSee($value);
+        }
         $this->assertSame(1, substr_count($kitResponse->getContent(), 'BEARING, SPHERICAL'));
         $kitResponse->assertDontSee('<h6>3</h6>', false);
 
@@ -2435,11 +2851,13 @@ class TdrsTest extends TestCase
             'user_id' => $admin->id,
         ]);
 
-        foreach ([
+        $components = collect([
             ['1-130', 'MS15001-1'],
             ['1-130A', 'AS15001-1P'],
-        ] as [$ipl, $partNumber]) {
-            Component::query()->create([
+        ])->map(function (array $part) use ($manual): Component {
+            [$ipl, $partNumber] = $part;
+
+            return Component::query()->create([
                 'manual_id' => $manual->id,
                 'part_number' => $partNumber,
                 'name' => 'FITTING, LUBRICATION',
@@ -2447,17 +2865,23 @@ class TdrsTest extends TestCase
                 'units_assy' => 3,
                 'kit' => true,
             ]);
-        }
+        });
 
         $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
 
         $kitResponse->assertOk();
-        $kitResponse->assertSee('130<br />' . "\n" . '130A', false);
-        $kitResponse->assertSee('MS15001-1<br />' . "\n" . 'AS15001-1P', false);
-        $this->assertMatchesRegularExpression(
-            '/130<br \/>\\s*130A.*?MS15001-1<br \/>\\s*AS15001-1P.*?<div class="col-1 prl-col-qty[^"]*"[^>]*>\\s*<h6>3<\\/h6>/s',
-            $kitResponse->getContent()
-        );
+        $kitResponse->assertViewHas('ordersParts', function ($rows) use ($components): bool {
+            $row = collect($rows)->first(fn (array $candidate): bool =>
+                (int) ($candidate['component']['id'] ?? 0) === $components->first()->id
+            );
+
+            return (int) ($row['qty'] ?? 0) === 3
+                && collect($row['kit_component_options'] ?? [])->pluck('component_id')->all()
+                    === $components->pluck('id')->all();
+        });
+        foreach (['130', '130A', 'MS15001-1', 'AS15001-1P'] as $value) {
+            $kitResponse->assertSee($value);
+        }
         $kitResponse->assertDontSee('<h6>6</h6>', false);
     }
 
@@ -2737,7 +3161,11 @@ class TdrsTest extends TestCase
         $response->assertSee('MACHINING PROCESS SHEET');
         $response->assertSee('Admin User (lib: 295)');
         $response->assertSee('process-sheet-title-row--machining', false);
+        $response->assertSee('const hostSelector = ".process-sheet-title-row--machining";', false);
+        $response->assertSee('display: grid !important;', false);
+        $response->assertSee('grid-template-columns: minmax(0, 1fr) minmax(0, auto);', false);
         $response->assertSee('padding-right: var(--process-header-qr-clearance, calc(var(--print-mark-qr-size, 40px) + 8mm));', false);
+        $response->assertSee('max-width: 240px;', false);
         $response->assertSee('--print-mark-qr-size: 40px;', false);
         $response->assertSee('system-print-qr', false);
         $response->assertSee('margin-left: 1ch;', false);

@@ -2243,7 +2243,7 @@ class QualityAssuranceTest extends TestCase
 
     public function test_destruction_certificate_settings_are_saved_on_log_card(): void
     {
-        $manager = $this->createUserWithRole('Manager');
+        $manager = $this->createUserWithRole('Manager', ['qa_access' => true]);
         $workorder = $this->createWorkorder();
         $manualId = $workorder->unit->manual_id;
         $component = Component::query()->create([

@@ -6,6 +6,7 @@ return [
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],
         'create'  => ['Admin', 'Manager'],
         'update'  => ['Admin','Manager'],
+        'manageManuals' => ['Admin', 'Manager', 'Team Leader', 'Technician'],
         'delete'  => ['Admin'],
         'approve' => ['Admin','Manager'],
 

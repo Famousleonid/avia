@@ -19,7 +19,7 @@ class Workorder extends Model implements HasMedia
 {
     use InteractsWithMedia, LogsActivity, SoftDeletes, HasMediaHelpers;
 
-    protected $fillable = ['number', 'draft_number', 'user_id', 'unit_id', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
+    protected $fillable = ['number', 'draft_number', 'user_id', 'unit_id', 'additional_manual_ids', 'not_used_manual_ids', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
         'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'wo_estimate_date', 'customer_id', 'approve_at', 'description',
         'serial_number', 'place', 'paint_queue_order', 'machining_queue_order', 'amdt', 'rm_report', 'certificate_data', 'customer_po','wo_terms','wo_estimate_amount','shipping_freight_forwarder','shipping_awb_no','shipping_shipment_at','shipping_notes','modified','is_draft','storage_rack','storage_level','storage_column',
         'arrival_box_status','arrival_box_notes','arrival_box_recorded_by','arrival_box_recorded_at','torque_values','sales_invoice_amount','sales_invoice_date',];
@@ -37,6 +37,8 @@ class Workorder extends Model implements HasMedia
         'certificate_data' => 'array',
         'arrival_box_recorded_at' => 'datetime',
         'torque_values' => 'array',
+        'additional_manual_ids' => 'array',
+        'not_used_manual_ids' => 'array',
     ];
 
     public $mediaUrlName = 'workorders';
@@ -92,6 +94,61 @@ class Workorder extends Model implements HasMedia
     public function unit()
     {
         return $this->belongsTo(\App\Models\Unit::class, 'unit_id', 'id')->withTrashed();
+    }
+
+    /**
+     * Additional manuals snapshotted when this workorder was created or explicitly synced.
+     * A null value is a legacy workorder and intentionally means primary manual only.
+     *
+     * @return list<int>
+     */
+    public function additionalManualIds(): array
+    {
+        $primaryManualId = (int) ($this->unit?->manual_id ?? 0);
+
+        return collect($this->additional_manual_ids ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0 && $id !== $primaryManualId)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** @return list<int> */
+    public function notUsedManualIds(): array
+    {
+        $additionalManualIds = $this->additionalManualIds();
+
+        return collect($this->not_used_manual_ids ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => in_array($id, $additionalManualIds, true))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** @return list<int> */
+    public function manualPackageIds(): array
+    {
+        $primaryManualId = (int) ($this->unit?->manual_id ?? 0);
+
+        return collect([$primaryManualId])
+            ->merge($this->additionalManualIds())
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** @return list<int> */
+    public function usedManualIds(): array
+    {
+        $notUsedManualIds = $this->notUsedManualIds();
+
+        return collect($this->manualPackageIds())
+            ->reject(fn (int $id): bool => in_array($id, $notUsedManualIds, true))
+            ->values()
+            ->all();
     }
 
     public function displayDescription(): ?string
@@ -186,6 +243,8 @@ class Workorder extends Model implements HasMedia
             ->logOnly([
                 'number',
                 'unit_id',
+                'additional_manual_ids',
+                'not_used_manual_ids',
                 'customer_id',
                 'instruction_id',
                 'user_id',
@@ -324,6 +383,32 @@ class Workorder extends Model implements HasMedia
     {
         static::addGlobalScope('exclude_drafts', function (Builder $builder) {
             $builder->where('is_draft', false);
+        });
+
+        static::creating(function (self $workorder): void {
+            if ($workorder->additional_manual_ids !== null) {
+                return;
+            }
+
+            $unit = $workorder->unit_id
+                ? Unit::withTrashed()->find($workorder->unit_id)
+                : null;
+
+            $workorder->additional_manual_ids = $unit?->additionalManualIds() ?? [];
+            $workorder->not_used_manual_ids = [];
+        });
+
+        static::updating(function (self $workorder): void {
+            if (! $workorder->isDirty('unit_id')) {
+                return;
+            }
+
+            $unit = $workorder->unit_id
+                ? Unit::withTrashed()->find($workorder->unit_id)
+                : null;
+
+            $workorder->additional_manual_ids = $unit?->additionalManualIds() ?? [];
+            $workorder->not_used_manual_ids = [];
         });
     }
 

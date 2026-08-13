@@ -115,6 +115,50 @@ class LibraryUnitsTest extends TestCase
             ->assertSee('Add as copy');
     }
 
+    public function test_library_units_manage_and_display_additional_manuals_with_lib(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $primaryManual = $this->createManual([
+            'number' => 'CMM-UNIT-MAIN',
+            'lib' => '200',
+        ]);
+        $additionalManual = $this->createManual([
+            'number' => 'CMM-UNIT-EXTRA',
+            'lib' => '240',
+        ]);
+
+        $create = $this->actingAs($admin)->post(route('library.units.store'), [
+            'part_number' => 'LIBRARY-ADDITIONAL-UNIT',
+            'manual_id' => $primaryManual->id,
+            'additional_manual_ids' => [$primaryManual->id, $additionalManual->id],
+            'verified' => '1',
+        ]);
+
+        $create->assertRedirect(route('library.units.index'))->assertSessionHasNoErrors();
+
+        $unit = \App\Models\Unit::query()->where('part_number', 'LIBRARY-ADDITIONAL-UNIT')->firstOrFail();
+        $this->assertSame([$additionalManual->id], $unit->additionalManualIds());
+
+        $index = $this->actingAs($admin)->get(route('library.units.index', [
+            'q' => 'LIBRARY-ADDITIONAL-UNIT',
+        ]));
+        $index->assertOk();
+        $index->assertSee('Additional Manuals');
+        $index->assertSee('CMM-UNIT-EXTRA');
+        $index->assertSee('<span class="text-secondary">(240)</span>', false);
+        $index->assertSee('additional_manual_ids', false);
+
+        $update = $this->actingAs($admin)->put(route('library.units.update', $unit), [
+            'part_number' => $unit->part_number,
+            'manual_id' => $additionalManual->id,
+            'additional_manual_ids' => [$primaryManual->id, $additionalManual->id],
+            'verified' => '1',
+        ]);
+
+        $update->assertRedirect(route('library.units.index'))->assertSessionHasNoErrors();
+        $this->assertSame([$primaryManual->id], $unit->fresh()->additionalManualIds());
+    }
+
     public function test_library_units_are_admin_only(): void
     {
         $manager = $this->createUserWithRole('Manager');

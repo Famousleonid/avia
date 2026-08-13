@@ -21,8 +21,10 @@ use App\Models\UserUiSetting;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\ManualRevisionCheckService;
 use App\Services\StdProcessAuditService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ManualController extends Controller
@@ -58,7 +60,7 @@ class ManualController extends Controller
         $builders = Builder::all();
         $scopes = Scope::all();
         $users = auth()->user()?->roleIs('Admin')
-            ? User::orderBy('name')->get(['id', 'name', 'selection_name_order', 'email'])
+            ? User::query()->withoutReviewAccounts()->orderBy('name')->get(['id', 'name', 'selection_name_order', 'email'])
                 ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
                 ->values()
             : collect();
@@ -105,8 +107,12 @@ class ManualController extends Controller
 //    }
     public function store(Request $request)
     {
+        $request->merge([
+            'number' => trim((string) $request->input('number', '')),
+        ]);
+
         $request->validate([
-            'number' => 'required|string|max:255',
+            'number' => ['required', 'string', 'max:255', Rule::unique('manuals', 'number')],
             'title' => 'required|string|max:255',
             'revision_number' => 'nullable|string|max:255',
             'revision_date' => 'required|date',
@@ -126,48 +132,52 @@ class ManualController extends Controller
             'units.*' => 'required|string|max:255',
             'unit_names' => 'nullable|array',
             'unit_names.*' => 'nullable|string|max:255',
-        ]);
+        ], $this->manualNumberValidationMessages($request));
 
         $planeIds = $this->resolvePlaneIds($request);
 
-        $manual = DB::transaction(function () use ($request, $planeIds) {
+        try {
+            $manual = DB::transaction(function () use ($request, $planeIds) {
             // Создаем новый CMM
-            $manual = Manual::create($request->only([
-                'number', 'title', 'revision_number', 'revision_date', 'unit_name','unit_name_training','training_hours','ovh_life','reg_sb',
-                'builders_id', 'scopes_id', 'lib',
-            ]) + ['planes_id' => $planeIds[0]]);
-            $manual->planes()->sync($planeIds);
+                $manual = Manual::create($request->only([
+                    'number', 'title', 'revision_number', 'revision_date', 'unit_name','unit_name_training','training_hours','ovh_life','reg_sb',
+                    'builders_id', 'scopes_id', 'lib',
+                ]) + ['planes_id' => $planeIds[0]]);
+                $manual->planes()->sync($planeIds);
 
-            if ($request->hasFile('img')) {
-                $manual->addMedia($request->file('img'))->toMediaCollection('manuals');
-            }
+                if ($request->hasFile('img')) {
+                    $manual->addMedia($request->file('img'))->toMediaCollection('manuals');
+                }
 
-            if ($request->hasFile('log_img')) {
-                $manual->addMedia($request->file('log_img'))->toMediaCollection('manuals_log');
-            }
+                if ($request->hasFile('log_img')) {
+                    $manual->addMedia($request->file('log_img'))->toMediaCollection('manuals_log');
+                }
 
             // Если есть юниты, добавляем их
-            if ($request->has('units') && is_array($request->units)) {
-                foreach ($request->units as $index => $partNumber) {
+                if ($request->has('units') && is_array($request->units)) {
+                    foreach ($request->units as $index => $partNumber) {
                     // Пропускаем пустые значения
-                    if (empty(trim($partNumber))) {
-                        continue;
+                        if (empty(trim($partNumber))) {
+                            continue;
+                        }
+
+                        $unitName = $request->unit_names[$index] ?? $manual->title;
+                        $manual->units()->create([
+                            'part_number' => $partNumber,
+                            'name' => $unitName,
+                            'eff_code' => null,
+                            'manual_id' => $manual->id,
+                            'verified' => 1,
+                        ]);
+
                     }
-
-                    $unitName = $request->unit_names[$index] ?? $manual->title;
-                    $newUnit = $manual->units()->create([
-                        'part_number' => $partNumber,
-                        'name' => $unitName,
-                        'eff_code' => null,
-                        'manual_id' => $manual->id,
-                        'verified' => 1,
-                    ]);
-
                 }
-            }
 
-            return $manual;
-        });
+                return $manual;
+            });
+        } catch (QueryException $exception) {
+            $this->throwManualNumberConflict($request, $exception);
+        }
 
         $message = 'CMM created successfully';
         if ($request->has('units') && is_array($request->units)) {
@@ -223,10 +233,31 @@ class ManualController extends Controller
 
 //Components CMM
         $units = Unit::where('manual_id', $cmm->id)->get();
+        $additionalManualsById = Manual::query()
+            ->withTrashed()
+            ->whereKey($units->flatMap(fn (Unit $unit): array => $unit->additionalManualIds())->unique()->all())
+            ->get(['id', 'number', 'lib'])
+            ->keyBy('id');
         $branchRuleResolver = app(ManualIplBranchRuleResolver::class);
-        $units->each(function (Unit $unit) use ($branchRuleResolver, $cmm): void {
+        $units->each(function (Unit $unit) use ($branchRuleResolver, $cmm, $additionalManualsById): void {
             $rule = $branchRuleResolver->resolveRuleForUnit($unit, (int) $cmm->id);
             $unit->setAttribute('ipl_branch_rule_display', $rule?->displayLabel() ?? '');
+            $unit->setAttribute(
+                'additional_manuals_display',
+                collect($unit->additionalManualIds())
+                    ->map(function (int $manualId) use ($additionalManualsById): ?array {
+                        $manual = $additionalManualsById->get($manualId);
+
+                        return $manual ? [
+                            'id' => (int) $manual->id,
+                            'number' => (string) ($manual->number ?? ''),
+                            'lib' => (string) ($manual->lib ?? ''),
+                        ] : null;
+                    })
+                    ->filter()
+                    ->values()
+                    ->all()
+            );
         });
 
 // Parts (sorted by IPL Number in natural order: 1-10, 1-20, 1-20A, 1-30, ...)
@@ -476,7 +507,7 @@ class ManualController extends Controller
         $planes = Plane::all();
         $builders = Builder::all();
         $scopes = Scope::all();
-        $users = User::orderBy('name')->get(['id', 'name', 'selection_name_order', 'email'])
+        $users = User::query()->withoutReviewAccounts()->orderBy('name')->get(['id', 'name', 'selection_name_order', 'email'])
             ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
             ->values();
         $permittedUserIds = $cmm->permittedUsers()
@@ -520,8 +551,12 @@ class ManualController extends Controller
         $cmm = Manual::findOrFail($id);
         $this->ensureManualAccess($cmm);
 
+        $request->merge([
+            'number' => trim((string) $request->input('number', '')),
+        ]);
+
         $validatedData = $request->validate([
-            'number' => 'required',
+            'number' => ['required', 'string', 'max:255', Rule::unique('manuals', 'number')->ignore($cmm->id)],
             'title' => 'required',
             'revision_number' => 'nullable|string|max:255',
             'revision_date' => 'required',
@@ -542,7 +577,7 @@ class ManualController extends Controller
             'unit_names.*' => 'nullable|string|max:255',
             'permitted_user_ids' => 'nullable|array',
             'permitted_user_ids.*' => 'integer|exists:users,id',
-        ]);
+        ], $this->manualNumberValidationMessages($request));
 
         $planeIds = $this->resolvePlaneIds($request);
         $validatedData['planes_id'] = $planeIds[0];
@@ -714,6 +749,30 @@ class ManualController extends Controller
             (int) $matches[3],
             strtoupper($matches[4] ?? ''),
         ];
+    }
+
+    /** @return array<string, string> */
+    private function manualNumberValidationMessages(Request $request): array
+    {
+        return [
+            'number.unique' => __('Manual :number already exists.', [
+                'number' => trim((string) $request->input('number', '')),
+            ]),
+        ];
+    }
+
+    private function throwManualNumberConflict(Request $request, QueryException $exception): void
+    {
+        $isManualNumberConflict = (string) $exception->getCode() === '23000'
+            && str_contains($exception->getMessage(), 'manuals_number_unique');
+
+        if ($isManualNumberConflict) {
+            throw ValidationException::withMessages([
+                'number' => $this->manualNumberValidationMessages($request)['number.unique'],
+            ]);
+        }
+
+        throw $exception;
     }
 
     /**

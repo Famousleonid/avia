@@ -28,6 +28,8 @@ return new class extends Migration
 //            $table->string('description')->nullable();
 
             $table->unsignedInteger('qty')->default(1);
+            $table->unsignedInteger('sort_order')->default(0);
+            $table->index(['workorder_id', 'sort_order'], 'tdrs_workorder_sort_order_index');
 
             $table->boolean('use_tdr')->default(false);
             $table->boolean('use_process_forms')->default(false);

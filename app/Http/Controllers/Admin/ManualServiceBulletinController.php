@@ -61,7 +61,7 @@ class ManualServiceBulletinController extends Controller
             'ac_mfg_service_bulletin_no' => ['nullable', 'string', 'max:255'],
             'oem_service_bulletin_no' => ['nullable', 'string', 'max:255'],
             'awd_no' => ['nullable', 'string', 'max:255'],
-            'identification_method' => ['nullable', 'string', 'max:255'],
+            'identification_method' => ['nullable', 'string', 'max:600'],
             'description' => ['nullable', 'string'],
             'default_requirement' => ['nullable', 'in:optional,recommended,mandatory'],
         ]);

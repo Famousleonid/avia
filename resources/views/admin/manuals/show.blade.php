@@ -42,11 +42,12 @@
 
         /* Ð¨Ð¸Ñ€Ð¸Ð½Ð° Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹ Ð²Ð¾ Ð²ÐºÐ»Ð°Ð´ÐºÐµ Components */
         #nav-components .table {
-            width: 70%;
-            min-width: 680px;
+            width: 85%;
+            min-width: 900px;
+            margin-inline: auto;
         }
 
-        /* ÐšÐ¾Ð»Ð¾Ð½ÐºÐ¸ Components: # | Components PN | EFF Code | Action */
+        /* ÐšÐ¾Ð»Ð¾Ð½ÐºÐ¸ Components: # | Components PN | EFF Code | Additional Manuals | IPL Rule */
         #nav-components .table th:nth-child(1),
         #nav-components .table td:nth-child(1) { width: 50px; }
         #nav-components .table th:nth-child(2),
@@ -54,12 +55,13 @@
         #nav-components .table th:nth-child(3),
         #nav-components .table td:nth-child(3) { width: 110px; }
         #nav-components .table th:nth-child(4),
-        #nav-components .table td:nth-child(4) { width: 190px; }
+        #nav-components .table td:nth-child(4) { width: 230px; }
+        #nav-components .table th:nth-child(5),
+        #nav-components .table td:nth-child(5) { width: 190px; }
 
         .component-table-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            width: calc(100% - 1rem);
+            overflow-x: auto;
         }
 
         /* Ð¨Ð¸Ñ€Ð¸Ð½Ð° Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹ Ð²Ð¾ Ð²ÐºÐ»Ð°Ð´ÐºÐµ Parts */
@@ -530,7 +532,7 @@
         }
         .manual-process-requirement-cell { width: clamp(58px, 6vw, 78px); min-width: 0; text-align: center; }
         .manual-process-requirement-cell .form-check-input { cursor: pointer; }
-        .manual-process-lock-button .btn-sm {
+        .manual-process-lock-button.btn-sm {
             padding: 2px 8px;
             font-size: 12px;
             line-height: 1.15;
@@ -636,8 +638,8 @@
         }
         #editUnitModal .modal-dialog {
             max-height: 90vh;
-            width: min(1200px, 96vw);
-            max-width: min(1200px, 96vw);
+            width: min(1500px, 96vw);
+            max-width: min(1500px, 96vw);
         }
 
         #editUnitModal .modal-content {
@@ -651,11 +653,11 @@
         }
 
         .manual-unit-editor-wrap {
-            min-width: 980px;
+            min-width: 1180px;
         }
         .manual-unit-editor-row {
             display: grid;
-            grid-template-columns: 26px minmax(140px, 1.15fr) minmax(110px, .8fr) minmax(100px, .8fr) minmax(100px, .8fr) minmax(100px, .8fr) 56px;
+            grid-template-columns: 26px minmax(140px, 1.05fr) minmax(110px, .7fr) minmax(240px, 1.5fr) minmax(100px, .7fr) minmax(100px, .7fr) minmax(100px, .7fr) 56px;
             gap: .5rem;
             align-items: center;
         }
@@ -690,6 +692,10 @@
         }
         .manual-unit-rule-cell {
             white-space: nowrap;
+            font-size: .9rem;
+        }
+        .manual-unit-additional-manuals-cell {
+            overflow-wrap: anywhere;
             font-size: .9rem;
         }
         @media (max-width: 991.98px) {
@@ -1049,6 +1055,7 @@
                                 <th class="text-center bg-gradient" scope="col">#</th>
                                 <th class="text-center bg-gradient" scope="col">Components PN</th>
                                 <th class="text-center bg-gradient" scope="col">EFF Code</th>
+                                <th class="text-center bg-gradient" scope="col">Additional Manuals</th>
                                 <th class="text-center bg-gradient" scope="col">IPL Rule</th>
                             </tr>
                             </thead>
@@ -1064,6 +1071,11 @@
                                     {{$u->part_number}}
                                 </td>
                                 <td class="align-content-center"> {{$u->eff_code}}</td>
+                                <td class="align-content-center manual-unit-additional-manuals-cell">
+                                    @include('admin.partials.additional-manuals', [
+                                        'additionalManuals' => $u->additional_manuals_display ?? [],
+                                    ])
+                                </td>
                                 <td class="align-content-center manual-unit-rule-cell">{{ $u->ipl_branch_rule_display ?: '-' }}</td>
                             </tr>
                             @endforeach
@@ -1208,30 +1220,27 @@
                                 <tr class="manual-process-group-row">
                                     <td class="align-content-center manual-process-lock-cell">
                                         @if($processName)
-                                            <form action="{{ $groupLock
-                                                ? route('manuals.process-name-locks.unlock', ['manual' => $cmm, 'processName' => $processName])
-                                                : route('manuals.process-name-locks.lock', ['manual' => $cmm, 'processName' => $processName]) }}"
-                                                  method="POST"
-                                                  class="manual-process-lock-button">
-                                                @csrf
-                                                @if($groupLock)
-                                                    @method('DELETE')
-                                                @endif
-                                                <input type="hidden" name="return_to" value="{{ $manualUrlProcesses }}">
-                                                <button type="submit" class="btn btn-outline-secondary btn-sm" title="{{ $groupLock ? 'Unlock group' : 'Lock group' }}" @disabled(! $userCanManageLockedManualProcesses)>
-                                                    {{ $groupLock ? 'Unlock' : 'Lock' }}
-                                                </button>
-                                            </form>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-sm manual-process-lock-button"
+                                                    data-manual-process-lock-toggle
+                                                    data-lock-scope="group"
+                                                    data-locked="{{ $groupLock ? '1' : '0' }}"
+                                                    data-lock-url="{{ route('manuals.process-name-locks.lock', ['manual' => $cmm, 'processName' => $processName]) }}"
+                                                    data-unlock-url="{{ route('manuals.process-name-locks.unlock', ['manual' => $cmm, 'processName' => $processName]) }}"
+                                                    aria-pressed="{{ $groupLock ? 'true' : 'false' }}"
+                                                    title="{{ $groupLock ? 'Unlock group' : 'Lock group' }}"
+                                                    @disabled(! $userCanManageLockedManualProcesses)>
+                                                {{ $groupLock ? 'Unlock' : 'Lock' }}
+                                            </button>
                                         @endif
                                     </td>
                                     <td class="align-content-center text-start">
                                         <span class="manual-process-inline-text">
-                                            @if($groupLock)
-                                                <span class="manual-process-state-icon is-locked"
-                                                      title="Locked by {{ $groupLock->lockedBy?->selection_name ?? 'Unknown user' }}">
-                                                    <i class="bi bi-lock-fill"></i>
-                                                </span>
-                                            @endif
+                                            <span class="manual-process-state-icon is-locked {{ $groupLock ? '' : 'd-none' }}"
+                                                  data-manual-process-lock-icon
+                                                  title="{{ $groupLock ? 'Locked by '.($groupLock->lockedBy?->selection_name ?? 'Unknown user') : '' }}">
+                                                <i class="bi bi-lock-fill"></i>
+                                            </span>
                                             <span>{{ $processName?->name ?? 'Unknown Process Name' }}</span>
                                         </span>
                                     </td>
@@ -1251,35 +1260,32 @@
                                     @php
                                         $rowLocked = $mp->is_locked;
                                     @endphp
-                                    <tr class="manual-process-child-row">
+                                    <tr class="manual-process-child-row" data-manual-process-id="{{ $mp->id }}">
                                         <td class="align-content-center manual-process-lock-cell">
-                                            <form action="{{ $rowLocked
-                                                ? route('manuals.manual-process-locks.unlock', ['manual' => $cmm, 'manualProcess' => $mp])
-                                                : route('manuals.manual-process-locks.lock', ['manual' => $cmm, 'manualProcess' => $mp]) }}"
-                                                  method="POST"
-                                                  class="manual-process-lock-button">
-                                                @csrf
-                                                @if($rowLocked)
-                                                    @method('DELETE')
-                                                @endif
-                                                <input type="hidden" name="return_to" value="{{ $manualUrlProcesses }}">
-                                                <button type="submit" class="btn btn-outline-secondary btn-sm" title="{{ $rowLocked ? 'Unlock process' : 'Lock process' }}" @disabled(! $userCanManageLockedManualProcesses)>
-                                                    {{ $rowLocked ? 'Unlock' : 'Lock' }}
-                                                </button>
-                                            </form>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-sm manual-process-lock-button"
+                                                    data-manual-process-lock-toggle
+                                                    data-lock-scope="process"
+                                                    data-locked="{{ $rowLocked ? '1' : '0' }}"
+                                                    data-lock-url="{{ route('manuals.manual-process-locks.lock', ['manual' => $cmm, 'manualProcess' => $mp]) }}"
+                                                    data-unlock-url="{{ route('manuals.manual-process-locks.unlock', ['manual' => $cmm, 'manualProcess' => $mp]) }}"
+                                                    aria-pressed="{{ $rowLocked ? 'true' : 'false' }}"
+                                                    title="{{ $rowLocked ? 'Unlock process' : 'Lock process' }}"
+                                                    @disabled(! $userCanManageLockedManualProcesses)>
+                                                {{ $rowLocked ? 'Unlock' : 'Lock' }}
+                                            </button>
                                         </td>
                                         <td class="align-content-center text-start ps-4">
                                             <span class="manual-process-name-spacer"></span>
                                         </td>
-                                        <td class="align-content-center text-start ps-3">
+                                        <td class="align-content-center text-start ps-3 manual-process-specification">
                                             <span class="manual-process-inline-text">
-                                                @if($rowLocked)
-                                                    <span class="manual-process-state-icon is-locked"
-                                                          title="Locked by {{ $mp->lockedBy?->selection_name ?? 'Unknown user' }}">
-                                                        <i class="bi bi-lock-fill"></i>
-                                                    </span>
-                                                @endif
-                                                <span>{{ $mp->process?->process }}</span>
+                                                <span class="manual-process-state-icon is-locked {{ $rowLocked ? '' : 'd-none' }}"
+                                                      data-manual-process-lock-icon
+                                                      title="{{ $rowLocked ? 'Locked by '.($mp->lockedBy?->selection_name ?? 'Unknown user') : '' }}">
+                                                    <i class="bi bi-lock-fill"></i>
+                                                </span>
+                                                <span class="manual-process-specification-text">{{ $mp->process?->process }}</span>
                                             </span>
                                         </td>
                                         <td class="align-content-center text-start ps-3 manual-process-comment">{{ $mp->process_comment ?: '-' }}</td>
@@ -1300,12 +1306,16 @@
                                                    @disabled($rowLocked && ! $userCanManageLockedManualProcesses)>
                                         </td>
                                         <td class="align-content-center manual-process-actions">
-                                            <a href="{{ route('manual_processes.edit', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}"
-                                               class="btn btn-outline-primary btn-sm @if($rowLocked && ! $userCanManageLockedManualProcesses) disabled @endif"
+                                            <button type="button"
+                                               class="btn btn-outline-primary btn-sm open-manual-process-edit"
                                                title="{{ __('Edit') }}"
-                                               @if($rowLocked && ! $userCanManageLockedManualProcesses) aria-disabled="true" tabindex="-1" @endif>
+                                               data-update-url="{{ route('manual_processes.update', $mp) }}"
+                                               data-process-name="{{ $processName?->name ?? '' }}"
+                                               data-process="{{ $mp->process?->process ?? '' }}"
+                                               data-comment="{{ $mp->process_comment ?? '' }}"
+                                               @disabled($rowLocked && ! $userCanManageLockedManualProcesses)>
                                                 <i class="bi bi-pencil-square"></i>
-                                            </a>
+                                            </button>
                                             <form action="{{ route('manual_processes.destroy', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}"
                                                   method="POST"
                                                   class="d-inline"
@@ -1387,7 +1397,7 @@
                                     <td><input form="create-sb-row" type="text" name="ac_mfg_service_bulletin_no" class="form-control form-control-sm"></td>
                                     <td><input form="create-sb-row" type="text" name="oem_service_bulletin_no" class="form-control form-control-sm"></td>
                                     <td><input form="create-sb-row" type="text" name="awd_no" class="form-control form-control-sm"></td>
-                                    <td><input form="create-sb-row" type="text" name="identification_method" class="form-control form-control-sm"></td>
+                                    <td><input form="create-sb-row" type="text" name="identification_method" class="form-control form-control-sm" maxlength="600"></td>
                                     <td><textarea form="create-sb-row" name="description" class="form-control form-control-sm"></textarea></td>
                                     <td>
                                         <select form="create-sb-row" name="default_requirement" class="form-select form-select-sm">
@@ -1412,7 +1422,7 @@
                                         <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="ac_mfg_service_bulletin_no" class="form-control form-control-sm" value="{{ $bulletin->ac_mfg_service_bulletin_no }}"></td>
                                         <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="oem_service_bulletin_no" class="form-control form-control-sm" value="{{ $bulletin->oem_service_bulletin_no }}"></td>
                                         <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="awd_no" class="form-control form-control-sm" value="{{ $bulletin->awd_no }}"></td>
-                                        <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="identification_method" class="form-control form-control-sm" value="{{ $bulletin->identification_method }}"></td>
+                                        <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="identification_method" class="form-control form-control-sm" maxlength="600" value="{{ $bulletin->identification_method }}"></td>
                                         <td><textarea form="update-sb-{{ $bulletin->id }}" name="description" class="form-control form-control-sm">{{ $bulletin->description }}</textarea></td>
                                         <td>
                                             <select form="update-sb-{{ $bulletin->id }}" name="default_requirement" class="form-select form-select-sm">
@@ -1877,6 +1887,7 @@
 	                                <div>{{ __('Ver.') }}</div>
 	                                <div>{{ __('Part Number') }}</div>
 	                                <div>{{ __('EFF Code') }}</div>
+	                                <div>{{ __('Additional Manuals') }}</div>
 	                                <div>{{ __('Match Unit') }}</div>
 	                                <div>{{ __('Use IPL') }}</div>
 	                                <div>{{ __('Hide IPL') }}</div>
@@ -2065,6 +2076,36 @@
         </div>
     </div>
 
+    <div class="modal fade" id="manualProcessEditModal" tabindex="-1" aria-labelledby="manualProcessEditModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-gradient">
+                <form id="manualProcessEditForm" method="POST" novalidate data-no-spinner>
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="manualProcessEditModalLabel">{{ __('Edit Manual Process') }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="manualProcessEditErrors" class="alert alert-danger d-none" role="alert"></div>
+                        <div class="mb-3">
+                            <label for="manualProcessEditValue" class="form-label">{{ __('Process') }}</label>
+                            <input type="text" class="form-control" id="manualProcessEditValue" name="process" maxlength="255" required>
+                        </div>
+                        <div class="mb-0">
+                            <label for="manualProcessEditComment" class="form-label">{{ __('Comment') }}</label>
+                            <textarea class="form-control" id="manualProcessEditComment" name="process_comment" rows="4" maxlength="2000"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                        <button type="submit" class="btn btn-outline-primary" id="manualProcessEditSave">{{ __('Save') }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         function stdCsvText(value) {
             value = value === null || value === undefined ? '' : String(value).trim();
@@ -2175,6 +2216,169 @@
         document.addEventListener('DOMContentLoaded', async function () {
             const manualUiScope = 'manuals.show';
             const manualId = @json((int) $cmm->id);
+            const manualProcessEditModalEl = document.getElementById('manualProcessEditModal');
+            const manualProcessEditForm = document.getElementById('manualProcessEditForm');
+
+            if (manualProcessEditModalEl && manualProcessEditForm && window.bootstrap?.Modal) {
+                const manualProcessEditModal = bootstrap.Modal.getOrCreateInstance(manualProcessEditModalEl);
+                const manualProcessEditTitle = document.getElementById('manualProcessEditModalLabel');
+                const manualProcessEditValue = document.getElementById('manualProcessEditValue');
+                const manualProcessEditComment = document.getElementById('manualProcessEditComment');
+                const manualProcessEditErrors = document.getElementById('manualProcessEditErrors');
+                const manualProcessEditSave = document.getElementById('manualProcessEditSave');
+                let manualProcessEditTrigger = null;
+                let manualProcessEditRow = null;
+
+                function clearManualProcessEditErrors() {
+                    manualProcessEditErrors.textContent = '';
+                    manualProcessEditErrors.classList.add('d-none');
+                    manualProcessEditValue.classList.remove('is-invalid');
+                    manualProcessEditComment.classList.remove('is-invalid');
+                }
+
+                function showManualProcessEditErrors(data, fallback) {
+                    const errors = data && data.errors ? Object.values(data.errors).flat() : [];
+                    const messages = errors.length ? errors : [data?.message || fallback];
+                    manualProcessEditErrors.replaceChildren();
+                    messages.forEach(function (message) {
+                        const line = document.createElement('div');
+                        line.textContent = message;
+                        manualProcessEditErrors.appendChild(line);
+                    });
+                    manualProcessEditErrors.classList.remove('d-none');
+                    if (data?.errors?.process) manualProcessEditValue.classList.add('is-invalid');
+                    if (data?.errors?.process_comment) manualProcessEditComment.classList.add('is-invalid');
+                }
+
+                document.addEventListener('click', function (event) {
+                    const trigger = event.target.closest('.open-manual-process-edit');
+                    if (!trigger) return;
+
+                    event.preventDefault();
+                    if (trigger.classList.contains('disabled') || trigger.getAttribute('aria-disabled') === 'true') return;
+
+                    manualProcessEditTrigger = trigger;
+                    manualProcessEditRow = trigger.closest('.manual-process-child-row');
+                    manualProcessEditForm.action = trigger.dataset.updateUrl || '';
+                    manualProcessEditTitle.textContent = '{{ __('Edit Manual Process') }}: ' + (trigger.dataset.processName || '');
+                    manualProcessEditValue.value = trigger.dataset.process || '';
+                    manualProcessEditComment.value = trigger.dataset.comment || '';
+                    clearManualProcessEditErrors();
+                    manualProcessEditModal.show();
+                });
+
+                manualProcessEditModalEl.addEventListener('shown.bs.modal', function () {
+                    manualProcessEditValue.focus();
+                    manualProcessEditValue.select();
+                });
+
+                manualProcessEditModalEl.addEventListener('hidden.bs.modal', function () {
+                    manualProcessEditTrigger?.focus();
+                });
+
+                manualProcessEditForm.addEventListener('submit', async function (event) {
+                    event.preventDefault();
+                    clearManualProcessEditErrors();
+                    manualProcessEditSave.disabled = true;
+                    manualProcessEditForm.setAttribute('aria-busy', 'true');
+
+                    try {
+                        const response = await fetch(manualProcessEditForm.action, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: new FormData(manualProcessEditForm),
+                        });
+                        const data = await response.json().catch(function () { return {}; });
+
+                        if (!response.ok || data.success === false || !data.manual_process) {
+                            showManualProcessEditErrors(data, '{{ __('Could not update process.') }}');
+                            return;
+                        }
+
+                        const updated = data.manual_process;
+                        const specificationText = manualProcessEditRow?.querySelector('.manual-process-specification-text');
+                        const commentCell = manualProcessEditRow?.querySelector('.manual-process-comment');
+                        if (specificationText) specificationText.textContent = updated.process || '';
+                        if (commentCell) commentCell.textContent = updated.process_comment || '-';
+                        if (manualProcessEditTrigger) {
+                            manualProcessEditTrigger.dataset.process = updated.process || '';
+                            manualProcessEditTrigger.dataset.comment = updated.process_comment || '';
+                            manualProcessEditTrigger.dataset.processName = updated.process_name || manualProcessEditTrigger.dataset.processName || '';
+                        }
+
+                        manualProcessEditModal.hide();
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(data.message || '{{ __('Process updated successfully') }}', 'success');
+                        }
+                    } catch (error) {
+                        showManualProcessEditErrors({}, error.message || '{{ __('Could not update process.') }}');
+                    } finally {
+                        manualProcessEditSave.disabled = false;
+                        manualProcessEditForm.removeAttribute('aria-busy');
+                    }
+                });
+            }
+
+            document.addEventListener('click', async function (event) {
+                const button = event.target.closest('[data-manual-process-lock-toggle]');
+                if (!button || button.disabled || button.getAttribute('aria-busy') === 'true') return;
+
+                const wasLocked = button.dataset.locked === '1';
+                const scope = button.dataset.lockScope === 'group' ? 'group' : 'process';
+                const url = wasLocked ? button.dataset.unlockUrl : button.dataset.lockUrl;
+                if (!url) return;
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+
+                try {
+                    const response = await fetch(url, {
+                        method: wasLocked ? 'DELETE' : 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        },
+                        credentials: 'same-origin',
+                    });
+                    const data = await response.json().catch(function () { return {}; });
+                    if (!response.ok || data.success === false) {
+                        throw new Error(data.message || '{{ __('Could not change process lock.') }}');
+                    }
+
+                    const locked = Boolean(data.locked);
+                    const row = button.closest(scope === 'group' ? '.manual-process-group-row' : '.manual-process-child-row');
+                    const icon = row?.querySelector('[data-manual-process-lock-icon]');
+                    const actionName = scope === 'group' ? 'group' : 'process';
+
+                    button.dataset.locked = locked ? '1' : '0';
+                    button.setAttribute('aria-pressed', locked ? 'true' : 'false');
+                    button.textContent = locked ? 'Unlock' : 'Lock';
+                    button.title = (locked ? 'Unlock ' : 'Lock ') + actionName;
+
+                    if (icon) {
+                        icon.classList.toggle('d-none', !locked);
+                        icon.title = locked ? 'Locked by ' + (data.locked_by || 'Unknown user') : '';
+                    }
+
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(data.message || '{{ __('Process lock updated successfully.') }}', 'success');
+                    }
+                } catch (error) {
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(error.message || '{{ __('Could not change process lock.') }}', 'error');
+                    }
+                } finally {
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                }
+            });
+
             var btnStdCsvUpload = document.getElementById('btn-std-csv-upload');
             if (btnStdCsvUpload) {
                 btnStdCsvUpload.addEventListener('click', function () {
@@ -3229,6 +3433,7 @@
 
             // ---- Edit Unit / Update Components modal (bulk edit: load units, populate partNumbersList, Add PN, Update) ----
             var editUnitModal = document.getElementById('editUnitModal');
+            var unitManualOptions = [];
             document.addEventListener('click', function (event) {
                 const button = event.target.closest('.btn-update-components');
                 if (!button) return;
@@ -3254,6 +3459,7 @@
 	                fetch(unitsUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
 	                    .then(function (r) { return r.json(); })
 	                    .then(function (data) {
+                            unitManualOptions = Array.isArray(data.manual_options) ? data.manual_options : [];
                             var defaultIncludeInput = document.getElementById('defaultIncludePrefix');
                             var defaultExcludeInput = document.getElementById('defaultExcludePrefix');
                             if (defaultIncludeInput) {
@@ -3265,7 +3471,7 @@
 
 	                        if (data.units && data.units.length > 0) {
 	                            data.units.forEach(function (unit) {
-	                                addPartNumberRow(unit.part_number, unit.verified, unit.eff_code || '', unit.unit_match_value || '', unit.include_prefix || '', unit.exclude_prefix || '');
+	                                addPartNumberRow(unit.part_number, unit.verified, unit.eff_code || '', unit.additional_manual_ids || [], unit.unit_match_value || '', unit.include_prefix || '', unit.exclude_prefix || '');
 	                            });
                         } else {
                             var noUnitsItem = document.createElement('div');
@@ -3279,11 +3485,11 @@
 
             document.addEventListener('click', function (e) {
                 if (e.target.id === 'addUnitButton' || e.target.closest('#addUnitButton')) {
-                    addPartNumberRow('', true, '', '', '', '');
+                    addPartNumberRow('', true, '', [], '', '', '');
                 }
             });
 
-            function addPartNumberRow(partNumber, verified, effCode, unitMatchValue, includePrefix, excludePrefix) {
+            function addPartNumberRow(partNumber, verified, effCode, additionalManualIds, unitMatchValue, includePrefix, excludePrefix) {
                 var partNumbersList = document.getElementById('partNumbersList');
                 if (!partNumbersList) return;
 
@@ -3313,6 +3519,22 @@
                 effCodeInput.value = effCode || '';
                 effCodeInput.placeholder = 'EFF Code';
 
+                var additionalManualSelect = document.createElement('select');
+                additionalManualSelect.className = 'form-select manual-unit-additional-manuals';
+                additionalManualSelect.multiple = true;
+                additionalManualSelect.size = 3;
+                additionalManualSelect.title = '{{ __('Select every additional CMM used by this Unit') }}';
+                var selectedAdditionalIds = new Set((additionalManualIds || []).map(function (id) { return String(id); }));
+                unitManualOptions.forEach(function (manual) {
+                    var option = document.createElement('option');
+                    option.value = String(manual.id);
+                    var manualNumber = manual.number || '';
+                    if (manual.lib) manualNumber += ' (' + manual.lib + ')';
+                    option.textContent = [manualNumber, manual.title].filter(Boolean).join(' : ');
+                    option.selected = selectedAdditionalIds.has(option.value);
+                    additionalManualSelect.appendChild(option);
+                });
+
 	                var unitMatchInput = document.createElement('input');
 	                unitMatchInput.type = 'text';
 	                unitMatchInput.className = 'form-control';
@@ -3339,11 +3561,20 @@
                 listItem.appendChild(checkbox);
                 listItem.appendChild(pnInput);
                 listItem.appendChild(effCodeInput);
+                listItem.appendChild(additionalManualSelect);
                 listItem.appendChild(unitMatchInput);
                 listItem.appendChild(includePrefixInput);
                 listItem.appendChild(excludePrefixInput);
                 listItem.appendChild(deleteButton);
                 partNumbersList.appendChild(listItem);
+
+                if (window.jQuery && jQuery.fn.select2) {
+                    jQuery(additionalManualSelect).select2({
+                        width: '100%',
+                        placeholder: '{{ __('Additional CMMs') }}',
+                        dropdownParent: jQuery('#editUnitModal')
+                    });
+                }
             }
 
             var updateUnitBtn = document.getElementById('updateUnitButton');
@@ -3354,9 +3585,13 @@
 	                var partNumbers = Array.from(listItems).map(function (listItem) {
 	                    var inputs = listItem.querySelectorAll('.form-control');
 	                    var checkbox = listItem.querySelector('.form-check-input');
+	                    var additionalManualSelect = listItem.querySelector('.manual-unit-additional-manuals');
 	                    return {
                         part_number: inputs[0] ? inputs[0].value : '',
                         eff_code: inputs[1] ? inputs[1].value : '',
+                        additional_manual_ids: additionalManualSelect
+                            ? Array.from(additionalManualSelect.selectedOptions).map(function (option) { return Number(option.value); })
+                            : [],
                         unit_match_value: inputs[2] ? inputs[2].value : '',
                         include_prefix: inputs[3] ? inputs[3].value : '',
                         exclude_prefix: inputs[4] ? inputs[4].value : '',
@@ -3422,6 +3657,27 @@
                                                 '<td class="align-content-center' + (unit.verified ? '' : ' text-danger fw-bold') + '">' + (unit.part_number || '') + '</td>' +
                                                 '<td class="align-content-center">' + (unit.eff_code || '') + '</td>' +
                                                 '<td class="align-content-center manual-unit-rule-cell">' + (unit.ipl_branch_rule_display || '-') + '</td>';
+                                            var additionalManualsCell = document.createElement('td');
+                                            additionalManualsCell.className = 'align-content-center manual-unit-additional-manuals-cell';
+                                            var additionalManuals = Array.isArray(unit.additional_manuals) ? unit.additional_manuals : [];
+                                            if (!additionalManuals.length) {
+                                                additionalManualsCell.textContent = '-';
+                                            } else {
+                                                additionalManuals.forEach(function (manual, manualIndex) {
+                                                    if (manualIndex > 0) additionalManualsCell.appendChild(document.createTextNode(', '));
+                                                    var manualLabel = document.createElement('span');
+                                                    manualLabel.className = 'text-nowrap';
+                                                    manualLabel.appendChild(document.createTextNode(manual.number || '-'));
+                                                    if (manual.lib) {
+                                                        var manualLib = document.createElement('span');
+                                                        manualLib.className = 'text-secondary';
+                                                        manualLib.textContent = ' (' + manual.lib + ')';
+                                                        manualLabel.appendChild(manualLib);
+                                                    }
+                                                    additionalManualsCell.appendChild(manualLabel);
+                                                });
+                                            }
+                                            tr.insertBefore(additionalManualsCell, tr.lastElementChild);
                                             tbody.appendChild(tr);
                                         });
                                     }

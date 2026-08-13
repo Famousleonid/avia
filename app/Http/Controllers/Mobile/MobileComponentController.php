@@ -85,7 +85,7 @@ class MobileComponentController extends Controller
             'ipl_num' => 'required|string|max:255',
             'part_number' => 'required|string|max:255',
             'eff_code' => 'nullable|string|max:100',
-            'photo' => 'image|max:5120',
+            'photo' => 'image|max:15360',
             'name' => 'required|string|max:255',
             'is_bush'      => 'nullable|boolean',
             'log_card'     => 'nullable|boolean',
@@ -130,7 +130,7 @@ class MobileComponentController extends Controller
             'is_bush' => ['nullable'],
             'log_card' => ['nullable'],
             'bush_ipl_num' => ['nullable', 'string', 'max:255'],
-            'photo' => ['nullable', 'image', 'max:5120'],
+            'photo' => ['nullable', 'image', 'max:15360'],
         ]);
 
         $workorder = Workorder::with('unit')->findOrFail($validated['workorder_id']);
@@ -258,7 +258,7 @@ class MobileComponentController extends Controller
     public function updatePhoto(Request $request, Component $component)
     {
         $validated = $request->validate([
-            'photo' => ['required', 'image', 'max:5120'],
+            'photo' => ['required', 'image', 'max:15360'],
         ]);
 
         if ($request->hasFile('photo')) {

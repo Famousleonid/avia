@@ -1,0 +1,7 @@
+interface:
+  display_name: "AVIA Manual Package Import"
+  short_description: "Audit and prepare AVIA manual PDF/XLS imports"
+  default_prompt: "Use $avia-import-manual-package to audit and prepare an AVIA manual package from a source directory and manual number."
+
+policy:
+  allow_implicit_invocation: true

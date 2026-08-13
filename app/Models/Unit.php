@@ -18,8 +18,13 @@ class Unit extends Model
         'verified',
         'eff_code',
         'manual_id',
+        'additional_manual_ids',
         'name',
         'description',
+    ];
+
+    protected $casts = [
+        'additional_manual_ids' => 'array',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -31,6 +36,7 @@ class Unit extends Model
                 'verified',
                 'eff_code',
                 'manual_id',
+                'additional_manual_ids',
                 'name',
                 'description',
             ])
@@ -49,6 +55,37 @@ class Unit extends Model
     public function manuals()
     {
         return $this->manual();
+    }
+
+    /**
+     * Additional CMM ids configured for future workorders of this unit.
+     * The legacy manual_id remains the primary CMM and is never duplicated here.
+     *
+     * @return list<int>
+     */
+    public function additionalManualIds(): array
+    {
+        $primaryManualId = (int) ($this->manual_id ?? 0);
+
+        return collect($this->additional_manual_ids ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0 && $id !== $primaryManualId)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** @return list<int> */
+    public function manualPackageIds(): array
+    {
+        $primaryManualId = (int) ($this->manual_id ?? 0);
+
+        return collect([$primaryManualId])
+            ->merge($this->additionalManualIds())
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function workorders()

@@ -216,6 +216,11 @@
                                             <label for="instruction_id">Technik</label>
                                             <select name="user_id" id="user_id" class="form-select" @disabled(! $canChangeTechnik)>
                                                 <option disabled {{ old('user_id', $current_wo->user_id) ? '' : 'selected' }} value=""> -- select an option --</option>
+                                                @if(! $users->contains('id', (int) old('user_id', $current_wo->user_id)) && $current_wo->user)
+                                                    <option value="{{ $current_wo->user_id }}" selected hidden>
+                                                        {{ $current_wo->user->selection_name }}
+                                                    </option>
+                                                @endif
                                                 @foreach ($users as $user)
                                                     <option value="{{ $user->id }}"
                                                             @if((string) old('user_id', $current_wo->user_id) === (string) $user->id) selected @endif>

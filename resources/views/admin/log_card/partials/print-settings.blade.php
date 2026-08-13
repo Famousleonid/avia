@@ -17,8 +17,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <label for="logCardTableFontSize" class="form-label">Table Font (px)</label>
-                <input type="number" class="form-control" id="logCardTableFontSize" min="8" max="22" step="0.5" value="14">
+                <div class="mb-3">
+                    <label for="logCardDescriptionFontSize" class="form-label">Description Font (px)</label>
+                    <input type="number" class="form-control" id="logCardDescriptionFontSize" min="8" max="22" step="0.5" value="14">
+                </div>
+                <div>
+                    <label for="logCardTableFontSize" class="form-label">Table Font (px)</label>
+                    <input type="number" class="form-control" id="logCardTableFontSize" min="8" max="22" step="0.5" value="14">
+                </div>
             </div>
             <div class="modal-footer py-2">
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="logCardPrintSettingsReset">Reset</button>
@@ -32,12 +38,12 @@
 <script>
     (function () {
         const storageKey = 'log_card_print_settings';
-        const defaultSettings = { tableFontSize: 14 };
+        const defaultSettings = { descriptionFontSize: 14, tableFontSize: 14 };
 
-        function normalizeFontSize(value) {
-            const parsed = Number.parseFloat(String(value ?? defaultSettings.tableFontSize));
+        function normalizeFontSize(value, fallback) {
+            const parsed = Number.parseFloat(String(value ?? fallback));
             if (!Number.isFinite(parsed)) {
-                return defaultSettings.tableFontSize;
+                return fallback;
             }
 
             return Math.min(22, Math.max(8, parsed));
@@ -58,13 +64,33 @@
         }
 
         function applySettings(settings) {
-            const tableFontSize = normalizeFontSize(settings.tableFontSize);
+            const descriptionFontSize = normalizeFontSize(settings.descriptionFontSize, defaultSettings.descriptionFontSize);
+            const tableFontSize = normalizeFontSize(settings.tableFontSize, defaultSettings.tableFontSize);
+            document.documentElement.style.setProperty('--log-card-description-font-size', descriptionFontSize + 'px');
             document.documentElement.style.setProperty('--log-card-table-font-size', tableFontSize + 'px');
 
-            const input = document.getElementById('logCardTableFontSize');
-            if (input) {
-                input.value = String(tableFontSize);
+            const descriptionInput = document.getElementById('logCardDescriptionFontSize');
+            if (descriptionInput) {
+                descriptionInput.value = String(descriptionFontSize);
             }
+
+            const tableInput = document.getElementById('logCardTableFontSize');
+            if (tableInput) {
+                tableInput.value = String(tableFontSize);
+            }
+        }
+
+        function settingsFromInputs() {
+            return {
+                descriptionFontSize: normalizeFontSize(
+                    document.getElementById('logCardDescriptionFontSize')?.value,
+                    defaultSettings.descriptionFontSize
+                ),
+                tableFontSize: normalizeFontSize(
+                    document.getElementById('logCardTableFontSize')?.value,
+                    defaultSettings.tableFontSize
+                ),
+            };
         }
 
         function closeModal() {
@@ -82,13 +108,16 @@
         document.addEventListener('DOMContentLoaded', function () {
             applySettings(readSettings());
 
-            document.getElementById('logCardTableFontSize')?.addEventListener('input', function (event) {
-                applySettings({ tableFontSize: event.target.value });
+            document.getElementById('logCardDescriptionFontSize')?.addEventListener('input', function () {
+                applySettings(settingsFromInputs());
+            });
+
+            document.getElementById('logCardTableFontSize')?.addEventListener('input', function () {
+                applySettings(settingsFromInputs());
             });
 
             document.getElementById('logCardPrintSettingsSave')?.addEventListener('click', function () {
-                const input = document.getElementById('logCardTableFontSize');
-                const settings = { tableFontSize: normalizeFontSize(input?.value) };
+                const settings = settingsFromInputs();
                 window.UserScopedStorage?.setItem(storageKey, JSON.stringify(settings));
                 applySettings(settings);
                 closeModal();

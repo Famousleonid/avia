@@ -5,40 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ManualProcess;
 use App\Models\Process;
-use App\Models\ProcessName;
 use App\Services\ProcessAccessDecision;
 use App\Services\ProcessAccessGuard;
 use Illuminate\Http\Request;
 
 class ManualProcessController extends Controller
 {
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View
-     */
-    public function edit($id)
-    {
-        $manualProcess = ManualProcess::findOrFail($id);
-        $manual = $manualProcess->manual;
-        abort_unless($manual, 404);
-        $manualProcess->load(['process.process_name', 'lockedBy']);
-        $decision = $this->guard()->canUpdateManualProcess(request()->user(), $manualProcess);
-        if (! $decision->allowed) {
-            return $this->denyDecision(request(), $decision, route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
-        }
-
-        $process = Process::findOrFail($manualProcess->processes_id);
-        $manualId = $manualProcess->manual_id;
-        $processNames = ProcessName::where('id',$process->process_names_id)->first();
-
-
-
-        return view('admin.manual_processes.edit', compact('manualProcess',
-            'process','processNames','manualId'));
-    }
-
     /**
      * Update the specified resource in storage.
      *
@@ -58,8 +30,6 @@ class ManualProcessController extends Controller
         if (! $decision->allowed) {
             return $this->denyDecision($request, $decision, route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
         }
-
-        $manualId = $manualProcess->manual_id;
 
         // Проверка, существует ли такой процесс с другим manual_id
         $validated = $request->validate([
@@ -89,12 +59,18 @@ class ManualProcessController extends Controller
         $manualProcess->process_comment = $processComment !== '' ? $processComment : null;
         $manualProcess->save();
 
-        $redirectTo = $request->input('return_to');
-        if ($redirectTo) {
-            return redirect($redirectTo)->with('success', 'Process updated successfully');
-        }
-        return redirect()->route('manuals.show', ['manual' => $manualId, 'tab' => 'processes'])
-            ->with('success', 'Process updated successfully');
+        $updatedManualProcess = $manualProcess->fresh(['process.process_name']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Process updated successfully',
+            'manual_process' => [
+                'id' => $updatedManualProcess->id,
+                'process' => $updatedManualProcess->process?->process ?? '',
+                'process_comment' => $updatedManualProcess->process_comment ?? '',
+                'process_name' => $updatedManualProcess->process?->process_name?->name ?? '',
+            ],
+        ]);
     }
 
     public function updateRequirements(Request $request, ManualProcess $manualProcess)

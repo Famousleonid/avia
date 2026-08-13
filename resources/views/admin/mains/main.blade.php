@@ -61,6 +61,29 @@
             opacity: 1 !important;
         }
 
+        .dir-top-manuals-btn {
+            --bs-btn-padding-y: .04rem;
+            --bs-btn-padding-x: .38rem;
+            --bs-btn-font-size: .68rem;
+            flex: 0 0 auto;
+            line-height: 1rem;
+        }
+
+        @media (max-width: 767.98px) {
+            .dir-top-info-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .dir-top-line--manuals {
+                flex-wrap: wrap;
+                row-gap: .2rem;
+            }
+
+            .dir-top-line--manuals .dir-top-v {
+                flex: 1 1 190px;
+            }
+        }
+
         .std-ignored-row .js-std-editable,
         .std-ignored-row .js-std-editable:disabled,
         .std-ignored-row .flatpickr-input,
@@ -162,7 +185,13 @@
                                         $instructionValue = (string)($current_workorder->instruction->name ?? '—');
                                         $customerValue = (string)($current_workorder->customer->name ?? '—');
                                         $technikValue = (string)($current_workorder->user->selection_name ?? '—');
-                                        $manualValue = (string)(($manual->number ?? '—') . ' | Lib: ' . ($manual->lib ?? '—'));
+                                        $additionalLibs = collect($additionalManualLibValues ?? [])
+                                            ->map(fn ($lib) => trim((string) $lib))
+                                            ->filter()
+                                            ->implode(',');
+                                        $manualValue = (string)(($manual->number ?? '—')
+                                            . ' | Lib:' . ($manual->lib ?? '—')
+                                            . ($additionalLibs !== '' ? ' (' . $additionalLibs . ')' : ''));
                                         $descriptionValue = (string)($current_workorder->displayDescription() ?? '—');
                                         $openedValue = (string)($current_workorder->open_at?->format('d-M-y') ?? '—');
                                     @endphp
@@ -264,9 +293,20 @@
                                                     <span class="dir-top-k">Instruction:</span>
                                                     <span class="dir-top-v">{{ $instructionValue }}</span>
                                                 </div>
-                                                <div class="dir-top-line">
+                                                <div class="dir-top-line dir-top-line--manuals align-items-center">
                                                     <span class="dir-top-k">Manual:</span>
                                                     <span class="dir-top-v">{{ $manualValue }}</span>
+                                                    <button type="button"
+                                                            class="btn btn-outline-info dir-top-manuals-btn"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#workorderManualsModal"
+                                                            data-tippy-content="{{ __('Manage manuals for this Workorder') }}">
+                                                        <i class="bi bi-journals"></i>
+                                                        {{ __('WO Manuals') }}
+                                                        @if($manualPackageNeedsSync)
+                                                            <span class="badge bg-warning text-dark ms-1">{{ __('Sync') }}</span>
+                                                        @endif
+                                                    </button>
                                                 </div>
                                             </div>
                                             <div class="dir-top-cell">
@@ -1307,6 +1347,8 @@
     </div>
 
     {{-- Форма для delete через модалку (mains / tdrprocesses) --}}
+    @include('admin.workorders.partials.manual-package-modal')
+
     <form id="deleteForm" method="POST" class="d-none">
         @csrf
         @method('DELETE')

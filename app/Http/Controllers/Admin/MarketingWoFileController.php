@@ -55,6 +55,7 @@ class MarketingWoFileController extends Controller
 
         $recipientIds = collect($data['recipient_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
         $recipients = User::query()
+            ->withoutReviewAccounts()
             ->with(['role', 'featureAccesses'])
             ->whereIn('id', $recipientIds)
             ->whereNotNull('email')

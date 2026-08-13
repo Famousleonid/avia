@@ -16,7 +16,7 @@ class KitPrlGrouping
             return 'choice|' . $manualId . '|' . mb_strtolower($choiceGroup);
         }
 
-        return 'numeric|' . self::numericIplGroupKey($ipl, (int) ($component->id ?? 0));
+        return 'numeric|' . $manualId . '|' . self::numericIplGroupKey($ipl, (int) ($component->id ?? 0));
     }
 
     public static function numericIplGroupKey(string $ipl, ?int $componentId = null): string

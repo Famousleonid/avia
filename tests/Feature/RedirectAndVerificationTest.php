@@ -11,6 +11,53 @@ class RedirectAndVerificationTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_review_accounts_cannot_sign_in_to_web_from_any_device(): void
+    {
+        foreach ([
+            ['appreview@aviatechnik.ca', '0'],
+            ['googleview@aviatechnik.ca', '1'],
+        ] as [$email, $viewportMobile]) {
+            $this->createUserWithRole('Team Leader', ['email' => $email]);
+
+            $response = $this
+                ->withUnencryptedCookie('viewport_mobile', $viewportMobile)
+                ->post(route('login'), [
+                    'email' => $email,
+                    'password' => 'password',
+                ]);
+
+            $response
+                ->assertRedirect(route('login'))
+                ->assertSessionHasErrors('email');
+            $this->assertGuest();
+        }
+    }
+
+    public function test_existing_review_session_cannot_open_desktop_or_mobile_web_routes(): void
+    {
+        $user = $this->createUserWithRole('Team Leader', [
+            'email' => 'appreview@aviatechnik.ca',
+        ]);
+
+        $response = $this
+            ->withUnencryptedCookie('viewport_mobile', '0')
+            ->actingAs($user)
+            ->get(route('cabinet.index'));
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        $this
+            ->withUnencryptedCookie('viewport_mobile', '1')
+            ->actingAs($user)
+            ->get(route('mobile.index'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
+    }
+
     public function test_authenticated_desktop_guest_route_redirects_to_cabinet(): void
     {
         $user = $this->createUserWithRole('Technician');

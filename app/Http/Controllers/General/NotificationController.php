@@ -139,6 +139,7 @@ class NotificationController extends Controller
 
         // список юзеров (без себя) — для UI
         $users = User::query()
+            ->withoutReviewAccounts()
             ->where('id', '!=', $user->id)
             ->orderBy('name')
             ->get(['id', 'name', 'selection_name_order'])

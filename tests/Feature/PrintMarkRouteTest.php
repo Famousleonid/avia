@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Models\PrintMark;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\BuildsDomainData;
 use Tests\TestCase;
 
 class PrintMarkRouteTest extends TestCase
 {
+    use BuildsDomainData;
     use DatabaseTransactions;
 
     public function test_print_mark_route_is_public_and_shows_encoded_data(): void
@@ -66,5 +68,25 @@ class PrintMarkRouteTest extends TestCase
             ['FIG'],
             PrintMark::query()->latest('id')->firstOrFail()->requirement_warnings
         );
+    }
+
+    public function test_print_mark_page_shows_workorder_manual_lib(): void
+    {
+        $manual = $this->createManual(['lib' => '295']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+        $printMark = PrintMark::query()->create([
+            'token' => 'LIB2345ABCDE',
+            'workorder_id' => $workorder->id,
+            'workorder_number' => 'W'.$workorder->number,
+            'form_name' => 'MACHINING',
+            'printed_by_name' => 'John Smith',
+            'printed_at' => Carbon::create(2026, 8, 5, 9, 30),
+        ]);
+
+        $this->get('/p/'.$printMark->token)
+            ->assertOk()
+            ->assertSee('>LIB</div>', false)
+            ->assertSee('>295</div>', false);
     }
 }

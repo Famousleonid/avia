@@ -46,6 +46,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -378,40 +379,43 @@ class MobileApiController extends Controller
             'value' => ['nullable'],
         ]);
 
-        $rows = $this->decodeMobileLogCardRows($logCard);
-        abort_unless(
-            isset($rows[$row])
-            && is_array($rows[$row])
-            && ($rows[$row]['row_type'] ?? '') !== 'manual'
-            && ! empty($rows[$row]['component_id']),
-            422,
-            'Component row not found.'
-        );
-
-        $before = data_get($rows, $row . '.' . $data['field']);
-        if ($data['field'] === 'included') {
-            $booleanValue = filter_var($data['value'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            abort_if($booleanValue === null, 422, 'Included must be a boolean value.');
-            $after = $booleanValue ? '1' : '0';
-        } else {
-            abort_unless(is_scalar($data['value']) || $data['value'] === null, 422, 'Value must be a string.');
-            $after = trim((string) ($data['value'] ?? ''));
-            abort_if(mb_strlen($after) > 255, 422, 'Value may not be greater than 255 characters.');
-        }
-
-        if ($before !== $after) {
-            $rows[$row][$data['field']] = $after;
-            $logCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
-            $logCard->save();
-            $logCard->logActivityEvent(
-                'updated',
-                ['component_data.' . $row . '.' . $data['field'] => $before],
-                ['component_data.' . $row . '.' . $data['field'] => $after],
-                ['row' => $row, 'field' => $data['field'], 'source' => 'api.mobile.log_card_inline'],
+        return DB::transaction(function () use ($logCard, $row, $data) {
+            $logCard = LogCard::query()->lockForUpdate()->findOrFail($logCard->id);
+            $rows = $this->decodeMobileLogCardRows($logCard);
+            abort_unless(
+                isset($rows[$row])
+                && is_array($rows[$row])
+                && ($rows[$row]['row_type'] ?? '') !== 'manual'
+                && ! empty($rows[$row]['component_id']),
+                422,
+                'Component row not found.'
             );
-        }
 
-        return $this->ok(['field' => $data['field'], 'value' => $after]);
+            $before = data_get($rows, $row.'.'.$data['field']);
+            if ($data['field'] === 'included') {
+                $booleanValue = filter_var($data['value'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                abort_if($booleanValue === null, 422, 'Included must be a boolean value.');
+                $after = $booleanValue ? '1' : '0';
+            } else {
+                abort_unless(is_scalar($data['value']) || $data['value'] === null, 422, 'Value must be a string.');
+                $after = trim((string) ($data['value'] ?? ''));
+                abort_if(mb_strlen($after) > 255, 422, 'Value may not be greater than 255 characters.');
+            }
+
+            if ($before !== $after) {
+                $rows[$row][$data['field']] = $after;
+                $logCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
+                $logCard->save();
+                $logCard->logActivityEvent(
+                    'updated',
+                    ['component_data.'.$row.'.'.$data['field'] => $before],
+                    ['component_data.'.$row.'.'.$data['field'] => $after],
+                    ['row' => $row, 'field' => $data['field'], 'source' => 'api.mobile.log_card_inline'],
+                );
+            }
+
+            return $this->ok(['field' => $data['field'], 'value' => $after]);
+        });
     }
 
     public function updateLogCardRowVariant(Request $request, LogCard $logCard, int $row): JsonResponse
@@ -424,64 +428,67 @@ class MobileApiController extends Controller
             'component_id' => ['required', 'integer', 'exists:components,id'],
         ]);
 
-        $rows = $this->decodeMobileLogCardRows($logCard);
-        abort_unless(
-            isset($rows[$row])
-            && is_array($rows[$row])
-            && ($rows[$row]['row_type'] ?? '') !== 'manual'
-            && ! empty($rows[$row]['component_id']),
-            422,
-            'Component row not found.'
-        );
-        $current = Component::query()->find((int) ($rows[$row]['component_id'] ?? 0));
-        $candidate = Component::query()->with('assemblies')->findOrFail((int) $data['component_id']);
-        $iplGroup = (string) ($rows[$row]['ipl_group'] ?? '');
-
-        // Same manual + same IPL suffix group only (desktop variant rule).
-        abort_unless(
-            $current
-            && (int) $candidate->manual_id === (int) $current->manual_id
-            && (bool) $candidate->log_card
-            && (int) ($candidate->units_assy ?? 1) === 1
-            && $iplGroup !== ''
-            && $this->mobileLogCardGroupKey((string) $candidate->ipl_num) === $iplGroup,
-            422,
-            'Component is not a variant of this row.'
-        );
-
-        $primaryManualId = (int) ($workorder->unit->manual_id ?? 0);
-        if ((int) $candidate->manual_id === $primaryManualId && $workorder->unit) {
+        return DB::transaction(function () use ($logCard, $row, $data, $workorder) {
+            $logCard = LogCard::query()->lockForUpdate()->findOrFail($logCard->id);
+            $rows = $this->decodeMobileLogCardRows($logCard);
             abort_unless(
-                app(ManualIplBranchRuleResolver::class)
-                    ->allowsComponentForUnit($workorder->unit, (string) $candidate->ipl_num, $primaryManualId),
+                isset($rows[$row])
+                && is_array($rows[$row])
+                && ($rows[$row]['row_type'] ?? '') !== 'manual'
+                && ! empty($rows[$row]['component_id']),
                 422,
-                'This variant is not allowed for the unit of this workorder.'
+                'Component row not found.'
             );
-        }
+            $current = Component::query()->find((int) ($rows[$row]['component_id'] ?? 0));
+            $candidate = Component::query()->with('assemblies')->findOrFail((int) $data['component_id']);
+            $iplGroup = (string) ($rows[$row]['ipl_group'] ?? '');
 
-        $before = (int) ($rows[$row]['component_id'] ?? 0);
-        if ($before !== (int) $candidate->id) {
-            $beforeRow = $rows[$row];
-            $rows[$row]['component_id'] = (string) $candidate->id;
-            $this->applyMobileLogCardAssembly($rows[$row], $candidate, $candidate->assemblies->first());
-            $logCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
-            $logCard->save();
-            $changes = LogCard::buildActivityChanges([
-                'component_data' => [[$beforeRow], [$rows[$row]]],
+            // Same manual + same IPL suffix group only (desktop variant rule).
+            abort_unless(
+                $current
+                && (int) $candidate->manual_id === (int) $current->manual_id
+                && (bool) $candidate->log_card
+                && (int) ($candidate->units_assy ?? 1) === 1
+                && $iplGroup !== ''
+                && $this->mobileLogCardGroupKey((string) $candidate->ipl_num) === $iplGroup,
+                422,
+                'Component is not a variant of this row.'
+            );
+
+            $primaryManualId = (int) ($workorder->unit->manual_id ?? 0);
+            if ((int) $candidate->manual_id === $primaryManualId && $workorder->unit) {
+                abort_unless(
+                    app(ManualIplBranchRuleResolver::class)
+                        ->allowsComponentForUnit($workorder->unit, (string) $candidate->ipl_num, $primaryManualId),
+                    422,
+                    'This variant is not allowed for the unit of this workorder.'
+                );
+            }
+
+            $before = (int) ($rows[$row]['component_id'] ?? 0);
+            if ($before !== (int) $candidate->id) {
+                $beforeRow = $rows[$row];
+                $rows[$row]['component_id'] = (string) $candidate->id;
+                $this->applyMobileLogCardAssembly($rows[$row], $candidate, $candidate->assemblies->first());
+                $logCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
+                $logCard->save();
+                $changes = LogCard::buildActivityChanges([
+                    'component_data' => [[$beforeRow], [$rows[$row]]],
+                ]);
+                $logCard->logActivityEvent(
+                    'updated',
+                    $this->rebaseMobileLogCardActivityPaths($changes['old'], $row),
+                    $this->rebaseMobileLogCardActivityPaths($changes['attributes'], $row),
+                    ['row' => $row, 'field' => 'component_id', 'source' => 'api.mobile.log_card_variant'],
+                );
+            }
+
+            return $this->ok([
+                'component_id' => (int) $candidate->id,
+                'component' => $this->mobileLogCardComponentPayload($candidate),
+                'component_assembly_id' => (int) ($rows[$row]['component_assembly_id'] ?? 0) ?: null,
             ]);
-            $logCard->logActivityEvent(
-                'updated',
-                $this->rebaseMobileLogCardActivityPaths($changes['old'], $row),
-                $this->rebaseMobileLogCardActivityPaths($changes['attributes'], $row),
-                ['row' => $row, 'field' => 'component_id', 'source' => 'api.mobile.log_card_variant'],
-            );
-        }
-
-        return $this->ok([
-            'component_id' => (int) $candidate->id,
-            'component' => $this->mobileLogCardComponentPayload($candidate),
-            'component_assembly_id' => (int) ($rows[$row]['component_assembly_id'] ?? 0) ?: null,
-        ]);
+        });
     }
 
     public function updateLogCardRowAssembly(Request $request, LogCard $logCard, int $row): JsonResponse
@@ -493,45 +500,49 @@ class MobileApiController extends Controller
         $data = $request->validate([
             'component_assembly_id' => ['nullable', 'integer', 'exists:component_assemblies,id'],
         ]);
-        $rows = $this->decodeMobileLogCardRows($logCard);
-        abort_unless(
-            isset($rows[$row])
-            && is_array($rows[$row])
-            && ($rows[$row]['row_type'] ?? '') !== 'manual'
-            && ! empty($rows[$row]['component_id']),
-            422,
-            'Component row not found.'
-        );
 
-        $component = Component::query()->with('assemblies')->findOrFail((int) $rows[$row]['component_id']);
-        $assembly = $component->assemblies->first();
-        if (! empty($data['component_assembly_id'])) {
-            $assembly = $component->assemblies->firstWhere('id', (int) $data['component_assembly_id']);
-            abort_unless($assembly, 422, 'Assembly does not belong to this component.');
-        }
-
-        $beforeRow = $rows[$row];
-        $this->applyMobileLogCardAssembly($rows[$row], $component, $assembly);
-        if ($beforeRow !== $rows[$row]) {
-            $logCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
-            $logCard->save();
-            $changes = LogCard::buildActivityChanges([
-                'component_data' => [[$beforeRow], [$rows[$row]]],
-            ]);
-            $logCard->logActivityEvent(
-                'updated',
-                $this->rebaseMobileLogCardActivityPaths($changes['old'], $row),
-                $this->rebaseMobileLogCardActivityPaths($changes['attributes'], $row),
-                ['row' => $row, 'field' => 'component_assembly_id', 'source' => 'api.mobile.log_card_assembly'],
+        return DB::transaction(function () use ($logCard, $row, $data) {
+            $logCard = LogCard::query()->lockForUpdate()->findOrFail($logCard->id);
+            $rows = $this->decodeMobileLogCardRows($logCard);
+            abort_unless(
+                isset($rows[$row])
+                && is_array($rows[$row])
+                && ($rows[$row]['row_type'] ?? '') !== 'manual'
+                && ! empty($rows[$row]['component_id']),
+                422,
+                'Component row not found.'
             );
-        }
 
-        return $this->ok([
-            'component_assembly_id' => (int) ($rows[$row]['component_assembly_id'] ?? 0) ?: null,
-            'assy_part_number' => (string) ($rows[$row]['assy_part_number'] ?? ''),
-            'assy_ipl_num' => (string) ($rows[$row]['assy_ipl_num'] ?? ''),
-            'units_assy' => (string) ($rows[$row]['units_assy'] ?? ''),
-        ]);
+            $component = Component::query()->with('assemblies')->findOrFail((int) $rows[$row]['component_id']);
+            $assembly = $component->assemblies->first();
+            if (! empty($data['component_assembly_id'])) {
+                $assembly = $component->assemblies->firstWhere('id', (int) $data['component_assembly_id']);
+                abort_unless($assembly, 422, 'Assembly does not belong to this component.');
+            }
+
+            $beforeRow = $rows[$row];
+            $this->applyMobileLogCardAssembly($rows[$row], $component, $assembly);
+            if ($beforeRow !== $rows[$row]) {
+                $logCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
+                $logCard->save();
+                $changes = LogCard::buildActivityChanges([
+                    'component_data' => [[$beforeRow], [$rows[$row]]],
+                ]);
+                $logCard->logActivityEvent(
+                    'updated',
+                    $this->rebaseMobileLogCardActivityPaths($changes['old'], $row),
+                    $this->rebaseMobileLogCardActivityPaths($changes['attributes'], $row),
+                    ['row' => $row, 'field' => 'component_assembly_id', 'source' => 'api.mobile.log_card_assembly'],
+                );
+            }
+
+            return $this->ok([
+                'component_assembly_id' => (int) ($rows[$row]['component_assembly_id'] ?? 0) ?: null,
+                'assy_part_number' => (string) ($rows[$row]['assy_part_number'] ?? ''),
+                'assy_ipl_num' => (string) ($rows[$row]['assy_ipl_num'] ?? ''),
+                'units_assy' => (string) ($rows[$row]['units_assy'] ?? ''),
+            ]);
+        });
     }
 
     private function persistMobileLogCard(Request $request, Workorder $workorder, ?LogCard $logCard): JsonResponse

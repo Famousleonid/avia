@@ -126,6 +126,54 @@ RO_DETAIL-level row, not RO_HEADER-only.
 Likely stable key: ROD_AUTO_KEY.
 ```
 
+## 2026-08-10 production parser incident
+
+Live production evidence for RO `R9192`, WO `W107880`, PN `NDT`:
+
+```text
+Quantum staging returned_date = 2026-08-06
+Quantum target = workorder_std_processes:632
+Target date_start = 2026-08-04
+Target date_finish = null
+```
+
+The target activity log shows the last system/Quantum write at
+`04/Aug/2026 14:31`; it wrote the sent date, RO, and vendor while the return
+date was still empty. Two user activities at `06/Aug/2026 13:20` changed only
+`ignore_row` and did not clear `date_finish`. No Quantum-managed
+`WorkorderStdProcess` or `TdrProcess` target writes were recorded from
+`06/Aug/2026` through `10/Aug/2026`, although the bridge continued receiving
+successful runs and the staged row acquired the return date.
+
+Operational conclusion: the bridge/API staging sync was healthy, but the
+separate hosted `php artisan quantum-ro:apply --quiet` parser was not applying
+source changes. The migrated five-minute crontab entry was present with the
+correct PHP and application paths, but that one line ended in Windows `CRLF`
+bytes (`0d 0a`) while the working Laravel `schedule:run` line ended in Unix
+`LF` (`0a`). The hidden carriage return corrupted the final `2>&1` shell
+redirection, so the Quantum command never started. The internal apply log's
+last entry remained the manual migration run at `04/Aug/2026 14:31`, and the
+cron output file created at `14:35` remained empty. Normalize only the Quantum
+crontab line to Unix LF and verify a new apply-log entry after the next
+five-minute boundary.
+
+Resolved on `10/Aug/2026`: the production crontab was backed up, exactly one
+`CRLF` sequence was normalized to `LF`, and the five-line crontab was
+reinstalled unchanged otherwise. The scheduled runs at `10:00:02` and
+`10:05:02` both completed with `status=ok` and `errors=0`. The first recovered
+run scanned 406 staged rows and applied 91. For `R9192` / `W107880`, staging
+and target hashes matched afterward and `workorder_std_processes:632` had
+`date_finish = 2026-08-06` with `date_finish_user = Quantum`.
+
+The Vendor Tracking status can still display the previous `applied` result
+because staging updates do not reset `apply_status`; the parser detects the
+change through `applied_source_hash <> source_hash` only when it actually runs.
+
+Infrastructure note from the same diagnosis: `aviatechnik.ca` no longer
+resolved to the documented diagnostic SSH host `51.222.203.80`; that host's
+database stopped receiving Quantum rows on `03/Aug/2026` and must not be used
+to diagnose current live sync state.
+
 ## Date Mapping
 
 Confirmed:
@@ -235,9 +283,22 @@ Current classification:
 ```text
 PN = NDT -> STD_LIST_NDT
 PN = CAD -> STD_LIST_CAD
+PN = NDTB -> BUSHING_NDTB (bushing process key: ndt)
+PN = Machining -> BUSHING_MACHINING (bushing process key: machining)
+PN = CADB or CAD Plate B -> bushing process key: cad
+PN = Anodizing/Anodising -> bushing process key: anodizing
+PN = Passivation -> bushing process key: passivation
 PN with digits -> DETAIL_PART
-Other PN values -> DETAIL_PROCESS
+Other PN values -> unsupported
 Empty PN -> UNKNOWN
+```
+
+Confirmed bushing batch rule:
+
+```text
+For bushing P/N values, REF must be B1, B2, ... .
+The number selects the corresponding batch within that bushing process key.
+Example: PN = Machining and REF = B1 targets the first machining bushing batch.
 ```
 
 Examples:

@@ -1075,6 +1075,160 @@ class TdrProcessController extends Controller
         return view('admin.tdr-processes.processesForm', $viewData);
     }
 
+    /**
+     * Print any number of selected rows with one exact Process Name on a single form.
+     */
+    public function combinedForm(Request $request, $tdrId)
+    {
+        $rawSelections = $request->input('selections');
+        $selections = is_string($rawSelections) ? json_decode($rawSelections, true) : $rawSelections;
+
+        if (! is_array($selections) || count($selections) < 2) {
+            abort(422, 'Select at least two processes.');
+        }
+
+        $normalizedSelections = [];
+        $selectionKeys = [];
+        foreach ($selections as $selection) {
+            if (! is_array($selection)) {
+                abort(422, 'Invalid process selection.');
+            }
+
+            $tdrProcessId = filter_var($selection['tdr_process_id'] ?? null, FILTER_VALIDATE_INT);
+            $processId = $selection['process_id'] ?? null;
+            $processId = ($processId === null || $processId === '')
+                ? null
+                : filter_var($processId, FILTER_VALIDATE_INT);
+
+            if (! $tdrProcessId || $tdrProcessId < 1 || ($processId !== null && (! $processId || $processId < 1))) {
+                abort(422, 'Invalid process selection.');
+            }
+
+            $key = $tdrProcessId . ':' . ($processId ?? 'all');
+            if (isset($selectionKeys[$key])) {
+                abort(422, 'Duplicate process selection.');
+            }
+            $selectionKeys[$key] = true;
+            $normalizedSelections[] = [
+                'tdr_process_id' => (int) $tdrProcessId,
+                'process_id' => $processId === null ? null : (int) $processId,
+            ];
+        }
+
+        $current_tdr = Tdr::with(['component', 'workorder.unit.manuals'])->findOrFail($tdrId);
+        $current_wo = $current_tdr->workorder;
+        $manual_id = $current_wo?->unit?->manual_id;
+        if (! $current_wo || ! $manual_id) {
+            abort(404, 'Manual not found for this workorder.');
+        }
+
+        $records = TdrProcess::with(['processName', 'tdr.component', 'tdr.workorder'])
+            ->whereIn('id', collect($normalizedSelections)->pluck('tdr_process_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        $selectedRows = collect();
+        $processNameId = null;
+        foreach ($normalizedSelections as $selection) {
+            $source = $records->get($selection['tdr_process_id']);
+            if (! $source || (int) $source->tdrs_id !== (int) $current_tdr->id) {
+                abort(422, 'Every selected process must belong to this TDR.');
+            }
+            if (! ProcessName::canPrintProcessForm($source->processName)) {
+                abort(422, 'One of the selected processes has no printable form.');
+            }
+
+            $processNameId ??= (int) $source->process_names_id;
+            if ((int) $source->process_names_id !== $processNameId) {
+                abort(422, 'All selected processes must have the same Process Name.');
+            }
+
+            $selectedRow = clone $source;
+            $specificProcessId = $selection['process_id'];
+            if ($specificProcessId !== null) {
+                $storedProcessIds = TdrProcess::normalizeStoredProcessIds($source->processes);
+                if (! in_array($specificProcessId, $storedProcessIds, true)) {
+                    abort(422, 'Selected process is not assigned to this TDR row.');
+                }
+
+                $validProcess = Process::query()
+                    ->whereKey($specificProcessId)
+                    ->where('process_names_id', $processNameId)
+                    ->exists();
+                if (! $validProcess) {
+                    abort(422, 'Selected process does not match the Process Name.');
+                }
+                $selectedRow->processes = [$specificProcessId];
+            }
+
+            $selectedRows->push($selectedRow);
+        }
+
+        $process_name = $selectedRows->first()->processName;
+        $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
+        $selectedVendor = $request->filled('vendor_id')
+            ? Vendor::find($request->integer('vendor_id'))
+            : null;
+        $repairOrders = $selectedRows->pluck('repair_order')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values();
+        $formDates = $selectedRows->pluck('date_start')
+            ->filter()
+            ->map(fn ($date) => strtolower($date->format('d M Y')))
+            ->unique()
+            ->values();
+
+        $viewData = [
+            'module' => 'tdr-processes',
+            'current_wo' => $current_wo,
+            'components' => Component::where('manual_id', $manual_id)->get(),
+            'tdrs' => [$current_tdr->id],
+            'manuals' => Manual::where('id', $manual_id)->get(),
+            'process_name' => $process_name,
+            'manual_id' => $manual_id,
+            'selectedVendor' => $selectedVendor,
+            'formHeaderComponentName' => $current_tdr->component?->name,
+            'formHeaderRepairOrder' => $repairOrders->implode(', '),
+            'formHeaderDate' => $request->boolean('omit_form_header_date') ? null : $formDates->implode(', '),
+            'machining_header_manual_libs' => $this->machiningHeaderManualLibsForWorkorder($process_name, (int) $current_wo->id),
+        ];
+
+        if ($process_name->process_sheet_name === 'NDT') {
+            $ndt_ids = $this->ndtFormNameIds($process_name);
+            $ndt_ids_filtered = array_filter($ndt_ids);
+            $ndt_processes = Process::whereIn('id', $manualProcesses)
+                ->where(function ($query) use ($ndt_ids, $ndt_ids_filtered) {
+                    if (! empty($ndt_ids_filtered)) {
+                        $query->whereIn('process_names_id', $ndt_ids_filtered);
+                    }
+                    if (! empty($ndt_ids['ndt1_name_id'])) {
+                        $query->orWhere('process_names_id', $ndt_ids['ndt1_name_id']);
+                    }
+                    if (! empty($ndt_ids['ndt4_name_id'])) {
+                        $query->orWhere('process_names_id', $ndt_ids['ndt4_name_id']);
+                    }
+                })
+                ->get();
+
+            $viewData += [
+                'ndt_processes' => $ndt_processes,
+                'ndt_components' => $selectedRows,
+                'current_ndt_id' => $process_name->id,
+            ] + $ndt_ids;
+        } else {
+            $viewData += [
+                'process_components' => Process::whereIn('id', $manualProcesses)
+                    ->where('process_names_id', $processNameId)
+                    ->get(),
+                'process_tdr_components' => $selectedRows,
+            ];
+        }
+
+        return view('admin.tdr-processes.processesForm', $viewData);
+    }
+
     public function processes(Request $request, $tdrId)
     {
         // Находим запись Tdr по ID

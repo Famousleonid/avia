@@ -9,6 +9,7 @@ class WorkorderStdProcessItem extends Model
 {
     protected $fillable = [
         'workorder_id',
+        'manual_id',
         'component_id',
         'std_process_id',
         'std_type',
@@ -41,6 +42,11 @@ class WorkorderStdProcessItem extends Model
         return $this->belongsTo(Component::class);
     }
 
+    public function manual(): BelongsTo
+    {
+        return $this->belongsTo(Manual::class);
+    }
+
     public function stdProcess(): BelongsTo
     {
         return $this->belongsTo(StdProcess::class);
@@ -55,6 +61,7 @@ class WorkorderStdProcessItem extends Model
     {
         return [
             'component_id' => (int) $this->component_id,
+            'manual_id' => (int) $this->manual_id,
             'ipl_num' => $this->ipl_num,
             'part_number' => $this->part_number,
             'description' => $this->description ?? '',

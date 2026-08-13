@@ -69,6 +69,16 @@ class QuantumRoQueryTest extends TestCase
         $this->assertStringContainsString("THEN 'BUSHING_'", $query['sql']);
     }
 
+    public function test_machining_part_number_is_classified_as_bushing_candidate(): void
+    {
+        $query = buildQuantumRoQuery([
+            'wob_change_column' => '',
+        ]);
+
+        $this->assertStringContainsString("'MACHINING'", $query['sql']);
+        $this->assertStringContainsString("THEN 'BUSHING_'", $query['sql']);
+    }
+
     public function test_query_uses_unique_kit_material_serial_as_ro_detail_fallback(): void
     {
         $query = buildQuantumRoQuery([

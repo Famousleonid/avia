@@ -67,4 +67,28 @@ class DirectoryProcessNamesTest extends TestCase
             'code' => $newCode,
         ]);
     }
+
+    public function test_process_name_can_be_created_without_optional_fields(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $name = 'Codex Optional Fields '.uniqid();
+
+        $response = $this->actingAs($admin)->post(route('process_names.store'), [
+            'name' => $name,
+            'process_sheet_name' => 'TEST',
+        ]);
+
+        $response
+            ->assertRedirect(route('process_names.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('process_names', [
+            'name' => $name,
+            'process_sheet_name' => 'TEST',
+            'form_number' => null,
+            'code' => null,
+            'std_days' => null,
+            'notify_user_id' => null,
+        ]);
+    }
 }

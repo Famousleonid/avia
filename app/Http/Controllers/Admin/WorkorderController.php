@@ -9,6 +9,7 @@ use App\Models\Instruction;
 use App\Models\Main;
 use App\Models\Manual;
 use App\Models\Task;
+use App\Models\Tdr;
 use App\Models\Unit;
 use App\Models\ProcessName;
 use App\Models\User;
@@ -18,12 +19,14 @@ use App\Models\TdrProcess;
 use App\Services\Workorders\DraftWorkorderMatchService;
 use App\Services\Workorders\WorkorderVisibilityService;
 use App\Services\WorkorderStdListProcessesService;
+use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use ZipStream\ZipStream;
 use Illuminate\Support\Str;
@@ -285,7 +288,7 @@ class WorkorderController extends Controller
         }
 
         $customers = Customer::query()->orderBy('name')->get(['id', 'name']);
-        $users = User::query()->orderBy('name')->get(['id', 'name', 'selection_name_order'])
+        $users = User::query()->withoutReviewAccounts()->orderBy('name')->get(['id', 'name', 'selection_name_order'])
             ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
             ->values();
         $uiSettings = UserUiSetting::query()
@@ -712,7 +715,7 @@ class WorkorderController extends Controller
             ->orderBy('number')
             ->orderBy('title')
             ->get();
-        $users = User::query()->orderBy('name')->get(['id', 'name', 'selection_name_order'])
+        $users = User::query()->withoutReviewAccounts()->orderBy('name')->get(['id', 'name', 'selection_name_order'])
             ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
             ->values();
         $currentUser = Auth::user();
@@ -903,7 +906,7 @@ class WorkorderController extends Controller
             ->orderBy('number')
             ->orderBy('title')
             ->get();
-        $users = User::query()->orderBy('name')->get(['id', 'name', 'selection_name_order'])
+        $users = User::query()->withoutReviewAccounts()->orderBy('name')->get(['id', 'name', 'selection_name_order'])
             ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
             ->values();
         $open_at = format_project_date($current_wo->open_at);
@@ -1051,7 +1054,11 @@ class WorkorderController extends Controller
         $newInstructionId = (int) $request->instruction_id;
         $isNowOverhaul = $overhaulId !== null && $newInstructionId === (int) $overhaulId;
 
-        $workorder->update($request->except('description'));
+        $workorder->update($request->except([
+            'description',
+            'additional_manual_ids',
+            'not_used_manual_ids',
+        ]));
 
         if ($request->has('description')) {
             $description = trim((string) $request->input('description', ''));
@@ -1070,6 +1077,96 @@ class WorkorderController extends Controller
         }
 
         return redirect()->route('workorders.index')->with('success', 'Workorder was edited successfully');
+    }
+
+    public function syncAdditionalManuals(Workorder $workorder): JsonResponse
+    {
+        abort_unless(auth()->user()?->can('workorders.manageManuals'), 403);
+
+        $workorder->loadMissing('unit');
+        $additionalManualIds = $workorder->unit?->additionalManualIds() ?? [];
+        $notUsedManualIds = array_values(array_intersect(
+            $workorder->notUsedManualIds(),
+            $additionalManualIds
+        ));
+
+        DB::transaction(function () use ($workorder, $additionalManualIds, $notUsedManualIds): void {
+            $workorder->forceFill([
+                'additional_manual_ids' => $additionalManualIds,
+                'not_used_manual_ids' => $notUsedManualIds,
+            ])->save();
+
+            app(WorkorderStdProcessItemsService::class)->rebuild($workorder->fresh('unit.manuals'));
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => __('Workorder manuals were synchronized from the Unit.'),
+            'additional_manual_ids' => $workorder->fresh()->additionalManualIds(),
+        ]);
+    }
+
+    public function updateManualUsage(Request $request, Workorder $workorder): JsonResponse
+    {
+        abort_unless(auth()->user()?->can('workorders.manageManuals'), 403);
+
+        $validated = $request->validate([
+            'manual_id' => ['required', 'integer', 'exists:manuals,id'],
+            'used' => ['required', 'boolean'],
+        ]);
+
+        $manualId = (int) $validated['manual_id'];
+        $used = (bool) $validated['used'];
+        $additionalManualIds = $workorder->additionalManualIds();
+
+        if (! in_array($manualId, $additionalManualIds, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Only an additional Workorder manual can be marked NOT USED.'),
+            ], 422);
+        }
+
+        if (! $used) {
+            $tdrPartNumbers = Tdr::query()
+                ->where('workorder_id', $workorder->id)
+                ->whereHas('component', fn ($query) => $query->where('manual_id', $manualId))
+                ->with('component:id,part_number')
+                ->get()
+                ->pluck('component.part_number')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($tdrPartNumbers->isNotEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => __('This manual is already used by TDR parts: :parts', [
+                        'parts' => $tdrPartNumbers->take(8)->implode(', '),
+                    ]),
+                ], 422);
+            }
+        }
+
+        $notUsedManualIds = collect($workorder->notUsedManualIds());
+        $notUsedManualIds = $used
+            ? $notUsedManualIds->reject(fn (int $id): bool => $id === $manualId)
+            : $notUsedManualIds->push($manualId);
+
+        DB::transaction(function () use ($workorder, $notUsedManualIds): void {
+            $workorder->forceFill([
+                'not_used_manual_ids' => $notUsedManualIds->unique()->values()->all(),
+            ])->save();
+
+            app(WorkorderStdProcessItemsService::class)->rebuild($workorder->fresh('unit.manuals'));
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => $used
+                ? __('Manual is now USED for this Workorder.')
+                : __('Manual is now NOT USED for this Workorder.'),
+            'used_manual_ids' => $workorder->fresh('unit')->usedManualIds(),
+        ]);
     }
 
     public function approveAjax(Request $request, Workorder $workorder)
