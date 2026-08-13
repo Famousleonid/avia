@@ -22,8 +22,8 @@ class WorkorderPartGroupSelectionController extends Controller
 
         abort_unless($request->user(), 403);
         $workorder->loadMissing('unit');
-        if ($partGroup->status !== ManualPartGroup::STATUS_ACTIVE || ! in_array((int) $partGroup->manual_id, $workorder->usedManualIds(), true)) {
-            throw ValidationException::withMessages(['part_group' => 'This group is not active for the workorder manuals.']);
+        if (! in_array((int) $partGroup->manual_id, $workorder->usedManualIds(), true)) {
+            throw ValidationException::withMessages(['part_group' => 'This group does not belong to the workorder manuals.']);
         }
 
         if (empty($data['option_id'])) {

@@ -1939,7 +1939,6 @@ class TdrController extends Controller
 
         $workorderPartGroups = ManualPartGroup::query()
             ->whereIn('manual_id', $current_wo->usedManualIds())
-            ->where('status', ManualPartGroup::STATUS_ACTIVE)
             ->with(['options.component:id,ipl_num,part_number,name', 'options.coverages.component:id,ipl_num,part_number,name', 'serviceBulletin'])
             ->orderBy('name')
             ->get();

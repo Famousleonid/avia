@@ -10,9 +10,9 @@ use Illuminate\Support\Facades\DB;
 
 class ImportLegacyPartGroups extends Command
 {
-    protected $signature = 'parts:import-legacy-groups {--manual= : Limit to one manual ID} {--apply : Create draft groups}';
+    protected $signature = 'parts:import-legacy-groups {--manual= : Limit to one manual ID} {--apply : Create groups}';
 
-    protected $description = 'Audit legacy component_assemblies and optionally import them into draft ASSY groups.';
+    protected $description = 'Audit legacy component_assemblies and optionally import them into ASSY groups.';
 
     public function handle(): int
     {
@@ -54,7 +54,7 @@ class ImportLegacyPartGroups extends Command
         );
 
         if (! $this->option('apply')) {
-            $this->info("Dry audit complete: {$rows->count()} candidate groups. Run with --apply to create drafts.");
+            $this->info("Dry audit complete: {$rows->count()} candidate groups. Run with --apply to create them.");
 
             return self::SUCCESS;
         }
@@ -73,9 +73,8 @@ class ImportLegacyPartGroups extends Command
                         'name' => trim('Legacy ASSY '.($first->assy_part_number ?: $first->assy_ipl_num)),
                         'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE,
                         'type' => ManualPartGroup::TYPE_ASSY,
-                        'status' => ManualPartGroup::STATUS_DRAFT,
                         'applies_to' => ManualPartGroup::validScopes(),
-                        'notes' => 'Imported from component_assemblies; review composition before activation.',
+                        'notes' => 'Imported from component_assemblies; review composition before use.',
                     ])->save();
                     $created++;
                 } elseif ($group->trashed()) {
@@ -104,7 +103,7 @@ class ImportLegacyPartGroups extends Command
             });
         }
 
-        $this->info("Created {$created} draft groups and linked {$linked} legacy assembly rows.");
+        $this->info("Created {$created} groups and linked {$linked} legacy assembly rows.");
 
         return self::SUCCESS;
     }

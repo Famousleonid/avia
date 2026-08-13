@@ -19,10 +19,6 @@ class ManualPartGroup extends Model
     public const TYPE_ASSY = 'assy';
     public const TYPE_SB_KIT = 'sb_kit';
 
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_INACTIVE = 'inactive';
-
     public const SCOPE_PRL = 'prl';
     public const SCOPE_NDT = 'ndt';
     public const SCOPE_CAD = 'cad';
@@ -36,7 +32,6 @@ class ManualPartGroup extends Model
         'name',
         'behavior',
         'type',
-        'status',
         'applies_to',
         'notes',
         'created_by_user_id',

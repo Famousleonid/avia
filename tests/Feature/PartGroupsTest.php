@@ -12,6 +12,7 @@ use App\Services\PartGroupCoverageResolver;
 use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -20,7 +21,7 @@ class PartGroupsTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
-    public function test_admin_can_create_active_assy_group_with_scoped_composition(): void
+    public function test_admin_can_create_assy_group_with_scoped_composition(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
@@ -30,7 +31,6 @@ class PartGroupsTest extends TestCase
         $response = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
             'name' => 'Main ASSY',
             'type' => ManualPartGroup::TYPE_ASSY,
-            'status' => ManualPartGroup::STATUS_ACTIVE,
             'applies_to' => ['prl', 'ndt', 'cad'],
             'component_ids' => [$memberA->id, $memberB->id],
             'order_part_number' => 'ASSY-100',
@@ -39,12 +39,12 @@ class PartGroupsTest extends TestCase
         ]);
 
         $response->assertOk()->assertJsonPath('success', true);
+        $this->assertFalse(Schema::hasColumn('manual_part_groups', 'status'));
         $groupId = (int) $response->json('group.id');
         $this->assertDatabaseHas('manual_part_groups', [
             'id' => $groupId,
             'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE,
             'type' => ManualPartGroup::TYPE_ASSY,
-            'status' => ManualPartGroup::STATUS_ACTIVE,
         ]);
         $optionId = ManualPartGroupOption::query()->where('manual_part_group_id', $groupId)->value('id');
         $this->assertDatabaseHas('manual_part_group_coverages', [
@@ -57,7 +57,9 @@ class PartGroupsTest extends TestCase
             ->get(route('manuals.show', $manual))
             ->assertOk()
             ->assertSee('Main ASSY')
-            ->assertSee('data-part-group-id="'.$groupId.'"', false);
+            ->assertSee('data-part-group-id="'.$groupId.'"', false)
+            ->assertDontSee('manual-part-group-status')
+            ->assertDontSee('manual-part-group-badge-meta');
     }
 
     public function test_bundle_selection_covers_quantities_only_in_enabled_forms(): void
@@ -93,7 +95,6 @@ class PartGroupsTest extends TestCase
             [
                 'name' => 'Updated ASSY Group',
                 'type' => ManualPartGroup::TYPE_ASSY,
-                'status' => ManualPartGroup::STATUS_ACTIVE,
                 'applies_to' => ['prl', 'ndt'],
                 'component_ids' => [$member->id],
                 'order_part_number' => 'ASSY-200',
@@ -129,7 +130,7 @@ class PartGroupsTest extends TestCase
         $second = $this->createPartGroupComponent($manual->id, '1-280A', 'PN-ALT');
         $group = ManualPartGroup::query()->create([
             'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'Alternatives',
-            'behavior' => 'choose_one', 'type' => 'alternative_pn', 'status' => 'active', 'applies_to' => ['prl', 'ndt'],
+            'behavior' => 'choose_one', 'type' => 'alternative_pn', 'applies_to' => ['prl', 'ndt'],
         ]);
         $firstOption = $group->options()->create(['component_id' => $first->id, 'part_number' => $first->part_number, 'ipl_num' => $first->ipl_num, 'is_default' => true]);
         $group->options()->create(['component_id' => $second->id, 'part_number' => $second->part_number, 'ipl_num' => $second->ipl_num]);
@@ -205,7 +206,7 @@ class PartGroupsTest extends TestCase
         );
     }
 
-    public function test_legacy_import_creates_draft_group_and_preserves_assembly_link(): void
+    public function test_legacy_import_creates_group_and_preserves_assembly_link(): void
     {
         $manual = $this->createManual();
         $component = $this->createPartGroupComponent($manual->id, '2-20', 'LEGACY-MEMBER');
@@ -220,7 +221,6 @@ class PartGroupsTest extends TestCase
 
         $this->assertSame(0, $exit);
         $group = ManualPartGroup::query()->where('manual_id', $manual->id)->firstOrFail();
-        $this->assertSame(ManualPartGroup::STATUS_DRAFT, $group->status);
         $this->assertDatabaseHas('manual_part_group_coverages', [
             'legacy_component_assembly_id' => $assembly->id,
             'component_id' => $component->id,
@@ -237,7 +237,7 @@ class PartGroupsTest extends TestCase
         $member = $this->createPartGroupComponent($manual->id, '1-10', 'MEMBER');
         $group = ManualPartGroup::query()->create([
             'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'ASSY Group',
-            'behavior' => 'bundle', 'type' => 'assy', 'status' => 'active', 'applies_to' => $scopes,
+            'behavior' => 'bundle', 'type' => 'assy', 'applies_to' => $scopes,
         ]);
         $option = $group->options()->create(['part_number' => 'ASSY-100', 'ipl_num' => '1-5', 'option_kind' => 'assy', 'is_default' => true]);
         $option->coverages()->create(['component_id' => $member->id, 'qty' => $memberQty, 'applies_to' => $scopes]);

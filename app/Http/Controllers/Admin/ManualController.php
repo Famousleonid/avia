@@ -416,7 +416,6 @@ class ManualController extends Controller
         $partGroups = ManualPartGroup::query()
             ->where('manual_id', $cmm->id)
             ->with(['options.coverages.component:id,ipl_num,part_number,name', 'options.component:id,ipl_num,part_number,name', 'serviceBulletin'])
-            ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'draft' THEN 1 ELSE 2 END")
             ->orderBy('name')
             ->get();
 

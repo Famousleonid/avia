@@ -31,7 +31,6 @@ class ManualPartGroupController extends Controller
                 'name' => $data['name'],
                 'behavior' => ManualPartGroup::behaviorForType($data['type']),
                 'type' => $data['type'],
-                'status' => $data['status'],
                 'applies_to' => array_values($data['applies_to']),
                 'notes' => $data['notes'] ?? null,
                 'created_by_user_id' => $request->user()?->id,
@@ -66,7 +65,6 @@ class ManualPartGroupController extends Controller
                 'name' => $data['name'],
                 'behavior' => $newBehavior,
                 'type' => $data['type'],
-                'status' => $data['status'],
                 'applies_to' => array_values($data['applies_to']),
                 'notes' => $data['notes'] ?? null,
             ]);
@@ -94,7 +92,6 @@ class ManualPartGroupController extends Controller
     {
         $this->authorizeManualUpdate($request, $manual);
         $this->ensureGroupBelongsToManual($partGroup, $manual);
-        $partGroup->update(['status' => ManualPartGroup::STATUS_INACTIVE]);
         $partGroup->delete();
         app(WorkorderStdProcessItemsService::class)->invalidateForManual((int) $manual->id);
 
@@ -106,7 +103,6 @@ class ManualPartGroupController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(ManualPartGroup::validTypes())],
-            'status' => ['required', Rule::in([ManualPartGroup::STATUS_DRAFT, ManualPartGroup::STATUS_ACTIVE, ManualPartGroup::STATUS_INACTIVE])],
             'applies_to' => ['required', 'array', 'min:1'],
             'applies_to.*' => [Rule::in(ManualPartGroup::validScopes())],
             'manual_service_bulletin_id' => ['nullable', 'integer', 'exists:manual_service_bulletins,id'],
@@ -256,7 +252,6 @@ class ManualPartGroupController extends Controller
             'name' => $group->name,
             'type' => $group->type,
             'behavior' => $group->behavior,
-            'status' => $group->status,
             'applies_to' => $group->applies_to,
             'service_bulletin_id' => $group->manual_service_bulletin_id,
             'notes' => $group->notes,

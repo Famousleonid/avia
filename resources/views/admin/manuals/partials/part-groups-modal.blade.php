@@ -6,7 +6,6 @@
             'name' => $group->name,
             'type' => $group->type,
             'behavior' => $group->behavior,
-            'status' => $group->status,
             'applies_to' => $group->applies_to ?: \App\Models\ManualPartGroup::validScopes(),
             'manual_service_bulletin_id' => $group->manual_service_bulletin_id,
             'notes' => $group->notes,
@@ -45,9 +44,7 @@
                             <button type="button" class="btn btn-sm btn-outline-primary" id="manual-part-group-new">{{ __('New from selected') }}</button>
                         </div>
                         <div class="list-group" id="manual-part-group-list"></div>
-                        <div class="small text-muted mt-3">
-                            {{ __('Draft groups do not affect PRL or STD forms. Activate a group only after its alternatives or composition have been checked.') }}
-                        </div>
+                        <div class="small text-muted mt-3">{{ __('Delete a group to ungroup its parts.') }}</div>
                     </div>
                     <div class="col-lg-8">
                         <form id="manual-part-group-form" data-store-url="{{ route('manuals.part-groups.store', ['manual' => $cmm]) }}">
@@ -66,15 +63,7 @@
                                         <option value="sb_kit">{{ __('Service Bulletin KIT') }}</option>
                                     </select>
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label" for="manual-part-group-status">{{ __('Status') }}</label>
-                                    <select class="form-select" id="manual-part-group-status">
-                                        <option value="draft">{{ __('Draft — no cross-outs') }}</option>
-                                        <option value="active">{{ __('Active') }}</option>
-                                        <option value="inactive">{{ __('Inactive') }}</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-8" id="manual-part-group-order-fields">
+                                <div class="col-12" id="manual-part-group-order-fields">
                                     <div class="row g-2">
                                         <div class="col-7">
                                             <label class="form-label" for="manual-part-group-order-pn">{{ __('Order P/N') }}</label>
@@ -148,8 +137,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const sbWrap = document.getElementById('manual-part-group-sb-wrap');
     const tbody = document.getElementById('manual-part-group-members');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    const typeLabels = { alternative_pn: 'ALT', oversize: 'O/S', assy: 'ASSY', sb_kit: 'SB KIT' };
-    const statusClasses = { active: 'text-bg-success', draft: 'text-bg-warning', inactive: 'text-bg-secondary' };
 
     function escapeHtml(value) {
         const span = document.createElement('span');
@@ -193,17 +180,14 @@ document.addEventListener('DOMContentLoaded', function () {
             componentGroups.forEach(function (group) {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = 'badge ' + (statusClasses[group.status] || 'text-bg-secondary') + ' manual-part-group-badge';
+                button.className = 'badge text-bg-success manual-part-group-badge';
                 button.dataset.partGroupId = String(group.id);
-                button.title = [group.name, typeLabels[group.type] || group.type, group.status].join(' · ');
+                button.title = group.name || group.code;
 
                 const name = document.createElement('span');
                 name.className = 'manual-part-group-badge-name';
                 name.textContent = group.name || group.code;
-                const meta = document.createElement('span');
-                meta.className = 'manual-part-group-badge-meta';
-                meta.textContent = (typeLabels[group.type] || group.type) + ' · ' + group.status.charAt(0).toUpperCase() + group.status.slice(1);
-                button.append(name, meta);
+                button.append(name);
                 container.append(button);
             });
 
@@ -232,7 +216,6 @@ document.addEventListener('DOMContentLoaded', function () {
     function resetForm(useSelection) {
         form.reset();
         document.getElementById('manual-part-group-id').value = '';
-        document.getElementById('manual-part-group-status').value = 'draft';
         document.querySelectorAll('.manual-part-group-scope').forEach(function (scope) { scope.checked = true; });
         members = useSelection ? selectedTableMembers() : [];
         if (members[0]) members[0].is_default = true;
@@ -245,7 +228,6 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('manual-part-group-id').value = group.id;
         document.getElementById('manual-part-group-name').value = group.name || '';
         type.value = group.type;
-        document.getElementById('manual-part-group-status').value = group.status;
         document.getElementById('manual-part-group-notes').value = group.notes || '';
         document.getElementById('manual-part-group-sb').value = group.manual_service_bulletin_id || '';
         const option = group.options[0] || {};
@@ -263,8 +245,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderList() {
         list.innerHTML = groups.length ? groups.map(function (group) {
-            const badge = group.status === 'active' ? 'success' : (group.status === 'draft' ? 'warning' : 'secondary');
-            return '<button type="button" class="list-group-item list-group-item-action part-group-list-item" data-id="' + group.id + '"><div class="d-flex justify-content-between"><strong>' + escapeHtml(group.name) + '</strong><span class="badge text-bg-' + badge + '">' + escapeHtml(group.status) + '</span></div><div class="small text-muted">' + escapeHtml(group.code) + ' · ' + escapeHtml(group.type) + '</div></button>';
+            return '<button type="button" class="list-group-item list-group-item-action part-group-list-item" data-id="' + group.id + '"><strong>' + escapeHtml(group.name) + '</strong><div class="small text-muted">' + escapeHtml(group.code) + ' · ' + escapeHtml(group.type) + '</div></button>';
         }).join('') : '<div class="text-muted small">{{ __('No groups yet.') }}</div>';
     }
 
@@ -278,7 +259,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         return {
             name: document.getElementById('manual-part-group-name').value.trim(), type: type.value,
-            status: document.getElementById('manual-part-group-status').value,
             applies_to: Array.from(document.querySelectorAll('.manual-part-group-scope:checked')).map(function (scope) { return scope.value; }),
             manual_service_bulletin_id: document.getElementById('manual-part-group-sb').value || null,
             notes: document.getElementById('manual-part-group-notes').value.trim() || null,

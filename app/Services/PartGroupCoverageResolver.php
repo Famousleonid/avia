@@ -22,7 +22,6 @@ class PartGroupCoverageResolver
 
         $groups = ManualPartGroup::query()
             ->whereIn('manual_id', $workorder->usedManualIds())
-            ->where('status', ManualPartGroup::STATUS_ACTIVE)
             ->with(['options.coverages', 'serviceBulletin:id,ac_mfg_service_bulletin_no,oem_service_bulletin_no'])
             ->get()
             ->filter(fn (ManualPartGroup $group): bool => $group->appliesTo($scope))

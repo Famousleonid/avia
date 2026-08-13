@@ -310,14 +310,9 @@
         #manualPartsTable .manual-part-group-badge-name {
             display: block;
             font-weight: 600;
-            overflow-wrap: anywhere;
-        }
-
-        #manualPartsTable .manual-part-group-badge-meta {
-            display: block;
-            margin-top: 2px;
-            font-size: .66rem;
-            opacity: .82;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         #manualPartsTable .manual-part-legacy-group {

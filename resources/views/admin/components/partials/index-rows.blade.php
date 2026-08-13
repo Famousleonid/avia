@@ -111,26 +111,11 @@
             <td class="text-center manual-part-choice-cell">
                 <div class="manual-part-groups-container">
                     @foreach($componentPartGroups as $partGroup)
-                        @php
-                            $partGroupTypeLabel = match ($partGroup->type) {
-                                \App\Models\ManualPartGroup::TYPE_ALTERNATIVE => 'ALT',
-                                \App\Models\ManualPartGroup::TYPE_OVERSIZE => 'O/S',
-                                \App\Models\ManualPartGroup::TYPE_ASSY => 'ASSY',
-                                \App\Models\ManualPartGroup::TYPE_SB_KIT => 'SB KIT',
-                                default => strtoupper((string) $partGroup->type),
-                            };
-                            $partGroupBadgeClass = match ($partGroup->status) {
-                                \App\Models\ManualPartGroup::STATUS_ACTIVE => 'text-bg-success',
-                                \App\Models\ManualPartGroup::STATUS_DRAFT => 'text-bg-warning',
-                                default => 'text-bg-secondary',
-                            };
-                        @endphp
                         <button type="button"
-                                class="badge {{ $partGroupBadgeClass }} manual-part-group-badge"
+                                class="badge text-bg-success manual-part-group-badge"
                                 data-part-group-id="{{ $partGroup->id }}"
-                                title="{{ $partGroup->name }} · {{ $partGroupTypeLabel }} · {{ ucfirst($partGroup->status) }}">
+                                title="{{ $partGroup->name }}">
                             <span class="manual-part-group-badge-name">{{ $partGroup->name }}</span>
-                            <span class="manual-part-group-badge-meta">{{ $partGroupTypeLabel }} · {{ ucfirst($partGroup->status) }}</span>
                         </button>
                     @endforeach
                 </div>
