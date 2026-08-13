@@ -1,5 +1,5 @@
 @php
-    $partGroupPayload = $partGroups->map(function ($group) {
+    $partGroupPayload = $partGroups->map(function ($group) use ($cmm) {
         return [
             'id' => (int) $group->id,
             'code' => $group->code,

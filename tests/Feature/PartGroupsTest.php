@@ -52,6 +52,11 @@ class PartGroupsTest extends TestCase
             'component_id' => $memberB->id,
             'qty' => 2,
         ]);
+
+        $this->actingAs($admin)
+            ->get(route('manuals.show', $manual))
+            ->assertOk()
+            ->assertSee('Main ASSY');
     }
 
     public function test_bundle_selection_covers_quantities_only_in_enabled_forms(): void
