@@ -150,6 +150,15 @@
                                                     <option value="{{$unit->id}}" data-name="{{ $unit->name }}" data-part-number="{{ $unit->part_number }}" data-manual-id="{{ $unit->manual_id ?? '' }}" data-verified="{{ $unit->verified ? 1 : 0 }}">{{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@else (Manual pending)@endif</option>
                                                 @endforeach
                                             </select>
+                                            @if($canUpdateWorkorderManuals)
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-info mt-2"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#workorderManualsModal">
+                                                    <i class="bi bi-journals me-1"></i>{{ __('WO Manuals') }}
+                                                    <span class="badge bg-info text-dark ms-1">{{ count($current_wo->usedManualIds()) }}/{{ count($current_wo->manualPackageIds()) }}</span>
+                                                </button>
+                                            @endif
                                         </div>
                                         <div class="form-group col-lg-4 mb-1">
                                             <label class="mb-1" for="customer_id">Customer</label>
@@ -380,6 +389,8 @@
             </div>
         </div>
     </div>
+
+    @include('admin.workorders.partials.manual-package-modal', ['current_workorder' => $current_wo])
 
 @endsection()
 

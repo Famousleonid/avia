@@ -708,7 +708,7 @@ class WorkorderController extends Controller
         $this->authorize('create', Workorder::class);
 
         $customers = Customer::query()->orderBy('name')->get();
-        $units = Unit::with('manuals')->get();
+        $units = Unit::with('manual')->get();
         $instructions = Instruction::all();
         $manuals = Manual::query()
             ->orderByRaw('CASE WHEN number IS NULL OR number = "" THEN 1 ELSE 0 END')
@@ -720,8 +720,10 @@ class WorkorderController extends Controller
             ->values();
         $currentUser = Auth::user();
         $draftInstructionId = Instruction::where('name','Draft')->value('id');
+        $canUpdateWorkorderManuals = auth()->user()?->can('workorders.manageManuals') ?? false;
+        $unitManualPackages = $this->unitManualPackages($units, $manuals);
 
-        return view('admin.workorders.create', compact('customers', 'units', 'instructions', 'users', 'currentUser', 'manuals','draftInstructionId'));
+        return view('admin.workorders.create', compact('customers', 'units', 'instructions', 'users', 'currentUser', 'manuals','draftInstructionId', 'canUpdateWorkorderManuals', 'unitManualPackages'));
     }
 
     public function draftMatches(Request $request, DraftWorkorderMatchService $draftWorkorderMatchService): JsonResponse
@@ -764,6 +766,9 @@ class WorkorderController extends Controller
             'storage_level'  => ['nullable','integer','min:1','max:999'],
             'storage_column' => ['nullable','integer','min:1','max:999'],
             'draft_duplicate_acknowledged' => ['nullable', 'boolean'],
+            'manual_selection_present' => ['nullable', 'boolean'],
+            'used_additional_manual_ids' => ['sometimes', 'array'],
+            'used_additional_manual_ids.*' => ['integer', 'distinct', 'exists:manuals,id'],
         ];
 
         // ✅ Если НЕ draft — номер обязателен и уникален
@@ -808,7 +813,26 @@ class WorkorderController extends Controller
             }
         }
 
-        unset($data['draft_duplicate_acknowledged']);
+        unset($data['draft_duplicate_acknowledged'], $data['manual_selection_present'], $data['used_additional_manual_ids']);
+
+        if ((auth()->user()?->can('workorders.manageManuals') ?? false)
+            && $request->boolean('manual_selection_present')) {
+            $additionalManualIds = $unit?->additionalManualIds() ?? [];
+            $usedAdditionalManualIds = collect($request->input('used_additional_manual_ids', []))
+                ->map(fn ($manualId): int => (int) $manualId)
+                ->unique()
+                ->values()
+                ->all();
+
+            if (array_diff($usedAdditionalManualIds, $additionalManualIds) !== []) {
+                return back()
+                    ->withErrors(['used_additional_manual_ids' => __('Only additional manuals assigned to the selected Unit can be used.')])
+                    ->withInput();
+            }
+
+            $data['additional_manual_ids'] = $additionalManualIds;
+            $data['not_used_manual_ids'] = array_values(array_diff($additionalManualIds, $usedAdditionalManualIds));
+        }
 
         $data = array_merge($data, [
             'part_missing' => $request->has('part_missing') ? 1 : 0,
@@ -912,8 +936,19 @@ class WorkorderController extends Controller
         $open_at = format_project_date($current_wo->open_at);
         $hasTdrs = $workorder->tdrs()->exists();
         $canChangeTechnik = auth()->user()?->hasAnyRole('Admin|Manager') ?? false;
+        $manualPackageIds = $workorder->manualPackageIds();
+        $manualPackageOrder = array_flip($manualPackageIds);
+        $workorderManualPackage = Manual::query()
+            ->whereIn('id', $manualPackageIds)
+            ->get()
+            ->sortBy(fn (Manual $packageManual): int => $manualPackageOrder[(int) $packageManual->id] ?? PHP_INT_MAX)
+            ->values();
+        $notUsedManualIds = $workorder->notUsedManualIds();
+        $unitAdditionalManualIds = $workorder->unit?->additionalManualIds() ?? [];
+        $manualPackageNeedsSync = $workorder->additionalManualIds() !== $unitAdditionalManualIds;
+        $canUpdateWorkorderManuals = auth()->user()?->can('workorders.manageManuals') ?? false;
 
-        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs','canChangeTechnik'));
+        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs','canChangeTechnik', 'workorderManualPackage', 'notUsedManualIds', 'manualPackageNeedsSync', 'canUpdateWorkorderManuals'));
 
     }
 
@@ -1167,6 +1202,29 @@ class WorkorderController extends Controller
                 : __('Manual is now NOT USED for this Workorder.'),
             'used_manual_ids' => $workorder->fresh('unit')->usedManualIds(),
         ]);
+    }
+
+    private function unitManualPackages(Collection $units, Collection $manuals): array
+    {
+        $manualsById = $manuals->keyBy('id');
+
+        return $units->mapWithKeys(function (Unit $unit) use ($manualsById): array {
+            $serialize = static fn (?Manual $manual): ?array => $manual ? [
+                'id' => (int) $manual->id,
+                'number' => (string) ($manual->number ?? ''),
+                'title' => (string) ($manual->title ?? ''),
+                'lib' => (string) ($manual->lib ?? ''),
+            ] : null;
+
+            return [(string) $unit->id => [
+                'primary' => $serialize($unit->manual),
+                'additional' => collect($unit->additionalManualIds())
+                    ->map(fn (int $manualId): ?array => $serialize($manualsById->get($manualId)))
+                    ->filter()
+                    ->values()
+                    ->all(),
+            ]];
+        })->all();
     }
 
     public function approveAjax(Request $request, Workorder $workorder)

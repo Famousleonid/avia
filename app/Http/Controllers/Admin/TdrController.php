@@ -62,13 +62,16 @@ class TdrController extends Controller
     const PROCESS_TYPE_LOG = 'log';
 
     /**
-     * Manuals remain browseable in TDR; edit permissions only control Add/Edit Part actions.
+     * Only the primary manual and used additional manuals snapshotted for this
+     * workorder are browseable in TDR. Edit permissions still control the
+     * Add/Edit Part actions independently.
      *
      * @return array{manuals: \Illuminate\Database\Eloquent\Collection, can_manage_all: bool, allowed_manual_ids: list<int>}
      */
-    private function tdrManualSelectionAccess(?User $user): array
+    private function tdrManualSelectionAccess(?User $user, Workorder $workorder): array
     {
         $manuals = Manual::query()
+            ->whereIn('id', $workorder->usedManualIds())
             ->orderBy('number')
             ->orderBy('title')
             ->get();
@@ -100,6 +103,48 @@ class TdrController extends Controller
             'can_manage_all' => false,
             'allowed_manual_ids' => $allowedManualIds,
         ];
+    }
+
+    /**
+     * Prevent a crafted TDR request from selecting a component outside the
+     * workorder's primary/used additional manual package.
+     *
+     * @param array<string, mixed> $componentIdsByField
+     */
+    private function validateTdrComponentManuals(Workorder $workorder, array $componentIdsByField): void
+    {
+        $componentIds = collect($componentIdsByField)
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($componentIds->isEmpty()) {
+            return;
+        }
+
+        $components = Component::query()
+            ->whereIn('id', $componentIds)
+            ->get(['id', 'manual_id'])
+            ->keyBy('id');
+        $usedManualIds = $workorder->usedManualIds();
+        $errors = [];
+
+        foreach ($componentIdsByField as $field => $componentId) {
+            $componentId = (int) $componentId;
+            if ($componentId <= 0) {
+                continue;
+            }
+
+            $component = $components->get($componentId);
+            if (! $component || ! in_array((int) $component->manual_id, $usedManualIds, true)) {
+                $errors[$field] = __('Selected part does not belong to a manual assigned to this workorder.');
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**
@@ -513,7 +558,7 @@ class TdrController extends Controller
         $manual_id = $current_wo->unit->manual_id;
         $user = Auth::user();
 
-        $manualAccess = $this->tdrManualSelectionAccess($user);
+        $manualAccess = $this->tdrManualSelectionAccess($user, $current_wo);
         $manuals = $manualAccess['manuals'];
         $canManageAllManualParts = $manualAccess['can_manage_all'];
         $allowedManualIds = $manualAccess['allowed_manual_ids'];
@@ -556,6 +601,17 @@ class TdrController extends Controller
             return response()->json(['components' => []]);
         }
 
+        $workorder = null;
+        if ($request->filled('workorder_id')) {
+            $workorder = Workorder::with('unit')->findOrFail($request->integer('workorder_id'));
+
+            if (! in_array((int) $manual_id, $workorder->usedManualIds(), true)) {
+                throw ValidationException::withMessages([
+                    'manual_id' => __('Selected manual is not assigned to this workorder.'),
+                ]);
+            }
+        }
+
         $componentsQuery = Component::where('manual_id', $manual_id)
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
             ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
@@ -569,12 +625,8 @@ class TdrController extends Controller
 
         $components = $componentsQuery->get();
 
-        if ($request->filled('workorder_id')) {
-            $workorder = Workorder::with('unit')->find($request->integer('workorder_id'));
-
-            if ($workorder && $workorder->unit) {
-                $components = $this->filterComponentsForUnit($components, $workorder);
-            }
+        if ($workorder && $workorder->unit) {
+            $components = $this->filterComponentsForUnit($components, $workorder);
         }
 
         $components = $this->sortComponentsForIplSelection($components);
@@ -621,6 +673,10 @@ class TdrController extends Controller
 
         // Загружаем необходимые сущности один раз
         $workorder = Workorder::findOrFail($validated['workorder_id']);
+        $this->validateTdrComponentManuals($workorder, [
+            'component_id' => $validated['component_id'] ?? null,
+            'order_component_id' => $validated['order_component_id'] ?? null,
+        ]);
         $code = Code::missing();
         $manufactureCode = Code::where('name', 'Manufacture')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
@@ -1743,7 +1799,7 @@ class TdrController extends Controller
             ->orderBy('date_training', 'desc')
             ->first();
 
-        $manualAccess = $this->tdrManualSelectionAccess($user);
+        $manualAccess = $this->tdrManualSelectionAccess($user, $current_wo);
         $manuals = $manualAccess['manuals'];
         $canManageAllManualParts = $manualAccess['can_manage_all'];
         $allowedManualIds = $manualAccess['allowed_manual_ids'];
@@ -2077,7 +2133,7 @@ class TdrController extends Controller
         if ($canReplaceTdrComponent && $current_tdr->workorder?->unit?->manual_id) {
             $components = $this->filterComponentsForUnit(
                 Component::query()
-                    ->where('manual_id', $current_tdr->workorder->unit->manual_id)
+                    ->whereIn('manual_id', $current_tdr->workorder->usedManualIds())
                     ->select('id', 'part_number', 'name', 'ipl_num', 'kit', 'np', 'kit_e', 'eff_code')
                     ->get(),
                 $current_tdr->workorder
@@ -2142,6 +2198,13 @@ class TdrController extends Controller
 
         if (! $canReplaceTdrComponent) {
             unset($validated['component_id']);
+        }
+
+        if (array_key_exists('component_id', $validated)) {
+            $tdr->loadMissing('workorder.unit');
+            $this->validateTdrComponentManuals($tdr->workorder, [
+                'component_id' => $validated['component_id'],
+            ]);
         }
 
         $orderNewNecessary = Necessary::where('name', 'Order New')->first();

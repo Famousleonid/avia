@@ -3477,6 +3477,7 @@
             // ---- Edit Unit / Update Components modal (bulk edit: load units, populate partNumbersList, Add PN, Update) ----
             var editUnitModal = document.getElementById('editUnitModal');
             var unitManualOptions = [];
+            var canManageUnitAdditionalManuals = @json(auth()->user()?->can('units.manageAdditionalManuals') ?? false);
             document.addEventListener('click', function (event) {
                 const button = event.target.closest('.btn-update-components');
                 if (!button) return;
@@ -3567,6 +3568,7 @@
                 additionalManualSelect.multiple = true;
                 additionalManualSelect.size = 3;
                 additionalManualSelect.title = '{{ __('Select every additional CMM used by this Unit') }}';
+                additionalManualSelect.disabled = !canManageUnitAdditionalManuals;
                 var selectedAdditionalIds = new Set((additionalManualIds || []).map(function (id) { return String(id); }));
                 unitManualOptions.forEach(function (manual) {
                     var option = document.createElement('option');
@@ -3629,17 +3631,22 @@
 	                    var inputs = listItem.querySelectorAll('.form-control');
 	                    var checkbox = listItem.querySelector('.form-check-input');
 	                    var additionalManualSelect = listItem.querySelector('.manual-unit-additional-manuals');
-	                    return {
+	                    var partNumberPayload = {
                         part_number: inputs[0] ? inputs[0].value : '',
                         eff_code: inputs[1] ? inputs[1].value : '',
-                        additional_manual_ids: additionalManualSelect
-                            ? Array.from(additionalManualSelect.selectedOptions).map(function (option) { return Number(option.value); })
-                            : [],
                         unit_match_value: inputs[2] ? inputs[2].value : '',
                         include_prefix: inputs[3] ? inputs[3].value : '',
                         exclude_prefix: inputs[4] ? inputs[4].value : '',
 	                        verified: !!(checkbox && checkbox.checked)
 	                    };
+
+                        if (canManageUnitAdditionalManuals) {
+                            partNumberPayload.additional_manual_ids = additionalManualSelect
+                                ? Array.from(additionalManualSelect.selectedOptions).map(function (option) { return Number(option.value); })
+                                : [];
+                        }
+
+                        return partNumberPayload;
 	                });
                     var defaultIncludeInput = document.getElementById('defaultIncludePrefix');
                     var defaultExcludeInput = document.getElementById('defaultExcludePrefix');

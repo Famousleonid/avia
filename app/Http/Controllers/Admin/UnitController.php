@@ -164,6 +164,11 @@ class UnitController extends Controller
 
     public function update($manualId, Request $request)
     {
+        $canManageAdditionalManuals = auth()->user()?->can('units.manageAdditionalManuals') ?? false;
+        $containsAdditionalManualChanges = collect($request->input('part_numbers', []))
+            ->contains(fn ($unit): bool => is_array($unit) && array_key_exists('additional_manual_ids', $unit));
+
+        abort_if($containsAdditionalManualChanges && ! $canManageAdditionalManuals, 403);
 
         try {
             Manual::findOrFail($manualId);
@@ -199,11 +204,14 @@ class UnitController extends Controller
                 $attributes = [
                     'name'     => $unit['name'] ?? null,
                     'verified' => (bool) ($unit['verified'] ?? false),
-                    'additional_manual_ids' => $this->normalizeAdditionalManualIds(
-                        $unit['additional_manual_ids'] ?? [],
-                        (int) $manualId
-                    ),
                 ];
+
+                if ($canManageAdditionalManuals && array_key_exists('additional_manual_ids', $unit)) {
+                    $attributes['additional_manual_ids'] = $this->normalizeAdditionalManualIds(
+                        $unit['additional_manual_ids'],
+                        (int) $manualId
+                    );
+                }
 
                 if (array_key_exists('eff_code', $unit)) {
                     $attributes['eff_code'] = $unit['eff_code'] !== null && (string) $unit['eff_code'] !== ''
@@ -268,6 +276,12 @@ class UnitController extends Controller
      */
     public function updateSingle(Unit $unit, Request $request)
     {
+        abort_if(
+            $request->has('additional_manual_ids')
+            && ! (auth()->user()?->can('units.manageAdditionalManuals') ?? false),
+            403
+        );
+
         $data = $request->validate([
             'part_number' => [
                 'required',

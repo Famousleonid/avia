@@ -184,11 +184,26 @@
                                                     <option
                                                         value="{{$unit->id}}"
                                                         data-name="{{ $unit->name }}"
+                                                        data-manual-id="{{ $unit->manual_id ?? '' }}"
+                                                        data-manual-number="{{ $unit->manual?->number ?? '' }}"
+                                                        data-manual-title="{{ $unit->manual?->title ?? '' }}"
+                                                        data-manual-lib="{{ $unit->manual?->lib ?? '' }}"
                                                         {{ (string) old('unit_id') === (string) $unit->id ? 'selected' : '' }}>
                                                         {{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@endif
                                                     </option>
                                                 @endforeach
                                             </select>
+                                            @if($canUpdateWorkorderManuals)
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-info mt-2"
+                                                        id="createWorkorderManualsBtn"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#createWorkorderManualsModal"
+                                                        disabled>
+                                                    <i class="bi bi-journals me-1"></i>{{ __('WO Manuals') }}
+                                                    <span class="badge bg-info text-dark ms-1" id="createWorkorderManualsCount">0/0</span>
+                                                </button>
+                                            @endif
                                         </div>
                                         <div class="form-group col-lg-4 mb-1">
                                             <label for="customer_id">Customer <span style="color:red; font-size: x-small">(required)</span>
@@ -306,6 +321,10 @@
             </form>
         </div>
     </div>
+
+    @if($canUpdateWorkorderManuals)
+        @include('admin.workorders.partials.create-manual-package-modal')
+    @endif
 
     <!-- Модальное окно add Unit -->
     <div class="modal fade" id="draftMatchModal" tabindex="-1" aria-labelledby="draftMatchModalLabel" aria-hidden="true" data-bs-backdrop="static">
@@ -850,6 +869,10 @@
                             : data.part_number;
                         const option = new Option(label, data.id, true, true);
                         option.setAttribute('data-name', data.name || '');
+                        option.setAttribute('data-manual-id', data.manual_id || cmmSelect.value || '');
+                        option.setAttribute('data-manual-number', data.manual_number || cmmSelect.options[cmmSelect.selectedIndex]?.textContent?.trim() || '');
+                        option.setAttribute('data-manual-title', data.manual_title || cmmSelect.options[cmmSelect.selectedIndex]?.dataset.title || '');
+                        option.setAttribute('data-manual-lib', data.manual_lib || '');
                         $('#unit_id').append(option).trigger('change');
 
                         // Подставить name в description workorder, если name заполнено

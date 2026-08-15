@@ -146,9 +146,11 @@
 
 <div class="container-fluid p-0">
     <div class="row g-0 page-layout">
-        <div id="sidebarColumn" class="bg-body p-0 col-auto">
-            @include('components.sidebar')
-        </div>
+        @if(empty($userGuideEmbed))
+            <div id="sidebarColumn" class="bg-body p-0 col-auto">
+                @include('components.sidebar')
+            </div>
+        @endif
         <div class="content col bg-body pt-0">
             <div class="content-inner px-0">
                 @include('components.status')
@@ -349,7 +351,9 @@
 
 @yield('scripts')
 
-@include('partials.notifications-settings-modal')
+@if(empty($userGuideEmbed))
+    @include('partials.notifications-settings-modal')
+@endif
 
 <script>
     // Подавляем ошибки MetaMask и другие некритичные ошибки

@@ -61,6 +61,11 @@
         || $canManageLibraryCountries
         || $canManageLibraryBusinessTypes;
 @endphp
+    <li class="nav-item press-spinner">
+        <a href="{{ route('admin.user-guide', ['center' => 1]) }}" class="nav-link {{ request()->routeIs('admin.user-guide') ? 'active' : '' }}">
+            <i class="bi bi-journal-bookmark me-2"></i> <span>User Guide</span>
+        </a>
+    </li>
 @if($minimalShopSidebar)
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{ route('users.index') }}">
@@ -115,7 +120,7 @@
     @can('feature.marketing')
         <li class="nav-item">
             <a class="nav-link press-spinner {{ request()->routeIs('marketing.*') ? 'active' : '' }}" href="{{ route('marketing.index') }}">
-                <i class="bi bi-megaphone me-2"></i> <span>Marketing</span>
+                <i class="bi bi-megaphone me-2"></i> <span>Sales</span>
             </a>
         </li>
     @endcan
@@ -316,11 +321,6 @@
     @endcan
 
     @admin
-        <li class="nav-item press-spinner">
-            <a href="{{ route('admin.user-guide') }}" class="nav-link {{ request()->routeIs('admin.user-guide') ? 'active' : '' }}">
-                <i class="bi bi-journal-bookmark me-2"></i> <span>User Guide</span>
-            </a>
-        </li>
         <li class="nav-item press-spinner">
             <a href="{{ route('admin.notification-rules.index') }}" class="nav-link">
                 <i class="bi bi-bell me-2"></i> <span>Notification rules</span>

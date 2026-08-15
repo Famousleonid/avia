@@ -320,6 +320,69 @@ Nital Etch Inspection is not a STD database/list.
 
 ## Avia Storage Audit
 
+### 2026-08-14 stale deleted-detail example: R9238 / W107873
+
+Confirmed against both current production staging and live Quantum Oracle:
+
+```text
+Production quantum_ro_lines source_uid = rod:33264
+RO = R9238
+WO = W107873
+ROD_AUTO_KEY = 33264
+WOB_AUTO_KEY = 720688
+WOO_AUTO_KEY = 8183
+PN = 55325-101
+SN = SPP011099
+REF at import time = T1
+first_seen_at = 13/Aug/2026 08:48:09
+last_seen_at  = 13/Aug/2026 08:53:09
+apply_status = unresolved
+applied target = none
+```
+
+The current Oracle state no longer contains `RO_DETAIL.ROD_AUTO_KEY = 33264`.
+Current `R9238` contains only `ROD_AUTO_KEY = 33263`, linked to `W107784`.
+`WO_BOM.WOB_AUTO_KEY = 720688` still belongs to `W107873` and PN
+`55325-101`, but its current `REF` is null.
+
+Therefore the bridge did not invent the WO: while ROD 33264 existed, the
+confirmed join `RO_DETAIL.WOB_AUTO_KEY -> WO_BOM.WOO_AUTO_KEY ->
+WO_OPERATION.SI_NUMBER` produced `W107873`. The Quantum detail was later
+removed/unlinked and the BOM REF was cleared. Because staging is upsert-only
+and the bridge sends only rows returned by the current SELECT, disappearance
+of a Quantum row does not delete or dismiss its existing `quantum_ro_lines`
+record. Vendor Tracking can consequently show a stale unresolved row after
+the source detail has been deleted.
+
+Important display/audit rule:
+
+```text
+last_seen_at is the last time the exact source row was returned by Quantum.
+An old last_seen_at combined with a current Oracle miss means the staging row
+is historical/stale, not a current RO-to-WO relationship.
+```
+
+The current production persistence audit contains no write from this stale
+line into a W107873 STD row. The exact timeline is:
+
+```text
+13/Aug/2026 07:10:02  R9238 -> tdr_processes 2551..2559, W107784,
+                      PN 49203-107, nine Traveler 1 rows
+13/Aug/2026 08:48:09  rod:33264 first staged as R9238 / W107873 /
+                      PN 55325-101 / REF T1
+13/Aug/2026 08:48-08:53 rod:33264 remained unresolved because W107873 had
+                        no matching Traveler 1 target
+13/Aug/2026 12:35:01  R9241 -> workorder_std_processes 604, W107873 NDT;
+                      activity old value was repair_order = null
+```
+
+`activity_log` has no `WorkorderStdProcess` event containing `R9238`; every
+persisted `R9238` event is one of the nine W107784 `TdrProcess` updates above.
+The W107873 STD row is activity-logged and its R9241 update explicitly records
+the previous RO as null. Therefore an observed R9238 display in the W107873 STD
+cell would require a separate unlogged/display path; it is not the persisted
+result of `rod:33264` in the production database audit.
+
 Vendor Tracking presents the staging buffer in two sections:
 
 ```text

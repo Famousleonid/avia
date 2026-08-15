@@ -61,26 +61,9 @@
             opacity: 1 !important;
         }
 
-        .dir-top-manuals-btn {
-            --bs-btn-padding-y: .04rem;
-            --bs-btn-padding-x: .38rem;
-            --bs-btn-font-size: .68rem;
-            flex: 0 0 auto;
-            line-height: 1rem;
-        }
-
         @media (max-width: 767.98px) {
             .dir-top-info-grid {
                 grid-template-columns: minmax(0, 1fr);
-            }
-
-            .dir-top-line--manuals {
-                flex-wrap: wrap;
-                row-gap: .2rem;
-            }
-
-            .dir-top-line--manuals .dir-top-v {
-                flex: 1 1 190px;
             }
         }
 
@@ -228,12 +211,14 @@
                                                     @endif
                                                 </a>
 
-                                                <a href="{{ route('tools.index', ['workorder_id' => $current_workorder->id, 'workorder' => $current_workorder->number, 'user' => auth()->user()?->selection_name]) }}"
-                                                   class="btn btn-outline-primary dir-top-square-btn ms-2"
-                                                   data-tippy-content="{{ __('Tools') }}"
-                                                   onclick="showLoadingSpinner()">
-                                                    <i class="bi bi-tools"></i>
-                                                </a>
+                                                @admin
+                                                    <a href="{{ route('tools.index', ['workorder_id' => $current_workorder->id, 'workorder' => $current_workorder->number, 'user' => auth()->user()?->selection_name]) }}"
+                                                       class="btn btn-outline-primary dir-top-square-btn ms-2"
+                                                       data-tippy-content="{{ __('Tools') }}"
+                                                       onclick="showLoadingSpinner()">
+                                                        <i class="bi bi-tools"></i>
+                                                    </a>
+                                                @endadmin
 
                                                 @role('Admin')
                                                 <a class="btn btn-outline-warning dir-top-square-btn open-log-modal ms-2"
@@ -293,20 +278,9 @@
                                                     <span class="dir-top-k">Instruction:</span>
                                                     <span class="dir-top-v">{{ $instructionValue }}</span>
                                                 </div>
-                                                <div class="dir-top-line dir-top-line--manuals align-items-center">
+                                                <div class="dir-top-line">
                                                     <span class="dir-top-k">Manual:</span>
                                                     <span class="dir-top-v">{{ $manualValue }}</span>
-                                                    <button type="button"
-                                                            class="btn btn-outline-info dir-top-manuals-btn"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#workorderManualsModal"
-                                                            data-tippy-content="{{ __('Manage manuals for this Workorder') }}">
-                                                        <i class="bi bi-journals"></i>
-                                                        {{ __('WO Manuals') }}
-                                                        @if($manualPackageNeedsSync)
-                                                            <span class="badge bg-warning text-dark ms-1">{{ __('Sync') }}</span>
-                                                        @endif
-                                                    </button>
                                                 </div>
                                             </div>
                                             <div class="dir-top-cell">
@@ -1347,8 +1321,6 @@
     </div>
 
     {{-- Форма для delete через модалку (mains / tdrprocesses) --}}
-    @include('admin.workorders.partials.manual-package-modal')
-
     <form id="deleteForm" method="POST" class="d-none">
         @csrf
         @method('DELETE')

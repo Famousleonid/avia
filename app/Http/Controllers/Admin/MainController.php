@@ -217,17 +217,6 @@ class MainController extends Controller
 
         // Manual images (thumb/big)
         $manual = optional($current_workorder->unit)->manual;
-        $manualPackageIds = $current_workorder->manualPackageIds();
-        $manualPackageOrder = array_flip($manualPackageIds);
-        $workorderManualPackage = Manual::query()
-            ->whereIn('id', $manualPackageIds)
-            ->get()
-            ->sortBy(fn (Manual $packageManual): int => $manualPackageOrder[(int) $packageManual->id] ?? PHP_INT_MAX)
-            ->values();
-        $notUsedManualIds = $current_workorder->notUsedManualIds();
-        $unitAdditionalManualIds = $current_workorder->unit?->additionalManualIds() ?? [];
-        $manualPackageNeedsSync = $current_workorder->additionalManualIds() !== $unitAdditionalManualIds;
-        $canUpdateWorkorderManuals = auth()->user()?->can('workorders.manageManuals') ?? false;
         $additionalManualLibValues = [];
         if ($manual) {
             $additionalManualIds = collect(Manual::manualIdsForWorkorder((int) $current_workorder->id))
@@ -603,10 +592,6 @@ class MainController extends Controller
             'imgThumb',
             'imgFull',
             'manual',
-            'workorderManualPackage',
-            'notUsedManualIds',
-            'manualPackageNeedsSync',
-            'canUpdateWorkorderManuals',
             'additionalManualLibValues',
             'components',
             'ordersPartsNew',

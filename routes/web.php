@@ -44,6 +44,7 @@ use App\Http\Controllers\Admin\UserUiSettingController;
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\VendorTrackingController;
 use App\Http\Controllers\Admin\WorkorderController;
+use App\Http\Controllers\Admin\UserGuideController;
 use App\Http\Controllers\Admin\WorkorderStdProcessController;
 use App\Http\Controllers\Admin\WorkorderKitPrlCrossoutController;
 use App\Http\Controllers\Admin\WorkorderPartGroupSelectionController;
@@ -138,9 +139,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/user-ui-settings', [UserUiSettingController::class, 'store'])->name('user-ui-settings.store');
 });
 
-Route::view('/admin/user-guide', 'admin.user-guide')
-    ->middleware(['auth', 'verified', 'desktop', 'isAdmin'])
+Route::get('/admin/user-guide', [UserGuideController::class, 'index'])
+    ->middleware(['auth', 'verified', 'desktop'])
     ->name('admin.user-guide');
+Route::get('/admin/user-guide/workorder-main', [UserGuideController::class, 'workorderMain'])
+    ->middleware(['auth', 'verified', 'desktop'])
+    ->name('admin.user-guide.workorder-main');
 
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
