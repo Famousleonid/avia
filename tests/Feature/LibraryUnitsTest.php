@@ -115,7 +115,7 @@ class LibraryUnitsTest extends TestCase
             ->assertSee('Add as copy');
     }
 
-    public function test_library_units_manage_and_display_additional_manuals_with_lib(): void
+    public function test_library_units_do_not_manage_manual_level_additional_manuals(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $primaryManual = $this->createManual([
@@ -126,6 +126,7 @@ class LibraryUnitsTest extends TestCase
             'number' => 'CMM-UNIT-EXTRA',
             'lib' => '240',
         ]);
+        $primaryManual->update(['additional_manual_ids' => [$additionalManual->id]]);
 
         $create = $this->actingAs($admin)->post(route('library.units.store'), [
             'part_number' => 'LIBRARY-ADDITIONAL-UNIT',
@@ -143,10 +144,8 @@ class LibraryUnitsTest extends TestCase
             'q' => 'LIBRARY-ADDITIONAL-UNIT',
         ]));
         $index->assertOk();
-        $index->assertSee('Additional Manuals');
-        $index->assertSee('CMM-UNIT-EXTRA');
-        $index->assertSee('<span class="text-secondary">(240)</span>', false);
-        $index->assertSee('additional_manual_ids', false);
+        $index->assertDontSee('name="additional_manual_ids[]"', false);
+        $index->assertDontSee('unit-additional-manual-select', false);
 
         $update = $this->actingAs($admin)->put(route('library.units.update', $unit), [
             'part_number' => $unit->part_number,
@@ -156,7 +155,8 @@ class LibraryUnitsTest extends TestCase
         ]);
 
         $update->assertRedirect(route('library.units.index'))->assertSessionHasNoErrors();
-        $this->assertSame([$primaryManual->id], $unit->fresh()->additionalManualIds());
+        $this->assertSame([], $unit->fresh()->additionalManualIds());
+        $this->assertSame([$additionalManual->id], $primaryManual->fresh()->additionalManualIds());
     }
 
     public function test_library_units_are_admin_only(): void

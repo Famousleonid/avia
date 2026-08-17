@@ -44,4 +44,9 @@ class ManualPartGroupOption extends Model
     {
         return $this->hasMany(ManualPartGroupCoverage::class)->orderBy('id');
     }
+
+    public function incomingCoverages(): HasMany
+    {
+        return $this->hasMany(ManualPartGroupCoverage::class, 'covered_manual_part_group_option_id');
+    }
 }

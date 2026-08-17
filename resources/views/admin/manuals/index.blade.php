@@ -38,6 +38,41 @@
             max-width: 70px;
         }
 
+        .table th:nth-child(7), .table td:nth-child(7) {
+            min-width: 190px;
+            max-width: 260px;
+        }
+
+        .table th:nth-child(8), .table td:nth-child(8) {
+            min-width: 90px;
+            max-width: 130px;
+        }
+
+        .manual-additional-cell {
+            padding: 0 !important;
+        }
+
+        .manual-additional-cell-button {
+            min-height: 44px;
+            border: 0;
+            border-radius: 0;
+            color: inherit;
+            background: transparent;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .manual-additional-cell-button:hover,
+        .manual-additional-cell-button:focus-visible {
+            color: var(--bs-info);
+            background: rgba(var(--bs-info-rgb), .1);
+        }
+
+        #additionalManualsModal .select2-container {
+            width: 100% !important;
+        }
+
         .table thead th {
             position: sticky;
             height: 32px;
@@ -282,6 +317,7 @@
                         <th class="text-primary text-center sortable bg-gradient" data-direction="asc">
                             {{ __('Lib') }} <i class="bi bi-chevron-expand ms-1"></i>
                         </th>
+                        <th class="text-primary text-center bg-gradient">{{ __('Additional Manuals') }}</th>
                         <th class="text-primary text-center bg-gradient">
                             @role('Admin')
                                 <label class="d-inline-flex align-items-center justify-content-center gap-1 mb-1 small text-nowrap"
@@ -342,6 +378,34 @@
 
                             <td class="text-center">{{ format_project_date($cmm->revision_date) ?? '-' }}</td>
                             <td class="text-center">{{ $cmm->lib }}</td>
+
+                            <td class="manual-additional-cell">
+                                @if($canManageAdditionalManuals && !$isDeletedManual)
+                                    <button type="button"
+                                            class="btn w-100 h-100 px-2 py-2 text-start manual-additional-cell-button"
+                                            data-manual-id="{{ $cmm->id }}"
+                                            data-manual-number="{{ $cmm->number }}"
+                                            data-update-url="{{ route('manuals.additional-manuals.update', $cmm) }}"
+                                            data-selected-ids='@json($cmm->additionalManualIds())'
+                                            title="{{ __('Click to edit Additional Manuals') }}">
+                                        <span class="manual-additional-cell-content">
+                                            @if(empty($cmm->additional_manuals_display))
+                                                <span class="text-info"><i class="bi bi-plus-circle me-1"></i>{{ __('Add') }}</span>
+                                            @else
+                                                @include('admin.partials.additional-manuals', [
+                                                    'additionalManuals' => $cmm->additional_manuals_display,
+                                                ])
+                                            @endif
+                                        </span>
+                                    </button>
+                                @else
+                                    <div class="px-2 py-2">
+                                        @include('admin.partials.additional-manuals', [
+                                            'additionalManuals' => $cmm->additional_manuals_display ?? [],
+                                        ])
+                                    </div>
+                                @endif
+                            </td>
 
                             <td class="text-center">
                                 @if($isDeletedManual)
@@ -410,6 +474,40 @@
             </div>
         @endif
     </div>
+
+    @if($canManageAdditionalManuals)
+        <div class="modal fade" id="additionalManualsModal" tabindex="-1" aria-labelledby="additionalManualsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content text-bg-dark border-secondary">
+                    <div class="modal-header border-secondary">
+                        <div>
+                            <h5 class="modal-title" id="additionalManualsModalLabel">{{ __('Additional Manuals') }}</h5>
+                            <div class="small text-secondary" id="additionalManualsManualNumber"></div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="additionalManualsErrors" class="alert alert-danger d-none"></div>
+                        <label class="form-label" for="additionalManualIdsSelect">{{ __('Additional Manuals available for every Unit of this CMM') }}</label>
+                        <select id="additionalManualIdsSelect" class="form-select" multiple>
+                            @foreach($additionalManualOptions as $manualOption)
+                                <option value="{{ $manualOption->id }}">
+                                    {{ $manualOption->number ?: '-' }}@if(filled($manualOption->lib)) ({{ $manualOption->lib }})@endif : {{ $manualOption->title }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">
+                            {{ __('A manager can disable selected manuals later for an individual Workorder.') }}
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                        <button type="button" class="btn btn-primary" id="saveAdditionalManualsBtn">{{ __('Save') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="createCmmOffcanvas" aria-labelledby="createCmmOffcanvasLabel">
         <div class="offcanvas-header">
@@ -878,6 +976,130 @@
                     if (button.dataset.originalText) button.innerHTML = button.dataset.originalText;
                 }
             }
+
+            const additionalManualsModal = document.getElementById('additionalManualsModal');
+            const additionalManualsSelect = document.getElementById('additionalManualIdsSelect');
+            const additionalManualsNumber = document.getElementById('additionalManualsManualNumber');
+            const additionalManualsErrors = document.getElementById('additionalManualsErrors');
+            const saveAdditionalManualsBtn = document.getElementById('saveAdditionalManualsBtn');
+            let activeAdditionalManualCell = null;
+
+            function renderAdditionalManualCell(button, manuals) {
+                const content = button?.querySelector('.manual-additional-cell-content');
+                if (!content) return;
+
+                content.replaceChildren();
+                if (!Array.isArray(manuals) || manuals.length === 0) {
+                    const empty = document.createElement('span');
+                    empty.className = 'text-info';
+                    const icon = document.createElement('i');
+                    icon.className = 'bi bi-plus-circle me-1';
+                    empty.append(icon, document.createTextNode('{{ __('Add') }}'));
+                    content.appendChild(empty);
+                    return;
+                }
+
+                manuals.forEach(function (manual, index) {
+                    if (index > 0) content.appendChild(document.createTextNode(', '));
+                    const label = document.createElement('span');
+                    label.className = 'text-nowrap';
+                    label.appendChild(document.createTextNode(manual.number || '-'));
+                    if (manual.lib) {
+                        const lib = document.createElement('span');
+                        lib.className = 'text-secondary';
+                        lib.textContent = ' (' + manual.lib + ')';
+                        label.appendChild(lib);
+                    }
+                    content.appendChild(label);
+                });
+            }
+
+            function prepareAdditionalManualSelect(button) {
+                if (!additionalManualsSelect) return;
+
+                const currentManualId = String(button.dataset.manualId || '');
+                let selectedIds = [];
+                try {
+                    selectedIds = JSON.parse(button.dataset.selectedIds || '[]').map(String);
+                } catch (error) {
+                    selectedIds = [];
+                }
+
+                Array.from(additionalManualsSelect.options).forEach(function (option) {
+                    option.disabled = option.value === currentManualId;
+                    option.selected = !option.disabled && selectedIds.includes(option.value);
+                });
+
+                if (window.jQuery && jQuery.fn.select2) {
+                    const $select = jQuery(additionalManualsSelect);
+                    if (!$select.hasClass('select2-hidden-accessible')) {
+                        $select.select2({
+                            width: '100%',
+                            placeholder: '{{ __('Select Additional Manuals') }}',
+                            dropdownParent: jQuery(additionalManualsModal)
+                        });
+                    }
+                    $select.trigger('change.select2');
+                }
+            }
+
+            document.addEventListener('click', function (event) {
+                const button = event.target.closest('.manual-additional-cell-button');
+                if (!button || !additionalManualsModal) return;
+                event.preventDefault();
+
+                activeAdditionalManualCell = button;
+                if (additionalManualsNumber) {
+                    additionalManualsNumber.textContent = 'CMM: ' + (button.dataset.manualNumber || '');
+                }
+                setDrawerErrors(additionalManualsErrors, {}, '');
+                prepareAdditionalManualSelect(button);
+                bootstrap.Modal.getOrCreateInstance(additionalManualsModal).show();
+            });
+
+            saveAdditionalManualsBtn?.addEventListener('click', async function () {
+                if (!activeAdditionalManualCell || !additionalManualsSelect) return;
+
+                setDrawerErrors(additionalManualsErrors, {}, '');
+                setSubmitting(saveAdditionalManualsBtn, '{{ __('Saving...') }}', true);
+
+                try {
+                    const selectedIds = Array.from(additionalManualsSelect.selectedOptions)
+                        .filter(option => !option.disabled)
+                        .map(option => Number(option.value));
+                    const response = await fetch(activeAdditionalManualCell.dataset.updateUrl, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': cmmCsrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ additional_manual_ids: selectedIds }),
+                    });
+                    const data = await response.json().catch(() => ({}));
+
+                    if (!response.ok || !data.success) {
+                        setDrawerErrors(additionalManualsErrors, data, '{{ __('Unable to update Additional Manuals.') }}');
+                        return;
+                    }
+
+                    activeAdditionalManualCell.dataset.selectedIds = JSON.stringify(data.additional_manual_ids || []);
+                    renderAdditionalManualCell(activeAdditionalManualCell, data.additional_manuals || []);
+                    const row = activeAdditionalManualCell.closest('tr');
+                    if (row) row.dataset.searchText = (row.textContent || '').toLowerCase();
+                    bootstrap.Modal.getOrCreateInstance(additionalManualsModal).hide();
+                    if (typeof showNotification === 'function') {
+                        showNotification(data.message || '{{ __('Additional Manuals updated successfully.') }}', 'success');
+                    }
+                } catch (error) {
+                    setDrawerErrors(additionalManualsErrors, {}, '{{ __('Unable to update Additional Manuals.') }}');
+                } finally {
+                    setSubmitting(saveAdditionalManualsBtn, '{{ __('Saving...') }}', false);
+                    hideGlobalSpinner();
+                }
+            });
 
             function escapeAttr(value) {
                 return String(value || '')

@@ -67,6 +67,15 @@ class UserGuideTest extends TestCase
         $response->assertSee('img/user-guide/technician-mobile-workorder.png', false);
         $response->assertSee('img/user-guide/technician-mobile-photos.png', false);
 
+        $sidebar = view('components.admin_menu_sidebar', [
+            'themeToggleId' => 'test-theme-toggle',
+        ])->render();
+        $userGuidePosition = strpos($sidebar, '>User Guide</span>');
+        $themePosition = strpos($sidebar, '>Thema</span>');
+        $this->assertNotFalse($userGuidePosition);
+        $this->assertNotFalse($themePosition);
+        $this->assertLessThan($themePosition, $userGuidePosition);
+
         $this->actingAs($admin)
             ->get(route('admin.user-guide.workorder-main'))
             ->assertOk()
@@ -101,14 +110,21 @@ class UserGuideTest extends TestCase
         $manager = $this->createUserWithRole('Manager');
         $this->trainingWorkorderFor($this->createUserWithRole('Technician'));
 
-        $this->actingAs($manager)
-            ->get(route('admin.user-guide'))
-            ->assertOk();
+        $managerGuideResponse = $this->actingAs($manager)
+            ->get(route('admin.user-guide'));
+        $managerGuideResponse->assertOk();
 
         $this->actingAs($manager)
             ->get(route('admin.user-guide.workorder-main'))
             ->assertOk()
             ->assertSee('100000');
+
+        $this->assertStringNotContainsString(
+            'href="' . route('admin.user-guide', ['center' => 1]) . '"',
+            view('components.admin_menu_sidebar', [
+                'themeToggleId' => 'test-theme-toggle',
+            ])->render()
+        );
     }
 
     public function test_team_leader_can_open_the_user_guide(): void
@@ -125,19 +141,19 @@ class UserGuideTest extends TestCase
             ->assertOk()
             ->assertSee('100000');
 
-        $this->assertStringContainsString(
+        $this->assertStringNotContainsString(
             'href="' . route('admin.user-guide', ['center' => 1]) . '"',
             view('components.admin_menu_sidebar')->render()
         );
     }
 
-    public function test_minimal_shop_role_sees_user_guide_in_sidebar(): void
+    public function test_minimal_shop_role_does_not_see_user_guide_in_sidebar(): void
     {
         $paintUser = $this->createUserWithRole('Paint');
 
         $this->actingAs($paintUser);
 
-        $this->assertStringContainsString(
+        $this->assertStringNotContainsString(
             'href="' . route('admin.user-guide', ['center' => 1]) . '"',
             view('components.admin_menu_sidebar')->render()
         );

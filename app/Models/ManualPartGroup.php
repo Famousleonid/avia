@@ -17,7 +17,7 @@ class ManualPartGroup extends Model
     public const TYPE_ALTERNATIVE = 'alternative_pn';
     public const TYPE_OVERSIZE = 'oversize';
     public const TYPE_ASSY = 'assy';
-    public const TYPE_SB_KIT = 'sb_kit';
+    public const TYPE_KIT = 'kit';
 
     public const SCOPE_PRL = 'prl';
     public const SCOPE_NDT = 'ndt';
@@ -43,7 +43,7 @@ class ManualPartGroup extends Model
 
     public static function validTypes(): array
     {
-        return [self::TYPE_ALTERNATIVE, self::TYPE_OVERSIZE, self::TYPE_ASSY, self::TYPE_SB_KIT];
+        return [self::TYPE_ALTERNATIVE, self::TYPE_OVERSIZE, self::TYPE_ASSY, self::TYPE_KIT];
     }
 
     public static function validScopes(): array
@@ -53,7 +53,7 @@ class ManualPartGroup extends Model
 
     public static function behaviorForType(string $type): string
     {
-        return in_array($type, [self::TYPE_ASSY, self::TYPE_SB_KIT], true)
+        return in_array($type, [self::TYPE_ASSY, self::TYPE_KIT], true)
             ? self::BEHAVIOR_BUNDLE
             : self::BEHAVIOR_CHOOSE_ONE;
     }

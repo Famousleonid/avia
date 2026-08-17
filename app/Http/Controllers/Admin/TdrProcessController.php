@@ -430,6 +430,15 @@ class TdrProcessController extends Controller
             if ($standaloneEcOnly && ! $isEcProcessName) {
                 return response()->json(['error' => __('“EC only” applies only to process name EC.')], 422);
             }
+
+            // A Process Name chosen explicitly as EC is always a user-managed,
+            // standalone EC row. Companion EC rows are created only by the
+            // Machining/RIL synchronization block below and are explicitly saved
+            // with standalone_ec_only = false.
+            if ($isEcProcessName) {
+                $standaloneEcOnly = true;
+            }
+
             if ($standaloneEcOnly) {
                 $procIds = is_array($data['processes'] ?? null) ? $data['processes'] : [];
                 if (count(array_filter($procIds)) === 0) {

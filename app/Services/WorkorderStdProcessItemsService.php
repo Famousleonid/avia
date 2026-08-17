@@ -193,9 +193,10 @@ class WorkorderStdProcessItemsService
             ->whereIn('workorder_id', Workorder::query()
                 ->select('workorders.id')
                 ->join('units', 'units.id', '=', 'workorders.unit_id')
+                ->join('manuals as primary_manuals', 'primary_manuals.id', '=', 'units.manual_id')
                 ->where(function ($query) use ($manualId): void {
                     $query->where('units.manual_id', $manualId)
-                        ->orWhereJsonContains('workorders.additional_manual_ids', $manualId);
+                        ->orWhereJsonContains('primary_manuals.additional_manual_ids', $manualId);
                 }))
             ->delete();
     }

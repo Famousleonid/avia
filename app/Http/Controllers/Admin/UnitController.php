@@ -46,8 +46,6 @@ class UnitController extends Controller
                     'eff_code'    => 'nullable|string|max:255',
                     'name'        => 'nullable|string|max:255',
                     'description' => 'nullable|string|max:255',
-                    'additional_manual_ids' => ['sometimes', 'array'],
-                    'additional_manual_ids.*' => ['integer', 'distinct', 'exists:manuals,id'],
                 ], [
                     'part_number.unique' => 'Part number already exists in this CMM.',
                 ]);
@@ -58,10 +56,6 @@ class UnitController extends Controller
                     'eff_code'    => $data['eff_code'] ?? null,
                     'name'        => $data['name'] ?? null,
                     'description' => $data['description'] ?? null,
-                    'additional_manual_ids' => $this->normalizeAdditionalManualIds(
-                        $data['additional_manual_ids'] ?? [],
-                        (int) $data['manual_id']
-                    ),
                     'verified'    => true,
                 ]);
 
@@ -86,8 +80,6 @@ class UnitController extends Controller
                         ->where(fn($q) => $q->where('manual_id', $request->input('cmm_id'))),
                 ],
                 'units.*.name'        => 'nullable|string|max:255',
-                'units.*.additional_manual_ids' => ['sometimes', 'array'],
-                'units.*.additional_manual_ids.*' => ['integer', 'distinct', 'exists:manuals,id'],
             ]);
 
             $createdUnits = [];
@@ -96,10 +88,6 @@ class UnitController extends Controller
                     'part_number' => $unitData['part_number'],
                     'manual_id'   => $validated['cmm_id'],
                     'name'        => $unitData['name'] ?? null,
-                    'additional_manual_ids' => $this->normalizeAdditionalManualIds(
-                        $unitData['additional_manual_ids'] ?? [],
-                        (int) $validated['cmm_id']
-                    ),
                     'eff_code'    => null,
                     'verified'    => true,
                 ]);
@@ -134,49 +122,24 @@ class UnitController extends Controller
      */
     public function show(string $manualId)
     {
+        Manual::query()->findOrFail($manualId);
         $units = Unit::where('manual_id', $manualId)->get();
         $resolver = app(ManualIplBranchRuleResolver::class);
         $defaultRule = $resolver->resolveDefaultRuleForManual((int) $manualId);
-        $manualOptions = Manual::query()
-            ->whereKeyNot($manualId)
-            ->orderBy('number')
-            ->orderBy('title')
-            ->get(['id', 'number', 'title', 'lib']);
-        $manualsById = $manualOptions->keyBy('id');
 
         return response()->json([
             'units' => $units
-                ->map(fn (Unit $unit): array => $this->unitPayload($unit, $resolver, $manualsById->all()))
+                ->map(fn (Unit $unit): array => $this->unitPayload($unit, $resolver))
                 ->values()
                 ->all(),
             'default_rule' => $this->defaultRulePayload($defaultRule),
-            'manual_options' => $manualOptions
-                ->map(fn (Manual $manual): array => [
-                    'id' => (int) $manual->id,
-                    'number' => (string) ($manual->number ?? ''),
-                    'title' => (string) ($manual->title ?? ''),
-                    'lib' => (string) ($manual->lib ?? ''),
-                ])
-                ->values()
-                ->all(),
         ]);
     }
 
     public function update($manualId, Request $request)
     {
-        $canManageAdditionalManuals = auth()->user()?->can('units.manageAdditionalManuals') ?? false;
-        $containsAdditionalManualChanges = collect($request->input('part_numbers', []))
-            ->contains(fn ($unit): bool => is_array($unit) && array_key_exists('additional_manual_ids', $unit));
-
-        abort_if($containsAdditionalManualChanges && ! $canManageAdditionalManuals, 403);
-
         try {
             Manual::findOrFail($manualId);
-
-            $request->validate([
-                'part_numbers.*.additional_manual_ids' => ['sometimes', 'array'],
-                'part_numbers.*.additional_manual_ids.*' => ['integer', 'distinct', 'exists:manuals,id'],
-            ]);
 
             $partNumbersPayload = $request->input('part_numbers');
             if (!is_array($partNumbersPayload) || $partNumbersPayload === []) {
@@ -205,13 +168,6 @@ class UnitController extends Controller
                     'name'     => $unit['name'] ?? null,
                     'verified' => (bool) ($unit['verified'] ?? false),
                 ];
-
-                if ($canManageAdditionalManuals && array_key_exists('additional_manual_ids', $unit)) {
-                    $attributes['additional_manual_ids'] = $this->normalizeAdditionalManualIds(
-                        $unit['additional_manual_ids'],
-                        (int) $manualId
-                    );
-                }
 
                 if (array_key_exists('eff_code', $unit)) {
                     $attributes['eff_code'] = $unit['eff_code'] !== null && (string) $unit['eff_code'] !== ''
@@ -276,12 +232,6 @@ class UnitController extends Controller
      */
     public function updateSingle(Unit $unit, Request $request)
     {
-        abort_if(
-            $request->has('additional_manual_ids')
-            && ! (auth()->user()?->can('units.manageAdditionalManuals') ?? false),
-            403
-        );
-
         $data = $request->validate([
             'part_number' => [
                 'required',
@@ -294,8 +244,6 @@ class UnitController extends Controller
             'name'        => 'nullable|string|max:255',
             'verified'    => 'required|boolean',
             'eff_code'    => 'sometimes|nullable|string|max:255',
-            'additional_manual_ids' => ['sometimes', 'array'],
-            'additional_manual_ids.*' => ['integer', 'distinct', 'exists:manuals,id'],
         ], [
             'part_number.unique' => 'Part number already exists in this CMM (manual).',
         ]);
@@ -304,13 +252,6 @@ class UnitController extends Controller
             $data['eff_code'] = $request->filled('eff_code')
                 ? (string) $request->input('eff_code')
                 : null;
-        }
-
-        if ($request->has('additional_manual_ids')) {
-            $data['additional_manual_ids'] = $this->normalizeAdditionalManualIds(
-                $request->input('additional_manual_ids', []),
-                (int) $unit->manual_id
-            );
         }
 
         $manualId = (int) $unit->manual_id;
@@ -325,7 +266,6 @@ class UnitController extends Controller
             'name' => $unit->name,
             'verified' => $unit->verified,
             'eff_code' => $unit->eff_code,
-            'additional_manual_ids' => $unit->additionalManualIds(),
         ]);
     }
 
@@ -350,10 +290,6 @@ class UnitController extends Controller
 
         $updates = [
             'manual_id' => $manual->id,
-            'additional_manual_ids' => $this->normalizeAdditionalManualIds(
-                $unit->additional_manual_ids ?? [],
-                (int) $manual->id
-            ),
             'verified' => true,
         ];
 
@@ -376,7 +312,6 @@ class UnitController extends Controller
             'manual_title' => optional($unit->manual)->title,
             'manual_number' => optional($unit->manual)->number,
             'verified' => (bool) $unit->verified,
-            'additional_manual_ids' => $unit->additionalManualIds(),
         ]);
     }
 
@@ -468,32 +403,14 @@ class UnitController extends Controller
         return $normalized !== '' ? $normalized : null;
     }
 
-    /**
-     * @param  array<int|string, Manual>  $manualsById
-     */
     private function unitPayload(
         Unit $unit,
-        ?ManualIplBranchRuleResolver $resolver = null,
-        array $manualsById = []
+        ?ManualIplBranchRuleResolver $resolver = null
     ): array
     {
         $resolver ??= app(ManualIplBranchRuleResolver::class);
         $effectiveRule = $resolver->resolveRuleForUnit($unit, (int) $unit->manual_id);
         $exactRule = $resolver->resolveExactRuleForUnit($unit, (int) $unit->manual_id);
-        $additionalManuals = collect($unit->additionalManualIds())
-            ->map(function (int $manualId) use ($manualsById): ?array {
-                $manual = $manualsById[$manualId] ?? null;
-
-                return $manual ? [
-                    'id' => (int) $manual->id,
-                    'number' => (string) ($manual->number ?? ''),
-                    'lib' => (string) ($manual->lib ?? ''),
-                ] : null;
-            })
-            ->filter()
-            ->values()
-            ->all();
-
         return [
             'id' => (int) $unit->id,
             'part_number' => (string) ($unit->part_number ?? ''),
@@ -501,9 +418,6 @@ class UnitController extends Controller
             'eff_code' => $unit->eff_code,
             'name' => $unit->name,
             'description' => $unit->description,
-            'additional_manual_ids' => $unit->additionalManualIds(),
-            'additional_manual_numbers' => array_column($additionalManuals, 'number'),
-            'additional_manuals' => $additionalManuals,
             'unit_match_value' => $exactRule?->unit_match_value ?? '',
             'include_prefix' => $exactRule?->include_prefix ?? '',
             'exclude_prefix' => $exactRule?->exclude_prefix ?? '',
@@ -519,18 +433,4 @@ class UnitController extends Controller
         ];
     }
 
-    /** @return list<int> */
-    private function normalizeAdditionalManualIds(mixed $value, int $primaryManualId): array
-    {
-        if (! is_array($value)) {
-            return [];
-        }
-
-        return collect($value)
-            ->map(fn ($id): int => (int) $id)
-            ->filter(fn (int $id): bool => $id > 0 && $id !== $primaryManualId)
-            ->unique()
-            ->values()
-            ->all();
-    }
 }

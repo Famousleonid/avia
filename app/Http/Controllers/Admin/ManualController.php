@@ -22,7 +22,9 @@ use App\Models\UserUiSetting;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\ManualRevisionCheckService;
 use App\Services\StdProcessAuditService;
+use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -37,6 +39,7 @@ class ManualController extends Controller
         $this->middleware('can:manuals.view')->only('show');
         $this->middleware('can:manuals.create')->only(['create', 'store']);
         $this->middleware('can:manuals.update')->only(['edit', 'update']);
+        $this->middleware('can:units.manageAdditionalManuals')->only('updateAdditionalManuals');
         $this->middleware('can:manuals.delete')->only(['destroy', 'forceDestroy']);
     }
 
@@ -57,6 +60,38 @@ class ManualController extends Controller
         }
 
         $cmms = $query->get();
+        $additionalManualsById = Manual::query()
+            ->withTrashed()
+            ->whereKey($cmms->flatMap(fn (Manual $manual): array => $manual->additionalManualIds())->unique()->all())
+            ->get(['id', 'number', 'title', 'lib'])
+            ->keyBy('id');
+        $cmms->each(function (Manual $manual) use ($additionalManualsById): void {
+            $manual->setAttribute(
+                'additional_manuals_display',
+                collect($manual->additionalManualIds())
+                    ->map(function (int $manualId) use ($additionalManualsById): ?array {
+                        $additional = $additionalManualsById->get($manualId);
+
+                        return $additional ? [
+                            'id' => (int) $additional->id,
+                            'number' => (string) ($additional->number ?? ''),
+                            'title' => (string) ($additional->title ?? ''),
+                            'lib' => (string) ($additional->lib ?? ''),
+                        ] : null;
+                    })
+                    ->filter()
+                    ->values()
+                    ->all()
+            );
+        });
+        $canManageAdditionalManuals = auth()->user()?->can('units.manageAdditionalManuals') ?? false;
+        $additionalManualOptions = $canManageAdditionalManuals
+            ? Manual::query()
+                ->orderByRaw('CASE WHEN number IS NULL OR number = "" THEN 1 ELSE 0 END')
+                ->orderBy('number')
+                ->orderBy('title')
+                ->get(['id', 'number', 'title', 'lib'])
+            : collect();
         $planes = Plane::all();
         $builders = Builder::all();
         $scopes = Scope::all();
@@ -66,7 +101,16 @@ class ManualController extends Controller
                 ->values()
             : collect();
 
-        return view('admin.manuals.index', compact('cmms', 'planes', 'builders', 'scopes', 'users', 'showDeleted'));
+        return view('admin.manuals.index', compact(
+            'cmms',
+            'planes',
+            'builders',
+            'scopes',
+            'users',
+            'showDeleted',
+            'canManageAdditionalManuals',
+            'additionalManualOptions'
+        ));
 
     }
 
@@ -234,31 +278,10 @@ class ManualController extends Controller
 
 //Components CMM
         $units = Unit::where('manual_id', $cmm->id)->get();
-        $additionalManualsById = Manual::query()
-            ->withTrashed()
-            ->whereKey($units->flatMap(fn (Unit $unit): array => $unit->additionalManualIds())->unique()->all())
-            ->get(['id', 'number', 'lib'])
-            ->keyBy('id');
         $branchRuleResolver = app(ManualIplBranchRuleResolver::class);
-        $units->each(function (Unit $unit) use ($branchRuleResolver, $cmm, $additionalManualsById): void {
+        $units->each(function (Unit $unit) use ($branchRuleResolver, $cmm): void {
             $rule = $branchRuleResolver->resolveRuleForUnit($unit, (int) $cmm->id);
             $unit->setAttribute('ipl_branch_rule_display', $rule?->displayLabel() ?? '');
-            $unit->setAttribute(
-                'additional_manuals_display',
-                collect($unit->additionalManualIds())
-                    ->map(function (int $manualId) use ($additionalManualsById): ?array {
-                        $manual = $additionalManualsById->get($manualId);
-
-                        return $manual ? [
-                            'id' => (int) $manual->id,
-                            'number' => (string) ($manual->number ?? ''),
-                            'lib' => (string) ($manual->lib ?? ''),
-                        ] : null;
-                    })
-                    ->filter()
-                    ->values()
-                    ->all()
-            );
         });
 
 // Parts (sorted by IPL Number in natural order: 1-10, 1-20, 1-20A, 1-30, ...)
@@ -415,7 +438,13 @@ class ManualController extends Controller
 
         $partGroups = ManualPartGroup::query()
             ->where('manual_id', $cmm->id)
-            ->with(['options.coverages.component:id,ipl_num,part_number,name', 'options.component:id,ipl_num,part_number,name', 'serviceBulletin'])
+            ->with([
+                'options.coverages.component:id,ipl_num,part_number,name',
+                'options.coverages.coveredOption.group:id,name,type',
+                'options.coverages.coveredOption.coverages.component:id,ipl_num,part_number,name',
+                'options.component:id,ipl_num,part_number,name',
+                'serviceBulletin',
+            ])
             ->orderBy('name')
             ->get();
 
@@ -423,7 +452,11 @@ class ManualController extends Controller
         foreach ($partGroups as $partGroup) {
             $componentIds = $partGroup->options
                 ->flatMap(fn ($option) => collect([$option->component_id])
-                    ->merge($option->coverages->pluck('component_id')))
+                    ->merge($option->coverages->pluck('component_id'))
+                    ->merge($option->coverages
+                        ->pluck('coveredOption')
+                        ->filter()
+                        ->flatMap(fn ($coveredOption) => $coveredOption->coverages->pluck('component_id'))))
                 ->filter(fn ($componentId): bool => (int) $componentId > 0)
                 ->map(fn ($componentId): int => (int) $componentId)
                 ->unique();
@@ -773,6 +806,49 @@ class ManualController extends Controller
             (int) $matches[3],
             strtoupper($matches[4] ?? ''),
         ];
+    }
+
+    public function updateAdditionalManuals(Request $request, Manual $manual): JsonResponse
+    {
+        $validated = $request->validate([
+            'additional_manual_ids' => ['present', 'array'],
+            'additional_manual_ids.*' => ['integer', 'distinct', 'exists:manuals,id'],
+        ]);
+
+        $additionalManualIds = collect($validated['additional_manual_ids'])
+            ->map(fn ($manualId): int => (int) $manualId)
+            ->filter(fn (int $manualId): bool => $manualId > 0 && $manualId !== (int) $manual->id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $manual->update(['additional_manual_ids' => $additionalManualIds]);
+        app(WorkorderStdProcessItemsService::class)->invalidateForManual((int) $manual->id);
+
+        $manualsById = Manual::query()
+            ->whereKey($additionalManualIds)
+            ->get(['id', 'number', 'title', 'lib'])
+            ->keyBy('id');
+
+        return response()->json([
+            'success' => true,
+            'message' => __('Additional Manuals updated successfully.'),
+            'additional_manual_ids' => $additionalManualIds,
+            'additional_manuals' => collect($additionalManualIds)
+                ->map(function (int $manualId) use ($manualsById): ?array {
+                    $additional = $manualsById->get($manualId);
+
+                    return $additional ? [
+                        'id' => (int) $additional->id,
+                        'number' => (string) ($additional->number ?? ''),
+                        'title' => (string) ($additional->title ?? ''),
+                        'lib' => (string) ($additional->lib ?? ''),
+                    ] : null;
+                })
+                ->filter()
+                ->values()
+                ->all(),
+        ]);
     }
 
     /** @return array<string, string> */

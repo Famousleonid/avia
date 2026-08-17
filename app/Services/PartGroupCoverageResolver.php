@@ -7,6 +7,7 @@ use App\Models\ManualPartGroupOption;
 use App\Models\Tdr;
 use App\Models\Workorder;
 use App\Models\WorkorderPartGroupSelection;
+use App\Models\WoBushingLine;
 use Illuminate\Support\Collection;
 
 class PartGroupCoverageResolver
@@ -22,7 +23,11 @@ class PartGroupCoverageResolver
 
         $groups = ManualPartGroup::query()
             ->whereIn('manual_id', $workorder->usedManualIds())
-            ->with(['options.coverages', 'serviceBulletin:id,ac_mfg_service_bulletin_no,oem_service_bulletin_no'])
+            ->with([
+                'options.coverages.coveredOption.coverages',
+                'options.coverages.coveredOption.group',
+                'serviceBulletin:id,ac_mfg_service_bulletin_no,oem_service_bulletin_no',
+            ])
             ->get()
             ->filter(fn (ManualPartGroup $group): bool => $group->appliesTo($scope))
             ->keyBy('id');
@@ -33,7 +38,7 @@ class PartGroupCoverageResolver
 
         $selected = $this->explicitSelections($workorder, $groups);
         $selected = $this->inferSelectionsFromTdrs($workorder, $groups, $selected);
-        $coverage = [];
+        $coverage = $this->bushingCoverageFromLines($workorder, $groups);
 
         foreach ($selected as $groupId => $selection) {
             /** @var ManualPartGroup|null $group */
@@ -45,6 +50,12 @@ class PartGroupCoverageResolver
             /** @var ManualPartGroupOption|null $option */
             $option = $group->options->firstWhere('id', (int) $selection['option_id']);
             if (! $option) {
+                continue;
+            }
+
+            // Bushing groups are quantity pools, not choose-one groups. Their
+            // selected sizes are resolved together from WoBushingLine below.
+            if ($group->type === ManualPartGroup::TYPE_OVERSIZE) {
                 continue;
             }
 
@@ -65,19 +76,11 @@ class PartGroupCoverageResolver
             }
 
             foreach ($option->coverages as $member) {
-                if (! $member->appliesTo($scope)) {
-                    continue;
-                }
-
-                $componentId = (int) $member->component_id;
-                if ($componentId <= 0 || $componentId === (int) ($option->component_id ?? 0)) {
-                    continue;
-                }
-
-                $this->addCoverage(
+                $this->expandBundleMember(
                     $coverage,
-                    $componentId,
-                    max(1, (int) $member->qty) * $selectionQty,
+                    $member,
+                    $selectionQty,
+                    $scope,
                     $reason,
                     $group,
                     $option
@@ -117,7 +120,9 @@ class PartGroupCoverageResolver
 
         foreach ($groups as $group) {
             foreach ($group->options as $option) {
-                if ((int) ($option->component_id ?? 0) > 0) {
+                if ($group->behavior === ManualPartGroup::BEHAVIOR_CHOOSE_ONE
+                    && $group->type !== ManualPartGroup::TYPE_OVERSIZE
+                    && (int) ($option->component_id ?? 0) > 0) {
                     $optionByComponentId[(int) $option->component_id][] = [$group, $option];
                 }
                 foreach ($option->coverages as $coverage) {
@@ -161,15 +166,125 @@ class PartGroupCoverageResolver
         return $selected;
     }
 
+    /** @param Collection<int, ManualPartGroup> $groups */
+    private function bushingCoverageFromLines(Workorder $workorder, Collection $groups): array
+    {
+        $coverage = [];
+        $optionsByComponentId = [];
+        foreach ($groups->where('type', ManualPartGroup::TYPE_OVERSIZE) as $group) {
+            foreach ($group->options as $option) {
+                $componentId = (int) ($option->component_id ?? 0);
+                if ($componentId > 0) {
+                    $optionsByComponentId[$componentId][] = [$group, $option];
+                }
+            }
+        }
+
+        if ($optionsByComponentId === []) {
+            return $coverage;
+        }
+
+        $selectedComponentIdsByGroup = [];
+        WoBushingLine::query()
+            ->where(function ($query) use ($workorder): void {
+                $query->where('workorder_id', $workorder->id)
+                    ->orWhereHas('woBushing', fn ($woBushing) => $woBushing->where('workorder_id', $workorder->id));
+            })
+            ->where('do_not_order', false)
+            ->whereIn('component_id', array_keys($optionsByComponentId))
+            ->get(['component_id', 'qty'])
+            ->each(function (WoBushingLine $line) use (&$selectedComponentIdsByGroup, $optionsByComponentId): void {
+                foreach ($optionsByComponentId[(int) $line->component_id] ?? [] as [$group, $option]) {
+                    $selectedComponentIdsByGroup[(int) $group->id][(int) $option->component_id] = true;
+                }
+            });
+
+        foreach ($groups->where('type', ManualPartGroup::TYPE_OVERSIZE) as $group) {
+            $selectedComponentIds = $selectedComponentIdsByGroup[(int) $group->id] ?? [];
+            if ($selectedComponentIds === []) {
+                continue;
+            }
+
+            $selectedOptions = $group->options
+                ->filter(fn (ManualPartGroupOption $option): bool => isset($selectedComponentIds[(int) $option->component_id]));
+            $referenceOption = $selectedOptions->first();
+            if (! $referenceOption) {
+                continue;
+            }
+
+            $selectedPartNumbers = $selectedOptions
+                ->pluck('part_number')
+                ->map(fn ($partNumber): string => trim((string) $partNumber))
+                ->filter()
+                ->unique()
+                ->implode(', ');
+            $reason = trim('Bushing size not selected; ordered P/N '.$selectedPartNumbers);
+
+            foreach ($group->options as $candidate) {
+                $componentId = (int) ($candidate->component_id ?? 0);
+                if ($componentId <= 0 || isset($selectedComponentIds[$componentId])) {
+                    continue;
+                }
+
+                $this->addCoverage($coverage, $componentId, PHP_INT_MAX, $reason, $group, $referenceOption);
+            }
+        }
+
+        return $coverage;
+    }
+
+    private function expandBundleMember(
+        array &$coverage,
+        $member,
+        int $parentQty,
+        string $scope,
+        string $reason,
+        ManualPartGroup $selectedGroup,
+        ManualPartGroupOption $selectedOption
+    ): void {
+        if (! $member->appliesTo($scope)) {
+            return;
+        }
+
+        $memberQty = max(1, (int) $member->qty) * max(1, $parentQty);
+        $componentId = (int) ($member->component_id ?? 0);
+        if ($componentId > 0) {
+            $this->addCoverage(
+                $coverage,
+                $componentId,
+                $memberQty,
+                $reason,
+                $selectedGroup,
+                $selectedOption
+            );
+
+            return;
+        }
+
+        $coveredOption = $member->coveredOption;
+        if (! $coveredOption || $coveredOption->group?->type !== ManualPartGroup::TYPE_ASSY) {
+            return;
+        }
+
+        foreach ($coveredOption->coverages as $nestedMember) {
+            $this->expandBundleMember(
+                $coverage,
+                $nestedMember,
+                $memberQty,
+                $scope,
+                $reason,
+                $selectedGroup,
+                $selectedOption
+            );
+        }
+    }
+
     private function coverageReason(ManualPartGroup $group, ManualPartGroupOption $option): string
     {
         $partNumber = trim((string) $option->part_number);
 
-        if ($group->type === ManualPartGroup::TYPE_SB_KIT) {
-            $bulletin = trim((string) ($group->serviceBulletin?->oem_service_bulletin_no
-                ?: $group->serviceBulletin?->ac_mfg_service_bulletin_no));
-
-            return trim('Included in SB KIT '.$partNumber.($bulletin !== '' ? ' per '.$bulletin : ''));
+        if ($group->type === ManualPartGroup::TYPE_KIT) {
+            return trim('Included in KIT '.$partNumber);
         }
 
         if ($group->type === ManualPartGroup::TYPE_ASSY) {

@@ -105,6 +105,65 @@ class WoBushingSortingTest extends TestCase
         $this->assertSame(0, WoBushingProcess::query()->where('wo_bushing_line_id', $line->id)->count());
     }
 
+    public function test_bushing_group_accepts_mixed_original_and_oversize_up_to_original_qty_and_rejects_excess(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+        $original = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-250',
+            'part_number' => 'BUSH-ORIGINAL',
+            'name' => 'Original bushing',
+            'bush_ipl_num' => '8-250',
+            'is_bush' => true,
+            'units_assy' => 2,
+        ]);
+        $oversize = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-251',
+            'part_number' => 'BUSH-OVERSIZE',
+            'name' => 'Oversize bushing',
+            'bush_ipl_num' => '8-250',
+            'is_bush' => true,
+            'units_assy' => 2,
+        ]);
+        $headers = ['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'];
+        $payload = fn (int $originalQty, int $oversizeQty): array => [
+            'group_bushings' => [
+                '8-250' => [
+                    'items' => [
+                        $original->id => ['selected' => '1', 'qty' => (string) $originalQty, 'need_processes' => '0'],
+                        $oversize->id => ['selected' => '1', 'qty' => (string) $oversizeQty, 'need_processes' => '0'],
+                    ],
+                ],
+            ],
+        ];
+
+        $this->actingAs($admin)
+            ->withHeaders($headers)
+            ->put(route('wo_bushings.update', $woBushing->id), $payload(1, 1))
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertSame(2, WoBushingLine::query()->where('wo_bushing_id', $woBushing->id)->count());
+        $this->assertSame(2, (int) WoBushingLine::query()->where('wo_bushing_id', $woBushing->id)->sum('qty'));
+
+        $this->actingAs($admin)
+            ->withHeaders($headers)
+            ->put(route('wo_bushings.update', $woBushing->id), $payload(2, 1))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('group_bushings')
+            ->assertJsonPath(
+                'errors.group_bushings.0',
+                'Bushing group 8-250: total ordered QTY is 3. Maximum allowed QTY is 2.'
+            );
+
+        $this->assertSame(2, WoBushingLine::query()->where('wo_bushing_id', $woBushing->id)->count());
+        $this->assertSame(2, (int) WoBushingLine::query()->where('wo_bushing_id', $woBushing->id)->sum('qty'));
+    }
+
     public function test_do_not_order_bushing_keeps_process_assignment_and_edit_state(): void
     {
         $admin = $this->createUserWithRole('Admin');

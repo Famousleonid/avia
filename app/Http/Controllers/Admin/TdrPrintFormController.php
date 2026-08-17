@@ -2302,6 +2302,10 @@ class TdrPrintFormController extends Controller
                     return false;
                 }
 
+                if ($selection->group->behavior === \App\Models\ManualPartGroup::BEHAVIOR_BUNDLE) {
+                    return true;
+                }
+
                 $componentId = (int) ($selection->option->component_id ?? 0);
 
                 return $componentId <= 0 || ! in_array($componentId, $existingComponentIds, true);
@@ -2321,7 +2325,7 @@ class TdrPrintFormController extends Controller
                         'assy_ipl_num' => null,
                     ],
                     'qty' => max(1, (int) $selection->qty),
-                    'codes' => ['code' => $group->type === \App\Models\ManualPartGroup::TYPE_SB_KIT
+                    'codes' => ['code' => $group->type === \App\Models\ManualPartGroup::TYPE_KIT
                         ? 'KIT'
                         : ($group->type === \App\Models\ManualPartGroup::TYPE_ASSY ? 'ASSY' : 'G')],
                     'po_num' => '',

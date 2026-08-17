@@ -287,7 +287,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/workorders/quick-open-search', [WorkorderController::class, 'quickOpenSearch'])->name('workorders.quick-open-search');
     Route::get('/workorders/draft-matches', [WorkorderController::class, 'draftMatches'])->name('workorders.draft-matches');
     Route::resource('/workorders', WorkorderController::class);
-    Route::post('/workorders/{workorder}/manuals/sync', [WorkorderController::class, 'syncAdditionalManuals'])->name('workorders.manuals.sync');
     Route::patch('/workorders/{workorder}/manuals/usage', [WorkorderController::class, 'updateManualUsage'])->name('workorders.manuals.usage');
     Route::delete('/workorders/{workorder}/force', [WorkorderController::class, 'forceDestroy'])->name('workorders.forceDestroy');
 
@@ -373,6 +372,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::delete('transfers/delete-by-tdr/{id}', [TransferController::class, 'deleteByTdr'])->name('transfers.deleteByTdr');
 
     Route::delete('/manuals/{manual}/force', [ManualController::class, 'forceDestroy'])->name('manuals.force-destroy');
+    Route::patch('/manuals/{manual}/additional-manuals', [ManualController::class, 'updateAdditionalManuals'])->name('manuals.additional-manuals.update');
     Route::resource('/manuals', ManualController::class);
 
     // --- Dimension Figures (Manual settings) ---

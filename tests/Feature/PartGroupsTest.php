@@ -7,7 +7,10 @@ use App\Models\ComponentAssembly;
 use App\Models\ManualPartGroup;
 use App\Models\ManualPartGroupOption;
 use App\Models\StdProcess;
+use App\Models\Tdr;
 use App\Models\WorkorderPartGroupSelection;
+use App\Models\WoBushing;
+use App\Models\WoBushingLine;
 use App\Services\PartGroupCoverageResolver;
 use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -33,6 +36,7 @@ class PartGroupsTest extends TestCase
             'type' => ManualPartGroup::TYPE_ASSY,
             'applies_to' => ['prl', 'ndt', 'cad'],
             'component_ids' => [$memberA->id, $memberB->id],
+            'default_component_id' => $memberA->id,
             'order_part_number' => 'ASSY-100',
             'order_ipl_num' => '1-5',
             'member_qty' => [$memberA->id => 1, $memberB->id => 2],
@@ -82,6 +86,44 @@ class PartGroupsTest extends TestCase
         $this->assertArrayNotHasKey($member->id, $resolver->coverageForWorkorder($workorder, 'paint'));
     }
 
+    public function test_admin_can_create_kit_from_an_existing_assy_group_without_loose_parts(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $base = $this->createPartGroupComponent($manual->id, '1-10', 'BASE-100');
+        $assy = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'Existing ASSY',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE, 'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl', 'ndt'],
+        ]);
+        $assyOption = $assy->options()->create([
+            'component_id' => $base->id, 'part_number' => 'ASSY-100',
+            'option_kind' => 'assy', 'is_default' => true,
+        ]);
+        $assyOption->coverages()->create([
+            'component_id' => $base->id, 'qty' => 1, 'applies_to' => ['prl', 'ndt'],
+        ]);
+
+        $response = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+            'name' => 'KIT with ASSY',
+            'type' => ManualPartGroup::TYPE_KIT,
+            'applies_to' => ['prl', 'ndt'],
+            'component_ids' => [],
+            'included_group_option_ids' => [$assyOption->id],
+            'included_group_qty' => [$assyOption->id => 2],
+            'order_part_number' => 'KIT-900',
+        ]);
+
+        $response->assertOk()->assertJsonPath('group.type', ManualPartGroup::TYPE_KIT);
+        $kitOptionId = (int) $response->json('group.options.0.id');
+        $this->assertDatabaseHas('manual_part_group_coverages', [
+            'manual_part_group_option_id' => $kitOptionId,
+            'component_id' => null,
+            'covered_manual_part_group_option_id' => $assyOption->id,
+            'qty' => 2,
+        ]);
+    }
+
     public function test_editing_bundle_preserves_existing_workorder_selection_and_option_id(): void
     {
         [$admin, $workorder, $member, $group, $option] = $this->bundleFixture(['prl', 'ndt'], 1);
@@ -100,6 +142,7 @@ class PartGroupsTest extends TestCase
                 'type' => ManualPartGroup::TYPE_ASSY,
                 'applies_to' => ['prl', 'ndt'],
                 'component_ids' => [$member->id],
+                'default_component_id' => $member->id,
                 'order_part_number' => 'ASSY-200',
                 'order_ipl_num' => '1-6',
                 'member_qty' => [$member->id => 3],
@@ -146,6 +189,179 @@ class PartGroupsTest extends TestCase
 
         $this->assertArrayNotHasKey($first->id, $coverage);
         $this->assertSame(PHP_INT_MAX, $coverage[$second->id]['covered_qty']);
+    }
+
+    public function test_assy_base_part_order_covers_only_itself_but_complete_assy_covers_all_members(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $base = $this->createPartGroupComponent($manual->id, '1-10', '47170-103');
+        $bushing = $this->createPartGroupComponent($manual->id, '1-20', 'BUSH-100');
+        $group = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => '47170 ASSY',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE, 'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ManualPartGroup::validScopes(),
+        ]);
+        $option = $group->options()->create([
+            'component_id' => $base->id, 'part_number' => '47170-3', 'ipl_num' => '1-10',
+            'option_kind' => 'assy', 'is_default' => true,
+        ]);
+        $option->coverages()->createMany([
+            ['component_id' => $base->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
+            ['component_id' => $bushing->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
+        ]);
+
+        Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $base->id,
+            'order_component_id' => $base->id,
+            'qty' => 1,
+        ]);
+
+        $resolver = app(PartGroupCoverageResolver::class);
+        $this->assertSame([], $resolver->coverageForWorkorder($workorder, 'ndt'));
+
+        WorkorderPartGroupSelection::query()->create([
+            'workorder_id' => $workorder->id,
+            'manual_part_group_id' => $group->id,
+            'manual_part_group_option_id' => $option->id,
+            'qty' => 1,
+            'selected_by_user_id' => $admin->id,
+        ]);
+
+        $coverage = $resolver->coverageForWorkorder($workorder, 'ndt');
+        $this->assertSame(1, $coverage[$base->id]['covered_qty']);
+        $this->assertSame(1, $coverage[$bushing->id]['covered_qty']);
+        $this->assertSame('Included in ASSY 47170-3', $coverage[$base->id]['reason']);
+    }
+
+    public function test_alternative_group_is_selected_automatically_from_tdr_order_part(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $parts = collect(['42107-33', '42-107-33A', '42107-34', '42107-34A', '42107-35'])
+            ->map(fn (string $partNumber, int $index): Component => $this->createPartGroupComponent($manual->id, '2-'.(10 + $index), $partNumber));
+        $group = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => '42107 alternatives',
+            'behavior' => ManualPartGroup::BEHAVIOR_CHOOSE_ONE, 'type' => ManualPartGroup::TYPE_ALTERNATIVE,
+            'applies_to' => ['prl', 'ndt'],
+        ]);
+        $options = $parts->map(fn (Component $part, int $index) => $group->options()->create([
+            'component_id' => $part->id, 'part_number' => $part->part_number, 'ipl_num' => $part->ipl_num,
+            'option_kind' => 'alternate', 'is_default' => $index === 0, 'sort_order' => $index,
+        ]));
+        $selected = $parts->get(3);
+        Tdr::query()->create([
+            'workorder_id' => $workorder->id, 'component_id' => $selected->id,
+            'order_component_id' => $selected->id, 'qty' => 1,
+        ]);
+
+        $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($workorder, 'ndt');
+
+        $this->assertArrayNotHasKey($selected->id, $coverage);
+        foreach ($parts->where('id', '!=', $selected->id) as $part) {
+            $this->assertSame(PHP_INT_MAX, $coverage[$part->id]['covered_qty']);
+        }
+        $this->assertSame($options->get(3)->id, $coverage[$parts->first()->id]['option_id']);
+    }
+
+    public function test_bushing_group_allows_original_and_oversize_together_and_covers_only_unselected_sizes(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $original = $this->createPartGroupComponent($manual->id, '3-100', 'BUSH-ORIGINAL');
+        $oversize = $this->createPartGroupComponent($manual->id, '3-101', 'BUSH-010');
+        $largerOversize = $this->createPartGroupComponent($manual->id, '3-102', 'BUSH-020');
+        $original->update(['is_bush' => true, 'bush_ipl_num' => '3-100', 'units_assy' => 2]);
+        $oversize->update(['is_bush' => true, 'bush_ipl_num' => '3-100', 'units_assy' => 2]);
+        $largerOversize->update(['is_bush' => true, 'bush_ipl_num' => '3-100', 'units_assy' => 2]);
+        $group = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'Bushing 3-100',
+            'behavior' => ManualPartGroup::BEHAVIOR_CHOOSE_ONE, 'type' => ManualPartGroup::TYPE_OVERSIZE,
+            'applies_to' => ['prl', 'ndt'],
+        ]);
+        $group->options()->create([
+            'component_id' => $original->id, 'part_number' => $original->part_number,
+            'ipl_num' => $original->ipl_num, 'option_kind' => 'original', 'is_default' => true,
+        ]);
+        $oversizeOption = $group->options()->create([
+            'component_id' => $oversize->id, 'part_number' => $oversize->part_number,
+            'ipl_num' => $oversize->ipl_num, 'option_kind' => 'oversize',
+        ]);
+        $group->options()->create([
+            'component_id' => $largerOversize->id, 'part_number' => $largerOversize->part_number,
+            'ipl_num' => $largerOversize->ipl_num, 'option_kind' => 'oversize',
+        ]);
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+        WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id, 'workorder_id' => $workorder->id,
+            'component_id' => $original->id, 'qty' => 1, 'qty_remaining' => 1,
+            'do_not_order' => false,
+        ]);
+        WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id, 'workorder_id' => $workorder->id,
+            'component_id' => $oversize->id, 'qty' => 1, 'qty_remaining' => 1,
+            'do_not_order' => false,
+        ]);
+
+        $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($workorder, 'ndt');
+
+        $this->assertArrayNotHasKey($original->id, $coverage);
+        $this->assertArrayNotHasKey($oversize->id, $coverage);
+        $this->assertSame(PHP_INT_MAX, $coverage[$largerOversize->id]['covered_qty']);
+        $this->assertStringContainsString($original->part_number, $coverage[$largerOversize->id]['reason']);
+        $this->assertStringContainsString($oversizeOption->part_number, $coverage[$largerOversize->id]['reason']);
+    }
+
+    public function test_kit_can_include_complete_assy_and_expands_its_composition(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $base = $this->createPartGroupComponent($manual->id, '4-10', 'BASE');
+        $bushing = $this->createPartGroupComponent($manual->id, '4-20', 'BUSH');
+        $loosePart = $this->createPartGroupComponent($manual->id, '4-30', 'LOOSE');
+        $assy = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'Nested ASSY',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE, 'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl', 'ndt'],
+        ]);
+        $assyOption = $assy->options()->create([
+            'component_id' => $base->id, 'part_number' => 'ASSY-NEW', 'option_kind' => 'assy', 'is_default' => true,
+        ]);
+        $assyOption->coverages()->createMany([
+            ['component_id' => $base->id, 'qty' => 1, 'applies_to' => ['prl', 'ndt']],
+            ['component_id' => $bushing->id, 'qty' => 2, 'applies_to' => ['prl', 'ndt']],
+        ]);
+        $kit = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'Complete KIT',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE, 'type' => ManualPartGroup::TYPE_KIT,
+            'applies_to' => ['prl', 'ndt'],
+        ]);
+        $kitOption = $kit->options()->create(['part_number' => 'KIT-500', 'option_kind' => 'kit', 'is_default' => true]);
+        $kitOption->coverages()->createMany([
+            ['component_id' => $loosePart->id, 'qty' => 3, 'applies_to' => ['prl', 'ndt']],
+            ['covered_manual_part_group_option_id' => $assyOption->id, 'qty' => 2, 'applies_to' => ['prl', 'ndt']],
+        ]);
+        WorkorderPartGroupSelection::query()->create([
+            'workorder_id' => $workorder->id, 'manual_part_group_id' => $kit->id,
+            'manual_part_group_option_id' => $kitOption->id, 'qty' => 1,
+            'selected_by_user_id' => $admin->id,
+        ]);
+
+        $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($workorder, 'ndt');
+
+        $this->assertSame(2, $coverage[$base->id]['covered_qty']);
+        $this->assertSame(4, $coverage[$bushing->id]['covered_qty']);
+        $this->assertSame(3, $coverage[$loosePart->id]['covered_qty']);
+        $this->assertSame('Included in KIT KIT-500', $coverage[$base->id]['reason']);
     }
 
     public function test_all_std_snapshots_keep_fully_covered_row_for_visible_crossout_and_exclude_it_from_qty(): void
@@ -207,6 +423,49 @@ class PartGroupsTest extends TestCase
             '/data-kit-prl-component-id="'.$member->id.'".*?data-kit-prl-controller-crossed-out="1"/s',
             $coveredResponse->getContent()
         );
+    }
+
+    public function test_tdr_page_uses_clear_assy_kit_button_and_does_not_show_it_for_alternatives_only(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $first = $this->createPartGroupComponent($manual->id, '5-10', 'ALT-A');
+        $second = $this->createPartGroupComponent($manual->id, '5-20', 'ALT-B');
+        $alternative = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'Alternatives only',
+            'behavior' => ManualPartGroup::BEHAVIOR_CHOOSE_ONE, 'type' => ManualPartGroup::TYPE_ALTERNATIVE,
+            'applies_to' => ['prl'],
+        ]);
+        foreach ([$first, $second] as $index => $component) {
+            $alternative->options()->create([
+                'component_id' => $component->id, 'part_number' => $component->part_number,
+                'ipl_num' => $component->ipl_num, 'is_default' => $index === 0,
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('tdrs.show', ['id' => $workorder->id]))
+            ->assertOk()
+            ->assertDontSee('ASSY / KIT');
+
+        $assy = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'Selectable ASSY',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE, 'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl'],
+        ]);
+        $assyOption = $assy->options()->create([
+            'component_id' => $first->id, 'part_number' => 'ASSY-500',
+            'option_kind' => 'assy', 'is_default' => true,
+        ]);
+        $assyOption->coverages()->create(['component_id' => $first->id, 'qty' => 1, 'applies_to' => ['prl']]);
+
+        $this->actingAs($admin)
+            ->get(route('tdrs.show', ['id' => $workorder->id]))
+            ->assertOk()
+            ->assertSee('ASSY / KIT')
+            ->assertSee('Select a complete ASSY or KIT only when its new P/N is being ordered.');
     }
 
     public function test_legacy_import_creates_group_and_preserves_assembly_link(): void

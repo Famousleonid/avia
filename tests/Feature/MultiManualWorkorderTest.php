@@ -38,15 +38,13 @@ class MultiManualWorkorderTest extends TestCase
             ->assertSee('DRAFT-MANUAL');
     }
 
-    public function test_new_workorder_snapshots_unit_additional_manuals_and_builds_combined_std_and_kit(): void
+    public function test_new_workorder_uses_manual_additional_manuals_and_builds_combined_std_and_kit(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $primaryManual = $this->createManual(['number' => 'MM-PRIMARY']);
-        $additionalManual = $this->createManual(['number' => 'MM-ADDITIONAL']);
-        $unit = $this->createUnit([
-            'manual_id' => $primaryManual->id,
-            'additional_manual_ids' => [$additionalManual->id],
-        ]);
+        $primaryManual = $this->createManual(['number' => 'MM-PRIMARY', 'title' => 'Primary manual title']);
+        $additionalManual = $this->createManual(['number' => 'MM-ADDITIONAL', 'title' => 'Additional manual title']);
+        $primaryManual->update(['additional_manual_ids' => [$additionalManual->id]]);
+        $unit = $this->createUnit(['manual_id' => $primaryManual->id]);
         $workorder = $this->createWorkorder([
             'user_id' => $admin->id,
             'unit_id' => $unit->id,
@@ -110,8 +108,11 @@ class MultiManualWorkorderTest extends TestCase
         $editPage->assertOk();
         $editPage->assertSee('WO Manuals');
         $editPage->assertSee('workorderManualsModal', false);
+        $editPage->assertSee('<th class="workorder-manual-title-column">Title</th>', false);
         $editPage->assertSee('MM-PRIMARY');
+        $editPage->assertSee('Primary manual title');
         $editPage->assertSee('MM-ADDITIONAL');
+        $editPage->assertSee('Additional manual title');
         $editPage->assertSee('Set NOT USED');
         $editPage->assertSee("okText: nextUsed", false);
         $editPage->assertSee("danger: !nextUsed", false);
@@ -136,10 +137,8 @@ class MultiManualWorkorderTest extends TestCase
         $admin = $this->createUserWithRole('Admin');
         $primaryManual = $this->createManual(['number' => 'MM-USED']);
         $additionalManual = $this->createManual(['number' => 'MM-NOT-USED']);
-        $unit = $this->createUnit([
-            'manual_id' => $primaryManual->id,
-            'additional_manual_ids' => [$additionalManual->id],
-        ]);
+        $primaryManual->update(['additional_manual_ids' => [$additionalManual->id]]);
+        $unit = $this->createUnit(['manual_id' => $primaryManual->id]);
         $workorder = $this->createWorkorder([
             'user_id' => $admin->id,
             'unit_id' => $unit->id,
@@ -194,10 +193,8 @@ class MultiManualWorkorderTest extends TestCase
         $primaryManual = $this->createManual(['number' => '32-21-04 Goodrich', 'lib' => '111']);
         $usedManual = $this->createManual(['number' => '32-50-01', 'lib' => '240']);
         $secondUsedManual = $this->createManual(['number' => '32-51-02', 'lib' => '243']);
-        $unit = $this->createUnit([
-            'manual_id' => $primaryManual->id,
-            'additional_manual_ids' => [$usedManual->id, $secondUsedManual->id],
-        ]);
+        $primaryManual->update(['additional_manual_ids' => [$usedManual->id, $secondUsedManual->id]]);
+        $unit = $this->createUnit(['manual_id' => $primaryManual->id]);
         $workorder = $this->createWorkorder([
             'user_id' => $admin->id,
             'unit_id' => $unit->id,
@@ -222,10 +219,8 @@ class MultiManualWorkorderTest extends TestCase
         $admin = $this->createUserWithRole('Admin');
         $primaryManual = $this->createManual(['number' => 'MM-MAIN-PROCESSES']);
         $additionalManual = $this->createManual(['number' => 'MM-EHSV-PROCESSES']);
-        $unit = $this->createUnit([
-            'manual_id' => $primaryManual->id,
-            'additional_manual_ids' => [$additionalManual->id],
-        ]);
+        $primaryManual->update(['additional_manual_ids' => [$additionalManual->id]]);
+        $unit = $this->createUnit(['manual_id' => $primaryManual->id]);
         $workorder = $this->createWorkorder([
             'user_id' => $admin->id,
             'unit_id' => $unit->id,
@@ -274,10 +269,8 @@ class MultiManualWorkorderTest extends TestCase
         $admin = $this->createUserWithRole('Admin');
         $primaryManual = $this->createManual();
         $additionalManual = $this->createManual(['number' => 'MM-TDR']);
-        $unit = $this->createUnit([
-            'manual_id' => $primaryManual->id,
-            'additional_manual_ids' => [$additionalManual->id],
-        ]);
+        $primaryManual->update(['additional_manual_ids' => [$additionalManual->id]]);
+        $unit = $this->createUnit(['manual_id' => $primaryManual->id]);
         $workorder = $this->createWorkorder([
             'user_id' => $admin->id,
             'unit_id' => $unit->id,
@@ -310,7 +303,7 @@ class MultiManualWorkorderTest extends TestCase
         $this->assertSame([], $workorder->fresh()->notUsedManualIds());
     }
 
-    public function test_existing_workorder_keeps_its_manual_snapshot_until_explicit_sync(): void
+    public function test_existing_workorder_immediately_uses_current_manual_configuration(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $primaryManual = $this->createManual(['number' => 'MM-SNAPSHOT-MAIN']);
@@ -321,19 +314,15 @@ class MultiManualWorkorderTest extends TestCase
             'unit_id' => $unit->id,
         ]);
 
-        $unit->update(['additional_manual_ids' => [$additionalManual->id]]);
+        $primaryManual->update(['additional_manual_ids' => [$additionalManual->id]]);
 
-        $this->assertSame([], $workorder->fresh('unit')->additionalManualIds());
-        $this->assertSame([$primaryManual->id], $workorder->fresh('unit')->usedManualIds());
-
-        $response = $this->actingAs($admin)->postJson(
-            route('workorders.manuals.sync', $workorder)
-        );
-
-        $response->assertOk()->assertJsonPath('success', true);
         $this->assertSame(
             [$additionalManual->id],
             $workorder->fresh('unit')->additionalManualIds()
+        );
+        $this->assertSame(
+            [$primaryManual->id, $additionalManual->id],
+            $workorder->fresh('unit')->usedManualIds()
         );
     }
 
@@ -353,24 +342,16 @@ class MultiManualWorkorderTest extends TestCase
             'unit_id' => $unit->id,
         ]);
 
-        $unit->update(['additional_manual_ids' => [$additionalManual->id]]);
+        $primaryManual->update(['additional_manual_ids' => [$additionalManual->id]]);
 
         foreach ([$admin, $manager] as $user) {
-            $workorder->forceFill([
-                'additional_manual_ids' => [],
-                'not_used_manual_ids' => [],
-            ])->save();
+            $workorder->forceFill(['not_used_manual_ids' => []])->save();
 
             $this->actingAs($user)
                 ->get(route('workorders.edit', $workorder))
                 ->assertOk()
-                ->assertSee('syncWorkorderManualsBtn', false)
-                ->assertSee('Load manuals from Unit');
-
-            $this->actingAs($user)
-                ->postJson(route('workorders.manuals.sync', $workorder))
-                ->assertOk()
-                ->assertJsonPath('success', true);
+                ->assertDontSee('syncWorkorderManualsBtn', false)
+                ->assertSee('Additional manuals come from the primary Manual/CMM');
 
             $this->actingAs($user)
                 ->patchJson(route('workorders.manuals.usage', $workorder), [
@@ -385,10 +366,6 @@ class MultiManualWorkorderTest extends TestCase
 
         foreach ([$teamLeader, $technician, $shipping] as $user) {
             $this->actingAs($user)
-                ->postJson(route('workorders.manuals.sync', $workorder))
-                ->assertForbidden();
-
-            $this->actingAs($user)
                 ->patchJson(route('workorders.manuals.usage', $workorder), [
                     'manual_id' => $additionalManual->id,
                     'used' => false,
@@ -397,27 +374,29 @@ class MultiManualWorkorderTest extends TestCase
         }
     }
 
-    public function test_manager_can_exclude_unit_additional_manual_during_workorder_creation(): void
+    public function test_manager_can_exclude_manual_additional_manual_during_workorder_creation(): void
     {
         $manager = $this->createUserWithRole('Manager');
         $this->createDraftInstruction();
         $instruction = $this->createInstruction(['name' => 'MM Create ' . uniqid()]);
         $customer = $this->createCustomer();
-        $primaryManual = $this->createManual(['number' => 'MM-CREATE-MAIN']);
-        $usedManual = $this->createManual(['number' => 'MM-CREATE-USED']);
-        $excludedManual = $this->createManual(['number' => 'MM-CREATE-EXCLUDED']);
-        $unit = $this->createUnit([
-            'manual_id' => $primaryManual->id,
-            'additional_manual_ids' => [$usedManual->id, $excludedManual->id],
-        ]);
+        $primaryManual = $this->createManual(['number' => 'MM-CREATE-MAIN', 'title' => 'Create main title']);
+        $usedManual = $this->createManual(['number' => 'MM-CREATE-USED', 'title' => 'Create used title']);
+        $excludedManual = $this->createManual(['number' => 'MM-CREATE-EXCLUDED', 'title' => 'Create excluded title']);
+        $primaryManual->update(['additional_manual_ids' => [$usedManual->id, $excludedManual->id]]);
+        $unit = $this->createUnit(['manual_id' => $primaryManual->id]);
 
         $this->actingAs($manager)
             ->get(route('workorders.create'))
             ->assertOk()
             ->assertSee('WO Manuals')
             ->assertSee('createWorkorderManualsModal', false)
+            ->assertSee('<th class="workorder-manual-title-column">Title</th>', false)
+            ->assertSee("change.workorderManuals", false)
             ->assertSee('MM-CREATE-USED')
-            ->assertSee('MM-CREATE-EXCLUDED');
+            ->assertSee('Create used title')
+            ->assertSee('MM-CREATE-EXCLUDED')
+            ->assertSee('Create excluded title');
 
         $response = $this->actingAs($manager)->post(route('workorders.store'), [
             'number' => 790001,
@@ -462,69 +441,61 @@ class MultiManualWorkorderTest extends TestCase
         $this->assertDatabaseMissing('workorders', ['number' => 790002]);
     }
 
-    public function test_unit_editor_persists_additional_manuals_and_excludes_primary_manual(): void
+    public function test_manuals_index_persists_additional_manuals_once_for_all_units(): void
     {
         $manager = $this->createUserWithRole('Manager');
         $primaryManual = $this->createManual(['number' => 'MM-UNIT-MAIN']);
         $additionalManual = $this->createManual(['number' => 'MM-UNIT-EXTRA', 'lib' => '243']);
+        $manager->permittedManuals()->attach([$primaryManual->id, $additionalManual->id]);
         $unit = $this->createUnit([
             'manual_id' => $primaryManual->id,
             'part_number' => 'MM-UNIT-PN',
         ]);
-
-        $response = $this->actingAs($manager)->postJson(route('units.update', $primaryManual->id), [
-            'part_numbers' => [[
-                'part_number' => $unit->part_number,
-                'name' => $unit->name,
-                'eff_code' => $unit->eff_code,
-                'verified' => true,
-                'additional_manual_ids' => [$primaryManual->id, $additionalManual->id],
-            ]],
+        $secondUnit = $this->createUnit([
+            'manual_id' => $primaryManual->id,
+            'part_number' => 'MM-UNIT-PN-2',
         ]);
 
-        $response->assertOk()->assertJsonPath('success', true);
+        $response = $this->actingAs($manager)->patchJson(route('manuals.additional-manuals.update', $primaryManual), [
+            'additional_manual_ids' => [$primaryManual->id, $additionalManual->id],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('additional_manual_ids.0', $additionalManual->id)
+            ->assertJsonPath('additional_manuals.0.lib', '243');
+        $this->assertSame([$additionalManual->id], $primaryManual->fresh()->additionalManualIds());
         $this->assertSame([$additionalManual->id], $unit->fresh()->additionalManualIds());
+        $this->assertSame([$additionalManual->id], $secondUnit->fresh()->additionalManualIds());
 
         $show = $this->actingAs($manager)->getJson(route('units.show', $primaryManual->id));
         $show->assertOk()
-            ->assertJsonPath('units.0.additional_manual_ids.0', $additionalManual->id)
-            ->assertJsonPath('units.0.additional_manual_numbers.0', 'MM-UNIT-EXTRA')
-            ->assertJsonPath('units.0.additional_manuals.0.lib', '243');
-        $this->assertContains(
-            $additionalManual->id,
-            collect($show->json('manual_options'))->pluck('id')->all()
-        );
-        $this->assertNotContains(
-            $primaryManual->id,
-            collect($show->json('manual_options'))->pluck('id')->all()
-        );
+            ->assertJsonMissingPath('additional_manual_ids')
+            ->assertJsonMissingPath('manual_options')
+            ->assertJsonMissingPath('units.0.additional_manual_ids');
 
-        $admin = $this->createUserWithRole('Admin');
-        $manualPage = $this->actingAs($admin)->get(route('manuals.show', [
-            'manual' => $primaryManual->id,
-            'tab' => 'components',
-        ]));
-        $manualPage->assertOk();
-        $manualPage->assertSee('Additional Manuals');
-        $manualPage->assertSee('MM-UNIT-EXTRA');
-        $manualPage->assertSee('<span class="text-secondary">(243)</span>', false);
+        $manualsIndex = $this->actingAs($manager)->get(route('manuals.index'));
+        $manualsIndex->assertOk();
+        $manualsIndex->assertSee('Additional Manuals');
+        $manualsIndex->assertSee('MM-UNIT-EXTRA');
+        $manualsIndex->assertSee('manual-additional-cell-button', false);
+        $manualsIndex->assertSee('data-manual-number="MM-UNIT-MAIN"', false);
+        $manualsIndex->assertSee('(243)');
+
+        $componentsPage = $this->actingAs($manager)->get(route('manuals.show', $primaryManual));
+        $componentsPage->assertOk();
+        $componentsPage->assertDontSee('manualAdditionalManualIds', false);
     }
 
-    public function test_technician_cannot_change_unit_additional_manuals(): void
+    public function test_technician_cannot_change_manual_additional_manuals(): void
     {
         $technician = $this->createUserWithRole('Technician');
         $primaryManual = $this->createManual(['number' => 'MM-UNIT-ROLE-MAIN']);
         $additionalManual = $this->createManual(['number' => 'MM-UNIT-ROLE-EXTRA']);
-        $unit = $this->createUnit(['manual_id' => $primaryManual->id]);
-
-        $this->actingAs($technician)->postJson(route('units.update', $primaryManual->id), [
-            'part_numbers' => [[
-                'part_number' => $unit->part_number,
-                'verified' => true,
-                'additional_manual_ids' => [$additionalManual->id],
-            ]],
+        $this->actingAs($technician)->patchJson(route('manuals.additional-manuals.update', $primaryManual), [
+            'additional_manual_ids' => [$additionalManual->id],
         ])->assertForbidden();
 
-        $this->assertSame([], $unit->fresh()->additionalManualIds());
+        $this->assertSame([], $primaryManual->fresh()->additionalManualIds());
     }
 }

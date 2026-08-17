@@ -1995,7 +1995,14 @@ class TdrController extends Controller
 
         $workorderPartGroups = ManualPartGroup::query()
             ->whereIn('manual_id', $current_wo->usedManualIds())
-            ->with(['options.component:id,ipl_num,part_number,name', 'options.coverages.component:id,ipl_num,part_number,name', 'serviceBulletin'])
+            ->whereIn('type', [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_KIT])
+            ->with([
+                'options.component:id,ipl_num,part_number,name',
+                'options.coverages.component:id,ipl_num,part_number,name',
+                'options.coverages.coveredOption.group:id,name,type',
+                'options.coverages.coveredOption.coverages.component:id,ipl_num,part_number,name',
+                'serviceBulletin',
+            ])
             ->orderBy('name')
             ->get();
         $workorderPartGroupSelections = $current_wo->partGroupSelections()

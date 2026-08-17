@@ -1,5 +1,10 @@
 @php
-    $hasRows = $groupedComponents->isNotEmpty() || $separateComponents->isNotEmpty();
+    $logCardManualSections = collect($logCardManualSections ?? []);
+    $hasRows = $logCardManualSections->contains(function ($section) {
+        return $section['assyChoiceGroups']->isNotEmpty()
+            || $section['groupedComponents']->isNotEmpty()
+            || $section['separateComponents']->isNotEmpty();
+    });
     $componentData = isset($componentData) && is_array($componentData) ? $componentData : [];
     $hasSavedLogCard = $log_card && !empty($componentData);
     $logCardEditMode = (bool) ($editMode ?? false);
@@ -58,6 +63,21 @@
         .log-card-partial .lc-inline-input {
             min-width: 130px;
         }
+        .log-card-partial .lc-assy-group-options {
+            display: grid;
+            gap: .35rem;
+        }
+        .log-card-partial .lc-assy-group-option {
+            display: grid;
+            grid-template-columns: 1.1rem minmax(0, 1fr);
+            gap: .45rem;
+            align-items: start;
+            margin: 0;
+            cursor: pointer;
+        }
+        .log-card-partial .lc-assy-group-option .form-check-input {
+            margin-top: .2rem;
+        }
     </style>
 
     @if($logCardTdrReadOnly)
@@ -66,8 +86,8 @@
         </div>
     @endif
 
-    @if(!$hasRows && !$hasSavedLogCard && $availableLogCardManuals->isEmpty())
-        <p class="text-center text-muted mt-3">{{ __('No components with log_card=1 for this manual.') }}</p>
+    @if(!$hasRows && !$hasSavedLogCard)
+        <p class="text-center text-muted mt-3">{{ __('No components with log_card=1 for the manuals used by this Workorder.') }}</p>
     @elseif($renderDraft)
         <div class="table-responsive table-scroll-container">
             <table class="table table-bordered table-hover dir-table align-middle bg-gradient">
@@ -86,45 +106,18 @@
                     </tr>
                 </thead>
                 <tbody id="log-card-draft-body">
-                    @if($hasRows)
+                    @foreach($logCardManualSections as $manualSection)
                         @include('admin.log_card.partials.draft-manual-rows', [
-                            'manual' => $manual,
-                            'sectionKey' => '',
+                            'groupedComponents' => $manualSection['groupedComponents'],
+                            'separateComponents' => $manualSection['separateComponents'],
+                            'manual' => $manualSection['manual'],
+                            'sectionKey' => $manualSection['sectionKey'],
                             'componentData' => $componentData,
-                            'orderedComponents' => $orderedComponents,
-                        ])
-                    @endif
-                    @foreach($savedExtraManualSections as $savedManualSection)
-                        @include('admin.log_card.partials.draft-manual-rows', [
-                            'groupedComponents' => $savedManualSection['groupedComponents'],
-                            'separateComponents' => $savedManualSection['separateComponents'],
-                            'manual' => $savedManualSection['manual'],
-                            'sectionKey' => $savedManualSection['sectionKey'],
-                            'componentData' => $componentData,
-                            'orderedComponents' => $savedManualSection['orderedComponents'],
+                            'orderedComponents' => $manualSection['orderedComponents'],
                         ])
                     @endforeach
                 </tbody>
             </table>
-        </div>
-        <div class="d-flex align-items-center justify-content-start gap-2 mt-2">
-            <select class="form-select form-select-sm"
-                    id="logCardExtraManualSelect"
-                    style="max-width: 420px;"
-                    @disabled($logCardTdrReadOnly)>
-                <option value="">{{ __('Select manual') }}</option>
-                @foreach($availableLogCardManuals as $availableManual)
-                    <option value="{{ $availableManual->id }}">
-                        {{ trim(($availableManual->number ?? '').' '.($availableManual->title ?? '')) }}
-                    </option>
-                @endforeach
-            </select>
-            <button type="button"
-                    class="btn btn-outline-primary btn-sm"
-                    id="logCardAddManualBtn"
-                    @disabled($logCardTdrReadOnly || $availableLogCardManuals->isEmpty())>
-                <i class="fas fa-plus"></i> {{ __('Add another manual') }}
-            </button>
         </div>
     @else
         <div class="table-responsive table-scroll-container">
@@ -187,6 +180,9 @@
                             data-row-index="{{ $item['_storage_index'] ?? $index }}"
                             data-component-id="{{ $component->id }}"
                             data-ipl-group="{{ $item['ipl_group'] ?? '' }}"
+                            data-manual-part-group-id="{{ $item['manual_part_group_id'] ?? '' }}"
+                            data-manual-part-group-option-id="{{ $item['manual_part_group_option_id'] ?? '' }}"
+                            data-manual-part-group-choice="{{ $item['manual_part_group_choice'] ?? '' }}"
                             data-component-assembly-id="{{ $assemblyId }}"
                             data-assy-part-number="{{ $assyPartNumber }}"
                             data-assy-ipl-num="{{ $assyIplNum }}"

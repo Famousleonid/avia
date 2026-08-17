@@ -4,11 +4,11 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content bg-gradient">
             <div class="modal-header">
-                <h5 class="modal-title" id="workorderPartGroupsModalLabel">{{ __('WO Part Group Selections') }}</h5>
+                <h5 class="modal-title" id="workorderPartGroupsModalLabel">{{ __('ASSY / KIT ordered for this WO') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
             </div>
             <div class="modal-body">
-                <p class="small text-muted">{{ __('Selections control cross-outs in PRL and the enabled STD forms. Clearing a selection restores the group members.') }}</p>
+                <p class="small text-muted">{{ __('Select a complete ASSY or KIT only when its new P/N is being ordered. Its included parts will be crossed out in KIT/PRL and enabled STD forms. Ordering an individual member does not select the complete group.') }}</p>
                 @foreach($workorderPartGroups as $partGroup)
                     @php $selection = $workorderPartGroupSelections->get($partGroup->id); @endphp
                     <div class="card mb-2 workorder-part-group" data-group-id="{{ $partGroup->id }}" data-update-url="{{ route('workorders.part-groups.selection.update', ['workorder' => $current_wo, 'partGroup' => $partGroup]) }}">
@@ -16,7 +16,7 @@
                             <div class="d-flex justify-content-between align-items-start gap-2">
                                 <div>
                                     <strong>{{ $partGroup->name }}</strong>
-                                    <span class="badge text-bg-secondary">{{ $partGroup->type }}</span>
+                                    <span class="badge text-bg-secondary">{{ $partGroup->type === \App\Models\ManualPartGroup::TYPE_ASSY ? 'ASSY' : 'KIT' }}</span>
                                     <div class="small text-muted">{{ $partGroup->code }} · {{ implode(', ', $partGroup->applies_to ?: []) }}</div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-end">
@@ -41,7 +41,15 @@
                             @if($partGroup->behavior === \App\Models\ManualPartGroup::BEHAVIOR_BUNDLE)
                                 <div class="small mt-2">
                                     {{ __('Covers:') }}
-                                    {{ $partGroup->options->flatMap->coverages->map(fn ($coverage) => trim(($coverage->component?->ipl_num ? $coverage->component->ipl_num.' / ' : '').($coverage->component?->part_number ?? '').' × '.$coverage->qty))->implode('; ') }}
+                                    {{ $partGroup->options->flatMap->coverages->map(function ($coverage) {
+                                        if ($coverage->component) {
+                                            return trim(($coverage->component->ipl_num ? $coverage->component->ipl_num.' / ' : '').$coverage->component->part_number.' × '.$coverage->qty);
+                                        }
+                                        $nested = $coverage->coveredOption;
+                                        return $nested
+                                            ? trim('ASSY '.$nested->part_number.' × '.$coverage->qty)
+                                            : '';
+                                    })->filter()->implode('; ') }}
                                 </div>
                             @endif
                         </div>

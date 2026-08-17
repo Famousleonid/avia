@@ -47,7 +47,7 @@
             margin-inline: auto;
         }
 
-        /* ÐšÐ¾Ð»Ð¾Ð½ÐºÐ¸ Components: # | Components PN | EFF Code | Additional Manuals | IPL Rule */
+        /* Components: # | Components PN | EFF Code | IPL Rule */
         #nav-components .table th:nth-child(1),
         #nav-components .table td:nth-child(1) { width: 50px; }
         #nav-components .table th:nth-child(2),
@@ -55,9 +55,7 @@
         #nav-components .table th:nth-child(3),
         #nav-components .table td:nth-child(3) { width: 110px; }
         #nav-components .table th:nth-child(4),
-        #nav-components .table td:nth-child(4) { width: 230px; }
-        #nav-components .table th:nth-child(5),
-        #nav-components .table td:nth-child(5) { width: 190px; }
+        #nav-components .table td:nth-child(4) { width: 190px; }
 
         .component-table-container {
             width: calc(100% - 1rem);
@@ -681,11 +679,11 @@
         }
 
         .manual-unit-editor-wrap {
-            min-width: 1180px;
+            min-width: 920px;
         }
         .manual-unit-editor-row {
             display: grid;
-            grid-template-columns: 26px minmax(140px, 1.05fr) minmax(110px, .7fr) minmax(240px, 1.5fr) minmax(100px, .7fr) minmax(100px, .7fr) minmax(100px, .7fr) 56px;
+            grid-template-columns: 26px minmax(140px, 1.05fr) minmax(110px, .7fr) minmax(100px, .7fr) minmax(100px, .7fr) minmax(100px, .7fr) 56px;
             gap: .5rem;
             align-items: center;
         }
@@ -720,10 +718,6 @@
         }
         .manual-unit-rule-cell {
             white-space: nowrap;
-            font-size: .9rem;
-        }
-        .manual-unit-additional-manuals-cell {
-            overflow-wrap: anywhere;
             font-size: .9rem;
         }
         @media (max-width: 991.98px) {
@@ -1092,7 +1086,6 @@
                                 <th class="text-center bg-gradient" scope="col">#</th>
                                 <th class="text-center bg-gradient" scope="col">Components PN</th>
                                 <th class="text-center bg-gradient" scope="col">EFF Code</th>
-                                <th class="text-center bg-gradient" scope="col">Additional Manuals</th>
                                 <th class="text-center bg-gradient" scope="col">IPL Rule</th>
                             </tr>
                             </thead>
@@ -1108,11 +1101,6 @@
                                     {{$u->part_number}}
                                 </td>
                                 <td class="align-content-center"> {{$u->eff_code}}</td>
-                                <td class="align-content-center manual-unit-additional-manuals-cell">
-                                    @include('admin.partials.additional-manuals', [
-                                        'additionalManuals' => $u->additional_manuals_display ?? [],
-                                    ])
-                                </td>
                                 <td class="align-content-center manual-unit-rule-cell">{{ $u->ipl_branch_rule_display ?: '-' }}</td>
                             </tr>
                             @endforeach
@@ -1930,7 +1918,6 @@
 	                                <div>{{ __('Ver.') }}</div>
 	                                <div>{{ __('Part Number') }}</div>
 	                                <div>{{ __('EFF Code') }}</div>
-	                                <div>{{ __('Additional Manuals') }}</div>
 	                                <div>{{ __('Match Unit') }}</div>
 	                                <div>{{ __('Use IPL') }}</div>
 	                                <div>{{ __('Hide IPL') }}</div>
@@ -3476,8 +3463,6 @@
 
             // ---- Edit Unit / Update Components modal (bulk edit: load units, populate partNumbersList, Add PN, Update) ----
             var editUnitModal = document.getElementById('editUnitModal');
-            var unitManualOptions = [];
-            var canManageUnitAdditionalManuals = @json(auth()->user()?->can('units.manageAdditionalManuals') ?? false);
             document.addEventListener('click', function (event) {
                 const button = event.target.closest('.btn-update-components');
                 if (!button) return;
@@ -3503,7 +3488,6 @@
 	                fetch(unitsUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
 	                    .then(function (r) { return r.json(); })
 	                    .then(function (data) {
-                            unitManualOptions = Array.isArray(data.manual_options) ? data.manual_options : [];
                             var defaultIncludeInput = document.getElementById('defaultIncludePrefix');
                             var defaultExcludeInput = document.getElementById('defaultExcludePrefix');
                             if (defaultIncludeInput) {
@@ -3515,7 +3499,7 @@
 
 	                        if (data.units && data.units.length > 0) {
 	                            data.units.forEach(function (unit) {
-	                                addPartNumberRow(unit.part_number, unit.verified, unit.eff_code || '', unit.additional_manual_ids || [], unit.unit_match_value || '', unit.include_prefix || '', unit.exclude_prefix || '');
+	                                addPartNumberRow(unit.part_number, unit.verified, unit.eff_code || '', unit.unit_match_value || '', unit.include_prefix || '', unit.exclude_prefix || '');
 	                            });
                         } else {
                             var noUnitsItem = document.createElement('div');
@@ -3529,11 +3513,11 @@
 
             document.addEventListener('click', function (e) {
                 if (e.target.id === 'addUnitButton' || e.target.closest('#addUnitButton')) {
-                    addPartNumberRow('', true, '', [], '', '', '');
+                    addPartNumberRow('', true, '', '', '', '');
                 }
             });
 
-            function addPartNumberRow(partNumber, verified, effCode, additionalManualIds, unitMatchValue, includePrefix, excludePrefix) {
+            function addPartNumberRow(partNumber, verified, effCode, unitMatchValue, includePrefix, excludePrefix) {
                 var partNumbersList = document.getElementById('partNumbersList');
                 if (!partNumbersList) return;
 
@@ -3563,23 +3547,6 @@
                 effCodeInput.value = effCode || '';
                 effCodeInput.placeholder = 'EFF Code';
 
-                var additionalManualSelect = document.createElement('select');
-                additionalManualSelect.className = 'form-select manual-unit-additional-manuals';
-                additionalManualSelect.multiple = true;
-                additionalManualSelect.size = 3;
-                additionalManualSelect.title = '{{ __('Select every additional CMM used by this Unit') }}';
-                additionalManualSelect.disabled = !canManageUnitAdditionalManuals;
-                var selectedAdditionalIds = new Set((additionalManualIds || []).map(function (id) { return String(id); }));
-                unitManualOptions.forEach(function (manual) {
-                    var option = document.createElement('option');
-                    option.value = String(manual.id);
-                    var manualNumber = manual.number || '';
-                    if (manual.lib) manualNumber += ' (' + manual.lib + ')';
-                    option.textContent = [manualNumber, manual.title].filter(Boolean).join(' : ');
-                    option.selected = selectedAdditionalIds.has(option.value);
-                    additionalManualSelect.appendChild(option);
-                });
-
 	                var unitMatchInput = document.createElement('input');
 	                unitMatchInput.type = 'text';
 	                unitMatchInput.className = 'form-control';
@@ -3606,20 +3573,12 @@
                 listItem.appendChild(checkbox);
                 listItem.appendChild(pnInput);
                 listItem.appendChild(effCodeInput);
-                listItem.appendChild(additionalManualSelect);
                 listItem.appendChild(unitMatchInput);
                 listItem.appendChild(includePrefixInput);
                 listItem.appendChild(excludePrefixInput);
                 listItem.appendChild(deleteButton);
                 partNumbersList.appendChild(listItem);
 
-                if (window.jQuery && jQuery.fn.select2) {
-                    jQuery(additionalManualSelect).select2({
-                        width: '100%',
-                        placeholder: '{{ __('Additional CMMs') }}',
-                        dropdownParent: jQuery('#editUnitModal')
-                    });
-                }
             }
 
             var updateUnitBtn = document.getElementById('updateUnitButton');
@@ -3630,7 +3589,6 @@
 	                var partNumbers = Array.from(listItems).map(function (listItem) {
 	                    var inputs = listItem.querySelectorAll('.form-control');
 	                    var checkbox = listItem.querySelector('.form-check-input');
-	                    var additionalManualSelect = listItem.querySelector('.manual-unit-additional-manuals');
 	                    var partNumberPayload = {
                         part_number: inputs[0] ? inputs[0].value : '',
                         eff_code: inputs[1] ? inputs[1].value : '',
@@ -3639,13 +3597,6 @@
                         exclude_prefix: inputs[4] ? inputs[4].value : '',
 	                        verified: !!(checkbox && checkbox.checked)
 	                    };
-
-                        if (canManageUnitAdditionalManuals) {
-                            partNumberPayload.additional_manual_ids = additionalManualSelect
-                                ? Array.from(additionalManualSelect.selectedOptions).map(function (option) { return Number(option.value); })
-                                : [];
-                        }
-
                         return partNumberPayload;
 	                });
                     var defaultIncludeInput = document.getElementById('defaultIncludePrefix');
@@ -3707,27 +3658,6 @@
                                                 '<td class="align-content-center' + (unit.verified ? '' : ' text-danger fw-bold') + '">' + (unit.part_number || '') + '</td>' +
                                                 '<td class="align-content-center">' + (unit.eff_code || '') + '</td>' +
                                                 '<td class="align-content-center manual-unit-rule-cell">' + (unit.ipl_branch_rule_display || '-') + '</td>';
-                                            var additionalManualsCell = document.createElement('td');
-                                            additionalManualsCell.className = 'align-content-center manual-unit-additional-manuals-cell';
-                                            var additionalManuals = Array.isArray(unit.additional_manuals) ? unit.additional_manuals : [];
-                                            if (!additionalManuals.length) {
-                                                additionalManualsCell.textContent = '-';
-                                            } else {
-                                                additionalManuals.forEach(function (manual, manualIndex) {
-                                                    if (manualIndex > 0) additionalManualsCell.appendChild(document.createTextNode(', '));
-                                                    var manualLabel = document.createElement('span');
-                                                    manualLabel.className = 'text-nowrap';
-                                                    manualLabel.appendChild(document.createTextNode(manual.number || '-'));
-                                                    if (manual.lib) {
-                                                        var manualLib = document.createElement('span');
-                                                        manualLib.className = 'text-secondary';
-                                                        manualLib.textContent = ' (' + manual.lib + ')';
-                                                        manualLabel.appendChild(manualLib);
-                                                    }
-                                                    additionalManualsCell.appendChild(manualLabel);
-                                                });
-                                            }
-                                            tr.insertBefore(additionalManualsCell, tr.lastElementChild);
                                             tbody.appendChild(tr);
                                         });
                                     }

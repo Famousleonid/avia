@@ -146,9 +146,6 @@
             width: 100% !important;
         }
 
-        .unit-additional-manual-select + .select2 {
-            width: 100% !important;
-        }
     </style>
 
     <div class="container-fluid library-units-page">
@@ -213,7 +210,6 @@
                             <th class="text-primary">{{ __('Name') }}</th>
                                 <th class="text-primary">{{ __('Description') }}</th>
                                 <th class="text-primary">{{ __('CMM') }}</th>
-                                <th class="text-primary">{{ __('Additional Manuals') }}</th>
                                 <th class="text-primary text-center">{{ __('Verified') }}</th>
                             <th class="text-primary text-center">{{ __('WO') }}</th>
                             <th class="text-primary">{{ __('Created') }}</th>
@@ -440,76 +436,29 @@
 
             function initializeModalManualSelect(modal) {
                 const manualSelect = modal?.querySelector('.unit-manual-select');
-                const additionalManualSelect = modal?.querySelector('.unit-additional-manual-select');
 
                 if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                    [manualSelect, additionalManualSelect].forEach(function (select) {
-                        if (!select) return;
-
-                        const $select = window.jQuery(select);
+                    if (manualSelect) {
+                        const $select = window.jQuery(manualSelect);
                         if (!$select.hasClass('select2-hidden-accessible')) {
                             $select.select2({
                                 width: '100%',
                                 dropdownParent: window.jQuery(modal),
-                                placeholder: select === manualSelect ? 'Manual pending' : 'Additional Manuals',
+                                placeholder: 'Manual pending',
                             });
                         }
-                    });
-                }
-
-                if (manualSelect && manualSelect.dataset.additionalManualSync !== '1') {
-                    manualSelect.dataset.additionalManualSync = '1';
-                    const syncAdditionalManuals = function () {
-                        syncPrimaryManualExclusion(modal?.querySelector('form'));
-                    };
-                    if (window.jQuery && window.jQuery.fn) {
-                        window.jQuery(manualSelect).on('change.additionalManuals', syncAdditionalManuals);
-                    } else {
-                        manualSelect.addEventListener('change', syncAdditionalManuals);
                     }
-                }
-
-                syncPrimaryManualExclusion(modal?.querySelector('form'));
-            }
-
-            function syncPrimaryManualExclusion(form) {
-                const manualSelect = form?.querySelector('[name="manual_id"]');
-                const additionalManualSelect = form?.querySelector('[name="additional_manual_ids[]"]');
-                if (!manualSelect || !additionalManualSelect) return;
-
-                const primaryManualId = String(manualSelect.value || '');
-                Array.from(additionalManualSelect.options).forEach(function (option) {
-                    const isPrimary = primaryManualId !== '' && option.value === primaryManualId;
-                    if (isPrimary) option.selected = false;
-                    option.disabled = isPrimary;
-                });
-
-                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2 && additionalManualSelect.classList.contains('select2-hidden-accessible')) {
-                    window.jQuery(additionalManualSelect).trigger('change.select2');
                 }
             }
 
             function fillManualFields(form, unit) {
                 const manualSelect = form?.querySelector('[name="manual_id"]');
-                const additionalManualSelect = form?.querySelector('[name="additional_manual_ids[]"]');
 
                 if (manualSelect) manualSelect.value = unit.manual_id || '';
-
-                if (additionalManualSelect) {
-                    const selectedIds = new Set((unit.additional_manual_ids || []).map(function (id) { return String(id); }));
-                    Array.from(additionalManualSelect.options).forEach(function (option) {
-                        option.selected = selectedIds.has(option.value);
-                    });
-                }
-
-                syncPrimaryManualExclusion(form);
 
                 if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                     if (manualSelect?.classList.contains('select2-hidden-accessible')) {
                         window.jQuery(manualSelect).trigger('change.select2');
-                    }
-                    if (additionalManualSelect?.classList.contains('select2-hidden-accessible')) {
-                        window.jQuery(additionalManualSelect).trigger('change.select2');
                     }
                 }
             }

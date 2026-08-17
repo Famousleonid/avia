@@ -118,13 +118,22 @@
                             @foreach($bushings as $bushIplNum => $bushingGroup)
                                 @php
                                     $groupKey = (string) ($bushIplNum ?: 'no_ipl');
+                                    $initialBushing = $bushingGroup->first(fn ($candidate) =>
+                                        trim((string) $candidate->ipl_num) === trim((string) $candidate->bush_ipl_num)
+                                    );
+                                    $groupMaxOrderQty = max(1, (int) ($initialBushing?->units_assy ?? $bushingGroup->max('units_assy') ?? 1));
                                 @endphp
-                                <tr class="bushing-row" data-group-key="{{ $groupKey }}">
+                                <tr class="bushing-row"
+                                    data-group-key="{{ $groupKey }}"
+                                    data-max-order-qty="{{ $groupMaxOrderQty }}">
                                     <td class="bushing-part-cell">
                                         <div class="bushing-line-list">
                                             @foreach($bushingGroup as $bushing)
                                                 <div><strong>{{ $bushing->ipl_num }}</strong> - {{ $bushing->part_number }}</div>
                                             @endforeach
+                                        </div>
+                                        <div class="small text-info mt-1 bushing-group-qty-summary" aria-live="polite">
+                                            {{ __('Ordered QTY') }}: <span class="bushing-group-ordered-qty">0</span> / {{ __('max') }} {{ $groupMaxOrderQty }}
                                         </div>
                                     </td>
                                     <td class="text-center bushing-readonly-qty">
@@ -295,6 +304,34 @@
                     });
                 });
             });
+
+            updateGroupQty(row);
+        }
+
+        function updateGroupQty(row) {
+            var orderedQty = 0;
+            row.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
+                if (!checkbox.checked) return;
+                var componentPrefix = checkbox.name.replace('[selected]', '');
+                var doNotOrder = row.querySelector('input[name="' + componentPrefix + '[do_not_order]"][type="checkbox"]');
+                var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
+                if (!doNotOrder || !doNotOrder.checked) {
+                    orderedQty += Math.max(0, parseInt(qty && qty.value ? qty.value : '0', 10) || 0);
+                }
+            });
+
+            var maximumQty = Math.max(1, parseInt(row.dataset.maxOrderQty || '1', 10) || 1);
+            var summary = row.querySelector('.bushing-group-qty-summary');
+            var value = row.querySelector('.bushing-group-ordered-qty');
+            var valid = orderedQty <= maximumQty;
+            if (value) value.textContent = String(orderedQty);
+            if (summary) {
+                summary.classList.toggle('text-info', valid);
+                summary.classList.toggle('text-danger', !valid);
+                summary.classList.toggle('fw-bold', !valid);
+            }
+
+            return valid;
         }
 
         function syncAllRows() {
@@ -330,10 +367,27 @@
         form.addEventListener('change', function(e) {
             var row = e.target.closest('.bushing-row');
             if (row && (e.target.classList.contains('component-checkbox')
-                || e.target.classList.contains('bushing-need-processes'))) {
+                || e.target.classList.contains('bushing-need-processes')
+                || e.target.classList.contains('bushing-do-not-order'))) {
                 syncRow(row);
             }
         });
+        form.addEventListener('input', function(e) {
+            var row = e.target.closest('.bushing-row');
+            if (row && e.target.classList.contains('bushing-qty-input')) updateGroupQty(row);
+        });
+        form.addEventListener('submit', function(e) {
+            var invalidRow = Array.prototype.slice.call(form.querySelectorAll('.bushing-row'))
+                .find(function(row) { return !updateGroupQty(row); });
+            if (!invalidRow) return;
+
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            var message = '{{ __('The total ordered QTY for Original and Oversize bushings may not exceed the group maximum.') }}';
+            if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(message, 'error');
+            else if (typeof window.showNotification === 'function') window.showNotification(message);
+            invalidRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, true);
 
         syncAllRows();
     }

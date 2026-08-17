@@ -7,6 +7,7 @@ use App\Models\Component;
 use App\Models\ComponentAssembly;
 use App\Models\GeneralTask;
 use App\Models\LogCard;
+use App\Models\ManualPartGroup;
 use App\Models\Main;
 use App\Models\Material;
 use App\Models\MobileApiToken;
@@ -863,12 +864,84 @@ class MobileApiTest extends TestCase
         ]);
     }
 
+    public function test_mobile_log_card_template_groups_assy_choices_and_saves_selected_option(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $user->id]);
+        $manualId = (int) $workorder->unit->manual_id;
+        $base = Component::query()->create([
+            'manual_id' => $manualId,
+            'name' => 'Mobile ASSY base',
+            'part_number' => 'M-ASSY-BASE',
+            'ipl_num' => '8-10',
+            'units_assy' => 1,
+            'log_card' => true,
+        ]);
+        $member = Component::query()->create([
+            'manual_id' => $manualId,
+            'name' => 'Mobile ASSY member',
+            'part_number' => 'M-ASSY-MEMBER',
+            'ipl_num' => '8-20',
+            'units_assy' => 1,
+            'log_card' => true,
+        ]);
+        $group = ManualPartGroup::query()->create([
+            'manual_id' => $manualId,
+            'code' => 'MPG-MOBILE-LC',
+            'name' => 'Mobile ASSY',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE,
+            'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ManualPartGroup::validScopes(),
+        ]);
+        $option = $group->options()->create([
+            'component_id' => $base->id,
+            'part_number' => 'M-ASSY-COMPLETE',
+            'ipl_num' => '8-10A',
+            'option_kind' => 'assy',
+            'is_default' => true,
+        ]);
+        $option->coverages()->createMany([
+            ['component_id' => $base->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
+            ['component_id' => $member->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
+        ]);
+
+        $template = $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.log-card.template', $workorder->id));
+
+        $template->assertOk()
+            ->assertJsonPath('data.assy_groups.0.group_id', $group->id)
+            ->assertJsonPath('data.assy_groups.0.selection_type', 'radio');
+        $this->assertSame(3, count($template->json('data.assy_groups.0.choices')));
+        $this->assertSame([], $template->json('data.groups'));
+
+        $this->withMobileToken($user)
+            ->postJson(route('api.mobile.workorders.log-card.store', $workorder->id), [
+                'rows' => [[
+                    'component_id' => $base->id,
+                    'manual_part_group_id' => $group->id,
+                    'manual_part_group_option_id' => $option->id,
+                    'manual_part_group_choice' => 'assy',
+                    'ipl_group' => 'assy_group_'.$group->id,
+                ]],
+            ])
+            ->assertOk();
+
+        $rows = json_decode((string) LogCard::query()
+            ->where('workorder_id', $workorder->id)
+            ->firstOrFail()
+            ->component_data, true);
+        $this->assertSame('M-ASSY-COMPLETE', $rows[1]['assy_part_number']);
+        $this->assertSame((string) $option->id, $rows[1]['manual_part_group_option_id']);
+    }
+
     public function test_mobile_api_log_card_can_be_created_viewed_and_fully_updated_like_desktop(): void
     {
         $user = $this->createUserWithRole('Technician');
         $workorder = $this->createWorkorder(['user_id' => $user->id]);
         $primaryManual = $workorder->unit->manual;
         $extraManual = $this->createManual(['number' => 'EXTRA-LOG-CARD']);
+        $outsideManual = $this->createManual(['number' => 'OUTSIDE-LOG-CARD']);
+        $primaryManual->update(['additional_manual_ids' => [$extraManual->id]]);
 
         $primary = Component::query()->create([
             'manual_id' => $primaryManual->id,
@@ -915,6 +988,16 @@ class MobileApiTest extends TestCase
             $extraManual->id,
             collect($primaryTemplate->json('data.available_manuals'))->pluck('id')->all()
         );
+        $this->assertNotContains(
+            $outsideManual->id,
+            collect($primaryTemplate->json('data.available_manuals'))->pluck('id')->all()
+        );
+        $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.log-card.template', [
+                'workorderId' => $workorder->id,
+                'manual_id' => $outsideManual->id,
+            ]))
+            ->assertUnprocessable();
 
         $extraTemplate = $this->withMobileToken($user)
             ->getJson(route('api.mobile.workorders.log-card.template', [

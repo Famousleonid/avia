@@ -19,6 +19,7 @@ use App\Services\WoBushingRelationalSync;
 use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class WoBushingController extends Controller
@@ -561,6 +562,87 @@ class WoBushingController extends Controller
     }
 
     /**
+     * A bushing group may be split between the original and one or more
+     * oversizes, but the ordered quantity may not exceed the original
+     * bushing quantity required by the assembly.
+     *
+     * @param  array<string, array<string, mixed>>  $groupBushingsData
+     */
+    private function validateBushingGroupOrderQuantities(array $groupBushingsData): void
+    {
+        $orderedRows = collect($groupBushingsData)
+            ->flatMap(function ($groupData) {
+                if (! is_array($groupData) || ! is_array($groupData['items'] ?? null)) {
+                    return [];
+                }
+
+                return collect($groupData['items'])
+                    ->filter(fn ($item): bool => is_array($item)
+                        && ! empty($item['selected'])
+                        && empty($item['do_not_order']))
+                    ->map(fn (array $item, $componentId): array => [
+                        'component_id' => (int) $componentId,
+                        'qty' => max(1, (int) ($item['qty'] ?? 1)),
+                    ]);
+            })
+            ->filter(fn (array $row): bool => $row['component_id'] > 0)
+            ->values();
+
+        if ($orderedRows->isEmpty()) {
+            return;
+        }
+
+        $components = Component::query()
+            ->whereKey($orderedRows->pluck('component_id')->unique()->all())
+            ->where('is_bush', true)
+            ->get(['id', 'manual_id', 'ipl_num', 'bush_ipl_num', 'units_assy'])
+            ->keyBy('id');
+
+        $orderedGroups = $orderedRows
+            ->filter(fn (array $row): bool => $components->has($row['component_id']))
+            ->groupBy(function (array $row) use ($components): string {
+                $component = $components->get($row['component_id']);
+
+                return (int) $component->manual_id.'|'.trim((string) $component->bush_ipl_num);
+            });
+
+        $manualIds = $components->pluck('manual_id')->map(fn ($id): int => (int) $id)->unique()->all();
+        $groupIplNumbers = $components->pluck('bush_ipl_num')
+            ->map(fn ($value): string => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->all();
+        $groupComponents = Component::query()
+            ->where('is_bush', true)
+            ->whereIn('manual_id', $manualIds)
+            ->whereIn('bush_ipl_num', $groupIplNumbers)
+            ->get(['id', 'manual_id', 'ipl_num', 'bush_ipl_num', 'units_assy'])
+            ->groupBy(fn (Component $component): string => (int) $component->manual_id.'|'.trim((string) $component->bush_ipl_num));
+
+        foreach ($orderedGroups as $groupIdentity => $rows) {
+            $members = $groupComponents->get($groupIdentity, collect());
+            $initial = $members->first(fn (Component $component): bool =>
+                trim((string) $component->ipl_num) === trim((string) $component->bush_ipl_num)
+            );
+            $maximumQty = max(1, (int) ($initial?->units_assy ?? $members->max('units_assy') ?? 1));
+            $orderedQty = (int) $rows->sum('qty');
+
+            if ($orderedQty <= $maximumQty) {
+                continue;
+            }
+
+            $groupIpl = trim((string) ($initial?->bush_ipl_num ?? $members->first()?->bush_ipl_num ?? ''));
+            throw ValidationException::withMessages([
+                'group_bushings' => __('Bushing group :group: total ordered QTY is :ordered. Maximum allowed QTY is :maximum.', [
+                    'group' => $groupIpl !== '' ? $groupIpl : $groupIdentity,
+                    'ordered' => $orderedQty,
+                    'maximum' => $maximumQty,
+                ]),
+            ]);
+        }
+    }
+
+    /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\Response
@@ -674,12 +756,15 @@ class WoBushingController extends Controller
         $request->validate([
             'workorder_id' => 'required|exists:workorders,id',
             'group_bushings' => 'array',
+            'group_bushings.*.items.*.selected' => 'nullable|boolean',
+            'group_bushings.*.items.*.qty' => 'nullable|integer|min:1',
             'group_bushings.*.items.*.do_not_order' => 'nullable|boolean',
         ]);
 
         $workorderId = $request->workorder_id;
         $groupBushingsData = $request->group_bushings ?? [];
         $workorder = Workorder::findOrFail($workorderId);
+        $this->validateBushingGroupOrderQuantities($groupBushingsData);
 
         // Check if WoBushing already exists for this workorder
         $existingWoBushing = WoBushing::where('workorder_id', $workorderId)->first();
@@ -1065,12 +1150,15 @@ class WoBushingController extends Controller
     {
         $request->validate([
             'group_bushings' => 'array',
+            'group_bushings.*.items.*.selected' => 'nullable|boolean',
+            'group_bushings.*.items.*.qty' => 'nullable|integer|min:1',
             'group_bushings.*.items.*.do_not_order' => 'nullable|boolean',
         ]);
 
         $woBushing = WoBushing::findOrFail($id);
         $workorder = $woBushing->workorder ?: Workorder::findOrFail($woBushing->workorder_id);
         $groupBushingsData = $request->group_bushings ?? [];
+        $this->validateBushingGroupOrderQuantities($groupBushingsData);
         $before = $this->bushingSnapshot($woBushing);
 
         if (empty($groupBushingsData)) {

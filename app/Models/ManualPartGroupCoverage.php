@@ -10,6 +10,7 @@ class ManualPartGroupCoverage extends Model
     protected $fillable = [
         'manual_part_group_option_id',
         'component_id',
+        'covered_manual_part_group_option_id',
         'legacy_component_assembly_id',
         'qty',
         'applies_to',
@@ -17,6 +18,7 @@ class ManualPartGroupCoverage extends Model
 
     protected $casts = [
         'component_id' => 'integer',
+        'covered_manual_part_group_option_id' => 'integer',
         'legacy_component_assembly_id' => 'integer',
         'qty' => 'integer',
         'applies_to' => 'array',
@@ -30,6 +32,11 @@ class ManualPartGroupCoverage extends Model
     public function component(): BelongsTo
     {
         return $this->belongsTo(Component::class);
+    }
+
+    public function coveredOption(): BelongsTo
+    {
+        return $this->belongsTo(ManualPartGroupOption::class, 'covered_manual_part_group_option_id');
     }
 
     public function legacyAssembly(): BelongsTo

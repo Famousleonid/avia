@@ -61,11 +61,6 @@
         || $canManageLibraryCountries
         || $canManageLibraryBusinessTypes;
 @endphp
-    <li class="nav-item press-spinner">
-        <a href="{{ route('admin.user-guide', ['center' => 1]) }}" class="nav-link {{ request()->routeIs('admin.user-guide') ? 'active' : '' }}">
-            <i class="bi bi-journal-bookmark me-2"></i> <span>User Guide</span>
-        </a>
-    </li>
 @if($minimalShopSidebar)
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{ route('users.index') }}">
@@ -396,6 +391,14 @@
             </li>
         @endsystemadmin
 
+    @endadmin
+
+    @admin
+        <li class="nav-item press-spinner">
+            <a href="{{ route('admin.user-guide', ['center' => 1]) }}" class="nav-link {{ request()->routeIs('admin.user-guide') ? 'active' : '' }}">
+                <i class="bi bi-journal-bookmark me-2"></i> <span>User Guide</span>
+            </a>
+        </li>
     @endadmin
 
     @hasanyrole('Admin|Manager')

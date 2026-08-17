@@ -10,6 +10,7 @@ use App\Models\LogCard;
 use App\Models\MachiningWorkStep;
 use App\Models\ManualProcess;
 use App\Models\ManualIplBranchRule;
+use App\Models\ManualPartGroup;
 use App\Models\Necessary;
 use App\Models\Process;
 use App\Models\ProcessName;
@@ -379,6 +380,138 @@ class TdrsTest extends TestCase
         $this->assertDatabaseMissing('tdr_processes', [
             'tdrs_id' => $tdr->id,
             'process_names_id' => $processName->id,
+        ]);
+    }
+
+    public function test_explicit_ec_stays_standalone_when_machining_ec_is_added_later(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $ecName = ProcessName::query()->firstOrCreate(
+            ['name' => 'EC'],
+            ['process_sheet_name' => 'EC', 'form_number' => 'EC']
+        );
+        $machiningEcName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Machining (EC)'],
+            ['process_sheet_name' => 'MACHINING', 'form_number' => '018']
+        );
+        $explicitEcSpecification = Process::query()->create([
+            'process_names_id' => $ecName->id,
+            'process' => 'Explicit EC specification ' . uniqid(),
+        ]);
+        $machiningEcSpecification = Process::query()->create([
+            'process_names_id' => $machiningEcName->id,
+            'process' => 'Machining EC specification ' . uniqid(),
+        ]);
+
+        $this->actingAs($admin)->postJson(route('tdr-processes.store'), [
+            'tdrs_id' => $tdr->id,
+            'processes' => [[
+                'process_names_id' => $ecName->id,
+                'processes' => [$explicitEcSpecification->id],
+            ]],
+        ])->assertOk();
+
+        $explicitEcRow = TdrProcess::query()
+            ->where('tdrs_id', $tdr->id)
+            ->where('process_names_id', $ecName->id)
+            ->firstOrFail();
+        $this->assertTrue($explicitEcRow->standalone_ec_only);
+
+        $this->actingAs($admin)->postJson(route('tdr-processes.store'), [
+            'tdrs_id' => $tdr->id,
+            'processes' => [[
+                'process_names_id' => $machiningEcName->id,
+                'processes' => [$machiningEcSpecification->id],
+            ]],
+        ])->assertOk();
+
+        $ecRows = TdrProcess::query()
+            ->where('tdrs_id', $tdr->id)
+            ->where('process_names_id', $ecName->id)
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(2, $ecRows);
+        $this->assertTrue($ecRows->contains(fn (TdrProcess $row): bool =>
+            $row->standalone_ec_only
+            && TdrProcess::normalizeStoredProcessIds($row->processes) === [$explicitEcSpecification->id]
+        ));
+        $this->assertTrue($ecRows->contains(fn (TdrProcess $row): bool =>
+            ! $row->standalone_ec_only
+            && TdrProcess::normalizeStoredProcessIds($row->processes) === [$machiningEcSpecification->id]
+        ));
+    }
+
+    public function test_legacy_explicit_ec_rows_are_backfilled_as_standalone(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $ecName = ProcessName::query()->firstOrCreate(
+            ['name' => 'EC'],
+            ['process_sheet_name' => 'EC', 'form_number' => 'EC']
+        );
+        $explicitEcSpecification = Process::query()->create([
+            'process_names_id' => $ecName->id,
+            'process' => 'Legacy EC specification ' . uniqid(),
+        ]);
+        $legacyRow = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $ecName->id,
+            'processes' => json_encode([$explicitEcSpecification->id]),
+            'standalone_ec_only' => false,
+        ]);
+        $machiningEcName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Machining (EC)'],
+            ['process_sheet_name' => 'MACHINING', 'form_number' => '018']
+        );
+        $machiningEcSpecification = Process::query()->create([
+            'process_names_id' => $machiningEcName->id,
+            'process' => 'Legacy companion specification ' . uniqid(),
+        ]);
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $machiningEcName->id,
+            'processes' => [$machiningEcSpecification->id],
+            'ec' => true,
+        ]);
+        $companionRow = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $ecName->id,
+            'processes' => [$machiningEcSpecification->id],
+            'standalone_ec_only' => false,
+        ]);
+
+        $migration = require database_path('migrations/2026_08_17_150000_backfill_legacy_standalone_ec_processes.php');
+        $migration->up();
+
+        $this->assertTrue($legacyRow->fresh()->standalone_ec_only);
+        $this->assertFalse($companionRow->fresh()->standalone_ec_only);
+
+        $body = $this->actingAs($admin)->get(route('tdr-processes.processesBody', ['tdrId' => $tdr->id]));
+        $body->assertOk();
+        $body->assertSee(
+            'class="btn btn-outline-danger btn-sm ajax-delete-process" data-tdr-process-id="'.$legacyRow->id.'"',
+            false
+        );
+
+        $this->actingAs($admin)->deleteJson(
+            route('tdr-processes.destroy', ['tdr_process' => $legacyRow->id]),
+            ['tdrId' => $tdr->id]
+        )->assertOk();
+
+        $this->assertDatabaseMissing('tdr_processes', ['id' => $legacyRow->id]);
+        $this->assertDatabaseHas('tdr_processes', [
+            'id' => $companionRow->id,
+            'standalone_ec_only' => false,
         ]);
     }
 
@@ -1078,6 +1211,106 @@ class TdrsTest extends TestCase
         $savedShow->assertDontSee('function logCardTabReset', false);
     }
 
+    public function test_log_card_combines_manual_assy_group_into_one_radio_choice_row(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = (int) $workorder->unit->manual_id;
+        $base = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => '47170-103',
+            'name' => 'Original fitting',
+            'ipl_num' => '4-100',
+            'units_assy' => 1,
+            'log_card' => true,
+        ]);
+        $member = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'BUSH-47170',
+            'name' => 'Included bushing',
+            'ipl_num' => '4-110',
+            'units_assy' => 1,
+            'log_card' => true,
+        ]);
+        $group = ManualPartGroup::query()->create([
+            'manual_id' => $manualId,
+            'code' => 'MPG-LC-ASSY',
+            'name' => '47170 ASSY',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE,
+            'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ManualPartGroup::validScopes(),
+        ]);
+        $option = $group->options()->create([
+            'component_id' => $base->id,
+            'part_number' => '47170-3',
+            'ipl_num' => '4-100A',
+            'option_kind' => 'assy',
+            'is_default' => true,
+        ]);
+        $option->coverages()->createMany([
+            ['component_id' => $base->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
+            ['component_id' => $member->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
+        ]);
+
+        $partial = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
+
+        $partial->assertOk();
+        $html = $partial->getContent();
+        $this->assertSame(1, substr_count($html, 'class="lc-assy-group-row"'));
+        $this->assertSame(3, substr_count($html, 'name="lc_selected_component[assy_group_'.$group->id.']"'));
+        $partial->assertSee('role="radiogroup"', false);
+        $partial->assertSee('data-manual-part-group-option-id="'.$option->id.'"', false);
+        $partial->assertSee('47170-103');
+        $partial->assertSee('BUSH-47170');
+        $partial->assertSee('47170-3');
+        $this->assertSame(1, substr_count($html, '>47170-103</strong>'));
+        $this->assertSame(1, substr_count($html, '>BUSH-47170</strong>'));
+
+        $this->actingAs($admin)->postJson(route('log_card.store'), [
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                [
+                    'component_id' => (string) $base->id,
+                    'manual_part_group_id' => (string) $group->id,
+                    'manual_part_group_choice' => 'component',
+                ],
+                [
+                    'component_id' => (string) $member->id,
+                    'manual_part_group_id' => (string) $group->id,
+                    'manual_part_group_choice' => 'component',
+                ],
+            ]),
+        ])->assertUnprocessable()->assertJsonValidationErrors('component_data');
+
+        $this->actingAs($admin)->postJson(route('log_card.store'), [
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([[
+                'component_id' => (string) $base->id,
+                'included' => '1',
+                'manual_id' => (string) $manualId,
+                'ipl_group' => 'assy_group_'.$group->id,
+                'manual_part_group_id' => (string) $group->id,
+                'manual_part_group_option_id' => (string) $option->id,
+                'manual_part_group_choice' => 'assy',
+            ]]),
+        ])->assertOk();
+
+        $savedRows = json_decode((string) LogCard::query()
+            ->where('workorder_id', $workorder->id)
+            ->firstOrFail()
+            ->component_data, true);
+        $this->assertSame('47170-3', $savedRows[0]['assy_part_number']);
+        $this->assertSame('4-100A', $savedRows[0]['assy_ipl_num']);
+        $this->assertSame((string) $option->id, $savedRows[0]['manual_part_group_option_id']);
+
+        $edit = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id).'?edit=1');
+        $edit->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/data-manual-part-group-option-id="'.$option->id.'"[^>]*\bchecked\b/s',
+            $edit->getContent()
+        );
+    }
+
     public function test_log_card_partial_sorts_natural_part_number_and_renders_part_number_gray_ipl_description(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -1207,7 +1440,7 @@ class TdrsTest extends TestCase
         $response->assertSee('await showRestoredTabBeforeReveal(savedTabBtn);', false);
     }
 
-    public function test_log_card_can_load_components_from_another_manual(): void
+    public function test_log_card_can_load_components_only_from_a_used_additional_manual(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
@@ -1229,6 +1462,7 @@ class TdrsTest extends TestCase
             'ipl_num' => '3-20',
             'log_card' => false,
         ]);
+        $workorder->unit->manuals->update(['additional_manual_ids' => [$extraManual->id]]);
 
         $response = $this->actingAs($admin)->get(route('log_card.manual-components', [
             'workorder' => $workorder->id,
@@ -1236,60 +1470,92 @@ class TdrsTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('Manual: LC-EXTRA Extra Log Manual', false);
+        $response->assertSee('Manual: LC-EXTRA', false);
         $response->assertSee('Extra Manual Log Part', false);
         $response->assertSee('value="'.$extraComponent->id.'"', false);
         $response->assertDontSee('Extra Manual No Log Part', false);
+
+        $outsideManual = $this->createManual(['number' => 'LC-OUTSIDE']);
+        $this->actingAs($admin)->get(route('log_card.manual-components', [
+            'workorder' => $workorder->id,
+            'manual' => $outsideManual->id,
+        ]))->assertNotFound();
     }
 
-    public function test_log_card_extra_manual_select_lists_manuals_without_log_card_components(): void
+    public function test_log_card_automatically_renders_only_used_manual_sections_and_log_card_parts(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
-        $manualWithoutLogRows = $this->createManual([
-            'number' => '32-51-03',
-            'title' => 'Steering Actuator Assy NLG',
+        $primaryManual = $workorder->unit->manuals;
+        $primaryManual->update(['number' => 'LC-PRIMARY']);
+        $usedManual = $this->createManual(['number' => 'LC-USED']);
+        $excludedManual = $this->createManual(['number' => 'LC-EXCLUDED']);
+        $outsideManual = $this->createManual(['number' => 'LC-OUTSIDE']);
+        $primaryManual->update([
+            'additional_manual_ids' => [$usedManual->id, $excludedManual->id],
         ]);
+        $workorder->update(['not_used_manual_ids' => [$excludedManual->id]]);
+
+        foreach ([
+            [$primaryManual, 'LC-PRIMARY-PART'],
+            [$usedManual, 'LC-USED-PART'],
+            [$excludedManual, 'LC-EXCLUDED-PART'],
+            [$outsideManual, 'LC-OUTSIDE-PART'],
+        ] as [$manual, $partNumber]) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'part_number' => $partNumber,
+                'name' => $partNumber.' description',
+                'ipl_num' => '1-10',
+                'log_card' => true,
+            ]);
+        }
         Component::query()->create([
-            'manual_id' => $manualWithoutLogRows->id,
-            'part_number' => 'NO-LOG-100',
-            'name' => 'No Log Card Part',
-            'ipl_num' => '1-10',
+            'manual_id' => $usedManual->id,
+            'part_number' => 'LC-USED-NOLOG',
+            'name' => 'Used manual non Log Card part',
+            'ipl_num' => '1-20',
             'log_card' => false,
         ]);
 
         $partial = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
 
         $partial->assertOk();
-        $partial->assertSee('32-51-03 Steering Actuator Assy NLG', false);
-
-        $manualRows = $this->actingAs($admin)->get(route('log_card.manual-components', [
-            'workorder' => $workorder->id,
-            'manual' => $manualWithoutLogRows->id,
-        ]));
-
-        $manualRows->assertOk();
-        $manualRows->assertSee('Manual: 32-51-03 Steering Actuator Assy NLG', false);
-        $manualRows->assertDontSee('No Log Card Part', false);
+        $partial->assertSeeInOrder(['Manual: LC-PRIMARY', 'Manual: LC-USED'], false);
+        $partial->assertSee('LC-PRIMARY-PART');
+        $partial->assertSee('LC-USED-PART');
+        $partial->assertDontSee('LC-EXCLUDED');
+        $partial->assertDontSee('LC-EXCLUDED-PART');
+        $partial->assertDontSee('LC-OUTSIDE');
+        $partial->assertDontSee('LC-OUTSIDE-PART');
+        $partial->assertDontSee('LC-USED-NOLOG');
+        $partial->assertDontSee('logCardExtraManualSelect', false);
+        $partial->assertDontSee('logCardAddManualBtn', false);
     }
 
-    public function test_log_card_extra_manual_select_sorts_manuals_by_manual_number_naturally(): void
+    public function test_log_card_store_rejects_a_component_from_a_manual_not_used_by_workorder(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $outsideManual = $this->createManual(['number' => 'LC-OUTSIDE']);
+        $outsideComponent = Component::query()->create([
+            'manual_id' => $outsideManual->id,
+            'part_number' => 'LC-OUTSIDE-PART',
+            'name' => 'Outside Log Card Part',
+            'ipl_num' => '1-10',
+            'log_card' => true,
+        ]);
+        $this->actingAs($admin)->postJson(route('log_card.store'), [
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([[
+                'component_id' => (string) $outsideComponent->id,
+                'manual_id' => (string) $outsideManual->id,
+                'included' => '1',
+            ]]),
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('component_data');
 
-        $this->createManual(['number' => '32-51-03', 'title' => 'Manual Fifty One']);
-        $this->createManual(['number' => '32-2-10', 'title' => 'Manual Two']);
-        $this->createManual(['number' => '32-11-05', 'title' => 'Manual Eleven']);
-
-        $response = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
-
-        $response->assertOk();
-        $response->assertSeeInOrder([
-            '32-2-10 Manual Two',
-            '32-11-05 Manual Eleven',
-            '32-51-03 Manual Fifty One',
-        ], false);
+        $this->assertDatabaseMissing('log_cards', ['workorder_id' => $workorder->id]);
     }
 
     public function test_log_card_store_accepts_manual_separator_rows(): void
@@ -1314,6 +1580,7 @@ class TdrsTest extends TestCase
             'ipl_num' => '3-10',
             'log_card' => true,
         ]);
+        $workorder->unit->manuals->update(['additional_manual_ids' => [$extraManual->id]]);
 
         $payload = [
             [
@@ -1350,20 +1617,22 @@ class TdrsTest extends TestCase
 
         $rows = json_decode((string) LogCard::where('workorder_id', $workorder->id)->firstOrFail()->component_data, true);
         $this->assertSame('manual', $rows[0]['row_type']);
+        $this->assertSame((string) $workorder->unit->manuals->number, $rows[0]['manual_label']);
         $this->assertSame($primaryComponent->id, (int) $rows[1]['component_id']);
         $this->assertSame('manual', $rows[2]['row_type']);
+        $this->assertSame('LC-EXTRA', $rows[2]['manual_label']);
         $this->assertSame($extraComponent->id, (int) $rows[3]['component_id']);
 
         $saved = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
         $saved->assertOk();
-        $saved->assertSee('Manual: LC-EXTRA Extra Log Manual', false);
+        $saved->assertSee('Manual: LC-EXTRA', false);
         $saved->assertSee('Extra Manual Log Part', false);
 
         $edit = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id).'?edit=1');
         $edit->assertOk();
         $edit->assertSee('data-state="draft"', false);
         $edit->assertSee('data-edit-mode="1"', false);
-        $edit->assertSee('Manual: LC-EXTRA Extra Log Manual', false);
+        $edit->assertSee('Manual: LC-EXTRA', false);
         $editContent = $edit->getContent();
         $this->assertMatchesRegularExpression(
             '/class="form-check-input lc-include-checkbox"[^>]*data-component-id="'.$primaryComponent->id.'"[^>]*\bchecked\b/s',

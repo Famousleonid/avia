@@ -17,6 +17,7 @@ use App\Models\LogCard;
 use App\Models\Main;
 use App\Models\Material;
 use App\Models\Manual;
+use App\Models\ManualPartGroup;
 use App\Models\MobileApiToken;
 use App\Models\Necessary;
 use App\Models\MachiningWorkStep;
@@ -265,6 +266,8 @@ class MobileApiController extends Controller
 
         $primaryManualId = (int) ($workorder->unit->manual_id ?? 0);
         $manualId = (int) ($data['manual_id'] ?? $primaryManualId);
+        $usedManualIds = $workorder->usedManualIds();
+        abort_unless(in_array($manualId, $usedManualIds, true), 422, 'Manual is not used by this Workorder.');
         $manual = Manual::query()->find($manualId);
         $resolver = app(ManualIplBranchRuleResolver::class);
 
@@ -309,7 +312,16 @@ class MobileApiController extends Controller
             ['hint' => $hintFor($c)]
         );
 
-        $groups = $components
+        [$assyGroups, $assyGroupedComponentIds] = $this->mobileLogCardAssyGroups(
+            $manualId,
+            $components,
+            $componentPayload
+        );
+        $regularComponents = $components
+            ->reject(fn (Component $component): bool => $assyGroupedComponentIds->contains((int) $component->id))
+            ->values();
+
+        $groups = $regularComponents
             ->filter(fn (Component $c) => ($c->units_assy ?? 1) == 1)
             ->groupBy(fn (Component $c) => $this->mobileLogCardGroupKey((string) $c->ipl_num))
             ->map(fn ($group, $key) => [
@@ -319,7 +331,7 @@ class MobileApiController extends Controller
             ->values();
 
         $separate = collect();
-        foreach ($components as $c) {
+        foreach ($regularComponents as $c) {
             $units = (int) ($c->units_assy ?? 1);
             if ($units > 1) {
                 for ($i = 1; $i <= $units; $i++) {
@@ -339,11 +351,13 @@ class MobileApiController extends Controller
             'manual' => $manual ? $this->mobileLogCardManualPayload($manual) : null,
             'is_primary_manual' => $manualId === $primaryManualId,
             'available_manuals' => Manual::query()
+                ->whereIn('id', $usedManualIds)
                 ->orderBy('number')
                 ->get(['id', 'number', 'title'])
                 ->sortBy(fn (Manual $item): string => (string) $item->number, SORT_NATURAL | SORT_FLAG_CASE)
                 ->map(fn (Manual $item) => $this->mobileLogCardManualPayload($item))
                 ->values(),
+            'assy_groups' => $assyGroups->values(),
             'groups' => $groups,
             'separate' => $separate->values(),
         ]);
@@ -561,6 +575,9 @@ class MobileApiController extends Controller
             'rows.*.reason' => ['nullable'],
             'rows.*.new_serial_number' => ['nullable'],
             'rows.*.component_assembly_id' => ['nullable', 'integer', 'exists:component_assemblies,id'],
+            'rows.*.manual_part_group_id' => ['nullable', 'integer', 'exists:manual_part_groups,id'],
+            'rows.*.manual_part_group_option_id' => ['nullable', 'integer', 'exists:manual_part_group_options,id'],
+            'rows.*.manual_part_group_choice' => ['nullable', 'string', 'in:component,assy'],
             'rows.*.unit_index' => ['nullable', 'integer', 'min:1', 'max:999'],
             'rows.*.units_assy' => ['nullable', 'string', 'max:100'],
         ]);
@@ -610,7 +627,18 @@ class MobileApiController extends Controller
             ->filter()
             ->unique();
         $primaryManualId = (int) ($workorder->unit->manual_id ?? 0);
+        $usedManualIds = $workorder->usedManualIds();
         $resolver = app(ManualIplBranchRuleResolver::class);
+        $assyGroupsById = ManualPartGroup::query()
+            ->with(['options.coverages'])
+            ->whereIn('id', collect($inputRows)
+                ->pluck('manual_part_group_id')
+                ->map(fn ($id): int => (int) $id)
+                ->filter()
+                ->unique()
+                ->all())
+            ->get()
+            ->keyBy('id');
         $canonicalRows = [];
 
         foreach ($inputRows as $inputRow) {
@@ -620,6 +648,11 @@ class MobileApiController extends Controller
             abort_unless((bool) $component->log_card || $isExistingComponent, 422, 'Component is not enabled for Log Card.');
 
             $manualId = (int) $component->manual_id;
+            abort_unless(
+                in_array($manualId, $usedManualIds, true) || $isExistingComponent,
+                422,
+                'Component manual is not used by this Workorder.'
+            );
             abort_if(
                 isset($inputRow['manual_id']) && (int) $inputRow['manual_id'] !== $manualId,
                 422,
@@ -630,6 +663,38 @@ class MobileApiController extends Controller
                     $resolver->allowsComponentForUnit($workorder->unit, (string) $component->ipl_num, $primaryManualId),
                     422,
                     'Component is not allowed for the unit of this workorder.'
+                );
+            }
+
+            $partGroupId = (int) ($inputRow['manual_part_group_id'] ?? 0);
+            $partGroupOptionId = (int) ($inputRow['manual_part_group_option_id'] ?? 0);
+            $partGroupChoice = (string) ($inputRow['manual_part_group_choice'] ?? '');
+            $partGroup = $assyGroupsById->get($partGroupId);
+            $partGroupOption = $partGroup?->options->first();
+            if ($partGroupId > 0 || $partGroupOptionId > 0) {
+                abort_unless(
+                    $partGroup
+                    && $partGroupOption
+                    && $partGroup->type === ManualPartGroup::TYPE_ASSY
+                    && (int) $partGroup->manual_id === $manualId
+                    && in_array($partGroupChoice, ['component', 'assy'], true),
+                    422,
+                    'Invalid ASSY group selection for this Log Card.'
+                );
+                $memberIds = $partGroupOption->coverages
+                    ->pluck('component_id')
+                    ->push($partGroupOption->component_id)
+                    ->map(fn ($id): int => (int) $id)
+                    ->filter()
+                    ->unique();
+                abort_unless($memberIds->contains((int) $component->id), 422, 'Component does not belong to this ASSY group.');
+                abort_unless(
+                    $partGroupChoice === 'assy'
+                        ? $partGroupOptionId === (int) $partGroupOption->id
+                            && (int) ($partGroupOption->component_id ?? 0) === (int) $component->id
+                        : $partGroupOptionId === 0,
+                    422,
+                    'Invalid ASSY option selection for this Log Card.'
                 );
             }
 
@@ -650,13 +715,24 @@ class MobileApiController extends Controller
                 $row['ipl_group'] = (string) ($inputRow['ipl_group'] ?? $this->mobileLogCardGroupKey((string) $component->ipl_num));
             }
 
-            $assembly = $component->assemblies->first();
-            if (! empty($inputRow['component_assembly_id'])) {
-                $assembly = $component->assemblies->firstWhere('id', (int) $inputRow['component_assembly_id']);
-                abort_unless($assembly, 422, 'Assembly does not belong to this component.');
-            }
-            if ($assembly) {
-                $this->applyMobileLogCardAssembly($row, $component, $assembly);
+            if ($partGroupId > 0) {
+                $row['manual_part_group_id'] = (string) $partGroupId;
+                $row['manual_part_group_choice'] = $partGroupChoice;
+                if ($partGroupChoice === 'assy') {
+                    $row['manual_part_group_option_id'] = (string) $partGroupOption->id;
+                    $row['component_assembly_id'] = '';
+                    $row['assy_part_number'] = (string) ($partGroupOption->part_number ?? '');
+                    $row['assy_ipl_num'] = (string) ($partGroupOption->ipl_num ?? '');
+                }
+            } else {
+                $assembly = $component->assemblies->first();
+                if (! empty($inputRow['component_assembly_id'])) {
+                    $assembly = $component->assemblies->firstWhere('id', (int) $inputRow['component_assembly_id']);
+                    abort_unless($assembly, 422, 'Assembly does not belong to this component.');
+                }
+                if ($assembly) {
+                    $this->applyMobileLogCardAssembly($row, $component, $assembly);
+                }
             }
 
             $canonicalRows[] = $row;
@@ -679,7 +755,7 @@ class MobileApiController extends Controller
             $rows[] = [
                 'row_type' => 'manual',
                 'manual_id' => (string) $manualId,
-                'manual_label' => trim((string) ($manual?->number ?? '') . ' ' . (string) ($manual?->title ?? '')),
+                'manual_label' => (string) ($manual?->number ?? ''),
             ];
             array_push($rows, ...$groupedByManual[$manualId]);
         }
@@ -694,6 +770,89 @@ class MobileApiController extends Controller
         abort_if(mb_strlen($value) > 255, 422, 'Log Card field value may not be greater than 255 characters.');
 
         return $value;
+    }
+
+    /** @return array{0: Collection, 1: Collection} */
+    private function mobileLogCardAssyGroups(int $manualId, Collection $components, callable $componentPayload): array
+    {
+        $componentsById = $components->keyBy(fn (Component $component): int => (int) $component->id);
+        $assignedComponentIds = collect();
+
+        $groups = ManualPartGroup::query()
+            ->where('manual_id', $manualId)
+            ->where('type', ManualPartGroup::TYPE_ASSY)
+            ->with(['options.coverages', 'options.component'])
+            ->orderBy('id')
+            ->get()
+            ->map(function (ManualPartGroup $group) use (
+                $componentsById,
+                $assignedComponentIds,
+                $componentPayload
+            ): ?array {
+                $option = $group->options->first();
+                if (! $option) {
+                    return null;
+                }
+
+                $memberIds = $option->coverages
+                    ->pluck('component_id')
+                    ->push($option->component_id)
+                    ->map(fn ($id): int => (int) $id)
+                    ->filter(fn (int $id): bool => $id > 0
+                        && $componentsById->has($id)
+                        && (int) ($componentsById->get($id)->units_assy ?? 1) === 1
+                        && ! $assignedComponentIds->contains($id))
+                    ->unique()
+                    ->values();
+                $choices = $memberIds->map(function (int $componentId) use ($componentsById, $componentPayload, $group): array {
+                    $component = $componentsById->get($componentId);
+
+                    return array_merge($componentPayload($component), [
+                        'choice_kind' => 'component',
+                        'manual_part_group_id' => (int) $group->id,
+                        'manual_part_group_option_id' => null,
+                        'assy_part_number' => '',
+                        'assy_ipl_num' => '',
+                    ]);
+                })->values();
+
+                $baseComponentId = (int) ($option->component_id ?? 0);
+                $baseComponent = $componentsById->get($baseComponentId);
+                $assyPartNumber = trim((string) ($option->part_number ?? ''));
+                if ($baseComponent
+                    && $memberIds->contains($baseComponentId)
+                    && $assyPartNumber !== ''
+                    && strcasecmp($assyPartNumber, trim((string) $baseComponent->part_number)) !== 0) {
+                    $choices->push(array_merge($componentPayload($baseComponent), [
+                        'choice_kind' => 'assy',
+                        'manual_part_group_id' => (int) $group->id,
+                        'manual_part_group_option_id' => (int) $option->id,
+                        'part_number' => $assyPartNumber,
+                        'ipl_num' => (string) ($option->ipl_num ?? ''),
+                        'assy_part_number' => $assyPartNumber,
+                        'assy_ipl_num' => (string) ($option->ipl_num ?? ''),
+                    ]));
+                }
+
+                if ($choices->count() < 2) {
+                    return null;
+                }
+
+                $memberIds->each(fn (int $componentId) => $assignedComponentIds->push($componentId));
+
+                return [
+                    'group_id' => (int) $group->id,
+                    'group_key' => 'assy_group_'.$group->id,
+                    'name' => (string) $group->name,
+                    'type' => ManualPartGroup::TYPE_ASSY,
+                    'selection_type' => 'radio',
+                    'choices' => $choices->all(),
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return [$groups, $assignedComponentIds->unique()->values()];
     }
 
     private function mobileLogCardComponentPayload(Component $component): array

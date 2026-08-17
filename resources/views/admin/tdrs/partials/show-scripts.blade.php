@@ -322,7 +322,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var extraPartsTabActions = document.getElementById('extraPartsTabActions');
     var logCardTabBody = document.getElementById('logCardTabBody');
     var logCardPartialUrl = '{{ route("log_card.partial", ["workorder_id" => $current_wo->id]) }}';
-    var logCardManualComponentsUrlTemplate = '{{ route("log_card.manual-components", ["workorder" => $current_wo->id, "manual" => "__MANUAL__"]) }}';
     var transfersTabBody = document.getElementById('transfersTabBody');
     var transfersPartialUrl = @json(($hasTransfers ?? false) ? route('transfers.partial', ['workorder' => $current_wo->id]) : null);
     var transfersTabActions = document.getElementById('transfersTabActions');
@@ -746,6 +745,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 new_serial_number: ''
             };
             if (row.dataset.iplGroup) item.ipl_group = row.dataset.iplGroup;
+            if (row.dataset.manualPartGroupId) item.manual_part_group_id = row.dataset.manualPartGroupId;
+            if (row.dataset.manualPartGroupOptionId) item.manual_part_group_option_id = row.dataset.manualPartGroupOptionId;
+            if (row.dataset.manualPartGroupChoice) item.manual_part_group_choice = row.dataset.manualPartGroupChoice;
             if (row.dataset.componentAssemblyId) item.component_assembly_id = row.dataset.componentAssemblyId;
             if (row.dataset.assyPartNumber) item.assy_part_number = row.dataset.assyPartNumber;
             if (row.dataset.assyIplNum) item.assy_ipl_num = row.dataset.assyIplNum;
@@ -783,7 +785,10 @@ document.addEventListener('DOMContentLoaded', function() {
             var include = rowEl.querySelector ? rowEl.querySelector('.lc-include-checkbox:checked') : null;
             if (!include) return;
             var tr = include.closest('tr');
-            var componentInput = tr ? tr.querySelector('input[name^="lc_selected_component"]') : null;
+            var componentInput = tr ? (
+                tr.querySelector('input[name^="lc_selected_component"]:checked')
+                || tr.querySelector('input[name^="lc_selected_component"]:not([type="radio"]), select[name^="lc_selected_component"]')
+            ) : null;
             if (!componentInput || !componentInput.value) return;
 
             var manualId = (tr && tr.dataset.manualId) || '';
@@ -836,7 +841,24 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!isSeparate && componentInput.dataset.iplGroup) row.ipl_group = componentInput.dataset.iplGroup;
             if (componentInput.dataset.unitIndex) row.unit_index = componentInput.dataset.unitIndex;
             if (componentInput.dataset.unitsAssy) row.units_assy = componentInput.dataset.unitsAssy;
-            Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssemblyInRow(tr, componentInput.value)));
+            if (componentInput.classList.contains('lc-assy-group-radio')) {
+                row.manual_part_group_id = componentInput.dataset.manualPartGroupId || '';
+                row.manual_part_group_choice = componentInput.dataset.partGroupChoice || 'component';
+                row.ipl_group = componentInput.dataset.iplGroup || groupKey;
+                if (componentInput.dataset.manualPartGroupOptionId) {
+                    row.manual_part_group_option_id = componentInput.dataset.manualPartGroupOptionId;
+                } else {
+                    delete row.manual_part_group_option_id;
+                }
+                row.component_assembly_id = '';
+                row.assy_part_number = componentInput.dataset.assyPartNumber || '';
+                row.assy_ipl_num = componentInput.dataset.assyIplNum || '';
+            } else {
+                delete row.manual_part_group_id;
+                delete row.manual_part_group_choice;
+                delete row.manual_part_group_option_id;
+                Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssemblyInRow(tr, componentInput.value)));
+            }
             data.push(row);
         });
         return data.length ? data : null;
@@ -855,57 +877,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function syncLogCardExtraManualControls() {
-        var root = document.getElementById('log-card-partial-shell');
-        if (!root || root.dataset.state !== 'draft') return;
-
-        var select = document.getElementById('logCardExtraManualSelect');
-        if (!select) return;
-
-        var added = new Set();
-        root.querySelectorAll('tr[data-manual-id]').forEach(function(row) {
-            if (row.dataset.manualId) added.add(String(row.dataset.manualId));
-        });
-
-        select.querySelectorAll('option[value]').forEach(function(option) {
-            if (!option.value) return;
-            option.disabled = added.has(String(option.value));
-        });
-
-        if (select.value && select.selectedOptions[0] && select.selectedOptions[0].disabled) {
-            select.value = '';
-        }
-    }
-
-    function logCardAddManualRows(manualId) {
-        var tbody = document.getElementById('log-card-draft-body');
-        if (!tbody || !manualId) return Promise.resolve(false);
-
-        var url = logCardManualComponentsUrlTemplate.replace('__MANUAL__', encodeURIComponent(manualId));
-        return fetch(url, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
-            credentials: 'same-origin'
-        })
-            .then(function(r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.text();
-            })
-            .then(function(html) {
-                var template = document.createElement('template');
-                template.innerHTML = html.trim();
-                tbody.appendChild(template.content);
-                syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
-                syncLogCardExtraManualControls();
-                return true;
-            })
-            .catch(function(err) {
-                if (typeof window.tdrShowNotify === 'function') {
-                    window.tdrShowNotify('{{ __("Failed to load manual parts.") }}' + (err && err.message ? ' (' + err.message + ')' : ''), 'error');
-                }
-                return false;
-            });
-    }
-
     function loadLogCardPartial(options) {
         options = options || {};
         if (!logCardTabBody) return Promise.resolve(false);
@@ -920,7 +891,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 logCardTabBody.innerHTML = html;
                 syncLogCardToolbarFromPartial();
                 syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
-                syncLogCardExtraManualControls();
                 return true;
             })
             .catch(function(err) {
@@ -2705,25 +2675,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
                 return;
             }
-        });
-
-        logCardTabBody.addEventListener('click', function(e) {
-            if (logCardTabIsReadOnly()) return;
-            var addManualBtn = e.target.closest && e.target.closest('#logCardAddManualBtn');
-            if (!addManualBtn) return;
-
-            e.preventDefault();
-            var select = document.getElementById('logCardExtraManualSelect');
-            var manualId = select ? select.value : '';
-            if (!manualId) {
-                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify('{{ __("Select manual first.") }}', 'warning');
+            var assyGroupRadio = e.target.closest && e.target.closest('.lc-assy-group-radio');
+            if (assyGroupRadio) {
+                var assyGroupRow = assyGroupRadio.closest('tr');
+                var assyGroupInclude = assyGroupRow ? assyGroupRow.querySelector('.lc-include-checkbox') : null;
+                if (assyGroupInclude && !assyGroupInclude.checked && !assyGroupInclude.disabled) {
+                    assyGroupInclude.checked = true;
+                }
                 return;
             }
-
-            addManualBtn.disabled = true;
-            logCardAddManualRows(manualId).finally(function() {
-                addManualBtn.disabled = false;
-            });
         });
 
         function logCardPersistInlineSave(field) {

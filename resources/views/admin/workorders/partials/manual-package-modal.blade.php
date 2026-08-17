@@ -1,5 +1,5 @@
 <div class="modal fade" id="workorderManualsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable workorder-manuals-dialog" style="--bs-modal-width: 960px;">
         <div class="modal-content bg-dark text-light border-secondary">
             <div class="modal-header border-secondary">
                 <div>
@@ -10,25 +10,16 @@
             </div>
 
             <div class="modal-body" id="workorderManualPackage">
-                @if($manualPackageNeedsSync)
-                    <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
-                        <div>
-                            <strong>{{ __('Unit manuals have changed.') }}</strong>
-                            <div class="small">{{ __('Load the current Unit configuration into this Workorder before choosing USED or NOT USED.') }}</div>
-                        </div>
-                        @if($canUpdateWorkorderManuals)
-                            <button type="button" class="btn btn-info btn-sm flex-shrink-0" id="syncWorkorderManualsBtn">
-                                <i class="bi bi-arrow-repeat me-1"></i>{{ __('Load manuals from Unit') }}
-                            </button>
-                        @endif
-                    </div>
-                @endif
+                <div class="alert alert-info py-2">
+                    {{ __('Additional manuals come from the primary Manual/CMM. Their USED or NOT USED status applies only to this Workorder.') }}
+                </div>
 
                 <div class="table-responsive">
                     <table class="table table-dark table-bordered align-middle mb-0">
                         <thead>
                         <tr class="text-secondary small">
                             <th>{{ __('Manual') }}</th>
+                            <th class="workorder-manual-title-column">{{ __('Title') }}</th>
                             <th style="width: 90px;">{{ __('Lib') }}</th>
                             <th style="width: 120px;">{{ __('Type') }}</th>
                             <th style="width: 120px;">{{ __('Status') }}</th>
@@ -45,6 +36,7 @@
                             @endphp
                             <tr data-manual-id="{{ $packageManual->id }}">
                                 <td><strong>{{ $packageManual->number }}</strong></td>
+                                <td class="workorder-manual-title-column">{{ filled($packageManual->title) ? $packageManual->title : '—' }}</td>
                                 <td class="text-secondary">{{ filled($packageManual->lib) ? $packageManual->lib : '—' }}</td>
                                 <td>
                                     <span class="badge {{ $isPrimary ? 'bg-primary' : 'bg-secondary' }}">
@@ -74,7 +66,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ $canUpdateWorkorderManuals ? 5 : 4 }}" class="text-center text-secondary py-3">
+                                <td colspan="{{ $canUpdateWorkorderManuals ? 6 : 5 }}" class="text-center text-secondary py-3">
                                     {{ __('No manual assigned.') }}
                                 </td>
                             </tr>
@@ -162,32 +154,6 @@
                     notify(error.message || '{{ __('Unable to update Workorder manuals.') }}', 'error');
                 }
             });
-        });
-
-        const syncButton = document.getElementById('syncWorkorderManualsBtn');
-        syncButton?.addEventListener('click', async function () {
-            const ok = await confirmed({
-                title: '{{ __('Load manuals from Unit?') }}',
-                message: '{{ __('This Workorder manual package will be synchronized with the current Unit configuration.') }}',
-                okText: '{{ __('Synchronize') }}',
-                cancelText: '{{ __('Cancel') }}',
-                danger: false
-            });
-            if (!ok) return;
-
-            syncButton.disabled = true;
-            try {
-                const data = await requestJson(
-                    @json(route('workorders.manuals.sync', $current_workorder)),
-                    'POST',
-                    {}
-                );
-                notify(data.message || '{{ __('Workorder manuals updated.') }}', 'success');
-                window.location.reload();
-            } catch (error) {
-                syncButton.disabled = false;
-                notify(error.message || '{{ __('Unable to update Workorder manuals.') }}', 'error');
-            }
         });
     });
 </script>

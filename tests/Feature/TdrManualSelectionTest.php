@@ -22,14 +22,12 @@ class TdrManualSelectionTest extends TestCase
         $notUsedManual = $this->createManual(['number' => 'CMM-ADDITIONAL-NOT-USED']);
         $unassignedManual = $this->createManual(['number' => 'CMM-UNASSIGNED']);
         $restrictedManual->permittedUsers()->attach($permissionOwner->id);
-        $unit = $this->createUnit([
-            'manual_id' => $primaryManual->id,
-            'additional_manual_ids' => [
-                $openManual->id,
-                $restrictedManual->id,
-                $notUsedManual->id,
-            ],
-        ]);
+        $primaryManual->update(['additional_manual_ids' => [
+            $openManual->id,
+            $restrictedManual->id,
+            $notUsedManual->id,
+        ]]);
+        $unit = $this->createUnit(['manual_id' => $primaryManual->id]);
 
         foreach (['Technician', 'Team Leader', 'Manager', 'Admin'] as $role) {
             $user = $this->createUserWithRole($role);
@@ -71,10 +69,10 @@ class TdrManualSelectionTest extends TestCase
         $admin = $this->createUserWithRole('Admin');
         $primaryManual = $this->createManual(['number' => 'CMM-BRANCH-PRIMARY']);
         $selectedManual = $this->createManual(['number' => 'CMM-BRANCH-SELECTED']);
+        $primaryManual->update(['additional_manual_ids' => [$selectedManual->id]]);
         $unit = $this->createUnit([
             'manual_id' => $primaryManual->id,
             'part_number' => 'BRANCH-UNIT',
-            'additional_manual_ids' => [$selectedManual->id],
         ]);
         $workorder = $this->createWorkorder([
             'user_id' => $admin->id,

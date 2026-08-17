@@ -20,6 +20,9 @@ class LogCardPayloadProtectionService
         'manual_id',
         'ipl_group',
         'component_assembly_id',
+        'manual_part_group_id',
+        'manual_part_group_option_id',
+        'manual_part_group_choice',
         'unit_index',
         'units_assy',
     ];

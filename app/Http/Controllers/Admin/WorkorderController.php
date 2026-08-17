@@ -817,7 +817,7 @@ class WorkorderController extends Controller
 
         if ((auth()->user()?->can('workorders.manageManuals') ?? false)
             && $request->boolean('manual_selection_present')) {
-            $additionalManualIds = $unit?->additionalManualIds() ?? [];
+            $additionalManualIds = $unit?->manual?->additionalManualIds() ?? [];
             $usedAdditionalManualIds = collect($request->input('used_additional_manual_ids', []))
                 ->map(fn ($manualId): int => (int) $manualId)
                 ->unique()
@@ -826,11 +826,10 @@ class WorkorderController extends Controller
 
             if (array_diff($usedAdditionalManualIds, $additionalManualIds) !== []) {
                 return back()
-                    ->withErrors(['used_additional_manual_ids' => __('Only additional manuals assigned to the selected Unit can be used.')])
+                    ->withErrors(['used_additional_manual_ids' => __('Only additional manuals assigned to the selected Manual can be used.')])
                     ->withInput();
             }
 
-            $data['additional_manual_ids'] = $additionalManualIds;
             $data['not_used_manual_ids'] = array_values(array_diff($additionalManualIds, $usedAdditionalManualIds));
         }
 
@@ -944,11 +943,9 @@ class WorkorderController extends Controller
             ->sortBy(fn (Manual $packageManual): int => $manualPackageOrder[(int) $packageManual->id] ?? PHP_INT_MAX)
             ->values();
         $notUsedManualIds = $workorder->notUsedManualIds();
-        $unitAdditionalManualIds = $workorder->unit?->additionalManualIds() ?? [];
-        $manualPackageNeedsSync = $workorder->additionalManualIds() !== $unitAdditionalManualIds;
         $canUpdateWorkorderManuals = auth()->user()?->can('workorders.manageManuals') ?? false;
 
-        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs','canChangeTechnik', 'workorderManualPackage', 'notUsedManualIds', 'manualPackageNeedsSync', 'canUpdateWorkorderManuals'));
+        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs','canChangeTechnik', 'workorderManualPackage', 'notUsedManualIds', 'canUpdateWorkorderManuals'));
 
     }
 
@@ -1091,7 +1088,6 @@ class WorkorderController extends Controller
 
         $workorder->update($request->except([
             'description',
-            'additional_manual_ids',
             'not_used_manual_ids',
         ]));
 
@@ -1112,33 +1108,6 @@ class WorkorderController extends Controller
         }
 
         return redirect()->route('workorders.index')->with('success', 'Workorder was edited successfully');
-    }
-
-    public function syncAdditionalManuals(Workorder $workorder): JsonResponse
-    {
-        abort_unless(auth()->user()?->can('workorders.manageManuals'), 403);
-
-        $workorder->loadMissing('unit');
-        $additionalManualIds = $workorder->unit?->additionalManualIds() ?? [];
-        $notUsedManualIds = array_values(array_intersect(
-            $workorder->notUsedManualIds(),
-            $additionalManualIds
-        ));
-
-        DB::transaction(function () use ($workorder, $additionalManualIds, $notUsedManualIds): void {
-            $workorder->forceFill([
-                'additional_manual_ids' => $additionalManualIds,
-                'not_used_manual_ids' => $notUsedManualIds,
-            ])->save();
-
-            app(WorkorderStdProcessItemsService::class)->rebuild($workorder->fresh('unit.manuals'));
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => __('Workorder manuals were synchronized from the Unit.'),
-            'additional_manual_ids' => $workorder->fresh()->additionalManualIds(),
-        ]);
     }
 
     public function updateManualUsage(Request $request, Workorder $workorder): JsonResponse
@@ -1218,7 +1187,7 @@ class WorkorderController extends Controller
 
             return [(string) $unit->id => [
                 'primary' => $serialize($unit->manual),
-                'additional' => collect($unit->additionalManualIds())
+                'additional' => collect($unit->manual?->additionalManualIds() ?? [])
                     ->map(fn (int $manualId): ?array => $serialize($manualsById->get($manualId)))
                     ->filter()
                     ->values()

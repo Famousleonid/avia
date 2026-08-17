@@ -29,9 +29,14 @@ class Manual extends Model implements HasMedia
         'scopes_id',
         'ovh_life',
         'reg_sb',
+        'additional_manual_ids',
     ];
 
     protected $dates = ['deleted_at'];
+
+    protected $casts = [
+        'additional_manual_ids' => 'array',
+    ];
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -44,6 +49,7 @@ class Manual extends Model implements HasMedia
                 'revision_date',
                 'unit_name',
                 'lib',
+                'additional_manual_ids',
             ])
             ->logExcept(['created_at', 'updated_at'])
             ->logOnlyDirty()
@@ -119,6 +125,28 @@ class Manual extends Model implements HasMedia
     public function units()
     {
         return $this->hasMany(Unit::class, 'manual_id');
+    }
+
+    /** @return list<int> */
+    public function additionalManualIds(): array
+    {
+        return collect($this->additional_manual_ids ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0 && $id !== (int) $this->id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** @return list<int> */
+    public function manualPackageIds(): array
+    {
+        return collect([(int) $this->id])
+            ->merge($this->additionalManualIds())
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function iplBranchRules()
