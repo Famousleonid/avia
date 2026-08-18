@@ -158,7 +158,7 @@ class ManualPartGroupController extends Controller
         }
         if ($data['type'] === ManualPartGroup::TYPE_ASSY
             && (! $componentIds->contains((int) ($data['default_component_id'] ?? 0)))) {
-            throw ValidationException::withMessages(['default_component_id' => 'Select the original/base part for the ASSY.']);
+            throw ValidationException::withMessages(['default_component_id' => 'Select the ASSY part.']);
         }
         if ($behavior === ManualPartGroup::BEHAVIOR_BUNDLE && trim((string) ($data['order_part_number'] ?? '')) === '') {
             throw ValidationException::withMessages(['order_part_number' => 'New order P/N is required for ASSY and KIT.']);

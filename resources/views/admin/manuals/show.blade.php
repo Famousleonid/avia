@@ -167,6 +167,13 @@
             margin: auto;
         }
 
+        .manual-parts-loading-indicator {
+            align-items: center;
+            color: var(--bs-info);
+            gap: .4rem;
+            white-space: nowrap;
+        }
+
         .assy-popover-button {
             max-width: 100%;
             min-width: 0;
@@ -995,6 +1002,16 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="@if($manualShowTab !== 'parts') d-none @endif" data-tab-target="#nav-parts">
+                            <div id="manual-parts-loading-indicator"
+                                 class="manual-parts-loading-indicator d-inline-flex small"
+                                 role="status"
+                                 aria-live="polite"
+                                 aria-hidden="false">
+                                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                <span>{{ __('Loading images...') }}</span>
+                            </div>
+                        </div>
                         <button type="button"
                            class="btn btn-outline-info btn-sm d-none"
                            data-tab-target="#nav-parts"
@@ -1179,6 +1196,72 @@
                             </tbody>
                         </table>
                     </div>
+                    <script>
+                        (function () {
+                            const table = document.getElementById('manualPartsTable');
+                            const indicator = document.getElementById('manual-parts-loading-indicator');
+                            if (!table || !indicator) return;
+
+                            let waitGeneration = 0;
+
+                            function setLoading(loading) {
+                                indicator.classList.toggle('d-none', !loading);
+                                indicator.classList.toggle('d-inline-flex', loading);
+                                indicator.setAttribute('aria-hidden', loading ? 'false' : 'true');
+                            }
+
+                            function waitForImage(image) {
+                                if (image.complete) return Promise.resolve();
+
+                                return new Promise(function (resolve) {
+                                    let settled = false;
+                                    function finish() {
+                                        if (settled) return;
+                                        settled = true;
+                                        image.removeEventListener('load', finish);
+                                        image.removeEventListener('error', finish);
+                                        resolve();
+                                    }
+
+                                    image.addEventListener('load', finish, { once: true });
+                                    image.addEventListener('error', finish, { once: true });
+                                    if (image.complete) finish();
+                                });
+                            }
+
+                            function trackPartImages() {
+                                const pendingImages = Array.from(table.querySelectorAll('img.component-avatar'))
+                                    .filter(function (image) { return !image.complete; });
+                                const generation = ++waitGeneration;
+
+                                if (pendingImages.length === 0) {
+                                    setLoading(false);
+                                    return Promise.resolve();
+                                }
+
+                                setLoading(true);
+                                return Promise.all(pendingImages.map(waitForImage)).finally(function () {
+                                    if (generation === waitGeneration) setLoading(false);
+                                });
+                            }
+
+                            window.trackManualPartImages = trackPartImages;
+                            trackPartImages();
+
+                            const tbody = table.tBodies[0];
+                            if (tbody && typeof MutationObserver === 'function') {
+                                new MutationObserver(function (mutations) {
+                                    const hasAddedImages = mutations.some(function (mutation) {
+                                        return Array.from(mutation.addedNodes).some(function (node) {
+                                            return node.nodeType === Node.ELEMENT_NODE
+                                                && (node.matches?.('img.component-avatar') || node.querySelector?.('img.component-avatar'));
+                                        });
+                                    });
+                                    if (hasAddedImages) trackPartImages();
+                                }).observe(tbody, { childList: true, subtree: true });
+                            }
+                        })();
+                    </script>
                     @include('admin.manuals.partials.part-groups-modal', [
                         'partGroups' => $partGroups,
                         'serviceBulletins' => $serviceBulletins,

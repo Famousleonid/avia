@@ -222,10 +222,10 @@ document.addEventListener('DOMContentLoaded', function () {
         sbWrap.classList.toggle('d-none', !isKit());
         assyWrap.classList.toggle('d-none', !isKit());
         document.getElementById('manual-part-group-default-heading').textContent = isAssy()
-            ? '{{ __('Base part') }}'
+            ? '{{ __('ASSY part') }}'
             : '{{ __('Default') }}';
         document.getElementById('manual-part-group-member-help').textContent = isAssy()
-            ? '{{ __('Select the original/base detail and every part included after assembly.') }}'
+            ? '{{ __('Select the ASSY part and every part included in it.') }}'
             : (isKit()
                 ? '{{ __('Select ordinary parts here; include complete ASSY groups below.') }}'
                 : (type.value === 'oversize'
