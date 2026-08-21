@@ -8,6 +8,8 @@ use App\Models\Manual;
 use App\Models\Plane;
 use App\Models\Scope;
 use App\Models\Training;
+use App\Models\TrainingCategory;
+use App\Models\TrainingMatrixRow;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -50,6 +52,7 @@ class TrainingController extends Controller
         }
 
         $trainingLists = Training::where('user_id', $selectedUserId)
+            ->where('is_legacy', false) // legacy («Old training», X в матрице) — не события, форм у них нет
             ->with('manual')
             ->get()
             ->groupBy('manuals_id');
@@ -90,7 +93,7 @@ class TrainingController extends Controller
 
         $users = collect();
         if ($canViewAllUsers) {
-            $users = User::query()->withoutReviewAccounts()->whereNotNull('stamp')
+            $users = User::whereNotNull('stamp')
                 ->where('stamp', '<>', '')
                 ->whereNull('deleted_at')
                 ->get()
@@ -139,6 +142,42 @@ class TrainingController extends Controller
         if ($request->filled('user_id') && auth()->user()->roleIs(['Admin', 'Manager'])) {
             $userId = (int) $request->user_id;
         }
+
+        // «Old training»: обучение было до появления системы, дата неизвестна.
+        // Пишутся legacy-записи без дат и без форм 112/132; в матрице — «X».
+        if ($request->boolean('is_legacy')) {
+            if (!auth()->user()->roleIs(['Admin', 'Manager'])) {
+                abort(403);
+            }
+
+            $data = $request->validate([
+                'legacy_manuals_ids' => 'required|array|min:1',
+                'legacy_manuals_ids.*' => 'integer|exists:manuals,id',
+            ]);
+
+            $created = 0;
+            foreach ($data['legacy_manuals_ids'] as $manualId) {
+                $exists = Training::where('user_id', $userId)
+                    ->where('manuals_id', $manualId)
+                    ->exists();
+                if (!$exists) {
+                    Training::create([
+                        'user_id' => $userId,
+                        'manuals_id' => $manualId,
+                        'date_training' => null,
+                        'form_type' => null,
+                        'is_legacy' => true,
+                    ]);
+                    $created++;
+                }
+            }
+
+            $indexParams = $userId !== auth()->id() ? ['user_id' => $userId] : [];
+
+            return redirect()->route('trainings.index', $indexParams)
+                ->with('success', "Old training marked for {$created} unit(s).");
+        }
+
         $request->merge([
             'training_dates' => array_values(array_filter((array)$request->input('training_dates', []))),
         ]);
@@ -209,8 +248,8 @@ class TrainingController extends Controller
             $ensureTraining112($additionalDate);
         }
 
-        // Догенерация ежегодных 112 за пропущенные годы (та же неделя, пятница)
-        $this->createMissingTrainings($userId, $manualId, $firstDate->format('Y-m-d'));
+        // Записи создаются ТОЛЬКО по фактическим датам: догенерация годовых 112
+        // за пропущенные годы удалена сознательно (решение от 21.08.2026).
 
         $returnUrl = $request->input('return_url');
         if ($returnUrl && (str_contains($returnUrl, '/tdrs/') || str_contains($returnUrl, '/mains/'))) {
@@ -224,56 +263,6 @@ class TrainingController extends Controller
 
         $indexParams = $userId !== auth()->id() ? ['user_id' => $userId] : [];
         return redirect()->route('trainings.index', $indexParams)->with('success', 'Unit added for trainings.');
-    }
-
-    /**
-     * Создает недостающие тренировки за все пропущенные годы
-     */
-    private function createMissingTrainings($userId, $manualId, $firstTrainingDate)
-    {
-        $firstTraining = \Carbon\Carbon::parse($firstTrainingDate);
-        $firstTrainingYear = $firstTraining->year;
-        $firstTrainingWeek = $firstTraining->weekOfYear;
-        $currentYear = now()->year;
-        $currentDate = now();
-
-        // Создаем тренировки за все годы начиная со следующего года после первой тренировки
-        for ($year = $firstTrainingYear + 1; $year <= $currentYear; $year++) {
-            // Для формы 112 используем ту же неделю, но в следующем году
-            $trainingDate = $this->getDateFromWeekAndYear($firstTrainingWeek, $year);
-
-            // Проверяем, что дата тренировки не в будущем
-            if ($trainingDate <= $currentDate) {
-                // Проверяем существование формы 112 для этого года
-                $existingTraining112 = Training::where('user_id', $userId)
-                    ->where('manuals_id', $manualId)
-                    ->where('date_training', $trainingDate->format('Y-m-d'))
-                    ->where('form_type', '112')
-                    ->first();
-
-                if (!$existingTraining112) {
-                    Training::create([
-                        'user_id' => $userId,
-                        'manuals_id' => $manualId,
-                        'date_training' => $trainingDate->format('Y-m-d'),
-                        'form_type' => '112',
-                    ]);
-                }
-            }
-        }
-    }
-
-    /**
-     * Получает дату из номера недели и года
-     */
-    private function getDateFromWeekAndYear($week, $year)
-    {
-        $firstJan = \Carbon\Carbon::create($year, 1, 1);
-        $days = ($week - 1) * 7 - $firstJan->dayOfWeek + 1;
-        $monday = $firstJan->addDays($days);
-
-        // Возвращаем пятницу той же недели
-        return $monday->addDays(4);
     }
 
     public function createTraining(Request $request)
@@ -560,75 +549,172 @@ class TrainingController extends Controller
         }
     }
 
+    /**
+     * Матрица допусков «как Excel MINIMUM REQUIREMENTS»: строки — training_matrix_rows
+     * по группам, колонки — производственный персонал по номеру stamp, ячейка —
+     * последняя дата (красная старше matrix_red_after_days) / «X» (legacy или дата
+     * старше matrix_legacy_after_years) / пусто.
+     */
     public function showAll()
     {
-        try {
-            // Инициализируем переменные по умолчанию
-            $manuals = collect();
-            $users = collect();
-            $trainingDates = [];
-            $error = null;
+        $categories = TrainingCategory::with(['rows' => fn ($q) => $q->orderBy('sort_order'), 'rows.manual'])
+            ->orderBy('sort_order')
+            ->get()
+            ->filter(fn ($category) => $category->rows->isNotEmpty())
+            ->values();
 
-            // Получаем все manuals, где unit_name_training не пустое
-            $manuals = Manual::whereNotNull('unit_name_training')
-                ->where('unit_name_training', '<>', '')
-                ->orderBy('title')
-                ->get();
+        // Производственные роли, порядок «как в Excel»: числовые stamp, затем буквенные.
+        $users = User::whereNotNull('stamp')
+            ->where('stamp', '<>', '')
+            ->where('is_admin', false)
+            ->whereNull('deleted_at')
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['Technician', 'Team Leader', 'Paint']))
+            ->get()
+            ->sortBy(fn (User $user) => ctype_digit($user->stamp)
+                ? sprintf('0-%05d', (int) $user->stamp)
+                : '1-' . mb_strtolower($user->stamp))
+            ->values();
 
-            // Сортируем так же, как имя отображается в пользовательских списках.
-            $users = User::query()->withoutReviewAccounts()->whereNotNull('stamp')
-                ->where('stamp', '<>', '')
-                ->where('is_admin', false)
-                ->whereNull('deleted_at') // Исключаем удаленных пользователей
-                ->get()
-                ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
-                ->values();
+        $manualIds = $categories->flatMap(fn ($category) => $category->rows->pluck('manual_id'))->filter()->values();
+        $userIds = $users->pluck('id');
 
-            // Получаем все тренинги одним запросом для оптимизации
-            $manualIds = $manuals->pluck('id')->toArray();
-            $userIds = $users->pluck('id')->toArray();
+        $trainings = $manualIds->isEmpty() ? collect() : Training::whereIn('manuals_id', $manualIds)
+            ->whereIn('user_id', $userIds)
+            ->get();
 
-            $trainings = collect();
-            if (!empty($manualIds) && !empty($userIds)) {
-                $trainings = Training::whereIn('manuals_id', $manualIds)
-                    ->whereIn('user_id', $userIds)
-                    ->orderBy('date_training', 'desc')
-                    ->get();
+        $redAfter = now()->subDays((int) config('trainings.matrix_red_after_days', 350))->startOfDay();
+        $legacyAfter = now()->subYears((int) config('trainings.matrix_legacy_after_years', 3))->startOfDay();
+
+        // cells[manual_id][user_id] = ['kind' => 'date'|'x', 'date' => ?Carbon, 'red' => bool]
+        $cells = [];
+        foreach ($trainings->groupBy(fn ($t) => $t->manuals_id . '|' . $t->user_id) as $key => $pair) {
+            [$manualId, $userId] = explode('|', $key);
+            $lastDate = $pair->where('is_legacy', false)
+                ->whereNotNull('date_training')
+                ->max('date_training');
+
+            if ($lastDate !== null) {
+                $lastDate = \Carbon\Carbon::parse($lastDate);
+                $cells[$manualId][$userId] = $lastDate->lt($legacyAfter)
+                    ? ['kind' => 'x', 'date' => $lastDate, 'red' => false]
+                    : ['kind' => 'date', 'date' => $lastDate, 'red' => $lastDate->lt($redAfter)];
+            } elseif ($pair->contains(fn ($t) => $t->is_legacy)) {
+                $cells[$manualId][$userId] = ['kind' => 'x', 'date' => null, 'red' => false];
             }
-
-            // Группируем тренинги и находим последнюю дату для каждой комбинации manual + user
-            $trainingDates = [];
-            foreach ($trainings as $training) {
-                $manualId = $training->manuals_id;
-                $userId = $training->user_id;
-
-                // Сохраняем только самую последнюю дату для каждой комбинации
-                if (!isset($trainingDates[$manualId][$userId]) ||
-                    $training->date_training > $trainingDates[$manualId][$userId]) {
-                    $trainingDates[$manualId][$userId] = $training->date_training;
-                }
-            }
-
-            return view('admin.trainings.show_all', compact('manuals', 'users', 'trainingDates', 'error'));
-        } catch (\Exception $e) {
-            \Log::error('Error in showAll: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
-
-            $manuals = collect();
-            $users = collect();
-            $trainingDates = [];
-            $error = $e->getMessage();
-
-            return view('admin.trainings.show_all', compact('manuals', 'users', 'trainingDates', 'error'));
-        } catch (\Throwable $e) {
-            \Log::error('Fatal error in showAll: ' . $e->getMessage());
-
-            $manuals = collect();
-            $users = collect();
-            $trainingDates = [];
-            $error = 'Fatal error: ' . $e->getMessage();
-
-            return view('admin.trainings.show_all', compact('manuals', 'users', 'trainingDates', 'error'));
         }
+
+        $canManage = auth()->user()->roleIs(['Admin', 'Manager']);
+
+        $unlinkedManuals = collect();
+        $uncategorizedCount = 0;
+        if ($canManage) {
+            $unlinkedManuals = Manual::whereNotNull('unit_name_training')
+                ->where('unit_name_training', '<>', '')
+                ->whereDoesntHave('matrixRow')
+                ->orderBy('title')
+                ->get(['id', 'title', 'unit_name_training']);
+            $uncategorizedCount = $unlinkedManuals->count();
+        }
+
+        $allCategories = TrainingCategory::orderBy('sort_order')->get(['id', 'name']);
+
+        return view('admin.trainings.show_all', compact(
+            'categories', 'users', 'cells', 'canManage', 'unlinkedManuals', 'uncategorizedCount', 'allCategories'
+        ));
+    }
+
+    // ---- Управление строками матрицы (Admin/Manager) ----
+
+    private function ensureCanManageMatrix(): void
+    {
+        if (!auth()->user()->roleIs(['Admin', 'Manager'])) {
+            abort(403);
+        }
+    }
+
+    public function matrixRowStore(Request $request)
+    {
+        $this->ensureCanManageMatrix();
+
+        $data = $request->validate([
+            'training_category_id' => 'nullable|integer|exists:training_categories,id',
+            'new_category_name' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:255',
+            'part_number' => 'required|string|max:255',
+            'manual_id' => 'nullable|integer|exists:manuals,id|unique:training_matrix_rows,manual_id',
+        ]);
+
+        if (empty($data['training_category_id']) && empty($data['new_category_name'])) {
+            return back()->withErrors(['training_category_id' => __('Select a group or enter a new one.')]);
+        }
+
+        $categoryId = $data['training_category_id'] ?? null;
+        if (!$categoryId) {
+            $category = TrainingCategory::firstOrCreate(
+                ['name' => trim($data['new_category_name'])],
+                ['sort_order' => (int) TrainingCategory::max('sort_order') + 1]
+            );
+            $categoryId = $category->id;
+        }
+
+        TrainingMatrixRow::create([
+            'training_category_id' => $categoryId,
+            'description' => $data['description'] ?? null,
+            'part_number' => $data['part_number'],
+            'sort_order' => (int) TrainingMatrixRow::where('training_category_id', $categoryId)->max('sort_order') + 1,
+            'manual_id' => $data['manual_id'] ?? null,
+        ]);
+
+        return back()->with('success', __('Matrix row added.'));
+    }
+
+    public function matrixRowUpdate(Request $request, TrainingMatrixRow $row)
+    {
+        $this->ensureCanManageMatrix();
+
+        $data = $request->validate([
+            'training_category_id' => 'required|integer|exists:training_categories,id',
+            'description' => 'nullable|string|max:255',
+            'part_number' => 'required|string|max:255',
+            'manual_id' => 'nullable|integer|exists:manuals,id|unique:training_matrix_rows,manual_id,' . $row->id,
+        ]);
+
+        if ((int) $data['training_category_id'] !== (int) $row->training_category_id) {
+            $data['sort_order'] = (int) TrainingMatrixRow::where('training_category_id', $data['training_category_id'])->max('sort_order') + 1;
+        }
+
+        $row->update($data);
+
+        return back()->with('success', __('Matrix row updated.'));
+    }
+
+    public function matrixRowDestroy(TrainingMatrixRow $row)
+    {
+        $this->ensureCanManageMatrix();
+        $row->delete();
+
+        return back()->with('success', __('Matrix row deleted.'));
+    }
+
+    public function matrixRowMove(Request $request, TrainingMatrixRow $row)
+    {
+        $this->ensureCanManageMatrix();
+
+        $request->validate(['direction' => 'required|in:up,down']);
+        $up = $request->input('direction') === 'up';
+
+        $neighbor = TrainingMatrixRow::where('training_category_id', $row->training_category_id)
+            ->when($up,
+                fn ($q) => $q->where('sort_order', '<', $row->sort_order)->orderByDesc('sort_order'),
+                fn ($q) => $q->where('sort_order', '>', $row->sort_order)->orderBy('sort_order'))
+            ->first();
+
+        if ($neighbor) {
+            [$row->sort_order, $neighbor->sort_order] = [$neighbor->sort_order, $row->sort_order];
+            $row->save();
+            $neighbor->save();
+        }
+
+        return back();
     }
 }

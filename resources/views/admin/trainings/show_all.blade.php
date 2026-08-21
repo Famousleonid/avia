@@ -1,13 +1,11 @@
 @extends('admin.master')
 
-@php use Carbon\Carbon; @endphp
-
 @section('content')
     <style>
         .table-container {
             overflow-x: auto;
             overflow-y: auto;
-            max-height: 80vh;
+            max-height: 82vh;
             position: relative;
         }
 
@@ -22,11 +20,10 @@
         .training-table td {
             white-space: nowrap;
             vertical-align: middle;
-            padding: 8px 10px;
+            padding: 5px 8px;
             border: 1px solid var(--avia-border);
             background: var(--avia-panel);
             color: var(--avia-text);
-            position: relative;
         }
 
         .training-table thead th {
@@ -35,231 +32,383 @@
             z-index: 20;
             background: linear-gradient(180deg, var(--avia-surface-raised) 0%, var(--avia-surface) 100%);
             color: #8fc4f0;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
-            height: 34px;
-            padding: 6px 10px;
+            padding: 6px 8px;
         }
 
-        /* первый столбец всегда зафиксирован */
+        /* Замороженные левые колонки: описание (0) + парт-номер (220px) */
         .training-table th.col-unit,
         .training-table td.col-unit {
             position: sticky !important;
             left: 0;
-            min-width: 260px;
-            max-width: 260px;
-            width: 220px;
+            min-width: 220px;
+            max-width: 220px;
             z-index: 30;
             background: var(--avia-panel) !important;
-            box-shadow: 2px 0 6px rgba(0, 0, 0, 0.18);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-
+            font-size: 12px;
         }
 
-        /* ВАЖНО:
-           у шапки первого столбца такой же фон, как у остальных th */
-        .training-table thead th.col-unit {
+        .training-table th.col-part,
+        .training-table td.col-part {
+            position: sticky !important;
+            left: 220px;
+            min-width: 250px;
+            max-width: 250px;
+            z-index: 30;
+            background: var(--avia-surface-raised) !important;
+            box-shadow: 4px 0 12px rgba(0, 0, 0, 0.28);
+            white-space: normal;
+            line-height: 1.3;
+            font-size: 12px;
+        }
+
+        .training-table thead th.col-unit,
+        .training-table thead th.col-part {
             z-index: 50;
             background: linear-gradient(180deg, var(--avia-surface-raised) 0%, var(--avia-surface) 100%) !important;
             color: #8fc4f0 !important;
         }
 
-        /* второй столбец перекрывает первый */
-        .training-table th.col-part,
-        .training-table td.col-part {
-            position: sticky !important;
-            left: 0;
-            min-width: 260px;
-            max-width: 260px;
-            width: 260px;
-            z-index: 40;
-            background: var(--avia-surface-raised) !important;
-            box-shadow: 4px 0 12px rgba(0, 0, 0, 0.28);
-        }
-
-        .training-table thead th.col-part {
-            z-index: 60;
-            background: linear-gradient(180deg, var(--avia-surface-raised) 0%, var(--avia-surface) 100%) !important;
-            color: #8fc4f0 !important;
-        }
-
-        .training-table td.col-part {
-            white-space: normal;
-            line-height: 1.35;
-        }
-
         .training-table th.user-column,
         .training-table td.user-column {
-            min-width: 120px;
-            width: 120px;
-            z-index: 1;
+            min-width: 96px;
+            width: 96px;
+            text-align: center;
         }
 
-        .training-table tbody tr:nth-child(even) td {
-            background-color: var(--avia-surface);
+        .training-table th.user-column .stamp-no {
+            display: block;
+            font-size: 10px;
+            color: var(--avia-text-muted);
+            font-weight: 400;
         }
 
-        .training-table tbody tr:nth-child(even) td.col-unit {
-            background: var(--avia-panel) !important;
-        }
-
-        .training-table tbody tr:nth-child(even) td.col-part {
-            background: var(--avia-surface-raised) !important;
-        }
-
-        .training-table .text-muted {
-            color: var(--avia-text-muted) !important;
+        /* Строка-заголовок группы — как зелёные секции в Excel */
+        .training-table td.group-row {
+            background: rgba(93, 158, 91, 0.28) !important;
+            color: var(--avia-text) !important;
+            font-weight: 700;
+            font-size: 12.5px;
+            letter-spacing: .04em;
+            text-align: center;
+            position: sticky;
+            left: 0;
         }
 
         .training-date-old {
-            color: #dc3545 !important;
+            color: #fff !important;
+            background: #b3423a;
+            border-radius: 4px;
+            padding: 1px 6px;
             font-weight: 700;
+            font-size: 12px;
         }
 
         .training-date-fresh {
             color: var(--avia-text) !important;
+            font-size: 12px;
         }
 
-        .training-table tbody td.col-unit,
-        .training-table tbody td.col-part {
-            background-clip: padding-box;
+        .training-x {
+            color: var(--avia-text-muted);
+            font-weight: 700;
+            cursor: default;
+        }
+
+        .row-no-cmm td.col-unit,
+        .row-no-cmm td.col-part {
+            opacity: .55;
+        }
+
+        .badge-no-cmm {
+            font-size: 10px;
+            background: rgba(255, 193, 7, .18);
+            color: #e0a800;
+            border: 1px solid rgba(255, 193, 7, .4);
+            border-radius: 4px;
+            padding: 0 4px;
+            white-space: nowrap;
+        }
+
+        .row-tools {
+            float: right;
+            white-space: nowrap;
+            visibility: hidden;
+        }
+
+        .training-table tr:hover .row-tools {
+            visibility: visible;
+        }
+
+        .row-tools button {
+            background: none;
+            border: none;
+            color: var(--avia-text-muted);
+            padding: 0 2px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .row-tools button:hover { color: var(--avia-text); }
+
+        .matrix-legend {
+            font-size: 12px;
+            color: var(--avia-text-muted);
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            margin-top: 8px;
         }
     </style>
 
     <div class="container-fluid px-4 px-xl-5">
         <div class="card shadow">
             <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-0">PART NUMBER APPROVED PERSONNEL</h6>
-                    </div>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h6 class="mb-0">PART NUMBER APPROVED PERSONNEL</h6>
+                    @if($canManage)
+                        <div class="d-flex align-items-center gap-3">
+                            @if($uncategorizedCount > 0)
+                                <span class="badge-no-cmm" title="{{ __('CMMs with training PN that are not linked to any matrix row') }}">
+                                    {{ __('CMM not in matrix:') }} {{ $uncategorizedCount }}
+                                </span>
+                            @endif
+                            <button class="btn btn-outline-info btn-sm py-0" data-bs-toggle="modal" data-bs-target="#matrixRowModal"
+                                    onclick="matrixRowModalReset()">
+                                + {{ __('Add row') }}
+                            </button>
+                        </div>
+                    @endif
                 </div>
             </div>
 
-            @if(config('app.debug') && isset($manuals) && isset($users))
-                <div class="card-body border-bottom p-1">
-                    <small class="text-muted">
-                        Manuals: {{ $manuals->count() }}, Users: {{ $users->count() }}
-                    </small>
-                </div>
-            @endif
-
             <div class="card-body">
-                @php
-                    $filteredUsers = $users->filter(function ($user) {
-                        return !in_array(mb_strtolower(trim($user->name)), ['manager', 'admin', 'user']);
-                    });
-
-                    $oneYearAgo = now()->subYear()->startOfDay();
-                @endphp
-
-                @if(isset($error))
-                    <div class="alert alert-danger text-center">
-                        <p class="mb-0"><strong>Error:</strong> {{ $error }}</p>
-                    </div>
+                @if(session('success'))
+                    <div class="alert alert-success py-1 mb-2">{{ session('success') }}</div>
+                @endif
+                @if($errors->any())
+                    <div class="alert alert-danger py-1 mb-2">{{ $errors->first() }}</div>
                 @endif
 
-                @if(!isset($manuals) || !isset($users) || $manuals->isEmpty() || $users->isEmpty())
-                    <div class="alert alert-info text-center">
-                        @if(!isset($manuals) || $manuals->isEmpty())
-                            <p class="mb-1">No manuals with unit_name_training found.</p>
-                        @endif
-
-                        @if(!isset($users) || $users->isEmpty())
-                            <p class="mb-0">No users with stamp found.</p>
-                        @endif
+                @if($categories->isEmpty())
+                    <div class="alert alert-info text-center mb-0">
+                        {{ __('Matrix is empty. Import the structure or add rows manually.') }}
                     </div>
                 @else
+                    @php $colspan = 2 + $users->count(); @endphp
                     <div class="table-container">
-                        <table class="table training-table table-bordered table-hover dir-table align-middle">
+                        <table class="table training-table table-bordered align-middle mb-0">
                             <thead>
                             <tr>
-                                <th class="text-center align-middle col-unit">
-                                    Unit Description
-                                </th>
-
-                                <th class="text-center align-middle col-part">
-                                    PART NUMBER APPROVED
-                                </th>
-
-                                @foreach($filteredUsers as $user)
-                                    <th class="text-center align-middle user-column">
-                                        {{ $user->selection_name ?? 'N/A' }}
+                                <th class="col-unit">{{ __('Unit Description') }}</th>
+                                <th class="col-part text-center">PART NUMBER APPROVED</th>
+                                @foreach($users as $user)
+                                    <th class="user-column" title="Stamp {{ $user->stamp }}">
+                                        {{ $user->selection_name }}
+                                        <span class="stamp-no">{{ $user->stamp }}</span>
                                     </th>
                                 @endforeach
                             </tr>
                             </thead>
-
                             <tbody>
-                            @foreach($manuals as $manual)
+                            @foreach($categories as $category)
                                 <tr>
-                                    <td class="text-center col-unit">
-                                        {{ $manual->title ?? 'N/A' }}
-                                    </td>
-
-                                    <td class="text-center col-part">
-                                        @php
-                                            $partNumber = $manual->unit_name_training ?? 'N/A';
-                                        @endphp
-
-                                        @if($partNumber !== 'N/A' && strlen($partNumber) > 40)
-                                            @php
-                                                $targetPos = 40;
-                                                $commaAfter = strpos($partNumber, ',', $targetPos);
-                                                $commaBefore = strrpos(substr($partNumber, 0, $targetPos), ',');
-
-                                                $commaPos = false;
-
-                                                if ($commaAfter !== false && $commaBefore !== false) {
-                                                    $commaPos = (($commaAfter - $targetPos) < ($targetPos - $commaBefore))
-                                                        ? $commaAfter
-                                                        : $commaBefore;
-                                                } elseif ($commaAfter !== false) {
-                                                    $commaPos = $commaAfter;
-                                                } elseif ($commaBefore !== false) {
-                                                    $commaPos = $commaBefore;
-                                                }
-
-                                                if ($commaPos !== false) {
-                                                    $firstPart = trim(substr($partNumber, 0, $commaPos + 1));
-                                                    $secondPart = trim(substr($partNumber, $commaPos + 1));
-                                                } else {
-                                                    $firstPart = substr($partNumber, 0, 40);
-                                                    $secondPart = substr($partNumber, 40);
-                                                }
-                                            @endphp
-
-                                            {{ $firstPart }}<br>{{ $secondPart }}
-                                        @else
-                                            {{ $partNumber }}
-                                        @endif
-                                    </td>
-
-                                    @foreach($filteredUsers as $user)
-                                        <td class="text-center user-column">
-                                            @if(isset($trainingDates[$manual->id][$user->id]))
+                                    <td class="group-row" colspan="{{ $colspan }}">{{ $category->name }}</td>
+                                </tr>
+                                @foreach($category->rows as $row)
+                                    <tr class="{{ $row->manual_id ? '' : 'row-no-cmm' }}">
+                                        <td class="col-unit" title="{{ $row->description }}">
+                                            {{ $row->description ?? '' }}
+                                        </td>
+                                        <td class="col-part">
+                                            {{ $row->part_number }}
+                                            @unless($row->manual_id)
+                                                <span class="badge-no-cmm" title="{{ __('No CMM registered in avia for this unit') }}">no CMM</span>
+                                            @endunless
+                                            @if($canManage)
                                                 @php
-                                                    $trainDate = Carbon::parse($trainingDates[$manual->id][$user->id]);
-                                                    $isOldTraining = $trainDate->lt($oneYearAgo);
+                                                    $rowPayload = [
+                                                        'id' => $row->id,
+                                                        'category' => $row->training_category_id,
+                                                        'description' => $row->description,
+                                                        'part_number' => $row->part_number,
+                                                        'manual_id' => $row->manual_id,
+                                                        'manual_label' => $row->manual
+                                                            ? $row->manual->unit_name_training . ' (' . $row->manual->title . ')'
+                                                            : null,
+                                                    ];
                                                 @endphp
-
-                                                <span class="{{ $isOldTraining ? 'training-date-old' : 'training-date-fresh' }}">
-                                                    {{ $trainDate->format('M-d-Y') }}
+                                                <span class="row-tools">
+                                                    <button type="button" title="{{ __('Edit row') }}"
+                                                            data-bs-toggle="modal" data-bs-target="#matrixRowModal"
+                                                            onclick='matrixRowModalEdit(@json($rowPayload))'>✎</button>
+                                                    <button type="button" title="{{ __('Move up') }}" onclick="matrixRowMove({{ $row->id }}, 'up')">▲</button>
+                                                    <button type="button" title="{{ __('Move down') }}" onclick="matrixRowMove({{ $row->id }}, 'down')">▼</button>
+                                                    <button type="button" title="{{ __('Delete row') }}" onclick="matrixRowDelete({{ $row->id }}, @json($row->part_number))">✕</button>
                                                 </span>
-                                            @else
-                                                <span class="text-muted">-</span>
                                             @endif
                                         </td>
-                                    @endforeach
-                                </tr>
+                                        @foreach($users as $user)
+                                            <td class="user-column">
+                                                @php $cell = $row->manual_id ? ($cells[$row->manual_id][$user->id] ?? null) : null; @endphp
+                                                @if($cell === null)
+                                                    <span class="text-muted">-</span>
+                                                @elseif($cell['kind'] === 'x')
+                                                    <span class="training-x"
+                                                          @if($cell['date']) title="{{ __('Last training:') }} {{ $cell['date']->format('M-d-Y') }} — {{ __('refresh required (MP-20)') }}"
+                                                          @else title="{{ __('Old training (no date on record)') }}" @endif>X</span>
+                                                @else
+                                                    <span class="{{ $cell['red'] ? 'training-date-old' : 'training-date-fresh' }}">
+                                                        {{ $cell['date']->format('M-d-Y') }}
+                                                    </span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
                             @endforeach
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="matrix-legend">
+                        <span><span class="training-date-fresh">Jan-01-2026</span> — {{ __('training up to date') }}</span>
+                        <span><span class="training-date-old">Jan-01-2025</span> — {{ __('older than :days days, refresh required', ['days' => config('trainings.matrix_red_after_days', 350)]) }}</span>
+                        <span><span class="training-x">X</span> — {{ __('trained in the past; unit not currently worked on (older than :years years or old training)', ['years' => config('trainings.matrix_legacy_after_years', 3)]) }}</span>
+                        <span><span class="text-muted">-</span> — {{ __('never trained') }}</span>
+                        <span><span class="badge-no-cmm">no CMM</span> — {{ __('unit not registered in avia') }}</span>
                     </div>
                 @endif
             </div>
         </div>
     </div>
+
+    @if($canManage)
+        {{-- Модалка добавления/редактирования строки матрицы --}}
+        <div class="modal fade" id="matrixRowModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content bg-gradient">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="matrixRowModalTitle">{{ __('Add matrix row') }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="POST" id="matrixRowForm" action="{{ route('trainings.matrixRows.store') }}">
+                        @csrf
+                        <input type="hidden" name="_method" value="POST" id="matrixRowMethod">
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label class="form-label">{{ __('Group') }}</label>
+                                <select name="training_category_id" id="matrixRowCategory" class="form-select">
+                                    <option value="">{{ __('— new group —') }}</option>
+                                    @foreach($allCategories as $cat)
+                                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group mt-2" id="matrixRowNewCategoryWrap">
+                                <label class="form-label">{{ __('New group name') }}</label>
+                                <input type="text" name="new_category_name" id="matrixRowNewCategory" class="form-control">
+                            </div>
+                            <div class="form-group mt-2">
+                                <label class="form-label">{{ __('Unit Description (column 1)') }}</label>
+                                <input type="text" name="description" id="matrixRowDescription" class="form-control">
+                            </div>
+                            <div class="form-group mt-2">
+                                <label class="form-label">{{ __('Part Number (as in matrix)') }}</label>
+                                <input type="text" name="part_number" id="matrixRowPartNumber" class="form-control" required>
+                            </div>
+                            <div class="form-group mt-2">
+                                <label class="form-label">{{ __('Linked CMM') }}</label>
+                                <select name="manual_id" id="matrixRowManual" class="form-select">
+                                    <option value="">{{ __('— not registered —') }}</option>
+                                    @foreach($unlinkedManuals as $m)
+                                        <option value="{{ $m->id }}">{{ $m->unit_name_training }} ({{ $m->title }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" id="matrixRowMoveForm" class="d-none">@csrf<input type="hidden" name="direction" id="matrixRowMoveDirection"></form>
+        <form method="POST" id="matrixRowDeleteForm" class="d-none">@csrf @method('DELETE')</form>
+
+        <script>
+            const matrixRowRoutes = {
+                store: @json(route('trainings.matrixRows.store')),
+                update: @json(route('trainings.matrixRows.update', ['row' => '__ID__'])),
+                move: @json(route('trainings.matrixRows.move', ['row' => '__ID__'])),
+                destroy: @json(route('trainings.matrixRows.destroy', ['row' => '__ID__'])),
+            };
+
+            function matrixRowToggleNewCategory() {
+                const select = document.getElementById('matrixRowCategory');
+                document.getElementById('matrixRowNewCategoryWrap').style.display = select.value === '' ? '' : 'none';
+            }
+            document.getElementById('matrixRowCategory').addEventListener('change', matrixRowToggleNewCategory);
+
+            function matrixRowModalReset() {
+                document.getElementById('matrixRowModalTitle').textContent = @json(__('Add matrix row'));
+                const form = document.getElementById('matrixRowForm');
+                form.action = matrixRowRoutes.store;
+                document.getElementById('matrixRowMethod').value = 'POST';
+                document.getElementById('matrixRowCategory').value = document.querySelector('#matrixRowCategory option:nth-child(2)')?.value ?? '';
+                document.getElementById('matrixRowNewCategory').value = '';
+                document.getElementById('matrixRowDescription').value = '';
+                document.getElementById('matrixRowPartNumber').value = '';
+                matrixRowSetManualOptions(null, null);
+                matrixRowToggleNewCategory();
+            }
+
+            function matrixRowModalEdit(row) {
+                document.getElementById('matrixRowModalTitle').textContent = @json(__('Edit matrix row')) + ' — ' + row.part_number;
+                const form = document.getElementById('matrixRowForm');
+                form.action = matrixRowRoutes.update.replace('__ID__', row.id);
+                document.getElementById('matrixRowMethod').value = 'PATCH';
+                document.getElementById('matrixRowCategory').value = row.category;
+                document.getElementById('matrixRowNewCategory').value = '';
+                document.getElementById('matrixRowDescription').value = row.description ?? '';
+                document.getElementById('matrixRowPartNumber').value = row.part_number;
+                matrixRowSetManualOptions(row.manual_id, row.manual_label);
+                matrixRowToggleNewCategory();
+            }
+
+            // В edit-режиме к списку несвязанных CMM добавляется текущий привязанный.
+            function matrixRowSetManualOptions(currentId, currentLabel) {
+                const select = document.getElementById('matrixRowManual');
+                select.querySelector('option[data-current]')?.remove();
+                if (currentId) {
+                    const opt = document.createElement('option');
+                    opt.value = currentId;
+                    opt.textContent = currentLabel ?? ('#' + currentId);
+                    opt.dataset.current = '1';
+                    select.appendChild(opt);
+                }
+                select.value = currentId ?? '';
+            }
+
+            function matrixRowMove(id, direction) {
+                const form = document.getElementById('matrixRowMoveForm');
+                form.action = matrixRowRoutes.move.replace('__ID__', id);
+                document.getElementById('matrixRowMoveDirection').value = direction;
+                form.submit();
+            }
+
+            function matrixRowDelete(id, pn) {
+                if (!confirm(@json(__('Delete matrix row')) + ' ' + pn + '?')) return;
+                const form = document.getElementById('matrixRowDeleteForm');
+                form.action = matrixRowRoutes.destroy.replace('__ID__', id);
+                form.submit();
+            }
+        </script>
+    @endif
 @endsection

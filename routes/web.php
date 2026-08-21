@@ -502,6 +502,10 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
 
         Route::get('trainings/show-all', [TrainingController::class, 'showAll'])->name('trainings.showAll');
+        Route::post('trainings/matrix-rows', [TrainingController::class, 'matrixRowStore'])->name('trainings.matrixRows.store');
+        Route::patch('trainings/matrix-rows/{row}', [TrainingController::class, 'matrixRowUpdate'])->name('trainings.matrixRows.update');
+        Route::delete('trainings/matrix-rows/{row}', [TrainingController::class, 'matrixRowDestroy'])->name('trainings.matrixRows.destroy');
+        Route::post('trainings/matrix-rows/{row}/move', [TrainingController::class, 'matrixRowMove'])->name('trainings.matrixRows.move');
         Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
         Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
         Route::post('/trainings/createTraining', [TrainingController::class, 'createTraining'])->name('trainings.createTraining');

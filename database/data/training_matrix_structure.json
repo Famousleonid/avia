@@ -1,0 +1,592 @@
+[
+  {
+    "group": "Electrical Harnesses/Electro/Mech Actuators",
+    "sort_order": 1,
+    "rows": [
+      {
+        "description": "TOWING INDICATION LIGHTS E170 NLG",
+        "part_number": "170-73500-series",
+        "sort_order": 1
+      },
+      {
+        "description": "Harness elecrtrical, NLG E170",
+        "part_number": "170-73802/803/804-series",
+        "sort_order": 2
+      },
+      {
+        "description": "CL601-RJ HARNESS",
+        "part_number": "17300-series",
+        "sort_order": 3
+      },
+      {
+        "description": "WOW / Dowlock SENSOR",
+        "part_number": "19300-series",
+        "sort_order": 4
+      },
+      {
+        "description": "E170/175 WOW SENSOR / HARNESS",
+        "part_number": "2000A03XXK0X/2000A04XXK0X-series",
+        "sort_order": 5
+      },
+      {
+        "description": "E190/195 WOW SENSOR / HARNESS",
+        "part_number": "2000A05XXK0X-series",
+        "sort_order": 6
+      },
+      {
+        "description": "Harness Downlock MLG GL5T",
+        "part_number": "21800-series",
+        "sort_order": 7
+      },
+      {
+        "description": "Harness NLG GL5T",
+        "part_number": "21801/21802/21803/21804-series",
+        "sort_order": 8
+      },
+      {
+        "description": "Harness NLG GL5T",
+        "part_number": "22800/22801-series",
+        "sort_order": 9
+      },
+      {
+        "description": "HARNESS ASSEMBLY, MLG Q400",
+        "part_number": "46165/46170-series",
+        "sort_order": 10
+      },
+      {
+        "description": "ELECTRICAL HARNESS ASSY, NLG Q400",
+        "part_number": "47150/47151/47152/47201/47202/ 47390/47391-series",
+        "sort_order": 11
+      },
+      {
+        "description": "Harness MLG CRJ700/900",
+        "part_number": "49103/49313-series",
+        "sort_order": 12
+      },
+      {
+        "description": "WIRING HARNESS ASSEMBLY, NLG CRJ700/900",
+        "part_number": "52501/52505/52506/52512/52513/ 52514-series",
+        "sort_order": 13
+      },
+      {
+        "description": "Harness NLG AT42/72",
+        "part_number": "D22701000-series",
+        "sort_order": 14
+      },
+      {
+        "description": "HARNESS, NLG",
+        "part_number": "D22701500-series",
+        "sort_order": 15
+      },
+      {
+        "description": "Harness MLG AT42",
+        "part_number": "D23105000/6000",
+        "sort_order": 16
+      }
+    ]
+  },
+  {
+    "group": "Hydraulic Actuators",
+    "sort_order": 2,
+    "rows": [
+      {
+        "description": "Retraction Actuator CL604/605",
+        "part_number": "104471003",
+        "sort_order": 1
+      },
+      {
+        "description": "Maneuvering Actuator. NLG E145",
+        "part_number": "1300B0000-series",
+        "sort_order": 2
+      },
+      {
+        "description": "Retraction Actuator CRJ200",
+        "part_number": "16520-101",
+        "sort_order": 3
+      },
+      {
+        "description": "Uplock Assy, NLG CRJ200",
+        "part_number": "16600-series",
+        "sort_order": 4
+      },
+      {
+        "description": "Side Stay Actuatior CRJ200",
+        "part_number": "17008-series",
+        "sort_order": 5
+      },
+      {
+        "description": "Uplock Assy, MLG CRJ200",
+        "part_number": "17051-101",
+        "sort_order": 6
+      },
+      {
+        "description": "Retraction Actuator MLG E170/190",
+        "part_number": "170-70980-ser",
+        "sort_order": 7
+      },
+      {
+        "description": "RETRACTION ACTUATOR, NLG E170",
+        "part_number": "170-71180-series",
+        "sort_order": 8
+      },
+      {
+        "description": "RETRACTION ACTUATOR, MLG E190",
+        "part_number": "190-70980-series",
+        "sort_order": 9
+      },
+      {
+        "description": "Side Stay Actuator MLG CL604",
+        "part_number": "19010-series",
+        "sort_order": 10
+      },
+      {
+        "description": "Side Brace Actuator MLG GL5T",
+        "part_number": "21500-series",
+        "sort_order": 11
+      },
+      {
+        "description": "Retraction Actuator MLG GL5T",
+        "part_number": "21600-series",
+        "sort_order": 12
+      },
+      {
+        "description": "Retraction Actuator NLG GL5T",
+        "part_number": "22400-series",
+        "sort_order": 13
+      },
+      {
+        "description": "Maneuvering Actuator, MLG E134/145",
+        "part_number": "2309-2700-series 2309-3700-series",
+        "sort_order": 14
+      },
+      {
+        "description": "UNLOCKING ACTUATOR E135/145",
+        "part_number": "2309-2800-series",
+        "sort_order": 15
+      },
+      {
+        "description": "Retraction Actuator NLG CL300",
+        "part_number": "40700-series",
+        "sort_order": 16
+      },
+      {
+        "description": "Uplock Assembly. MLG Q400",
+        "part_number": "46500-series",
+        "sort_order": 17
+      },
+      {
+        "description": "Retraction Actuator Q400",
+        "part_number": "46550-series",
+        "sort_order": 18
+      },
+      {
+        "description": "Lock Actuator Assy. MLG Q400",
+        "part_number": "46600-series",
+        "sort_order": 19
+      },
+      {
+        "description": "Retraction Actuator Assy. NLG Q400",
+        "part_number": "47500-series",
+        "sort_order": 20
+      },
+      {
+        "description": "Retraction Actuator. MLG CRJ7/9",
+        "part_number": "49600-series",
+        "sort_order": 21
+      },
+      {
+        "description": "Damper Assy CRJ700-900",
+        "part_number": "49800-series",
+        "sort_order": 22
+      },
+      {
+        "description": "RETRACT ACTUATOR, NLG CRJ700/900",
+        "part_number": "52300-series",
+        "sort_order": 23
+      },
+      {
+        "description": "Alt Release Sys Actuator CRJ700-900",
+        "part_number": "53147-3",
+        "sort_order": 24
+      },
+      {
+        "description": "Actuating Cylinder Assy AT42",
+        "part_number": "D22897000/8000-series",
+        "sort_order": 25
+      },
+      {
+        "description": "Actuating Cylinder Assy AT72",
+        "part_number": "D23213000/4000-series",
+        "sort_order": 26
+      },
+      {
+        "description": "Free Fall Assister AT72",
+        "part_number": "D23215000-series",
+        "sort_order": 27
+      },
+      {
+        "description": "Unlocking Actuator MLG AT72",
+        "part_number": "D23221000/2000-series",
+        "sort_order": 28
+      }
+    ]
+  },
+  {
+    "group": "Hydraulic Valves",
+    "sort_order": 3,
+    "rows": [
+      {
+        "description": "Swivel Selector Valve, NLG",
+        "part_number": "C24483010",
+        "sort_order": 1
+      },
+      {
+        "description": "Differential Control Valve, NLG",
+        "part_number": "C24568000-series",
+        "sort_order": 2
+      }
+    ]
+  },
+  {
+    "group": "Landing Gear",
+    "sort_order": 4,
+    "rows": [
+      {
+        "description": "Shock Strut. MLG Q300",
+        "part_number": "10190-series",
+        "sort_order": 1
+      },
+      {
+        "description": "Drag Strat MLG Q300",
+        "part_number": "10200-series",
+        "sort_order": 2
+      },
+      {
+        "description": "Yoke MLG Q300",
+        "part_number": "10300-series",
+        "sort_order": 3
+      },
+      {
+        "description": "Stab Stay MLG Q300",
+        "part_number": "10400-series",
+        "sort_order": 4
+      },
+      {
+        "description": "Shock Strut, NLG ERJ145",
+        "part_number": "1170C0000-series 1170B0000-series 1170S0000-series",
+        "sort_order": 5
+      },
+      {
+        "description": "Main Drag Strat NLG E145",
+        "part_number": "1172B0000-series 1172C0000-series",
+        "sort_order": 6
+      },
+      {
+        "description": "Auxilary Drag Strat NLG E145",
+        "part_number": "1173B0000-series",
+        "sort_order": 7
+      },
+      {
+        "description": "Nose Landing Gear CRJ200",
+        "part_number": "16040 (16050)-series",
+        "sort_order": 8
+      },
+      {
+        "description": "Drag Brace NLG CRJ200",
+        "part_number": "16400-series",
+        "sort_order": 9
+      },
+      {
+        "description": "MLG Assy. Dressed CRJ 200",
+        "part_number": "17002-series",
+        "sort_order": 10
+      },
+      {
+        "description": "SIDE STAY. MLG E170",
+        "part_number": "170-70150-series",
+        "sort_order": 11
+      },
+      {
+        "description": "LOCKING STAY, MLG E170",
+        "part_number": "170-70250-series",
+        "sort_order": 12
+      },
+      {
+        "description": "SHOCK STRUT, NLG E170",
+        "part_number": "170-70405/-70745-series",
+        "sort_order": 13
+      },
+      {
+        "description": "Drag Brace NLG E170",
+        "part_number": "170-70600-series",
+        "sort_order": 14
+      },
+      {
+        "description": "LOCKING STAY. NLG E170",
+        "part_number": "170-70650-series",
+        "sort_order": 15
+      },
+      {
+        "description": "SIDE STAY.MLG E190",
+        "part_number": "190-70150-series",
+        "sort_order": 16
+      },
+      {
+        "description": "SIDE STAY.MLG E195",
+        "part_number": "190-70200-series",
+        "sort_order": 17
+      },
+      {
+        "description": "Locking Stay MLG E190",
+        "part_number": "190-70250-series",
+        "sort_order": 18
+      },
+      {
+        "description": "DOWNLOCK SPRING. MLG E190",
+        "part_number": "190-70300-series",
+        "sort_order": 19
+      },
+      {
+        "description": "190-70450/-70745-ser. NLG E190",
+        "part_number": "190-70450/-70745-series",
+        "sort_order": 20
+      },
+      {
+        "description": "Drag Brace NLG E190",
+        "part_number": "190-70550-series",
+        "sort_order": 21
+      },
+      {
+        "description": "Locking Stay NLG E190",
+        "part_number": "190-70650-series",
+        "sort_order": 22
+      },
+      {
+        "description": "Shock Strut. MLG CL604/605",
+        "part_number": "19090-series",
+        "sort_order": 23
+      },
+      {
+        "description": "Shock Strut. NLG CL604/605",
+        "part_number": "20020-series",
+        "sort_order": 24
+      },
+      {
+        "description": "Drag Brace. NLG CL604/605",
+        "part_number": "20045-series",
+        "sort_order": 25
+      },
+      {
+        "description": "Shock Strut. MLG GL5T",
+        "part_number": "21100-series",
+        "sort_order": 26
+      },
+      {
+        "description": "NLG STRUT ASSEMBLY GL5T",
+        "part_number": "22175-series",
+        "sort_order": 27
+      },
+      {
+        "description": "Shock Strut. NLG E145",
+        "part_number": "2233A0000-series 2266A0000-series",
+        "sort_order": 28
+      },
+      {
+        "description": "Shock Strut. NLG E145",
+        "part_number": "2233B0000-series",
+        "sort_order": 29
+      },
+      {
+        "description": "Drag Brace Assy. NLG GL5T",
+        "part_number": "22500-series",
+        "sort_order": 30
+      },
+      {
+        "description": "LEG STRUCTURE ASSY MLG E135/145",
+        "part_number": "2309-1300-series",
+        "sort_order": 31
+      },
+      {
+        "description": "Leg Assy. Strut. MLG E145",
+        "part_number": "2309-2002/-3002/-3100/-4002-series",
+        "sort_order": 32
+      },
+      {
+        "description": "Shock Absorber. MLG E145",
+        "part_number": "2309-2005-series",
+        "sort_order": 33
+      },
+      {
+        "description": "Main Side Strut. MLG E145",
+        "part_number": "2309-2500/-3500-series",
+        "sort_order": 34
+      },
+      {
+        "description": "Secondary Side Strut. MLG E145",
+        "part_number": "2309-2600-series",
+        "sort_order": 35
+      },
+      {
+        "description": "SHOCK STRUT, MLG E170",
+        "part_number": "2801A/2802A0000-series",
+        "sort_order": 36
+      },
+      {
+        "description": "SHOCK STRUT, MLG E190",
+        "part_number": "2821A/2822A0000-series",
+        "sort_order": 37
+      },
+      {
+        "description": "SHOCK STRUT, MLG E195",
+        "part_number": "4259A/4260A0000-series",
+        "sort_order": 38
+      },
+      {
+        "description": "Dressed Shock Strut Assy, MLG Q400",
+        "part_number": "46100-series",
+        "sort_order": 39
+      },
+      {
+        "description": "Dressed Yoke Assy MLG and Stab. Brace Assy MLG",
+        "part_number": "46350/46400-series",
+        "sort_order": 40
+      },
+      {
+        "description": "NLG Q400",
+        "part_number": "47200-series",
+        "sort_order": 41
+      },
+      {
+        "description": "Drag Strut Assy Q400",
+        "part_number": "47300-series",
+        "sort_order": 42
+      },
+      {
+        "description": "MLG Assy CRJ700",
+        "part_number": "49000-series",
+        "sort_order": 43
+      },
+      {
+        "description": "MLG Assy CRJ705/900",
+        "part_number": "49050-series",
+        "sort_order": 44
+      },
+      {
+        "description": "Side Stay MLG CRJ700/900",
+        "part_number": "49300-series",
+        "sort_order": 45
+      },
+      {
+        "description": "NLG ASSY CRJ700/900",
+        "part_number": "52000-series",
+        "sort_order": 46
+      },
+      {
+        "description": "Drag Brace Assy. NLG CRJ700/900",
+        "part_number": "52200-series",
+        "sort_order": 47
+      },
+      {
+        "description": "MLG CRJ 700/900/1000",
+        "part_number": "55000-series",
+        "sort_order": 48
+      },
+      {
+        "description": "Side Stay MLG CRJ700/900",
+        "part_number": "55300-series",
+        "sort_order": 49
+      },
+      {
+        "description": "Drag Brace NLG CL600/601",
+        "part_number": "7200-series / 200814001",
+        "sort_order": 50
+      },
+      {
+        "description": "Shock Strut. MLG CL601",
+        "part_number": "6100-series",
+        "sort_order": 51
+      },
+      {
+        "description": "NLG Assy CL600/601",
+        "part_number": "7300-series",
+        "sort_order": 52
+      },
+      {
+        "description": "Drag Strut Assy. NLG Dash-8 Q300",
+        "part_number": "8200-series",
+        "sort_order": 53
+      },
+      {
+        "description": "NLG SHOCK STRUT Dash-8 Q300",
+        "part_number": "8800-series",
+        "sort_order": 54
+      },
+      {
+        "description": "MLG Assembly AT42",
+        "part_number": "D22685040/6040-series",
+        "sort_order": 55
+      },
+      {
+        "description": "SHOCK ABSORBER, MLG AT42",
+        "part_number": "D22691000-series",
+        "sort_order": 56
+      },
+      {
+        "description": "NLG Assy AT42/72",
+        "part_number": "D22698000/8042/8100/8172-series",
+        "sort_order": 57
+      },
+      {
+        "description": "NLG Assy AT42/72",
+        "part_number": "D22698500-series",
+        "sort_order": 58
+      },
+      {
+        "description": "Drag Brace NLG AT42/72",
+        "part_number": "D22703000/3072-series",
+        "sort_order": 59
+      },
+      {
+        "description": "Drag Brace NLG AT42/72",
+        "part_number": "D22703500-series",
+        "sort_order": 60
+      },
+      {
+        "description": "Side Brace Assembly MLG AT42",
+        "part_number": "D22710000-series",
+        "sort_order": 61
+      },
+      {
+        "description": "FREE FALL ASSISTER, MLG AT42",
+        "part_number": "D22716000-series",
+        "sort_order": 62
+      },
+      {
+        "description": "Leg Assy. Main AT72",
+        "part_number": "D23189000/190000-series",
+        "sort_order": 63
+      },
+      {
+        "description": "Side Brace Assembly AT72",
+        "part_number": "D23219000/220000-series",
+        "sort_order": 64
+      }
+    ]
+  },
+  {
+    "group": "Painting",
+    "sort_order": 5,
+    "rows": [
+      {
+        "description": null,
+        "part_number": "DCMP-152",
+        "sort_order": 1
+      },
+      {
+        "description": null,
+        "part_number": "BAC5710 Type 49",
+        "sort_order": 2
+      }
+    ]
+  }
+]

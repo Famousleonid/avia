@@ -122,6 +122,12 @@ class Manual extends Model implements HasMedia
         return $this->hasMany(Training::class, 'manuals_id');
     }
 
+    /** Строка матрицы тренингов (show_all), к которой привязан этот CMM. */
+    public function matrixRow()
+    {
+        return $this->hasOne(TrainingMatrixRow::class, 'manual_id');
+    }
+
     public function units()
     {
         return $this->hasMany(Unit::class, 'manual_id');

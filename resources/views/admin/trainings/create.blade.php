@@ -75,7 +75,18 @@
                     @if(isset($userId) && $userId != auth()->id())
                         <input type="hidden" name="user_id" value="{{ $userId }}">
                     @endif
-                    <div class="form-group mt-2">
+                    @php $canMarkLegacy = auth()->user()->roleIs(['Admin', 'Manager']); @endphp
+                    @if($canMarkLegacy)
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="is_legacy" name="is_legacy" value="1">
+                            <label class="form-check-label" for="is_legacy">
+                                {{ __('Old training') }}
+                                <small class="text-muted d-block">{{ __('Trained in the past, no dated records. Shown as «X» in the matrix; no Form 112/132.') }}</small>
+                            </label>
+                        </div>
+                    @endif
+
+                    <div class="form-group mt-2" id="single_manual_group">
                         <label for="manuals_id">{{ __('Componenr PN') }}</label>
                         <select id="manuals_id" name="manuals_id" class="form-control" required>
                             <option value="">{{ __('Select Component PN') }}</option>
@@ -91,7 +102,23 @@
                         </select>
                     </div>
 
-                    <div class="form-group mt-3">
+                    @if($canMarkLegacy)
+                        <div class="form-group mt-2" id="legacy_manuals_group" style="display: none;">
+                            <label for="legacy_manuals_ids">{{ __('Units (multiple selection)') }}</label>
+                            <select id="legacy_manuals_ids" name="legacy_manuals_ids[]" class="form-control" multiple size="12">
+                                @foreach ($manuals as $manual)
+                                    @if(!empty($manual->unit_name_training))
+                                        <option value="{{ $manual->id }}">
+                                            {{ $manual->unit_name_training }} ({{ $manual->title }})
+                                        </option>
+                                    @endif
+                                @endforeach
+                            </select>
+                            <small class="form-text text-muted">{{ __('Hold Ctrl to select multiple units.') }}</small>
+                        </div>
+                    @endif
+
+                    <div class="form-group mt-3" id="date_training_group">
                         <label for="date_training">{{ __('First Training Date') }}</label>
                         <input type="date" id="date_training" name="date_training" class="form-control" required>
                     </div>
@@ -321,7 +348,37 @@
                 // User confirms or changes the date and clicks "Add Component" again
             });
 
+            function isLegacyMode() {
+                const cb = document.getElementById('is_legacy');
+                return !!(cb && cb.checked);
+            }
+
+            // «Old training»: вместо одной пары юнит+даты — мультивыбор юнитов без дат.
+            const legacyCheckbox = document.getElementById('is_legacy');
+            if (legacyCheckbox) {
+                legacyCheckbox.addEventListener('change', function () {
+                    const legacy = isLegacyMode();
+                    document.getElementById('single_manual_group').style.display = legacy ? 'none' : '';
+                    document.getElementById('legacy_manuals_group').style.display = legacy ? '' : 'none';
+                    document.getElementById('date_training_group').style.display = legacy ? 'none' : '';
+                    document.getElementById('additional_training_date_group').style.display = 'none';
+                    document.querySelectorAll('#training_dates_list input').forEach(i => i.closest('.input-group').remove());
+                    document.getElementById('add_training_date_btn').parentElement.style.display = legacy ? 'none' : '';
+                    document.getElementById('manuals_id').required = !legacy;
+                    document.getElementById('date_training').required = !legacy;
+                });
+            }
+
             document.getElementById('training_create_form').addEventListener('submit', function(e) {
+                if (isLegacyMode()) {
+                    const selected = document.querySelectorAll('#legacy_manuals_ids option:checked').length;
+                    if (selected === 0) {
+                        e.preventDefault();
+                        alert(@json(__('Select at least one unit for Old training.')));
+                        return false;
+                    }
+                    return; // даты не валидируются — их нет
+                }
                 if (formPendingSubmit) return;
                 if (!validateTrainingDate()) {
                     e.preventDefault();

@@ -234,6 +234,11 @@ class ManualController extends Controller
             }
         }
 
+        // Автопривязка к строке матрицы тренингов по training PN
+        if ($row = \App\Models\TrainingMatrixRow::autoLinkManual($manual)) {
+            $message .= '. Linked to training matrix row "' . $row->part_number . '"';
+        }
+
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
@@ -721,6 +726,11 @@ class ManualController extends Controller
             if ($unitCount > 0) {
                 $message .= " with {$unitCount} unit(s)";
             }
+        }
+
+        // Автопривязка к строке матрицы тренингов по training PN
+        if ($row = \App\Models\TrainingMatrixRow::autoLinkManual($cmm)) {
+            $message .= '. Linked to training matrix row "' . $row->part_number . '"';
         }
 
         if (auth()->user()->roleIs('Admin')) {

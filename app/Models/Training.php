@@ -10,8 +10,10 @@ class Training extends Model
     use HasFactory;
     protected $fillable = [
         'user_id', 'manuals_id',
-        'date_training', 'form_type',
+        'date_training', 'form_type', 'is_legacy',
     ];
+
+    protected $casts = ['is_legacy' => 'boolean'];
 
 
     public function manual()
