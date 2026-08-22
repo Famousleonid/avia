@@ -17,6 +17,12 @@ class Form132VariantTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withSession([\App\Http\Middleware\EnsureAuthSessionVersion::SESSION_KEY => 1]);
+    }
+
     private const SCA_SECTION = 'REPORTS IN MAINTENANCE RECORDS/FINAL RELEASE';
     private const TL_SECTION = 'SUPERVISION OF MAINTENANCE WORK';
 
