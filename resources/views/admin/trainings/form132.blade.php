@@ -231,7 +231,8 @@
             <h5><strong>Trainee Position:</strong></h5>
         </div>
         <div class="col-6 text-black text-center border-bottom border-dark">
-            <h5><strong>{{ $training->user->role->name }}</strong></h5>
+            {{-- SCA — квалификация (флаг), в Position печатается она, а не роль --}}
+            <h5><strong>{{ $training->user->can_sign_certificates ? 'Shop Certifying Authority (SCA)' : $training->user->role->name }}</strong></h5>
         </div>
     </div>
     <div class="row mt-1" style="width: 900px">

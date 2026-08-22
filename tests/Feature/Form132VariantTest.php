@@ -89,6 +89,9 @@ class Form132VariantTest extends TestCase
         $response->assertOk();
         $response->assertSee(self::SCA_SECTION);
         $response->assertDontSee(self::TL_SECTION);
+        // Trainee Position: печатается квалификация SCA, а не роль
+        $response->assertSee('Shop Certifying Authority (SCA)');
+        $response->assertDontSee('<strong>Manager</strong>', false);
     }
 
     public function test_sca_overrides_team_leader_section(): void
