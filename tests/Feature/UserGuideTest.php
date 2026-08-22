@@ -17,6 +17,13 @@ class UserGuideTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.user-guide'));
 
         $response->assertOk();
+        $response->assertSee('class="guide-loading"', false);
+        $response->assertSee('id="guideLoading"', false);
+        $response->assertSee('guide-loading-dots', false);
+        $response->assertSee("window.addEventListener('load'", false);
+        $response->assertSee('guideStateApplied = true', false);
+        $response->assertSee('return new Promise((resolve) => {', false);
+        $response->assertSee('await scrollToGuideSection(document.querySelector(restoredSectionHash))', false);
         $response->assertSee('data-language="en"', false);
         $response->assertSee('data-language="ru"', false);
         $response->assertSee('data-language="uk"', false);
@@ -35,6 +42,8 @@ class UserGuideTest extends TestCase
         $response->assertSee('1.1 Sign in');
         $response->assertDontSee('class="guide-intro"', false);
         $response->assertSee('sectionObserver', false);
+        $response->assertSee("document.addEventListener('wheel'", false);
+        $response->assertSee("event.target.closest('.guide-toc')", false);
         $response->assertSee("'toc-open-all'", false);
         $response->assertSee('img/user-guide/technician-login.png', false);
         $response->assertSee('img/user-guide/technician-cabinet.png', false);
@@ -55,17 +64,29 @@ class UserGuideTest extends TestCase
         $response->assertSee("'last-section'", false);
         $response->assertSee("'scroll-top'", false);
         $response->assertSee('workorder-main', false);
+        $response->assertSee('workorder-tdr', false);
+        $response->assertSee('workorder-pictures', false);
+        $response->assertSee(route('admin.user-guide.tdr-report'), false);
+        $response->assertSee(route('admin.user-guide.workorder-pictures'), false);
+        $response->assertSee(route('admin.user-guide.training'), false);
+        $response->assertSee(route('admin.user-guide.technicians'), false);
+        $response->assertSee(route('admin.user-guide.materials'), false);
+        $response->assertSee(route('admin.user-guide.mobile-workorders'), false);
+        $response->assertSee(route('admin.user-guide.mobile-workorder'), false);
+        $response->assertSee(route('admin.user-guide.mobile-workorder-pictures'), false);
         $response->assertSee('data-main-demo', false);
         $response->assertSee('guide-main-demo-tab', false);
         $response->assertSee('data-main-demo-open="photos"', false);
         $response->assertSee("'main-demo-draft'", false);
         $response->assertSee('Parts &amp; Repair Processes', false);
-        $response->assertSee('img/user-guide/technician-training.png', false);
-        $response->assertSee('img/user-guide/technician-technicians.png', false);
-        $response->assertSee('img/user-guide/technician-materials.png', false);
-        $response->assertSee('img/user-guide/technician-mobile-workorders.png', false);
-        $response->assertSee('img/user-guide/technician-mobile-workorder.png', false);
-        $response->assertSee('img/user-guide/technician-mobile-photos.png', false);
+        $response->assertSee('guide-live-page', false);
+        $response->assertDontSee('img/user-guide/technician-training.png', false);
+        $response->assertDontSee('img/user-guide/technician-technicians.png', false);
+        $response->assertDontSee('img/user-guide/technician-materials.png', false);
+        $response->assertSee('guide-live-mobile', false);
+        $response->assertDontSee('img/user-guide/technician-mobile-workorders.png', false);
+        $response->assertDontSee('img/user-guide/technician-mobile-workorder.png', false);
+        $response->assertDontSee('img/user-guide/technician-mobile-photos.png', false);
 
         $sidebar = view('components.admin_menu_sidebar', [
             'themeToggleId' => 'test-theme-toggle',
@@ -80,8 +101,46 @@ class UserGuideTest extends TestCase
             ->get(route('admin.user-guide.workorder-main'))
             ->assertOk()
             ->assertSee('100000')
+            ->assertSee('data-user-guide-tdr', false)
             ->assertDontSee('id="sidebarColumn"', false)
             ->assertDontSee('id="notifSettingsModal"', false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.user-guide.tdr-report'))
+            ->assertOk()
+            ->assertSee('100000')
+            ->assertSee('user-guide-embed', false)
+            ->assertSee('data-user-guide-return-to-workorders', false)
+            ->assertSee(route('admin.user-guide', ['center' => 1]) . '#workorders', false)
+            ->assertDontSee('F&C Doc', false)
+            ->assertDontSee('id="sidebarColumn"', false)
+            ->assertDontSee('id="notifSettingsModal"', false);
+
+        foreach ([
+            route('admin.user-guide.workorder-pictures'),
+            route('admin.user-guide.training'),
+            route('admin.user-guide.technicians'),
+            route('admin.user-guide.materials'),
+        ] as $guideEmbedRoute) {
+            $this->actingAs($admin)
+                ->get($guideEmbedRoute)
+                ->assertOk()
+                ->assertSee('user-guide-embed', false)
+                ->assertDontSee('id="sidebarColumn"', false)
+                ->assertDontSee('id="notifSettingsModal"', false);
+        }
+
+        foreach ([
+            route('admin.user-guide.mobile-workorders'),
+            route('admin.user-guide.mobile-workorder'),
+            route('admin.user-guide.mobile-workorder-pictures'),
+        ] as $mobileGuideEmbedRoute) {
+            $this->actingAs($admin)
+                ->get($mobileGuideEmbedRoute)
+                ->assertOk()
+                ->assertSee('user-guide-embed', false)
+                ->assertDontSee('id="sidebarColumn"', false);
+        }
     }
 
     public function test_every_technician_can_open_the_live_training_workorder_regardless_of_assignment(): void

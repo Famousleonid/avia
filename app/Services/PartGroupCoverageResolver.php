@@ -108,8 +108,8 @@ class PartGroupCoverageResolver
     }
 
     /**
-     * Legacy-compatible inference: an existing TDR selection of an ASSY row or
-     * an option component activates the matching group without rewriting history.
+     * Ordering an option component in TDR activates its group for that WO.
+     * Legacy component-assembly links remain supported without rewriting history.
      *
      * @param Collection<int, ManualPartGroup> $groups
      */
@@ -120,8 +120,7 @@ class PartGroupCoverageResolver
 
         foreach ($groups as $group) {
             foreach ($group->options as $option) {
-                if ($group->behavior === ManualPartGroup::BEHAVIOR_CHOOSE_ONE
-                    && $group->type !== ManualPartGroup::TYPE_OVERSIZE
+                if ($group->type !== ManualPartGroup::TYPE_OVERSIZE
                     && (int) ($option->component_id ?? 0) > 0) {
                     $optionByComponentId[(int) $option->component_id][] = [$group, $option];
                 }

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\VerifyCsrfToken;
+use App\Models\Component;
+use App\Models\StdProcess;
 use App\Models\Workorder;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -189,6 +191,62 @@ class WorkordersWriteTest extends TestCase
         $this->assertSame('Created from test', $unit->fresh()->name);
 
         $this->assertNotNull($draftInstruction->id);
+    }
+
+    public function test_created_overhaul_for_a_manual_part_has_only_the_head_part_in_std(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->createDraftInstruction();
+        $overhaul = $this->createOverhaulInstruction();
+        $customer = $this->createCustomer();
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => '52141-1',
+        ]);
+
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-10',
+            'part_number' => '52141-1',
+            'name' => 'PIN, Torque Arm',
+            'units_assy' => 4,
+            'ndt_list' => true,
+        ]);
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-20',
+            'part_number' => 'OTHER-OVERHAUL-PART',
+            'name' => 'Other overhaul part',
+            'units_assy' => 2,
+            'ndt_list' => true,
+        ]);
+
+        $number = 800000;
+        while (Workorder::query()->withDrafts()->where('number', $number)->exists()) {
+            $number++;
+        }
+
+        $this->actingAs($admin)
+            ->post(route('workorders.store'), [
+                'number' => $number,
+                'unit_id' => $unit->id,
+                'customer_id' => $customer->id,
+                'instruction_id' => $overhaul->id,
+                'user_id' => $admin->id,
+                'description' => 'Detached PIN overhaul',
+                'serial_number' => 'SN-DETACHED-PIN',
+                'open_at' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('workorders.index'))
+            ->assertSessionHasNoErrors();
+
+        $workorder = Workorder::query()->withDrafts()->where('number', $number)->firstOrFail();
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('52141-1', $rows[0]['part_number']);
+        $this->assertSame(1, $rows[0]['qty']);
     }
 
     public function test_draft_match_lookup_finds_same_part_number_across_different_units(): void

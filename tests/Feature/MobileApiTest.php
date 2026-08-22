@@ -1191,13 +1191,14 @@ class MobileApiTest extends TestCase
         $passwordResponse = $this->withMobileToken($user->fresh())
             ->postJson(route('api.mobile.profile.password.update'), [
                 'old_pass' => 'password',
-                'password' => 'new-password',
-                'password_confirmation' => 'new-password',
+                'password' => 'new-password@',
+                'password_confirmation' => 'new-password@',
             ]);
 
         $passwordResponse->assertOk()
             ->assertJsonPath('ok', true);
-        $this->assertTrue(Hash::check('new-password', $user->fresh()->password));
+        $this->assertTrue(Hash::check('new-password@', $user->fresh()->password));
+        $this->assertDatabaseMissing('mobile_api_tokens', ['user_id' => $user->id]);
     }
 
     private function makeMobileToken($user): string

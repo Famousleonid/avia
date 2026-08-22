@@ -13,6 +13,7 @@
     <title>{{ config('app.name', 'Aviatechnik') }}</title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}">
+    <link rel="stylesheet" href="{{ asset('css/password-policy.css') }}?v={{ filemtime(public_path('css/password-policy.css')) }}">
 
     <style>
         body {
@@ -42,6 +43,7 @@
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
+<script src="{{ asset('js/password-policy.js') }}?v={{ filemtime(public_path('js/password-policy.js')) }}"></script>
 
 @yield('scripts')
 

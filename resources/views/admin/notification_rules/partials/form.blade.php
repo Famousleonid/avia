@@ -60,13 +60,24 @@
 
     <div class="col-lg-4">
         <label class="form-label">Automatically include</label>
-        <select name="recipient_dynamic[]" class="form-select" multiple>
+        <div class="form-control recipient-check-list" role="group" aria-label="Automatically include">
             @forelse(($eventMeta['dynamic_recipients'] ?? []) as $value => $label)
-                <option value="{{ $value }}" @selected(in_array($value, $selectedDynamic, true))>{{ $label }}</option>
+                @php($dynamicInputId = 'dynamic_' . md5($selectedEvent . '|' . $value))
+                <div class="form-check">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="recipient_dynamic[]"
+                        value="{{ $value }}"
+                        id="{{ $dynamicInputId }}"
+                        @checked(in_array($value, $selectedDynamic, true))
+                    >
+                    <label class="form-check-label" for="{{ $dynamicInputId }}">{{ $label }}</label>
+                </div>
             @empty
-                <option value="" disabled>No automatic recipients for this event</option>
+                <span class="text-muted small">No automatic recipients for this event</span>
             @endforelse
-        </select>
+        </div>
         <div class="text-muted small mt-1">Use this for built-in recipients like assigned user or system admins.</div>
     </div>
 

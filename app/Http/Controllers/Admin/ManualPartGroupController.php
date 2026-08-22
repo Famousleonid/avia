@@ -160,8 +160,21 @@ class ManualPartGroupController extends Controller
             && (! $componentIds->contains((int) ($data['default_component_id'] ?? 0)))) {
             throw ValidationException::withMessages(['default_component_id' => 'Select the ASSY part.']);
         }
-        if ($behavior === ManualPartGroup::BEHAVIOR_BUNDLE && trim((string) ($data['order_part_number'] ?? '')) === '') {
-            throw ValidationException::withMessages(['order_part_number' => 'New order P/N is required for ASSY and KIT.']);
+        if ($data['type'] === ManualPartGroup::TYPE_ASSY) {
+            $assyPart = Component::query()
+                ->where('manual_id', $manual->id)
+                ->find((int) $data['default_component_id']);
+            $assyPartNumber = trim((string) ($assyPart?->part_number ?? ''));
+
+            if ($assyPartNumber === '') {
+                throw ValidationException::withMessages(['default_component_id' => 'The selected ASSY part must have a P/N.']);
+            }
+
+            $data['order_part_number'] = $assyPartNumber;
+            $data['order_ipl_num'] = trim((string) ($assyPart?->ipl_num ?? '')) ?: null;
+        }
+        if ($data['type'] === ManualPartGroup::TYPE_KIT && trim((string) ($data['order_part_number'] ?? '')) === '') {
+            throw ValidationException::withMessages(['order_part_number' => 'New KIT P/N is required.']);
         }
         if ($data['type'] === ManualPartGroup::TYPE_ASSY && $componentIds->isEmpty()) {
             throw ValidationException::withMessages(['component_ids' => 'ASSY must contain the original part and any included parts.']);

@@ -87,8 +87,8 @@ class ProfileControllerTest extends TestCase
 
         $response = $this->actingAs($user)->from(route('profile.edit'))->post(route('profile.password'), [
             'old_pass' => 'wrong',
-            'password' => '123',
-            'password_confirmation' => '123',
+            'password' => 'Secure8@',
+            'password_confirmation' => 'Secure8@',
         ]);
 
         $response->assertRedirect(route('profile.edit'));

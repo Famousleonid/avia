@@ -23,7 +23,17 @@ final class WoBushingProcessColumnKey
 
     public static function resolve(string $processName, string $processCode = ''): string
     {
-        $haystack = mb_strtolower(trim($processName.' '.$processCode));
+        $nameKey = self::resolveText($processName);
+        if ($nameKey !== 'other') {
+            return $nameKey;
+        }
+
+        return self::resolveText($processCode);
+    }
+
+    private static function resolveText(string $value): string
+    {
+        $haystack = mb_strtolower(trim($value));
         if ($haystack === '') {
             return 'other';
         }

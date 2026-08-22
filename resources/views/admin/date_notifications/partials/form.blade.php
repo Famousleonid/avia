@@ -83,10 +83,22 @@
 
     <div class="col-lg-4">
         <label class="form-label">Automatically include</label>
-        <select name="recipient_dynamic[]" class="form-select" multiple>
-            <option value="all_users" @selected(in_array('all_users', $selectedDynamic, true))>All users</option>
-            <option value="system_admins" @selected(in_array('system_admins', $selectedDynamic, true))>System admins</option>
-        </select>
+        <div class="form-control recipient-check-list" role="group" aria-label="Automatically include">
+            @foreach(['all_users' => 'All users', 'system_admins' => 'System admins'] as $value => $label)
+                @php($dynamicInputId = 'date_dynamic_' . ($notification?->id ?? 'new') . '_' . $value)
+                <div class="form-check">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="recipient_dynamic[]"
+                        value="{{ $value }}"
+                        id="{{ $dynamicInputId }}"
+                        @checked(in_array($value, $selectedDynamic, true))
+                    >
+                    <label class="form-check-label" for="{{ $dynamicInputId }}">{{ $label }}</label>
+                </div>
+            @endforeach
+        </div>
     </div>
 
     <div class="col-lg-12">

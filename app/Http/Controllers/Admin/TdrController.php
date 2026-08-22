@@ -12,7 +12,6 @@ use App\Models\ExtraProcess;
 use App\Models\Instruction;
 use App\Models\LogCard;
 use App\Models\Manual;
-use App\Models\ManualPartGroup;
 use App\Models\ManualProcess;
 use App\Models\Necessary;
 use App\Models\Plane;
@@ -1993,22 +1992,6 @@ class TdrController extends Controller
 
         $showLogCardTab = true;
 
-        $workorderPartGroups = ManualPartGroup::query()
-            ->whereIn('manual_id', $current_wo->usedManualIds())
-            ->whereIn('type', [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_KIT])
-            ->with([
-                'options.component:id,ipl_num,part_number,name',
-                'options.coverages.component:id,ipl_num,part_number,name',
-                'options.coverages.coveredOption.group:id,name,type',
-                'options.coverages.coveredOption.coverages.component:id,ipl_num,part_number,name',
-                'serviceBulletin',
-            ])
-            ->orderBy('name')
-            ->get();
-        $workorderPartGroupSelections = $current_wo->partGroupSelections()
-            ->get()
-            ->keyBy('manual_part_group_id');
-
         return compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
@@ -2022,7 +2005,7 @@ class TdrController extends Controller
             'showDestructionCert', 'logCardTdrAccess',
             'logCardSerialsByComponent',
             'allowedManualIds', 'canManageManualParts', 'canManageAllManualParts',
-            'dimensionFigures', 'workorderPartGroups', 'workorderPartGroupSelections'
+            'dimensionFigures'
         );
     }
 

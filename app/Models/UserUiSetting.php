@@ -9,6 +9,8 @@ class UserUiSetting extends Model
 {
     public const PROJECT_APPEARANCE_SCOPE = 'project.appearance';
     public const PROJECT_BACKGROUND_KEY = 'background_image';
+    public const PASSWORD_SECURITY_SCOPE = 'security.password';
+    public const TEMPORARY_PASSWORD_REMINDER_KEY = 'temporary-reminder-last-shown-on';
 
     protected $fillable = [
         'user_id',

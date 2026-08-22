@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\Auth\UserPasswordService;
+use App\Support\UserPasswordPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
@@ -42,7 +44,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'string', 'email', 'max:155', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:' . config('security.user_password_min')],
+            'password' => UserPasswordPolicy::rules(),
             'birthday' => ['nullable', 'date', 'before:today'],
             'phone' => ['nullable', 'string', 'max:50'],
             'stamp' => ['nullable', 'string', 'max:255'],
@@ -53,6 +55,9 @@ class UserController extends Controller
         $data = $validated;
         $data['phone'] = $this->removeSpace($validated['phone'] ?? null);
         $data['password'] = Hash::make($validated['password']);
+        $data['must_change_password'] = true;
+        $data['temporary_password_expires_at'] = now()->addDays(UserPasswordPolicy::temporaryLifetimeDays());
+        $data['auth_version'] = 1;
 
         $user = User::create($data);
         $user->is_admin = $request->boolean('is_admin');
@@ -116,7 +121,7 @@ class UserController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'stamp' => ['required', 'string', 'max:255'],
             'birthday' => ['nullable', 'date', 'before:today'],
-            'password' => ['nullable', 'string', 'min:' . config('security.user_password_min'), 'confirmed'],
+            'password' => UserPasswordPolicy::rules(confirmed: true, nullable: true),
             'role_id' => ['required', 'integer', 'exists:roles,id'],
             'team_id' => ['required', 'integer', 'exists:teams,id'],
             'img' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
@@ -125,11 +130,8 @@ class UserController extends Controller
 
         $validated['phone'] = $this->removeSpace($validated['phone'] ?? null);
 
-        if (! empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        } else {
-            unset($validated['password']);
-        }
+        $newPassword = ! empty($validated['password']) ? (string) $validated['password'] : null;
+        unset($validated['password']);
 
         $validated['is_admin'] = $request->boolean('is_admin');
         $validated['can_manage_locked_manual_processes'] = $request->boolean('can_manage_locked_manual_processes');
@@ -147,6 +149,10 @@ class UserController extends Controller
         unset($validated['img'], $validated['sign']);
 
         $user->update($validated);
+
+        if ($newPassword !== null) {
+            app(UserPasswordService::class)->assignTemporaryPassword($user, $newPassword);
+        }
 
         if ($request->hasFile('img')) {
             if ($user->getMedia('avatar')->isNotEmpty()) {
@@ -188,22 +194,4 @@ class UserController extends Controller
         return str_replace(' ', '', $var);
     }
 
-    public function changePassword(Request $request, $id)
-    {
-        abort_unless(auth()->user()?->isSystemAdmin(), 403);
-
-        $this->validate($request, [
-            'password' => 'required|confirmed|min:' . config('security.user_password_min'),
-        ]);
-
-        $user = User::findOrFail($id);
-
-        if (Hash::check($request->old_pass, $user->password)) {
-            $user->fill(['password' => Hash::make($request->password)])->save();
-
-            return redirect()->back()->with('success', 'New password saved');
-        }
-
-        return redirect()->back()->with('error', 'The current password is incorrect');
-    }
 }

@@ -37,7 +37,8 @@ class UsersTest extends TestCase
         $response = $this->actingAs($admin)->post(route('users.store'), [
             'name' => 'Created User',
             'email' => 'created.user@example.test',
-            'password' => 'secret123',
+            'password' => 'secret123@',
+            'password_confirmation' => 'secret123@',
             'birthday' => '1990-01-01',
             'role_id' => $role->id,
             'team_id' => $team->id,
@@ -58,9 +59,12 @@ class UsersTest extends TestCase
             'is_admin' => 1,
             'can_manage_locked_manual_processes' => 1,
             'can_sign_certificates' => 1,
+            'must_change_password' => 1,
         ]);
 
-        $this->assertNotNull(User::query()->where('email', 'created.user@example.test')->value('email_verified_at'));
+        $createdUser = User::query()->where('email', 'created.user@example.test')->firstOrFail();
+        $this->assertNotNull($createdUser->email_verified_at);
+        $this->assertNotNull($createdUser->temporary_password_expires_at);
     }
 
     public function test_public_registration_is_closed(): void
@@ -105,7 +109,8 @@ class UsersTest extends TestCase
         $response = $this->actingAs($roleOnlyAdmin)->post(route('users.store'), [
             'name' => 'Blocked User',
             'email' => 'blocked.user@example.test',
-            'password' => 'secret123',
+            'password' => 'secret123@',
+            'password_confirmation' => 'secret123@',
             'birthday' => '1990-01-01',
             'role_id' => $role->id,
             'team_id' => $team->id,

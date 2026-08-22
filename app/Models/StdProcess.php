@@ -60,7 +60,7 @@ class StdProcess extends Model
 
     public static function validStdValues(): array
     {
-        return [self::STD_NDT, self::STD_CAD, self::STD_STRESS, self::STD_PAINT];
+        return [self::STD_STRESS, self::STD_NDT, self::STD_CAD, self::STD_PAINT];
     }
 
     public static function assertValidStd(string $std): void

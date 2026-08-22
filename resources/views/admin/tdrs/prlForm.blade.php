@@ -506,6 +506,13 @@
             text-decoration-thickness: 1px;
         }
 
+        .prl-kit-included-note {
+            display: block;
+            font-size: 0.62rem;
+            line-height: 1.1;
+            color: #5f6b75;
+        }
+
         .prl-part-number-line,
         .prl-qty-line {
             display: block;
@@ -776,6 +783,7 @@
                     $partNumberOptions = $isArray ? ($tdr['prl_part_numbers'] ?? []) : ($tdr->prl_part_numbers ?? []);
                     $kitComponentOptions = $isArray ? ($tdr['kit_component_options'] ?? []) : [];
                     $groupCrossoutReason = $isArray ? ($tdr['group_crossout_reason'] ?? '') : ($tdr->group_crossout_reason ?? '');
+                    $bushingKitNote = $isArray && ! empty($tdr['bushing_kit_note']);
                 @endphp
 
                 @if($shouldInsertManualRow)
@@ -947,6 +955,9 @@
                             </div>
                     <div class="col-1 prl-col-notes border-l-b-r text-center pt-1 align-content-center">
                                 <h6>{{ $groupCrossoutReason !== '' ? $groupCrossoutReason : ($isArray ? ($tdr['notes'] ?? '') : ($tdr->notes ?? '')) }}</h6>
+                                @if($bushingKitNote)
+                                    <small class="prl-kit-included-note">Included in KIT</small>
+                                @endif
                     </div>
                 </div>
                 @php

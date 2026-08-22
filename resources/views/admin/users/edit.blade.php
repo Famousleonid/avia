@@ -177,18 +177,20 @@
                     {{-- Password --}}
                     <div class="row g-3 mt-0">
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Password</label>
-                            <input type="password"
-                                   name="password"
-                                   class="form-control"
-                                   placeholder="Leave empty to keep current password">
+                            <x-password-field id="edit-user-password"
+                                              name="password"
+                                              label="New Temporary Password"
+                                              autocomplete="new-password"
+                                              placeholder="Leave empty to keep current password"
+                                              :policy="true" />
+                            <div class="form-text">Setting a password signs the user out everywhere and requires a change at the next sign-in.</div>
                         </div>
 
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Confirm Password</label>
-                            <input type="password"
-                                   name="password_confirmation"
-                                   class="form-control">
+                            <x-password-field id="edit-user-password-confirmation"
+                                              name="password_confirmation"
+                                              label="Confirm Temporary Password"
+                                              autocomplete="new-password" />
                         </div>
                     </div>
 

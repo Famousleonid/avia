@@ -556,6 +556,47 @@ class WoBushingSortingTest extends TestCase
         $form->assertSee('BATCH2-PN', false);
     }
 
+    public function test_bushing_tab_shows_cad_checkbox_when_cad_instruction_contains_bake(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+        $cad = $this->attachProcessToManual(
+            $manualId,
+            'Cad plate',
+            'MIL-STD-870. Bake for 23 hours at 350-400 F.'
+        );
+        $component = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '3-1260',
+            'part_number' => '49001-115',
+            'name' => 'Bushing',
+            'bush_ipl_num' => '3-1260',
+            'is_bush' => true,
+        ]);
+        $line = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 2,
+            'qty_remaining' => 2,
+            'group_key' => '3-1260',
+            'sort_order' => 1,
+        ]);
+        $woProcess = WoBushingProcess::query()->create([
+            'wo_bushing_line_id' => $line->id,
+            'process_id' => $cad->id,
+            'qty' => 2,
+        ]);
+
+        $partial = $this->actingAs($admin)->get(route('wo_bushings.partial', $workorder->id));
+
+        $partial->assertOk();
+        $partial->assertSee('data-process-key="cad" data-wo-process-id="'.$woProcess->id.'"', false);
+        $partial->assertDontSee('data-process-key="stress_relief" data-wo-process-id="'.$woProcess->id.'"', false);
+    }
+
     public function test_bushing_spec_process_form_prints_part_number_without_qty_across_batches(): void
     {
         $admin = $this->createUserWithRole('Admin');

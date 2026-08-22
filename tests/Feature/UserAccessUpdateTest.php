@@ -167,14 +167,14 @@ class UserAccessUpdateTest extends TestCase
 
         $response = $this->actingAs($technician)->post(route('profile.password'), [
             'old_pass' => 'oldpass',
-            'password' => '123',
-            'password_confirmation' => '123',
+            'password' => 'Secure8@',
+            'password_confirmation' => 'Secure8@',
         ]);
 
         $response->assertRedirect();
         $response->assertSessionHasNoErrors();
 
         $technician->refresh();
-        $this->assertTrue(Hash::check('123', $technician->password));
+        $this->assertTrue(Hash::check('Secure8@', $technician->password));
     }
 }

@@ -19,9 +19,9 @@ class ProcessSequenceGuard
     private array $stdUnitsCache = [];
 
     private const STD_ORDER = [
-        'ndt' => 10,
-        'cad' => 20,
-        'stress' => 30,
+        'stress' => 10,
+        'ndt' => 20,
+        'cad' => 30,
         'paint' => 40,
     ];
 
@@ -124,6 +124,20 @@ class ProcessSequenceGuard
         $index = $this->findUnitIndex($units, (int) $process->id);
 
         return $this->nextSubject($units, $index);
+    }
+
+    public function previousBeforeStdProcess(WorkorderStdProcess $process): ?WorkorderStdProcess
+    {
+        $units = $this->stdUnits((int) $process->workorder_id);
+        $index = $this->findUnitIndex($units, (int) $process->id);
+
+        if ($index === null || $index < 1 || ! $units->has($index - 1)) {
+            return null;
+        }
+
+        $subject = $units[$index - 1]['subject'] ?? null;
+
+        return $subject instanceof WorkorderStdProcess ? $subject : null;
     }
 
     private function validateUnitDateUpdate(Collection $units, ?int $index, array $data): ?array

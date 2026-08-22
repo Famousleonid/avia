@@ -121,7 +121,7 @@
     </div>
     </div>
 
-    <form id="changePassForm" method="POST" action="{{ route('mobile.profile.changePassword') }}">
+    <form id="changePassForm" method="POST" action="{{ route('mobile.profile.changePassword') }}" data-password-submit-loading data-no-spinner>
         @csrf
         <div class="modal fade" id="updatePasswordModal" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-sm" role="document">
@@ -133,22 +133,35 @@
 
                     <div class="modal-body pb-0">
                         <div class="form-group mb-3">
-                            <label for="old_pass" class="small">Old Password</label>
-                            <input id="old_pass" type="password" name="old_pass" class="form-control" required autofocus>
+                            <x-password-field id="mobile-current-password"
+                                              name="old_pass"
+                                              label="Current Password"
+                                              autocomplete="current-password"
+                                              label-class="small"
+                                              :required="true" />
                         </div>
                         <div class="form-group mb-3">
-                            <label for="new_pass" class="small">New Password</label>
-                            <input id="new_pass" type="password" name="password" class="form-control" required>
+                            <x-password-field id="mobile-new-password"
+                                              name="password"
+                                              label="New Password"
+                                              autocomplete="new-password"
+                                              label-class="small"
+                                              :required="true"
+                                              :policy="true" />
                         </div>
                         <div class="form-group mb-3">
-                            <label for="confirm_pass" class="small">Confirm Password</label>
-                            <input id="confirm_pass" type="password" name="password_confirmation" class="form-control" required>
+                            <x-password-field id="mobile-password-confirmation"
+                                              name="password_confirmation"
+                                              label="Confirm New Password"
+                                              autocomplete="new-password"
+                                              label-class="small"
+                                              :required="true" />
                         </div>
                     </div>
 
                     <div class="modal-footer py-2">
                         <button type="button" class="btn btn-secondary me-auto" data-bs-dismiss="modal" >Close</button>
-                        <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Verify</button>
+                        <button type="submit" class="btn btn-primary">Change and sign out</button>
                     </div>
                 </div>
             </div>

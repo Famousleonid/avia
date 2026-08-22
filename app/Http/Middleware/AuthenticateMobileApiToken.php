@@ -39,6 +39,29 @@ class AuthenticateMobileApiToken
             ], 401);
         }
 
+        if (
+            $token->user->requiresImmediatePasswordChange()
+            && ! $request->routeIs(
+                'api.mobile.profile.password.update',
+                'api.android.profile.password.update',
+                'api.mobile.auth.logout',
+                'api.android.auth.logout',
+                'api.mobile.me',
+                'api.android.me'
+            )
+        ) {
+            return response()->json([
+                'ok' => false,
+                'message' => $token->user->hasExpiredTemporaryPassword()
+                    ? 'Temporary password expired. Change it to continue.'
+                    : 'Password change required.',
+                'code' => $token->user->hasExpiredTemporaryPassword()
+                    ? 'temporary_password_expired'
+                    : 'password_change_required',
+                'temporary_password_expires_at' => $token->user->temporary_password_expires_at?->toIso8601String(),
+            ], 423);
+        }
+
         $token->forceFill(['last_used_at' => now()])->save();
 
         Auth::setUser($token->user);

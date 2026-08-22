@@ -121,7 +121,9 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
             return false;
         }
 
-        return $this->workorderFor($subject) instanceof Workorder;
+        $workorder = $this->workorderFor($subject);
+
+        return $workorder instanceof Workorder && ! empty($workorder->approve_at);
     }
 
     private function workorderFor(TdrProcess|WorkorderStdProcess $process): ?Workorder
@@ -140,13 +142,8 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
     private function previousProcessName(TdrProcess|WorkorderStdProcess $process): string
     {
         if ($process instanceof WorkorderStdProcess) {
-            $previous = WorkorderStdProcess::query()
-                ->with('processName')
-                ->where('workorder_id', (int) $process->workorder_id)
-                ->where('id', '<', (int) $process->id)
-                ->where('ignore_row', false)
-                ->orderByDesc('id')
-                ->first();
+            $previous = app(ProcessSequenceGuard::class)->previousBeforeStdProcess($process);
+            $previous?->loadMissing('processName');
 
             return (string) ($previous?->processName?->name ?? 'Previous process');
         }

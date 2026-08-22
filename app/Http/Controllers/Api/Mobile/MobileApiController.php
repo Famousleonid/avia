@@ -34,6 +34,8 @@ use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
 use App\Models\Workorder;
 use App\Notifications\NewMessageNotification;
+use App\Services\Auth\CredentialRateLimiter;
+use App\Services\Auth\UserPasswordService;
 use App\Services\MachiningListingRowsBuilder;
 use App\Services\LogCardTdrAccessService;
 use App\Services\ManualIplBranchRuleResolver;
@@ -103,16 +105,25 @@ class MobileApiController extends Controller
             'device_name' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $rateLimiter = app(CredentialRateLimiter::class);
+        if ($rateLimiter->loginLocked($data['email'], $request)) {
+            return $this->fail('Too many login attempts. Try again later.', 429);
+        }
+
         $user = User::query()
             ->with(['role', 'team'])
             ->where('email', $data['email'])
             ->first();
 
         if (! $user || ! Hash::check($data['password'], $user->password) || ! $user->hasVerifiedEmail()) {
+            $rateLimiter->hitLogin($data['email'], $request);
+
             return $this->fail('Invalid credentials.', 422, [
                 'email' => ['Invalid credentials.'],
             ]);
         }
+
+        $rateLimiter->clearLogin($data['email'], $request);
 
         $plainToken = Str::random(80);
         MobileApiToken::query()->create([
@@ -1021,24 +1032,17 @@ class MobileApiController extends Controller
         ], [], 'Changes saved.');
     }
 
-    public function updatePassword(Request $request): JsonResponse
+    public function updatePassword(\App\Http\Requests\ChangePasswordRequest $request, UserPasswordService $passwords): JsonResponse
     {
-        $data = $request->validate([
-            'old_pass' => ['required'],
-            'password' => ['required', 'confirmed', 'min:' . config('security.user_password_min')],
-        ]);
+        $passwords->changeUsingCurrentPassword(
+            $request->user(),
+            (string) $request->validated('old_pass'),
+            (string) $request->validated('password')
+        );
 
-        $user = $request->user();
-        if (! Hash::check($data['old_pass'], $user->password)) {
-            throw ValidationException::withMessages([
-                'old_pass' => 'The current password is incorrect.',
-            ]);
-        }
-
-        $user->password = Hash::make($data['password']);
-        $user->save();
-
-        return $this->ok(null, [], 'New password saved.');
+        return $this->ok(null, [
+            'reauthentication_required' => true,
+        ], 'Password changed. Sign in again with your new password.');
     }
 
     public function workorders(Request $request): JsonResponse
@@ -2322,6 +2326,9 @@ class MobileApiController extends Controller
             'id' => $user->id,
             'name' => $user->selection_name,
             'email' => $user->email,
+            'password_change_required' => $user->requiresImmediatePasswordChange(),
+            'temporary_password_active' => $user->hasActiveTemporaryPassword(),
+            'temporary_password_expires_at' => $user->temporary_password_expires_at?->toIso8601String(),
             'role' => $user->roleName(),
             'team' => $user->team ? ['id' => $user->team->id, 'name' => $user->team->name] : null,
             'capabilities' => [
@@ -2345,6 +2352,9 @@ class MobileApiController extends Controller
             'phone' => $user->phone,
             'birthday' => optional($user->birthday)?->format('Y-m-d'),
             'email' => $user->email,
+            'password_change_required' => $user->requiresImmediatePasswordChange(),
+            'temporary_password_active' => $user->hasActiveTemporaryPassword(),
+            'temporary_password_expires_at' => $user->temporary_password_expires_at?->toIso8601String(),
             'stamp' => $user->stamp,
             'team' => $user->team ? $this->teamPayload($user->team) : null,
             'avatar' => $user->relationLoaded('media')

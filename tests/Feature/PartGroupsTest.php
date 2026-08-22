@@ -37,8 +37,8 @@ class PartGroupsTest extends TestCase
             'applies_to' => ['prl', 'ndt', 'cad'],
             'component_ids' => [$memberA->id, $memberB->id],
             'default_component_id' => $memberA->id,
-            'order_part_number' => 'ASSY-100',
-            'order_ipl_num' => '1-5',
+            'order_part_number' => 'SHOULD-BE-IGNORED',
+            'order_ipl_num' => '9-999',
             'member_qty' => [$memberA->id => 1, $memberB->id => 2],
         ]);
 
@@ -51,6 +51,12 @@ class PartGroupsTest extends TestCase
             'type' => ManualPartGroup::TYPE_ASSY,
         ]);
         $optionId = ManualPartGroupOption::query()->where('manual_part_group_id', $groupId)->value('id');
+        $this->assertDatabaseHas('manual_part_group_options', [
+            'id' => $optionId,
+            'component_id' => $memberA->id,
+            'part_number' => 'MEMBER-A',
+            'ipl_num' => '1-10',
+        ]);
         $this->assertDatabaseHas('manual_part_group_coverages', [
             'manual_part_group_option_id' => $optionId,
             'component_id' => $memberB->id,
@@ -66,7 +72,8 @@ class PartGroupsTest extends TestCase
             ->assertDontSee('manual-part-group-badge-meta')
             ->assertDontSee('manual-part-group-new')
             ->assertDontSee('Existing groups')
-            ->assertDontSee('Delete a group to ungroup its parts.');
+            ->assertDontSee('Delete a group to ungroup its parts.')
+            ->assertDontSee('New ASSY / KIT P/N');
     }
 
     public function test_bundle_selection_covers_quantities_only_in_enabled_forms(): void
@@ -143,8 +150,6 @@ class PartGroupsTest extends TestCase
                 'applies_to' => ['prl', 'ndt'],
                 'component_ids' => [$member->id],
                 'default_component_id' => $member->id,
-                'order_part_number' => 'ASSY-200',
-                'order_ipl_num' => '1-6',
                 'member_qty' => [$member->id => 3],
             ]
         );
@@ -152,7 +157,9 @@ class PartGroupsTest extends TestCase
         $response->assertOk();
         $this->assertDatabaseHas('manual_part_group_options', [
             'id' => $option->id,
-            'part_number' => 'ASSY-200',
+            'component_id' => $member->id,
+            'part_number' => 'MEMBER',
+            'ipl_num' => '1-10',
             'deleted_at' => null,
         ]);
         $this->assertDatabaseHas('workorder_part_group_selections', [
@@ -191,7 +198,7 @@ class PartGroupsTest extends TestCase
         $this->assertSame(PHP_INT_MAX, $coverage[$second->id]['covered_qty']);
     }
 
-    public function test_assy_base_part_order_covers_only_itself_but_complete_assy_covers_all_members(): void
+    public function test_ordering_assy_part_automatically_covers_all_group_members(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
@@ -205,7 +212,7 @@ class PartGroupsTest extends TestCase
             'applies_to' => ManualPartGroup::validScopes(),
         ]);
         $option = $group->options()->create([
-            'component_id' => $base->id, 'part_number' => '47170-3', 'ipl_num' => '1-10',
+            'component_id' => $base->id, 'part_number' => $base->part_number, 'ipl_num' => '1-10',
             'option_kind' => 'assy', 'is_default' => true,
         ]);
         $option->coverages()->createMany([
@@ -213,28 +220,40 @@ class PartGroupsTest extends TestCase
             ['component_id' => $bushing->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
         ]);
 
+        $orderNew = \App\Models\Necessary::query()->firstOrCreate(['name' => 'Order New']);
         Tdr::query()->create([
             'workorder_id' => $workorder->id,
             'component_id' => $base->id,
             'order_component_id' => $base->id,
+            'necessaries_id' => $orderNew->id,
+            'qty' => 1,
+        ]);
+        Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $bushing->id,
+            'order_component_id' => $bushing->id,
+            'necessaries_id' => $orderNew->id,
             'qty' => 1,
         ]);
 
         $resolver = app(PartGroupCoverageResolver::class);
-        $this->assertSame([], $resolver->coverageForWorkorder($workorder, 'ndt'));
-
-        WorkorderPartGroupSelection::query()->create([
-            'workorder_id' => $workorder->id,
-            'manual_part_group_id' => $group->id,
-            'manual_part_group_option_id' => $option->id,
-            'qty' => 1,
-            'selected_by_user_id' => $admin->id,
-        ]);
-
         $coverage = $resolver->coverageForWorkorder($workorder, 'ndt');
         $this->assertSame(1, $coverage[$base->id]['covered_qty']);
         $this->assertSame(1, $coverage[$bushing->id]['covered_qty']);
-        $this->assertSame('Included in ASSY 47170-3', $coverage[$base->id]['reason']);
+        $this->assertSame('Included in ASSY 47170-103', $coverage[$base->id]['reason']);
+
+        $this->actingAs($admin)
+            ->get(route('tdrs.prlForm', ['id' => $workorder->id]))
+            ->assertOk()
+            ->assertViewHas('ordersParts', function ($rows) use ($base, $bushing): bool {
+                $assyRow = collect($rows)->first(fn ($row): bool => (int) ($row->order_component_id ?? 0) === $base->id);
+                $bushingRow = collect($rows)->first(fn ($row): bool => (int) ($row->order_component_id ?? 0) === $bushing->id);
+
+                return $assyRow
+                    && $bushingRow
+                    && empty($assyRow->prl_crossed_out)
+                    && ! empty($bushingRow->prl_crossed_out);
+            });
     }
 
     public function test_alternative_group_is_selected_automatically_from_tdr_order_part(): void
@@ -425,7 +444,7 @@ class PartGroupsTest extends TestCase
         );
     }
 
-    public function test_tdr_page_uses_clear_assy_kit_button_and_does_not_show_it_for_alternatives_only(): void
+    public function test_tdr_page_does_not_show_a_separate_assy_kit_selector(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
@@ -464,8 +483,8 @@ class PartGroupsTest extends TestCase
         $this->actingAs($admin)
             ->get(route('tdrs.show', ['id' => $workorder->id]))
             ->assertOk()
-            ->assertSee('ASSY / KIT')
-            ->assertSee('Select a complete ASSY or KIT only when its new P/N is being ordered.');
+            ->assertDontSee('ASSY / KIT')
+            ->assertDontSee('Select a complete ASSY or KIT only when its new P/N is being ordered.');
     }
 
     public function test_legacy_import_creates_group_and_preserves_assembly_link(): void

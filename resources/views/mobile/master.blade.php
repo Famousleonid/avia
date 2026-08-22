@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css"/>
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
+    <link rel="stylesheet" href="{{ asset('css/password-policy.css') }}?v={{ filemtime(public_path('css/password-policy.css')) }}">
 
     <script>
         (function () {
@@ -64,12 +65,21 @@
     </style>
 
 </head>
-<body class="fade-page">
+<body class="fade-page {{ !empty($userGuideEmbed) ? 'user-guide-embed' : '' }}">
 <div class="app-container">
 
     <div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
         <span class="visually-hidden">Loading...</span>
     </div>
+
+    @if(!empty($userGuideEmbed))
+        <script>
+            document.addEventListener('wheel', (event) => event.preventDefault(), {
+                capture: true,
+                passive: false,
+            });
+        </script>
+    @endif
 
     <div class="app-header">
         @include('components.mobile-menu', ['position'   => 'top','workorder'  => $workorder ?? null,])
@@ -90,6 +100,8 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 @include('components.session-heartbeat-config')
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
+<script src="{{ asset('js/password-policy.js') }}?v={{ filemtime(public_path('js/password-policy.js')) }}"></script>
+@include('components.temporary-password-reminder')
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {

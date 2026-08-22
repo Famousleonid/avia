@@ -75,7 +75,7 @@
                                 <div class="col-12" id="manual-part-group-order-fields">
                                     <div class="row g-2">
                                         <div class="col-7">
-                                            <label class="form-label" for="manual-part-group-order-pn">{{ __('New ASSY / KIT P/N') }}</label>
+                                            <label class="form-label" for="manual-part-group-order-pn">{{ __('New KIT P/N') }}</label>
                                             <input class="form-control" id="manual-part-group-order-pn" maxlength="100">
                                         </div>
                                         <div class="col-5">
@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function refreshType() {
-        orderFields.classList.toggle('d-none', !isBundle());
+        orderFields.classList.toggle('d-none', !isKit());
         sbWrap.classList.toggle('d-none', !isKit());
         assyWrap.classList.toggle('d-none', !isKit());
         document.getElementById('manual-part-group-default-heading').textContent = isAssy()
@@ -281,8 +281,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('manual-part-group-notes').value = group.notes || '';
         document.getElementById('manual-part-group-sb').value = group.manual_service_bulletin_id || '';
         const option = group.options[0] || {};
-        document.getElementById('manual-part-group-order-pn').value = isBundle() ? (option.part_number || '') : '';
-        document.getElementById('manual-part-group-order-ipl').value = isBundle() ? (option.ipl_num || '') : '';
+        document.getElementById('manual-part-group-order-pn').value = isKit() ? (option.part_number || '') : '';
+        document.getElementById('manual-part-group-order-ipl').value = isKit() ? (option.ipl_num || '') : '';
         members = isBundle() ? (option.coverages || []).filter(function (coverage) { return Number(coverage.component_id) > 0; }) : group.options.map(function (item) {
             const row = partsTable.querySelector('.manual-part-select[data-component-id="' + item.component_id + '"]')?.closest('tr');
             const cells = row?.querySelectorAll('td') || [];
@@ -330,8 +330,8 @@ document.addEventListener('DOMContentLoaded', function () {
             default_component_id: members.find(function (member) { return member.is_default; })?.component_id || componentIds[0] || null,
             included_group_option_ids: includedOptionIds,
             included_group_qty: includedGroupQty,
-            order_part_number: document.getElementById('manual-part-group-order-pn').value.trim() || null,
-            order_ipl_num: document.getElementById('manual-part-group-order-ipl').value.trim() || null,
+            order_part_number: isKit() ? (document.getElementById('manual-part-group-order-pn').value.trim() || null) : null,
+            order_ipl_num: isKit() ? (document.getElementById('manual-part-group-order-ipl').value.trim() || null) : null,
             member_qty: memberQty,
         };
     }

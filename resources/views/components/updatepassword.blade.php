@@ -9,33 +9,37 @@
 
             <div class="modal-body pb-0">
                 <div class="form-group">
-                    <label for="old_pass" class="small">Old Password</label>
-                    <input id="old_pass" type="password" name="old_pass" class="form-control" required autofocus>
-                    @error('old_pass')
-                    <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
-                    @enderror
+                    <x-password-field id="legacy-current-password"
+                                      name="old_pass"
+                                      label="Current Password"
+                                      autocomplete="current-password"
+                                      label-class="small"
+                                      :required="true" />
                 </div>
 
                 <div class="form-group mt-3">
-                    <label for="new_pass" class="small">New Password</label>
-                    <input id="new_pass" type="password" name="password" class="form-control" required autocomplete="new-password">
-                    @error('password')
-                    <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
-                    @enderror
+                    <x-password-field id="legacy-new-password"
+                                      name="password"
+                                      label="New Password"
+                                      autocomplete="new-password"
+                                      label-class="small"
+                                      :required="true"
+                                      :policy="true" />
                 </div>
 
                 <div class="form-group mt-3">
-                    <label for="confirm_pass" class="small">Confirm Password</label>
-                    <input id="confirm_pass" type="password" name="password_confirmation" class="form-control" required autocomplete="new-password">
-                    @error('password_confirmation')
-                    <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
-                    @enderror
+                    <x-password-field id="legacy-password-confirmation"
+                                      name="password_confirmation"
+                                      label="Confirm New Password"
+                                      autocomplete="new-password"
+                                      label-class="small"
+                                      :required="true" />
                 </div>
             </div>
 
             <div class="modal-footer py-2">
                 <button type="button" class="btn btn-secondary me-auto" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="btn_confirm_change_pass" onclick="showLoadingSpinner()">Verify</button>
+                <button type="button" class="btn btn-primary" id="btn_confirm_change_pass" onclick="showLoadingSpinner()">Change and sign out</button>
             </div>
         </div>
     </div>

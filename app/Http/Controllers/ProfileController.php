@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ChangePasswordRequest;
 use App\Models\Team;
+use App\Services\Auth\UserPasswordService;
 use App\Services\Media\ImageOrientationNormalizer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class ProfileController extends Controller
@@ -60,23 +62,19 @@ class ProfileController extends Controller
             ->with('success', 'Changes saved');
     }
 
-    public function changePassword(Request $request)
+    public function changePassword(ChangePasswordRequest $request, UserPasswordService $passwords)
     {
-        $request->validate([
-            'old_pass' => ['required'],
-            'password' => ['required', 'confirmed', 'min:' . config('security.user_password_min')],
-        ]);
+        $passwords->changeUsingCurrentPassword(
+            $request->user(),
+            (string) $request->validated('old_pass'),
+            (string) $request->validated('password')
+        );
 
-        $user = $request->user();
+        Auth::guard()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
-        if (! Hash::check($request->old_pass, $user->password)) {
-            return redirect()->back()->with('error', 'The current password is incorrect');
-        }
-
-        $user->password = Hash::make($request->password);
-        $user->save();
-
-        return redirect()->back()->with('success', 'New password saved');
+        return redirect()->route('login')->with('status', 'Password changed. Sign in with your new password.');
     }
 
     private function parseBirthday(?string $value): ?string

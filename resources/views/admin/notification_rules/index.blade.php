@@ -51,6 +51,16 @@
             min-height: 150px;
         }
 
+        .notification-rule-page .recipient-check-list {
+            min-height: 150px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .notification-rule-page .recipient-check-list .form-check:not(:last-child) {
+            margin-bottom: 0.35rem;
+        }
+
         .notification-rule-page .rule-summary {
             font-size: 13px;
         }

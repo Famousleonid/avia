@@ -2999,6 +2999,59 @@ class TdrsTest extends TestCase
         );
     }
 
+    public function test_bushing_prl_crosses_out_selected_bushing_already_in_kit(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $kitBushing = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'BUSH-IN-KIT',
+            'name' => 'Bushing supplied with KIT',
+            'ipl_num' => '8-240',
+            'bush_ipl_num' => '8-240',
+            'units_assy' => 2,
+            'is_bush' => true,
+            'kit' => true,
+        ]);
+        $outsideKit = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'BUSH-OUTSIDE-KIT',
+            'name' => 'Bushing ordered separately',
+            'ipl_num' => '8-250',
+            'bush_ipl_num' => '8-250',
+            'units_assy' => 1,
+            'is_bush' => true,
+        ]);
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+        foreach ([$kitBushing, $outsideKit] as $index => $component) {
+            WoBushingLine::query()->create([
+                'wo_bushing_id' => $woBushing->id,
+                'workorder_id' => $workorder->id,
+                'component_id' => $component->id,
+                'qty' => 1,
+                'qty_remaining' => 1,
+                'do_not_order' => false,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
+        $content = $response->getContent();
+
+        $response->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/data-prl-component-id="'.$kitBushing->id.'"[^>]*data-prl-part-number-crossed-out="1"[^>]*>BUSH-IN-KIT/s',
+            $content
+        );
+        $this->assertMatchesRegularExpression(
+            '/data-prl-component-id="'.$outsideKit->id.'"(?![^>]*data-prl-part-number-crossed-out)[^>]*>BUSH-OUTSIDE-KIT/s',
+            $content
+        );
+        $response->assertSee('Included in KIT');
+        $response->assertSee('<small class="prl-kit-included-note">Included in KIT</small>', false);
+    }
+
     public function test_bushing_prl_groups_initial_and_oversize_part_numbers_in_one_cell(): void
     {
         $admin = $this->createUserWithRole('Admin');

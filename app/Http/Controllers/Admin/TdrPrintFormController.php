@@ -25,6 +25,7 @@ use App\Models\Workorder;
 use App\Models\WorkorderKitPrlCrossout;
 use App\Models\WorkorderUnitInspection;
 use App\Models\ManualPartGroupCoverage;
+use App\Models\ManualPartGroupOption;
 use App\Models\WorkorderPartGroupSelection;
 use App\Services\PartGroupCoverageResolver;
 use App\Services\ManualIplBranchRuleResolver;
@@ -104,13 +105,21 @@ class TdrPrintFormController extends Controller
 
         $groupCoverage = app(PartGroupCoverageResolver::class)
             ->coverageForWorkorder($current_wo, \App\Models\ManualPartGroup::SCOPE_PRL);
+        $groupOptionComponentIds = ManualPartGroupOption::query()
+            ->whereIn('id', collect($groupCoverage)->pluck('option_id')->filter()->unique()->all())
+            ->pluck('component_id', 'id');
         $legacyAssemblyOptionIds = ManualPartGroupCoverage::query()
             ->whereIn('legacy_component_assembly_id', $ordersParts->pluck('order_component_assembly_id')->filter()->all())
             ->pluck('manual_part_group_option_id', 'legacy_component_assembly_id');
-        $ordersParts->each(function (Tdr $tdr) use ($groupCoverage, $legacyAssemblyOptionIds): void {
+        $ordersParts->each(function (Tdr $tdr) use ($groupCoverage, $groupOptionComponentIds, $legacyAssemblyOptionIds): void {
             $component = $tdr->orderComponent ?? $tdr->component;
             $covered = $component ? ($groupCoverage[(int) $component->id] ?? null) : null;
             if (! $covered) {
+                return;
+            }
+
+            $selectedOptionComponentId = (int) ($groupOptionComponentIds[(int) $covered['option_id']] ?? 0);
+            if ($selectedOptionComponentId > 0 && (int) ($tdr->order_component_id ?? 0) === $selectedOptionComponentId) {
                 return;
             }
 
@@ -279,13 +288,67 @@ class TdrPrintFormController extends Controller
                 ->get(),
             $workorder
         );
+        $partGroupCrossouts = $this->partGroupCrossedOutIdentities($workorder);
+        $kitBushingCrossouts = $this->kitBushingCrossedOutIdentities($workorder, $manualId);
 
         return $this->buildBushingPrlRowsForComponents(
             $bushingComponents,
             $selectedByComponent,
             'K',
-            $this->partGroupCrossedOutIdentities($workorder)
+            [
+                // A bushing already supplied in the workorder KIT must stay on
+                // this form for traceability, but cannot be ordered a second time.
+                'component_ids' => ($kitBushingCrossouts['component_ids'] ?? [])
+                    + ($partGroupCrossouts['component_ids'] ?? []),
+                'part_numbers' => ($kitBushingCrossouts['part_numbers'] ?? [])
+                    + ($partGroupCrossouts['part_numbers'] ?? []),
+                'reasons' => ($kitBushingCrossouts['reasons'] ?? [])
+                    + ($partGroupCrossouts['reasons'] ?? []),
+            ]
         );
+    }
+
+    /**
+     * Bush PRL is generated from the primary manual only.  Mirror that exact
+     * scope when deciding whether a bushing is already paid for by the KIT.
+     */
+    private function kitBushingCrossedOutIdentities(Workorder $workorder, int $manualId): array
+    {
+        if ($manualId <= 0) {
+            return [
+                'component_ids' => [],
+                'part_numbers' => [],
+                'reasons' => [],
+            ];
+        }
+
+        $kitBushings = $this->filterComponentsForUnit(
+            Component::query()
+                ->where('manual_id', $manualId)
+                ->where('is_bush', true)
+                ->where('kit', true)
+                ->get(),
+            $workorder
+        );
+
+        $componentIds = $kitBushings
+            ->mapWithKeys(fn (Component $component): array => [(int) $component->id => true])
+            ->all();
+        $partNumbers = $kitBushings
+            ->pluck('part_number')
+            ->map(fn ($partNumber): string => $this->normalizePrlPartNumber($partNumber))
+            ->filter()
+            ->unique()
+            ->mapWithKeys(fn (string $partNumber): array => [$partNumber => true])
+            ->all();
+
+        return [
+            'component_ids' => $componentIds,
+            'part_numbers' => $partNumbers,
+            'reasons' => collect(array_keys($componentIds))
+                ->mapWithKeys(fn (int $componentId): array => [$componentId => 'Included in KIT'])
+                ->all(),
+        ];
     }
 
     private function selectedBushingComponents(Workorder $workorder)
@@ -398,6 +461,9 @@ class TdrPrintFormController extends Controller
                         });
                         $controllerCrossedOut = $selectedComponent === null || $additionallyCrossedOut;
                         $manualCrossedOut = isset($manualCrossedOutComponentIds[(int) $displayComponent->id]);
+                        $includedInKit = $partNumberComponents->contains(
+                            fn (Component $candidate): bool => ($additionalCrossedOutReasons[(int) $candidate->id] ?? null) === 'Included in KIT'
+                        );
 
                         return [
                             'component_id' => (int) $displayComponent->id,
@@ -406,6 +472,7 @@ class TdrPrintFormController extends Controller
                             'manual_crossed_out' => $manualCrossedOut,
                             'crossed_out' => $controllerCrossedOut || $manualCrossedOut,
                             'qty' => $optionQty,
+                            'included_in_kit' => $includedInKit,
                             'crossout_reason' => $partNumberComponents
                                 ->map(fn (Component $candidate) => $additionalCrossedOutReasons[(int) $candidate->id] ?? null)
                                 ->filter()
@@ -416,6 +483,8 @@ class TdrPrintFormController extends Controller
                     ->all();
                 $row['prl_crossed_out'] = collect($row['prl_part_numbers'])
                     ->every(fn (array $option): bool => ! empty($option['crossed_out']));
+                $row['bushing_kit_note'] = collect($row['prl_part_numbers'])
+                    ->contains(fn (array $option): bool => ! empty($option['crossed_out']) && ! empty($option['included_in_kit']));
 
                 return $row;
             })

@@ -671,35 +671,37 @@
                     @endforeach
                 </select>
             </div>
-            @php
-                // F&C Doc button color = aggregate data state of the document marks
-                $fcDocStatus = app(\App\Services\Measurements\ProcessDocumentRenderer::class)
-                    ->fcDocumentStatus(optional($current_wo->unit)->manuals, $current_wo);
-                $fcDocBtnClass = match ($fcDocStatus) {
-                    'pass'   => 'btn-success',
-                    'fail'   => 'btn-danger',
-                    'nodata' => 'btn-warning',
-                    default  => 'btn-outline-info',
-                };
-                $fcDocBtnStyle = $fcDocStatus === 'repair'
-                    ? 'background:#6f42c1;border-color:#6f42c1;color:#fff' : '';
-                $fcDocTitle = match ($fcDocStatus) {
-                    'pass'   => __('F&C Document — all values in tolerance'),
-                    'repair' => __('F&C Document — defect found, repair needed'),
-                    'fail'   => __('F&C Document — some values out of tolerance'),
-                    'nodata' => __('F&C Document — some values not measured'),
-                    default  => __('F&C Document — filled manual pages with this WO measurements'),
-                };
-            @endphp
-            <a href="{{ route('workorders.fc-document', $current_wo->id) }}" target="_blank"
-               class="btn {{ $fcDocBtnClass }} btn-sm {{ count($processGroups ?? []) > 0 ? 'ms-auto me-2' : 'ms-auto' }}"
-               style="{{ $fcDocBtnStyle }}"
-               title="{{ $fcDocTitle }}">
-                <i class="bi bi-file-earmark-richtext"></i> {{ __('F&C Doc') }}
-            </a>
+            @if(empty($userGuideEmbed))
+                @php
+                    // F&C Doc button color = aggregate data state of the document marks
+                    $fcDocStatus = app(\App\Services\Measurements\ProcessDocumentRenderer::class)
+                        ->fcDocumentStatus(optional($current_wo->unit)->manuals, $current_wo);
+                    $fcDocBtnClass = match ($fcDocStatus) {
+                        'pass'   => 'btn-success',
+                        'fail'   => 'btn-danger',
+                        'nodata' => 'btn-warning',
+                        default  => 'btn-outline-info',
+                    };
+                    $fcDocBtnStyle = $fcDocStatus === 'repair'
+                        ? 'background:#6f42c1;border-color:#6f42c1;color:#fff' : '';
+                    $fcDocTitle = match ($fcDocStatus) {
+                        'pass'   => __('F&C Document — all values in tolerance'),
+                        'repair' => __('F&C Document — defect found, repair needed'),
+                        'fail'   => __('F&C Document — some values out of tolerance'),
+                        'nodata' => __('F&C Document — some values not measured'),
+                        default  => __('F&C Document — filled manual pages with this WO measurements'),
+                    };
+                @endphp
+                <a href="{{ route('workorders.fc-document', $current_wo->id) }}" target="_blank"
+                   class="btn {{ $fcDocBtnClass }} btn-sm {{ count($processGroups ?? []) > 0 ? 'ms-auto me-2' : 'ms-auto' }}"
+                   style="{{ $fcDocBtnStyle }}"
+                   title="{{ $fcDocTitle }}">
+                    <i class="bi bi-file-earmark-richtext"></i> {{ __('F&C Doc') }}
+                </a>
+            @endif
             @if(count($processGroups ?? []) > 0)
                 <button type="button"
-                        class="btn btn-outline-primary btn-sm"
+                        class="btn btn-outline-primary btn-sm {{ !empty($userGuideEmbed) ? 'ms-auto' : '' }}"
                         data-bs-toggle="modal"
                         data-bs-target="#tdrGroupProcessModal">
                     <i class="fas fa-print"></i> {{ __('Group Process') }}

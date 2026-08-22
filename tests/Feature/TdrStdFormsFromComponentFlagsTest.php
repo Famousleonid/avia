@@ -89,6 +89,147 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertSame(4, $paint[0]['qty']);
     }
 
+    public function test_overhaul_unit_that_is_a_manual_part_restricts_every_std_list_to_one_received_part(): void
+    {
+        $primaryManual = $this->createManual();
+        $additionalManual = $this->createManual();
+        $primaryManual->update(['additional_manual_ids' => [$additionalManual->id]]);
+
+        $unit = $this->createUnit([
+            'manual_id' => $primaryManual->id,
+            'part_number' => '52141 1',
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+
+        Component::query()->create([
+            'manual_id' => $primaryManual->id,
+            'ipl_num' => '3-70',
+            'part_number' => '52141-1',
+            'name' => 'PIN, Torque Arm duplicate position',
+            'units_assy' => 6,
+            'ndt_list' => true,
+            'cad_list' => true,
+            'paint_list' => true,
+        ]);
+        Component::query()->create([
+            'manual_id' => $primaryManual->id,
+            'ipl_num' => '3-10',
+            'part_number' => '52141-1',
+            'name' => 'PIN, Torque Arm',
+            'units_assy' => 4,
+            'ndt_list' => true,
+            'cad_list' => true,
+            'paint_list' => true,
+        ]);
+        Component::query()->create([
+            'manual_id' => $primaryManual->id,
+            'ipl_num' => '3-20',
+            'part_number' => 'OTHER-PRIMARY-PART',
+            'name' => 'Other primary manual part',
+            'units_assy' => 2,
+            'ndt_list' => true,
+            'cad_list' => true,
+            'stress_relief_list' => true,
+            'paint_list' => true,
+        ]);
+        Component::query()->create([
+            'manual_id' => $additionalManual->id,
+            'ipl_num' => '1-10',
+            'part_number' => 'OTHER-ADDITIONAL-PART',
+            'name' => 'Other additional manual part',
+            'units_assy' => 3,
+            'ndt_list' => true,
+            'cad_list' => true,
+            'stress_relief_list' => true,
+            'paint_list' => true,
+        ]);
+
+        foreach ([StdProcess::STD_NDT, StdProcess::STD_CAD, StdProcess::STD_PAINT] as $std) {
+            $rows = StdProcess::snapshotComponentsForWorkorder($workorder, $std);
+
+            $this->assertCount(1, $rows);
+            $this->assertSame('52141-1', $rows[0]['part_number']);
+            $this->assertSame('3-10', $rows[0]['ipl_num']);
+            $this->assertSame(1, $rows[0]['qty']);
+        }
+
+        $this->assertSame([], StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_STRESS));
+    }
+
+    public function test_overhaul_unit_that_is_not_a_manual_part_keeps_the_full_checked_std_list(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => 'COMPLETE-ASSY-100',
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+
+        foreach (['PIN-ONE', 'PIN-TWO'] as $index => $partNumber) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'ipl_num' => '2-' . (($index + 1) * 10),
+                'part_number' => $partNumber,
+                'name' => 'Checked STD part ' . ($index + 1),
+                'units_assy' => $index + 1,
+                'ndt_list' => true,
+            ]);
+        }
+
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+
+        $this->assertSame(['PIN-ONE', 'PIN-TWO'], array_column($rows, 'part_number'));
+        $this->assertSame([1, 2], array_column($rows, 'qty'));
+    }
+
+    public function test_existing_full_snapshot_self_heals_when_workorder_becomes_unit_part_overhaul(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => 'DETACHED-PIN-200',
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'instruction_id' => $this->createInstruction(['name' => 'Repair ' . uniqid()])->id,
+        ]);
+
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '4-10',
+            'part_number' => 'DETACHED PIN 200',
+            'name' => 'Detached PIN',
+            'units_assy' => 4,
+            'ndt_list' => true,
+        ]);
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '4-20',
+            'part_number' => 'OTHER-ASSEMBLY-PART',
+            'name' => 'Other assembly part',
+            'units_assy' => 2,
+            'ndt_list' => true,
+        ]);
+
+        $this->assertCount(2, StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT));
+
+        $workorder->update(['instruction_id' => $this->createOverhaulInstruction()->id]);
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('DETACHED PIN 200', $rows[0]['part_number']);
+        $this->assertSame(1, $rows[0]['qty']);
+        $this->assertSame(1, WorkorderStdProcessItem::query()
+            ->where('workorder_id', $workorder->id)
+            ->count());
+    }
+
     public function test_workorder_std_snapshot_refreshes_std_row_eff_code_from_component_flags(): void
     {
         $manual = $this->createManual();

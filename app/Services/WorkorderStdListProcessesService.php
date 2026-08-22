@@ -18,9 +18,9 @@ class WorkorderStdListProcessesService
     public const CARRIER_DESCRIPTION = 'STD List carrier';
 
     public const NAME_BY_KEY = [
+        'stress' => 'STD Stress relief List',
         'ndt' => 'STD NDT List',
         'cad' => 'STD CAD List',
-        'stress' => 'STD Stress relief List',
         'paint' => 'STD Paint List',
     ];
 

@@ -35,6 +35,16 @@
             min-height: 150px;
         }
 
+        .date-notification-page .recipient-check-list {
+            min-height: 150px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .date-notification-page .recipient-check-list .form-check:not(:last-child) {
+            margin-bottom: 0.35rem;
+        }
+
         .date-notification-page .accordion-button {
             align-items: flex-start;
             gap: 0.75rem;

@@ -16,6 +16,7 @@
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{ asset('css/custom_bootstrap.css') }}?v={{ filemtime(public_path('css/custom_bootstrap.css')) }}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
+    <link rel="stylesheet" href="{{ asset('css/password-policy.css') }}?v={{ filemtime(public_path('css/password-policy.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
     <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}?v={{ filemtime(public_path('css/admin-theme.css')) }}">
@@ -138,11 +139,20 @@
 
 </head>
 
-<body class="p-0 m-0 g-0 {{ !empty($userProjectBackgroundUrl) ? 'has-user-project-background' : '' }}">
+<body class="p-0 m-0 g-0 {{ !empty($userProjectBackgroundUrl) ? 'has-user-project-background' : '' }} {{ !empty($userGuideEmbed) ? 'user-guide-embed' : '' }}">
 
 <div id="spinner-load" class="spinner-border text-warning spinner-win d-none" role="status">
     <span class="visually-hidden">Loading...</span>
 </div>
+
+@if(!empty($userGuideEmbed))
+    <script>
+        document.addEventListener('wheel', (event) => event.preventDefault(), {
+            capture: true,
+            passive: false,
+        });
+    </script>
+@endif
 
 <div class="container-fluid p-0">
     <div class="row g-0 page-layout">
@@ -184,6 +194,8 @@
 <script src="https://unpkg.com/tippy.js@6"></script>
 @include('components.session-heartbeat-config')
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
+<script src="{{ asset('js/password-policy.js') }}?v={{ filemtime(public_path('js/password-policy.js')) }}"></script>
+@include('components.temporary-password-reminder')
 
 <script>
     (function () {

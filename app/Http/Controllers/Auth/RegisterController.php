@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Providers\RouteServiceProvider;
 use App\Models\User;
+use App\Support\UserPasswordPolicy;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -52,7 +53,7 @@ class RegisterController extends Controller
         return Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:' . config('security.user_password_min'), 'confirmed'],
+            'password' => UserPasswordPolicy::rules(),
         ]);
     }
 
@@ -68,6 +69,8 @@ class RegisterController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'must_change_password' => true,
+            'temporary_password_expires_at' => now()->addDays(UserPasswordPolicy::temporaryLifetimeDays()),
         ]);
     }
 }

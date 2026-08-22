@@ -72,26 +72,36 @@
 
                 <hr>
 
-                <form action="{{ route('profile.password') }}" method="POST">
+                <form action="{{ route('profile.password') }}" method="POST" data-password-submit-loading data-no-spinner>
                     @csrf
                     <h5>Change password</h5>
 
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
-                            <label class="form-label">Old Password</label>
-                            <input type="password" name="old_pass" class="form-control" required>
+                            <x-password-field id="profile-current-password"
+                                              name="old_pass"
+                                              label="Current Password"
+                                              autocomplete="current-password"
+                                              :required="true" />
                         </div>
                         <div class="col-12 col-md-4">
-                            <label class="form-label">New Password</label>
-                            <input type="password" name="password" class="form-control" required>
+                            <x-password-field id="profile-new-password"
+                                              name="password"
+                                              label="New Password"
+                                              autocomplete="new-password"
+                                              :required="true"
+                                              :policy="true" />
                         </div>
                         <div class="col-12 col-md-4">
-                            <label class="form-label">Confirm Password</label>
-                            <input type="password" name="password_confirmation" class="form-control" required>
+                            <x-password-field id="profile-password-confirmation"
+                                              name="password_confirmation"
+                                              label="Confirm New Password"
+                                              autocomplete="new-password"
+                                              :required="true" />
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-outline-primary mt-3">Change password</button>
+                    <button type="submit" class="btn btn-outline-primary mt-3">Change password and sign out</button>
                 </form>
             </div>
         </div>

@@ -191,10 +191,11 @@
                                             @endif
 
                                             <div class="d-flex align-items-center gap-2 ms-3">
-                                                <a href="{{ route('tdrs.show', ['id' => $current_workorder->id]) }}"
+                                                <a href="{{ !empty($userGuideEmbed) ? route('admin.user-guide', ['center' => 1]) . '#workorder-tdr' : route('tdrs.show', ['id' => $current_workorder->id]) }}"
                                                    class="btn btn-outline-success dir-top-square-btn"
                                                    data-tippy-content="{{ __('TDR Report') }}"
-                                                   onclick="showLoadingSpinner()">
+                                                   @if(!empty($userGuideEmbed)) target="_parent" data-user-guide-tdr @endif
+                                                   @if(empty($userGuideEmbed)) onclick="showLoadingSpinner()" @endif>
                                                     <i class="bi bi-hammer"></i>
                                                 </a>
 
@@ -912,9 +913,9 @@
                                     <tbody>
                                     @php
                                         $stdRows = [
+                                            'stress' => 'Stress relief list',
                                             'ndt' => 'NDT list',
                                             'cad' => 'CAD list',
-                                            'stress' => 'Stress relief list',
                                             'paint' => 'Paint list',
                                         ];
                                     @endphp

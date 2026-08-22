@@ -221,6 +221,7 @@
 
 <script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
+@include('components.temporary-password-reminder')
 <script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>

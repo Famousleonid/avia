@@ -36,22 +36,33 @@
                         </div>
                     </div>
 
-                    {{-- Birthday / Password --}}
+                    {{-- Birthday / Temporary password --}}
                     <div class="row g-3 mt-0">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Birthday</label>
+                        <div class="col-12 col-md-4">
+                            <label for="create-user-birthday" class="form-label">Birthday</label>
                             <input type="date"
+                                   id="create-user-birthday"
                                    name="birthday"
                                    class="form-control"
                                    value="{{ old('birthday') }}">
                         </div>
 
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Temporary Password</label>
-                            <input type="password"
-                                   name="password"
-                                   class="form-control"
-                                   required>
+                        <div class="col-12 col-md-4">
+                            <x-password-field id="create-user-password"
+                                              name="password"
+                                              label="Temporary Password"
+                                              autocomplete="new-password"
+                                              :required="true"
+                                              :policy="true" />
+                            <div class="form-text">Expires after {{ \App\Support\UserPasswordPolicy::temporaryLifetimeDays() }} days and must be changed at first sign-in.</div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <x-password-field id="create-user-password-confirmation"
+                                              name="password_confirmation"
+                                              label="Confirm Temporary Password"
+                                              autocomplete="new-password"
+                                              :required="true" />
                         </div>
                     </div>
 

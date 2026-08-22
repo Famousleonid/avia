@@ -398,7 +398,7 @@
 
 
         {{-- Таблица с группами фото + общая камера --}}
-        <div class="table-wrapper" style="flex-grow: 1; min-height: 0;">
+        <div id="mobilePhotos" class="table-wrapper" style="flex-grow: 1; min-height: 0;">
 
             <div class="table-body-scrollable">
                 <table class="table-sm table-dark table-striped m-0 w-100 table-bordered align-middle">
@@ -486,6 +486,14 @@
 
 @section('scripts')
     <script>
+
+        @if(($userGuideMobileFocus ?? null) === 'photos')
+        window.addEventListener('load', () => {
+            window.requestAnimationFrame(() => {
+                document.getElementById('mobilePhotos')?.scrollIntoView({ block: 'start' });
+            });
+        });
+        @endif
 
         document.addEventListener('DOMContentLoaded', () => {
             const el = document.querySelector('.table-body-scrollable');

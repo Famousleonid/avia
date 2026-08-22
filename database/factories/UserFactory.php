@@ -23,6 +23,10 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => '$2y$10$L/Z93dqMPuaejkSGAnq1LuCfmJbYx2TABpmOikebg5Z/tq2Q9nY1W', // password
             'remember_token' => Str::random(10),
+            'must_change_password' => false,
+            'temporary_password_expires_at' => null,
+            'password_changed_at' => now(),
+            'auth_version' => 1,
         ];
     }
 

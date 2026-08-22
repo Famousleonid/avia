@@ -21,7 +21,16 @@ class WorkorderStdProcessItemsService
      */
     public function rebuild(Workorder $workorder): void
     {
-        $workorder->loadMissing('unit.manuals');
+        if ($workorder->relationLoaded('unit')
+            && (int) ($workorder->unit?->id ?? 0) !== (int) $workorder->unit_id) {
+            $workorder->unsetRelation('unit');
+        }
+        if ($workorder->relationLoaded('instruction')
+            && (int) ($workorder->instruction?->id ?? 0) !== (int) $workorder->instruction_id) {
+            $workorder->unsetRelation('instruction');
+        }
+
+        $workorder->loadMissing(['unit.manuals', 'instruction:id,name']);
         $branchResolver = app(ManualIplBranchRuleResolver::class);
 
         DB::transaction(function () use ($workorder, $branchResolver): void {
@@ -43,6 +52,10 @@ class WorkorderStdProcessItemsService
             $now = now();
             $insertRows = [];
             $sortOrderByStd = array_fill_keys(StdProcess::validStdValues(), 1);
+            $unitPartComponentIds = $this->overhaulUnitPartComponentIds($workorder, $branchResolver);
+            $unitPartComponentRank = $unitPartComponentIds !== null
+                ? array_flip($unitPartComponentIds)
+                : null;
 
             foreach ($manualIds as $manualId) {
                 /** @var Manual|null $manual */
@@ -65,6 +78,11 @@ class WorkorderStdProcessItemsService
                             continue;
                         }
 
+                        if ($unitPartComponentIds !== null
+                            && ! in_array((int) $component->id, $unitPartComponentIds, true)) {
+                            continue;
+                        }
+
                         if (! $branchResolver->allowsComponentForUnit($workorder->unit, (string) ($component->ipl_num ?? ''), $manualId)) {
                             continue;
                         }
@@ -82,6 +100,13 @@ class WorkorderStdProcessItemsService
                     }
 
                     $eligibleRows = $this->preferEffSpecificVariants($eligibleRows);
+                    if ($unitPartComponentRank !== null && count($eligibleRows) > 1) {
+                        usort($eligibleRows, static function (array $left, array $right) use ($unitPartComponentRank): int {
+                            return ($unitPartComponentRank[(int) $left['component']->id] ?? PHP_INT_MAX)
+                                <=> ($unitPartComponentRank[(int) $right['component']->id] ?? PHP_INT_MAX);
+                        });
+                        $eligibleRows = array_slice($eligibleRows, 0, 1);
+                    }
 
                     foreach ($eligibleRows as $eligibleRow) {
                         /** @var StdProcess $manualRow */
@@ -90,7 +115,11 @@ class WorkorderStdProcessItemsService
                         $component = $eligibleRow['component'];
                         $rowEff = $eligibleRow['row_eff'];
 
-                        $baseQty = $this->baseQty($component, $manualRow);
+                        // When the WO head unit is itself a Manual Part, the received item is
+                        // one detached part, not the manual's assembly quantity.
+                        $baseQty = $unitPartComponentIds !== null
+                            ? 1
+                            : $this->baseQty($component, $manualRow);
                         $excludedSourceQty = (int) ($excludedQtyByComponent[$component->id] ?? 0);
 
                         foreach ($this->baseIplKeys((string) ($component->ipl_num ?? '')) as $baseKey) {
@@ -135,13 +164,112 @@ class WorkorderStdProcessItemsService
     }
 
     /**
+     * For an Overhaul, a Unit P/N that is also a Part of its primary Manual
+     * narrows every STD list to that detached part. Returning null means the
+     * normal full-manual STD list must be used.
+     *
+     * @return list<int>|null
+     */
+    protected function overhaulUnitPartComponentIds(
+        Workorder $workorder,
+        ManualIplBranchRuleResolver $branchResolver
+    ): ?array
+    {
+        if (! $workorder->relationLoaded('unit')
+            || (int) ($workorder->unit?->id ?? 0) !== (int) $workorder->unit_id) {
+            $workorder->load('unit.manuals');
+        }
+        if (! $workorder->relationLoaded('instruction')
+            || (int) ($workorder->instruction?->id ?? 0) !== (int) $workorder->instruction_id) {
+            $workorder->load('instruction:id,name');
+        }
+
+        if (strcasecmp(trim((string) ($workorder->instruction?->name ?? '')), 'Overhaul') !== 0) {
+            return null;
+        }
+
+        $unit = $workorder->unit;
+        $manualId = (int) ($unit?->manual_id ?? 0);
+        $unitPartNumber = $this->normalizePartNumberForComparison($unit?->part_number);
+
+        if (! $unit || $manualId <= 0 || $unitPartNumber === '') {
+            return null;
+        }
+
+        $matches = Component::query()
+            ->where('manual_id', $manualId)
+            ->whereNotNull('part_number')
+            ->get(['id', 'manual_id', 'ipl_num', 'part_number', 'eff_code'])
+            ->filter(function (Component $component) use ($unit, $manualId, $unitPartNumber, $branchResolver): bool {
+                return $this->normalizePartNumberForComparison($component->part_number) === $unitPartNumber
+                    && $branchResolver->allowsComponentForUnit($unit, (string) ($component->ipl_num ?? ''), $manualId)
+                    && StdProcess::stdRowEffMatchesUnit(
+                        $component->eff_code,
+                        (string) ($unit->eff_code ?? '')
+                    );
+            })
+            ->sort(function (Component $left, Component $right): int {
+                $iplCompare = StdProcess::compareIplValues($left->ipl_num, $right->ipl_num);
+
+                return $iplCompare !== 0
+                    ? $iplCompare
+                    : ((int) $left->id <=> (int) $right->id);
+            })
+            ->pluck('id')
+            ->map(static fn ($id): int => (int) $id)
+            ->values()
+            ->all();
+
+        return $matches !== [] ? $matches : null;
+    }
+
+    /**
+     * Existing snapshots created before the unit-part rule self-heal on their
+     * next read, without forcing every STD list to rebuild on every request.
+     *
+     * @param  list<int>  $unitPartComponentIds
+     */
+    protected function unitPartSnapshotNeedsRebuild(int $workorderId, array $unitPartComponentIds): bool
+    {
+        $rows = WorkorderStdProcessItem::query()
+            ->where('workorder_id', $workorderId)
+            ->get(['component_id', 'std_type', 'base_qty']);
+
+        if ($rows->contains(function (WorkorderStdProcessItem $item) use ($unitPartComponentIds): bool {
+            return ! in_array((int) $item->component_id, $unitPartComponentIds, true)
+                || (int) $item->base_qty !== 1;
+        })) {
+            return true;
+        }
+
+        return $rows
+            ->groupBy('std_type')
+            ->contains(static fn (Collection $stdRows): bool => $stdRows->count() > 1);
+    }
+
+    protected function normalizePartNumberForComparison(?string $partNumber): string
+    {
+        return preg_replace('/[^\pL\pN]+/u', '', mb_strtoupper(trim((string) $partNumber))) ?? '';
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     public function snapshotRowsForWorkorder(Workorder $workorder, string $std): array
     {
         StdProcess::assertValidStd($std);
 
-        if (! $this->hasRowsForWorkorder((int) $workorder->id)) {
+        $hasRows = $this->hasRowsForWorkorder((int) $workorder->id);
+        $unitPartComponentIds = $hasRows
+            ? $this->overhaulUnitPartComponentIds(
+                $workorder,
+                app(ManualIplBranchRuleResolver::class)
+            )
+            : null;
+        $unitPartSnapshotNeedsRebuild = $unitPartComponentIds !== null
+            && $this->unitPartSnapshotNeedsRebuild((int) $workorder->id, $unitPartComponentIds);
+
+        if (! $hasRows || $unitPartSnapshotNeedsRebuild) {
             $this->rebuild($workorder);
         }
 

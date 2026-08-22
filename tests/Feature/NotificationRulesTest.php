@@ -67,6 +67,53 @@ class NotificationRulesTest extends TestCase
         ]);
     }
 
+    public function test_dynamic_recipient_checkbox_can_be_cleared(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $rule = NotificationEventRule::query()->create([
+            'event_key' => 'tdr_process.overdue_start',
+            'name' => 'TDR process overdue start',
+            'enabled' => true,
+            'severity' => 'danger',
+            'repeat_policy' => 'event_default',
+            'respect_user_preferences' => true,
+            'exclude_actor' => true,
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $rule->recipients()->create([
+            'recipient_type' => 'dynamic',
+            'recipient_value' => 'system_admins',
+        ]);
+
+        $content = $this->actingAs($admin)
+            ->get(route('admin.notification-rules.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('name="recipient_dynamic[]"', $content);
+        $this->assertStringContainsString('value="system_admins"', $content);
+        $this->assertStringContainsString('type="checkbox"', $content);
+        $this->assertStringNotContainsString('<select name="recipient_dynamic[]"', $content);
+
+        $this->actingAs($admin)
+            ->put(route('admin.notification-rules.update', $rule), [
+                'event_key' => 'tdr_process.overdue_start',
+                'name' => 'TDR process overdue start',
+                'enabled' => 1,
+                'respect_user_preferences' => 1,
+                'exclude_actor' => 1,
+            ])
+            ->assertRedirect(route('admin.notification-rules.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseMissing('notification_event_rule_recipients', [
+            'notification_event_rule_id' => $rule->id,
+            'recipient_type' => 'dynamic',
+            'recipient_value' => 'system_admins',
+        ]);
+    }
+
     public function test_draft_workorder_created_rule_notifies_admin_and_manager_roles(): void
     {
         Notification::fake();
@@ -632,7 +679,7 @@ class NotificationRulesTest extends TestCase
         $admin = $this->createUserWithRole('Admin');
         $notifyUser = $this->createUserWithRole('Manager');
         $sentAuthor = $this->createUserWithRole('Technician');
-        $workorder = $this->createWorkorder();
+        $workorder = $this->createWorkorder(['approve_at' => '2026-05-01']);
         $component = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'READY-' . uniqid(),
@@ -704,7 +751,10 @@ class NotificationRulesTest extends TestCase
 
         $admin = $this->createUserWithRole('Admin');
         $recipient = $this->createUserWithRole('Technician');
-        $workorder = $this->createWorkorder(['user_id' => $recipient->id]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $recipient->id,
+            'approve_at' => '2026-05-01',
+        ]);
         $component = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'READY-' . uniqid(),
@@ -820,6 +870,186 @@ class NotificationRulesTest extends TestCase
         app(EventRunner::class)->run([new ProcessReadyForNextReminderEvent()]);
 
         Notification::assertNothingSent();
+    }
+
+    public function test_std_ready_for_next_uses_stress_ndt_cad_paint_order_for_notice_and_reminder(): void
+    {
+        Notification::fake();
+
+        $manager = $this->createUserWithRole('Manager');
+        $recipient = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder([
+            'user_id' => $recipient->id,
+            'approve_at' => '2026-05-01',
+        ]);
+        $stressName = $this->createProcessName('STD Stress relief List');
+        $ndtName = $this->createProcessName('STD NDT List');
+        $cadName = $this->createProcessName('STD CAD List');
+        $paintName = $this->createProcessName('STD Paint List');
+
+        // Keep the legacy creation/id order deliberately wrong. Business
+        // sequence must be based on std_type, never on database ids.
+        $ndt = WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'ndt',
+            'process_name_id' => $ndtName->id,
+        ]);
+        WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'cad',
+            'process_name_id' => $cadName->id,
+        ]);
+        $stress = WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'stress',
+            'process_name_id' => $stressName->id,
+            'date_start' => '2026-05-02',
+        ]);
+        WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'paint',
+            'process_name_id' => $paintName->id,
+        ]);
+
+        $this->createRule('tdr_process.ready_for_next', [
+            ['type' => 'dynamic', 'value' => 'workorder_technician'],
+        ], [
+            'name' => 'STD next process order',
+            'title_template' => 'Next process ready',
+            'message_template' => 'WO {workorder_no}: {process_name} after {previous_process_name}.',
+            'exclude_actor' => false,
+        ]);
+
+        \Carbon\Carbon::setTestNow('2026-05-03 08:00:00');
+        $this->actingAs($manager)
+            ->patchJson(route('workorder_std_processes.updateDate', $stress), [
+                'date_finish' => '2026-05-03',
+            ])
+            ->assertOk();
+
+        Notification::assertSentToTimes($recipient, NewMessageNotification::class, 1);
+        Notification::assertSentTo($recipient, NewMessageNotification::class, function ($notification) use ($recipient, $stressName, $ndtName) {
+            $data = $notification->toDatabase($recipient);
+
+            return $data['event'] === 'process_ready_for_next'
+                && ($data['payload']['process_name'] ?? null) === $ndtName->name
+                && ($data['payload']['previous_process_name'] ?? null) === $stressName->name;
+        });
+
+        \Carbon\Carbon::setTestNow('2026-05-03 08:02:00');
+        app(EventRunner::class)->run([new ProcessReadyForNextReminderEvent()]);
+
+        Notification::assertSentToTimes($recipient, NewMessageNotification::class, 2);
+        Notification::assertSentTo($recipient, NewMessageNotification::class, function ($notification) use ($recipient, $stressName, $ndtName, $ndt) {
+            $data = $notification->toDatabase($recipient);
+
+            return ($data['ui']['actor']['name'] ?? null) === 'System'
+                && ($data['payload']['process_id'] ?? null) === $ndt->id
+                && ($data['payload']['process_name'] ?? null) === $ndtName->name
+                && ($data['payload']['previous_process_name'] ?? null) === $stressName->name;
+        });
+        \Carbon\Carbon::setTestNow();
+    }
+
+    public function test_ready_for_next_notification_and_reminder_skip_unapproved_workorder(): void
+    {
+        Notification::fake();
+
+        $admin = $this->createUserWithRole('Admin');
+        $recipient = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder([
+            'user_id' => $recipient->id,
+            'approve_at' => null,
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'UNAPPROVED-' . uniqid(),
+            'name' => 'Unapproved Process Component',
+            'ipl_num' => '9-8',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'UNAPPROVED',
+            'qty' => 1,
+        ]);
+        $firstName = $this->createProcessName('Unapproved First');
+        $secondName = $this->createProcessName('Unapproved Second');
+        $first = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstName->id,
+            'sort_order' => 1,
+            'date_start' => '2026-05-01',
+        ]);
+        $second = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondName->id,
+            'sort_order' => 2,
+        ]);
+
+        $rule = $this->createRule('tdr_process.ready_for_next', [
+            ['type' => 'dynamic', 'value' => 'workorder_technician'],
+        ], [
+            'name' => 'Unapproved next process',
+            'exclude_actor' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $first), [
+                'date_finish' => '2026-05-02',
+            ])
+            ->assertOk();
+
+        Notification::assertNothingSent();
+        $this->assertDatabaseMissing('event_logs', [
+            'event_key' => 'tdr_process.ready_for_next',
+            'notification_event_rule_id' => $rule->id,
+            'subject_type' => TdrProcess::class,
+            'subject_id' => $second->id,
+            'recipient_user_id' => $recipient->id,
+        ]);
+
+        EventLog::query()->create([
+            'event_key' => 'tdr_process.ready_for_next',
+            'notification_event_rule_id' => $rule->id,
+            'subject_type' => TdrProcess::class,
+            'subject_id' => $second->id,
+            'recipient_user_id' => $recipient->id,
+            'first_sent_at' => now()->subMinutes(2),
+            'last_sent_at' => now()->subMinutes(2),
+            'sent_count' => 1,
+        ]);
+
+        app(EventRunner::class)->run([new ProcessReadyForNextReminderEvent()]);
+
+        Notification::assertNothingSent();
+
+        $stressName = $this->createProcessName('Unapproved STD Stress');
+        $ndtName = $this->createProcessName('Unapproved STD NDT');
+        $stress = WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'stress',
+            'process_name_id' => $stressName->id,
+            'date_start' => '2026-05-01',
+            'date_finish' => '2026-05-02',
+        ]);
+        $ndt = WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'ndt',
+            'process_name_id' => $ndtName->id,
+        ]);
+
+        app(\App\Services\ProcessSequenceNotifier::class)->notifyReady($ndt, $stress);
+
+        Notification::assertNothingSent();
+        $this->assertDatabaseMissing('event_logs', [
+            'event_key' => 'tdr_process.ready_for_next',
+            'notification_event_rule_id' => $rule->id,
+            'subject_type' => WorkorderStdProcess::class,
+            'subject_id' => $ndt->id,
+            'recipient_user_id' => $recipient->id,
+        ]);
     }
 
     public function test_std_process_cannot_start_until_previous_std_process_is_returned(): void
