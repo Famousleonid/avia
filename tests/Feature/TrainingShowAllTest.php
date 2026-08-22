@@ -252,6 +252,151 @@ class TrainingShowAllTest extends TestCase
         $response->assertForbidden();
     }
 
+    public function test_create_training_for_legacy_pair_adds_refresh_112_without_132(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $technician = $this->createUserWithRole('Technician', [
+            'stamp' => 'RF',
+            'is_admin' => false,
+        ]);
+        $manual = $this->createManual(['unit_name_training' => 'REFRESH-PN-' . uniqid()]);
+
+        Training::query()->create([
+            'user_id' => $technician->id,
+            'manuals_id' => $manual->id,
+            'date_training' => null,
+            'form_type' => null,
+            'is_legacy' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->postJson(route('trainings.createTraining'), [
+            'manuals_id' => [$manual->id],
+            'date_training' => [now()->format('Y-m-d')],
+            'form_type' => ['112'],
+            'user_id' => $technician->id,
+        ]);
+
+        $response->assertOk();
+
+        $records = Training::query()
+            ->where('user_id', $technician->id)
+            ->where('manuals_id', $manual->id)
+            ->get();
+        // legacy + новая 112; формы 132 нет — первичное обучение было в бумажную эпоху
+        $this->assertSame(1, $records->where('form_type', '112')->count());
+        $this->assertSame(0, $records->where('form_type', '132')->count());
+    }
+
+    public function test_admin_can_force_form_132_for_legacy_pair(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $technician = $this->createUserWithRole('Technician', [
+            'stamp' => 'F2',
+            'is_admin' => false,
+        ]);
+        $manual = $this->createManual(['unit_name_training' => 'FORCE132-PN-' . uniqid()]);
+
+        Training::query()->create([
+            'user_id' => $technician->id,
+            'manuals_id' => $manual->id,
+            'date_training' => null,
+            'form_type' => null,
+            'is_legacy' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->postJson(route('trainings.createTraining'), [
+            'manuals_id' => [$manual->id],
+            'date_training' => [now()->format('Y-m-d')],
+            'form_type' => ['112'],
+            'user_id' => $technician->id,
+            'create_form_132' => 1,
+        ]);
+
+        $response->assertOk();
+
+        $records = Training::query()
+            ->where('user_id', $technician->id)
+            ->where('manuals_id', $manual->id)
+            ->get();
+        // Явный запрос (бланк потерян/перевыпуск): 112 + 132
+        $this->assertSame(1, $records->where('form_type', '112')->count());
+        $this->assertSame(1, $records->where('form_type', '132')->count());
+    }
+
+    public function test_admin_can_reorder_groups(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+
+        $first = TrainingCategory::query()->create(['name' => 'QA Group A ' . uniqid(), 'sort_order' => 101]);
+        $second = TrainingCategory::query()->create(['name' => 'QA Group B ' . uniqid(), 'sort_order' => 102]);
+
+        $response = $this->actingAs($admin)->post(
+            route('trainings.matrixCategories.move', ['category' => $second->id]),
+            ['direction' => 'up']
+        );
+
+        $response->assertRedirect();
+        $this->assertSame(101, (int) $second->fresh()->sort_order);
+        $this->assertSame(102, (int) $first->fresh()->sort_order);
+    }
+
+    public function test_old_training_with_reissued_form_132_still_shows_x(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $technician = $this->createUserWithRole('Technician', [
+            'stamp' => 'RX',
+            'is_admin' => false,
+        ]);
+        $manual = $this->createManual(['unit_name_training' => 'REISSUE-PN-' . uniqid()]);
+        $this->createMatrixRowForManual($manual);
+
+        $response = $this->actingAs($admin)->post(route('trainings.store'), [
+            'is_legacy' => 1,
+            'user_id' => $technician->id,
+            'legacy_manuals_ids' => [$manual->id],
+            'create_form_132' => 1,
+            'form_132_date' => now()->format('Y-m-d'),
+        ]);
+
+        $response->assertRedirect();
+
+        $records = Training::query()
+            ->where('user_id', $technician->id)
+            ->where('manuals_id', $manual->id)
+            ->get();
+        $this->assertSame(1, $records->where('is_legacy', true)->count());
+        $this->assertSame(1, $records->where('form_type', '132')->count());
+
+        // Перевыпущенная 132 — не тренинг: в матрице остаётся X, а не свежая дата
+        $page = $this->actingAs($admin)->get(route('trainings.showAll'));
+        $page->assertOk();
+        $page->assertSee('training-x">X', false);
+    }
+
+    public function test_inactive_row_is_hidden_until_show_inactive_requested(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $manual = $this->createManual(['unit_name_training' => 'INACT-PN-' . uniqid()]);
+        $row = $this->createMatrixRowForManual($manual);
+
+        // Снимаем галку Active
+        $response = $this->actingAs($admin)->post(route('trainings.matrixRows.toggleActive', ['row' => $row->id]));
+        $response->assertRedirect();
+        $this->assertFalse($row->fresh()->is_active);
+
+        // По умолчанию строка скрыта, с show_inactive=1 — видна
+        $this->actingAs($admin)->get(route('trainings.showAll'))
+            ->assertOk()
+            ->assertDontSee($row->part_number);
+        $this->actingAs($admin)->get(route('trainings.showAll', ['show_inactive' => 1]))
+            ->assertOk()
+            ->assertSee($row->part_number);
+
+        // Возврат в работу
+        $this->actingAs($admin)->post(route('trainings.matrixRows.toggleActive', ['row' => $row->id]));
+        $this->assertTrue($row->fresh()->is_active);
+    }
+
     public function test_store_no_longer_backfills_missing_yearly_trainings(): void
     {
         $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);

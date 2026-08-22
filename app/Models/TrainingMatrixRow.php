@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class TrainingMatrixRow extends Model
 {
-    protected $fillable = ['training_category_id', 'description', 'part_number', 'sort_order', 'manual_id'];
+    protected $fillable = ['training_category_id', 'description', 'part_number', 'sort_order', 'manual_id', 'is_active'];
+
+    protected $casts = ['is_active' => 'boolean'];
 
     public function category()
     {

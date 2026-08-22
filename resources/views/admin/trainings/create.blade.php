@@ -115,6 +115,20 @@
                                 @endforeach
                             </select>
                             <small class="form-text text-muted">{{ __('Hold Ctrl to select multiple units.') }}</small>
+
+                            {{-- Бланк 132 потерян / нужен перевыпуск: создать 132 вместе с отметкой --}}
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="legacy_create_132" name="create_form_132" value="1">
+                                <label class="form-check-label" for="legacy_create_132">
+                                    {{ __('Also create Form 132 (lost / needs reissue)') }}
+                                </label>
+                            </div>
+                            <div class="mt-1" id="legacy_132_date_group" style="display: none;">
+                                <label for="legacy_132_date" class="form-label">{{ __('Form 132 date') }}</label>
+                                <input type="date" id="legacy_132_date" name="form_132_date" class="form-control"
+                                       value="{{ now()->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}">
+                                <small class="form-text text-muted">{{ __('The date is normalized to the Friday of its week.') }}</small>
+                            </div>
                         </div>
                     @endif
 
@@ -354,6 +368,13 @@
             }
 
             // «Old training»: вместо одной пары юнит+даты — мультивыбор юнитов без дат.
+            const legacy132Checkbox = document.getElementById('legacy_create_132');
+            if (legacy132Checkbox) {
+                legacy132Checkbox.addEventListener('change', function () {
+                    document.getElementById('legacy_132_date_group').style.display = this.checked ? '' : 'none';
+                });
+            }
+
             const legacyCheckbox = document.getElementById('is_legacy');
             if (legacyCheckbox) {
                 legacyCheckbox.addEventListener('change', function () {

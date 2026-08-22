@@ -153,7 +153,13 @@ class TrainingController extends Controller
             $data = $request->validate([
                 'legacy_manuals_ids' => 'required|array|min:1',
                 'legacy_manuals_ids.*' => 'integer|exists:manuals,id',
+                'create_form_132' => 'nullable|boolean',
+                'form_132_date' => 'nullable|date|before_or_equal:today|required_if:create_form_132,1',
             ]);
+
+            // Бланк 132 потерян / нужен перевыпуск — создаём 132 вместе с отметкой
+            $withForm132 = $request->boolean('create_form_132');
+            $form132Date = $withForm132 ? $this->fridayOf($data['form_132_date']) : null;
 
             $created = 0;
             foreach ($data['legacy_manuals_ids'] as $manualId) {
@@ -168,6 +174,14 @@ class TrainingController extends Controller
                         'form_type' => null,
                         'is_legacy' => true,
                     ]);
+                    if ($withForm132) {
+                        Training::create([
+                            'user_id' => $userId,
+                            'manuals_id' => $manualId,
+                            'date_training' => $form132Date,
+                            'form_type' => 132,
+                        ]);
+                    }
                     $created++;
                 }
             }
@@ -175,7 +189,7 @@ class TrainingController extends Controller
             $indexParams = $userId !== auth()->id() ? ['user_id' => $userId] : [];
 
             return redirect()->route('trainings.index', $indexParams)
-                ->with('success', "Old training marked for {$created} unit(s).");
+                ->with('success', "Old training marked for {$created} unit(s)." . ($withForm132 ? ' Form 132 created.' : ''));
         }
 
         $request->merge([
@@ -273,6 +287,7 @@ class TrainingController extends Controller
                 'date_training.*' => 'required|date',
                 'form_type.*' => 'required|in:112',
                 'user_id' => 'nullable|integer|exists:users,id',
+                'create_form_132' => 'nullable|boolean',
             ]);
 
             $userId = auth()->id();
@@ -288,6 +303,16 @@ class TrainingController extends Controller
                 ->where('manuals_id', $manualId)
                 ->where('form_type', '132')
                 ->first();
+
+            // Пара с «Old training» (X): первичное обучение было в бумажную эпоху,
+            // 132 не создаём — новая дата это REFRESH-112 (MP-20). Исключение —
+            // явный запрос Admin/Manager (бланк потерян / нужен перевыпуск).
+            $hasLegacy = Training::where('user_id', $userId)
+                ->where('manuals_id', $manualId)
+                ->where('is_legacy', true)
+                ->exists();
+            $forceForm132 = $request->boolean('create_form_132')
+                && auth()->user()->roleIs(['Admin', 'Manager']);
 
             foreach ($validatedData['manuals_id'] as $key => $manualId) {
                 $trainingDate = $this->fridayOf($validatedData['date_training'][$key]);
@@ -314,7 +339,7 @@ class TrainingController extends Controller
             }
 
             // Создаем форму 132 только если её еще нет для этого юнита
-            if (!$existingForm132) {
+            if (!$existingForm132 && (!$hasLegacy || $forceForm132)) {
                 // Берем дату первой тренировки для формы 132
                 $firstTrainingDate = $this->fridayOf($validatedData['date_training'][0]);
 
@@ -555,9 +580,18 @@ class TrainingController extends Controller
      * последняя дата (красная старше matrix_red_after_days) / «X» (legacy или дата
      * старше matrix_legacy_after_years) / пусто.
      */
-    public function showAll()
+    public function showAll(Request $request)
     {
-        $categories = TrainingCategory::with(['rows' => fn ($q) => $q->orderBy('sort_order'), 'rows.manual'])
+        $canManage = auth()->user()->roleIs(['Admin', 'Manager']);
+
+        // Неактивные юниты (сняли галку Active — «с ним пока не работаем»)
+        // скрыты; Admin/Manager может показать их переключателем.
+        $showInactive = $canManage && $request->boolean('show_inactive');
+
+        $categories = TrainingCategory::with([
+                'rows' => fn ($q) => $q->when(!$showInactive, fn ($qq) => $qq->where('is_active', true))->orderBy('sort_order'),
+                'rows.manual',
+            ])
             ->orderBy('sort_order')
             ->get()
             ->filter(fn ($category) => $category->rows->isNotEmpty())
@@ -585,28 +619,35 @@ class TrainingController extends Controller
         $redAfter = now()->subDays((int) config('trainings.matrix_red_after_days', 350))->startOfDay();
         $legacyAfter = now()->subYears((int) config('trainings.matrix_legacy_after_years', 3))->startOfDay();
 
-        // cells[manual_id][user_id] = ['kind' => 'date'|'x', 'date' => ?Carbon, 'red' => bool]
+        // cells[manual_id][user_id] = ['kind' => 'date'|'x', 'date' => ?Carbon, 'red' => bool, 'need132' => bool]
         $cells = [];
         foreach ($trainings->groupBy(fn ($t) => $t->manuals_id . '|' . $t->user_id) as $key => $pair) {
             [$manualId, $userId] = explode('|', $key);
+            $isLegacyPair = $pair->contains(fn ($t) => $t->is_legacy);
             $lastDate = $pair->where('is_legacy', false)
                 ->whereNotNull('date_training')
+                // Перевыпущенная 132 у legacy-пары — не тренинг: X остаётся до реального refresh-112
+                ->when($isLegacyPair, fn ($c) => $c->filter(fn ($t) => (string) $t->form_type === '112'))
                 ->max('date_training');
+
+            // Legacy-пара без 132 (бумажная эпоха): 132 не положена, но может быть
+            // создана по явному запросу — потеря бланка / перевыпуск.
+            $need132 = $isLegacyPair
+                && !$pair->contains(fn ($t) => (string) $t->form_type === '132');
 
             if ($lastDate !== null) {
                 $lastDate = \Carbon\Carbon::parse($lastDate);
                 $cells[$manualId][$userId] = $lastDate->lt($legacyAfter)
-                    ? ['kind' => 'x', 'date' => $lastDate, 'red' => false]
-                    : ['kind' => 'date', 'date' => $lastDate, 'red' => $lastDate->lt($redAfter)];
-            } elseif ($pair->contains(fn ($t) => $t->is_legacy)) {
-                $cells[$manualId][$userId] = ['kind' => 'x', 'date' => null, 'red' => false];
+                    ? ['kind' => 'x', 'date' => $lastDate, 'red' => false, 'need132' => $need132]
+                    : ['kind' => 'date', 'date' => $lastDate, 'red' => $lastDate->lt($redAfter), 'need132' => $need132];
+            } elseif ($isLegacyPair) {
+                $cells[$manualId][$userId] = ['kind' => 'x', 'date' => null, 'red' => false, 'need132' => $need132];
             }
         }
 
-        $canManage = auth()->user()->roleIs(['Admin', 'Manager']);
-
         $unlinkedManuals = collect();
         $uncategorizedCount = 0;
+        $inactiveCount = 0;
         if ($canManage) {
             $unlinkedManuals = Manual::whereNotNull('unit_name_training')
                 ->where('unit_name_training', '<>', '')
@@ -614,13 +655,26 @@ class TrainingController extends Controller
                 ->orderBy('title')
                 ->get(['id', 'title', 'unit_name_training']);
             $uncategorizedCount = $unlinkedManuals->count();
+            $inactiveCount = TrainingMatrixRow::where('is_active', false)->count();
         }
 
         $allCategories = TrainingCategory::orderBy('sort_order')->get(['id', 'name']);
 
         return view('admin.trainings.show_all', compact(
-            'categories', 'users', 'cells', 'canManage', 'unlinkedManuals', 'uncategorizedCount', 'allCategories'
+            'categories', 'users', 'cells', 'canManage', 'unlinkedManuals', 'uncategorizedCount',
+            'allCategories', 'showInactive', 'inactiveCount'
         ));
+    }
+
+    public function matrixRowToggleActive(TrainingMatrixRow $row)
+    {
+        $this->ensureCanManageMatrix();
+
+        $row->update(['is_active' => !$row->is_active]);
+
+        return back()->with('success', $row->is_active
+            ? __('Unit returned to the matrix.')
+            : __('Unit hidden from the matrix (not deleted).'));
     }
 
     // ---- Управление строками матрицы (Admin/Manager) ----
@@ -694,6 +748,32 @@ class TrainingController extends Controller
         $row->delete();
 
         return back()->with('success', __('Matrix row deleted.'));
+    }
+
+    public function matrixCategoryMove(Request $request, TrainingCategory $category)
+    {
+        $this->ensureCanManageMatrix();
+
+        $request->validate(['direction' => 'required|in:up,down']);
+        $up = $request->input('direction') === 'up';
+
+        $neighbor = TrainingCategory::where('id', '<>', $category->id)
+            ->when($up,
+                fn ($q) => $q->where('sort_order', '<=', $category->sort_order)->orderByDesc('sort_order')->orderByDesc('id'),
+                fn ($q) => $q->where('sort_order', '>=', $category->sort_order)->orderBy('sort_order')->orderBy('id'))
+            ->first();
+
+        if ($neighbor) {
+            // При равных sort_order (исторические данные) обмен ничего бы не менял — разводим явно
+            if ((int) $neighbor->sort_order === (int) $category->sort_order) {
+                $up ? $neighbor->sort_order++ : $category->sort_order++;
+            }
+            [$category->sort_order, $neighbor->sort_order] = [$neighbor->sort_order, $category->sort_order];
+            $category->save();
+            $neighbor->save();
+        }
+
+        return back();
     }
 
     public function matrixRowMove(Request $request, TrainingMatrixRow $row)

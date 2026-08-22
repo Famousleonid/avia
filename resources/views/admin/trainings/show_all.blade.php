@@ -87,16 +87,22 @@
             font-weight: 400;
         }
 
-        /* Строка-заголовок группы — как зелёные секции в Excel */
+        /* Строка-заголовок группы — как зелёные секции в Excel.
+           Ячейка шириной во всю таблицу, поэтому текст прижат влево
+           и прилипает к левому краю видимой области при скролле. */
         .training-table td.group-row {
             background: rgba(93, 158, 91, 0.28) !important;
             color: var(--avia-text) !important;
             font-weight: 700;
             font-size: 12.5px;
             letter-spacing: .04em;
-            text-align: center;
+            text-align: left;
+        }
+
+        .training-table td.group-row .group-label {
             position: sticky;
-            left: 0;
+            left: 12px;
+            display: inline-block;
         }
 
         .training-date-old {
@@ -163,6 +169,60 @@
             flex-wrap: wrap;
             margin-top: 8px;
         }
+
+        /* Колонка Active (только Admin/Manager) — левее замороженных колонок */
+        .training-table th.col-active,
+        .training-table td.col-active {
+            position: sticky !important;
+            left: 0;
+            min-width: 36px;
+            max-width: 36px;
+            z-index: 35;
+            background: var(--avia-panel) !important;
+            text-align: center;
+            padding: 5px 4px;
+        }
+
+        .training-table thead th.col-active {
+            z-index: 50;
+            background: linear-gradient(180deg, var(--avia-surface-raised) 0%, var(--avia-surface) 100%) !important;
+        }
+
+        .training-table td.col-active input[type="checkbox"] {
+            accent-color: #5f7f99; /* спокойный серо-синий вместо кричащего дефолта */
+            opacity: .8;
+        }
+
+        .training-table.has-active-col th.col-unit,
+        .training-table.has-active-col td.col-unit {
+            left: 36px;
+        }
+
+        .training-table.has-active-col th.col-part,
+        .training-table.has-active-col td.col-part {
+            left: 256px;
+        }
+
+        /* Неактивный юнит («с ним пока не работаем») — штриховка как в Excel */
+        .row-inactive td {
+            color: var(--avia-text-muted);
+        }
+
+        .row-inactive td.col-unit,
+        .row-inactive td.col-part {
+            background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(140, 140, 140, 0.18) 6px 9px);
+        }
+
+        /* Кликабельная ячейка: клик = добавить тренинг этой паре */
+        td.user-column.cell-click {
+            cursor: pointer;
+        }
+
+        td.user-column.cell-click:hover {
+            background: rgba(110, 168, 254, 0.14) !important;
+            outline: 1px solid rgba(110, 168, 254, 0.45);
+            outline-offset: -1px;
+        }
     </style>
 
     <div class="container-fluid px-4 px-xl-5">
@@ -176,6 +236,15 @@
                                 <span class="badge-no-cmm" title="{{ __('CMMs with training PN that are not linked to any matrix row') }}">
                                     {{ __('CMM not in matrix:') }} {{ $uncategorizedCount }}
                                 </span>
+                            @endif
+                            @if($showInactive)
+                                <a href="{{ route('trainings.showAll') }}" class="btn btn-outline-secondary btn-sm py-0">
+                                    {{ __('Hide inactive') }}
+                                </a>
+                            @elseif($inactiveCount > 0)
+                                <a href="{{ route('trainings.showAll', ['show_inactive' => 1]) }}" class="btn btn-outline-secondary btn-sm py-0">
+                                    {{ __('Show inactive') }} ({{ $inactiveCount }})
+                                </a>
                             @endif
                             <button class="btn btn-outline-info btn-sm py-0" data-bs-toggle="modal" data-bs-target="#matrixRowModal"
                                     onclick="matrixRowModalReset()">
@@ -199,11 +268,14 @@
                         {{ __('Matrix is empty. Import the structure or add rows manually.') }}
                     </div>
                 @else
-                    @php $colspan = 2 + $users->count(); @endphp
+                    @php $colspan = ($canManage ? 3 : 2) + $users->count(); @endphp
                     <div class="table-container">
-                        <table class="table training-table table-bordered align-middle mb-0">
+                        <table class="table training-table table-bordered align-middle mb-0 {{ $canManage ? 'has-active-col' : '' }}">
                             <thead>
                             <tr>
+                                @if($canManage)
+                                    <th class="col-active" title="{{ __('Unit is currently worked on; uncheck to hide the row from the matrix') }}">✓</th>
+                                @endif
                                 <th class="col-unit">{{ __('Unit Description') }}</th>
                                 <th class="col-part text-center">PART NUMBER APPROVED</th>
                                 @foreach($users as $user)
@@ -217,10 +289,27 @@
                             <tbody>
                             @foreach($categories as $category)
                                 <tr>
-                                    <td class="group-row" colspan="{{ $colspan }}">{{ $category->name }}</td>
+                                    <td class="group-row" colspan="{{ $colspan }}">
+                                        <span class="group-label">
+                                            {{ $category->name }}
+                                            @if($canManage)
+                                                <span class="row-tools">
+                                                    <button type="button" title="{{ __('Move group up') }}" onclick="matrixCategoryMove({{ $category->id }}, 'up')">▲</button>
+                                                    <button type="button" title="{{ __('Move group down') }}" onclick="matrixCategoryMove({{ $category->id }}, 'down')">▼</button>
+                                                </span>
+                                            @endif
+                                        </span>
+                                    </td>
                                 </tr>
                                 @foreach($category->rows as $row)
-                                    <tr class="{{ $row->manual_id ? '' : 'row-no-cmm' }}">
+                                    <tr class="{{ $row->manual_id ? '' : 'row-no-cmm' }} {{ $row->is_active ? '' : 'row-inactive' }}">
+                                        @if($canManage)
+                                            <td class="col-active">
+                                                <input type="checkbox" {{ $row->is_active ? 'checked' : '' }}
+                                                       onchange="matrixRowToggleActive({{ $row->id }})"
+                                                       title="{{ $row->is_active ? __('Uncheck: unit not currently worked on — hide row (not deleted)') : __('Check: return unit to the matrix') }}">
+                                            </td>
+                                        @endif
                                         <td class="col-unit" title="{{ $row->description }}">
                                             {{ $row->description ?? '' }}
                                         </td>
@@ -253,8 +342,25 @@
                                             @endif
                                         </td>
                                         @foreach($users as $user)
-                                            <td class="user-column">
-                                                @php $cell = $row->manual_id ? ($cells[$row->manual_id][$user->id] ?? null) : null; @endphp
+                                            @php
+                                                $cell = $row->manual_id ? ($cells[$row->manual_id][$user->id] ?? null) : null;
+                                                // Клик: Admin/Manager — по любой колонке, остальные — только по своей
+                                                $clickable = $row->manual_id && ($canManage || $user->id === auth()->id());
+                                                $clickAttrs = '';
+                                                if ($clickable) {
+                                                    if ($cell === null) {
+                                                        // Пары ещё нет — первичное обучение через create-форму
+                                                        $clickAttrs = 'data-create-url="' . e(route('trainings.create', ['user_id' => $user->id, 'manual_id' => $row->manual_id])) . '"';
+                                                    } else {
+                                                        $clickAttrs = 'data-train-manual="' . $row->manual_id . '" data-train-user="' . $user->id . '"'
+                                                            . ' data-train-user-name="' . e($user->selection_name) . '"'
+                                                            . ' data-train-pn="' . e($row->part_number) . '"'
+                                                            . ' data-train-need132="' . (!empty($cell['need132']) ? 1 : 0) . '"';
+                                                    }
+                                                }
+                                            @endphp
+                                            <td class="user-column {{ $clickable ? 'cell-click' : '' }}" {!! $clickAttrs !!}
+                                                @if($clickable) title="{{ $cell === null ? __('Add unit for this user') : __('Add training date') }}" @endif>
                                                 @if($cell === null)
                                                     <span class="text-muted">-</span>
                                                 @elseif($cell['kind'] === 'x')
@@ -286,6 +392,98 @@
             </div>
         </div>
     </div>
+
+    {{-- Модалка «добавить дату тренинга» по клику на ячейку --}}
+    <div class="modal fade" id="matrixTrainModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content bg-gradient">
+                <div class="modal-header">
+                    <h6 class="modal-title">{{ __('Add training date') }}</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="small mb-2" id="matrixTrainInfo"></div>
+                    <input type="date" id="matrixTrainDate" class="form-control" max="{{ now()->format('Y-m-d') }}">
+                    <small class="text-muted">{{ __('The date is normalized to the Friday of its week.') }}</small>
+                    @if($canManage)
+                        {{-- Только для legacy-пары без 132: бланк потерян / нужен перевыпуск --}}
+                        <div class="form-check mt-2" id="matrixTrain132Wrap" style="display: none;">
+                            <input class="form-check-input" type="checkbox" id="matrixTrain132">
+                            <label class="form-check-label small" for="matrixTrain132">
+                                {{ __('Also create Form 132 (lost / needs reissue)') }}
+                            </label>
+                        </div>
+                    @endif
+                    <div class="text-danger small mt-1" id="matrixTrainError" style="display: none;"></div>
+                </div>
+                <div class="modal-footer py-1">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="matrixTrainSave">{{ __('Save') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            let trainCtx = null;
+            const modalEl = document.getElementById('matrixTrainModal');
+
+            document.querySelectorAll('td.cell-click').forEach(function (td) {
+                td.addEventListener('click', function () {
+                    if (td.dataset.createUrl) {
+                        window.location.href = td.dataset.createUrl;
+                        return;
+                    }
+                    trainCtx = { manual: td.dataset.trainManual, user: td.dataset.trainUser };
+                    document.getElementById('matrixTrainInfo').textContent =
+                        td.dataset.trainPn + ' — ' + td.dataset.trainUserName;
+                    document.getElementById('matrixTrainDate').value = '{{ now()->format('Y-m-d') }}';
+                    document.getElementById('matrixTrainError').style.display = 'none';
+                    const wrap132 = document.getElementById('matrixTrain132Wrap');
+                    if (wrap132) {
+                        wrap132.style.display = td.dataset.trainNeed132 === '1' ? '' : 'none';
+                        document.getElementById('matrixTrain132').checked = false;
+                    }
+                    new bootstrap.Modal(modalEl).show();
+                });
+            });
+
+            document.getElementById('matrixTrainSave').addEventListener('click', async function () {
+                if (!trainCtx) return;
+                const date = document.getElementById('matrixTrainDate').value;
+                const errEl = document.getElementById('matrixTrainError');
+                if (!date) {
+                    errEl.textContent = @json(__('Select a date.'));
+                    errEl.style.display = '';
+                    return;
+                }
+                try {
+                    const body = new FormData();
+                    body.append('manuals_id[]', trainCtx.manual);
+                    body.append('date_training[]', date);
+                    body.append('form_type[]', '112');
+                    body.append('user_id', trainCtx.user);
+                    const cb132 = document.getElementById('matrixTrain132');
+                    if (cb132 && cb132.checked) {
+                        body.append('create_form_132', '1');
+                    }
+                    const response = await fetch(@json(route('trainings.createTraining')), {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': @json(csrf_token()), 'Accept': 'application/json' },
+                        body: body,
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.message || 'Error');
+                    }
+                    window.location.reload();
+                } catch (error) {
+                    errEl.textContent = error.message;
+                    errEl.style.display = '';
+                }
+            });
+        })();
+    </script>
 
     @if($canManage)
         {{-- Модалка добавления/редактирования строки матрицы --}}
@@ -348,7 +546,23 @@
                 update: @json(route('trainings.matrixRows.update', ['row' => '__ID__'])),
                 move: @json(route('trainings.matrixRows.move', ['row' => '__ID__'])),
                 destroy: @json(route('trainings.matrixRows.destroy', ['row' => '__ID__'])),
+                categoryMove: @json(route('trainings.matrixCategories.move', ['category' => '__ID__'])),
+                toggleActive: @json(route('trainings.matrixRows.toggleActive', ['row' => '__ID__'])),
             };
+
+            function matrixCategoryMove(id, direction) {
+                const form = document.getElementById('matrixRowMoveForm');
+                form.action = matrixRowRoutes.categoryMove.replace('__ID__', id);
+                document.getElementById('matrixRowMoveDirection').value = direction;
+                form.submit();
+            }
+
+            function matrixRowToggleActive(id) {
+                const form = document.getElementById('matrixRowMoveForm');
+                form.action = matrixRowRoutes.toggleActive.replace('__ID__', id);
+                document.getElementById('matrixRowMoveDirection').value = '';
+                form.submit();
+            }
 
             function matrixRowToggleNewCategory() {
                 const select = document.getElementById('matrixRowCategory');
