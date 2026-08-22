@@ -25,8 +25,8 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
     // TODO(access): drop legacy access columns after production verifies user_feature_access.
-    protected $fillable = ['name', 'selection_name_order', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'can_manage_locked_manual_parts', 'qa_access', 'ec_access', 'can_sign_certificates', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs', 'must_change_password', 'temporary_password_expires_at', 'password_changed_at', 'auth_version'];
-    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date', 'can_manage_locked_manual_processes' => 'boolean', 'can_manage_locked_manual_parts' => 'boolean', 'qa_access' => 'boolean', 'ec_access' => 'boolean', 'can_sign_certificates' => 'boolean', 'must_change_password' => 'boolean', 'temporary_password_expires_at' => 'datetime', 'password_changed_at' => 'datetime', 'auth_version' => 'integer'];
+    protected $fillable = ['name', 'selection_name_order', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'can_manage_locked_manual_parts', 'qa_access', 'ec_access', 'can_sign_certificates', 'role_id', 'phone', 'stamp', 'show_in_training_matrix', 'team_id', 'birthday', 'notification_prefs', 'must_change_password', 'temporary_password_expires_at', 'password_changed_at', 'auth_version'];
+    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date', 'can_manage_locked_manual_processes' => 'boolean', 'can_manage_locked_manual_parts' => 'boolean', 'qa_access' => 'boolean', 'ec_access' => 'boolean', 'can_sign_certificates' => 'boolean', 'show_in_training_matrix' => 'boolean', 'must_change_password' => 'boolean', 'temporary_password_expires_at' => 'datetime', 'password_changed_at' => 'datetime', 'auth_version' => 'integer'];
 
     public function hasActiveTemporaryPassword(): bool
     {

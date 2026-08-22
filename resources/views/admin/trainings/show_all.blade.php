@@ -246,6 +246,9 @@
                                     {{ __('Show inactive') }} ({{ $inactiveCount }})
                                 </a>
                             @endif
+                            <button class="btn btn-outline-info btn-sm py-0" data-bs-toggle="modal" data-bs-target="#matrixPersonnelModal">
+                                {{ __('Personnel') }}
+                            </button>
                             <button class="btn btn-outline-info btn-sm py-0" data-bs-toggle="modal" data-bs-target="#matrixRowModal"
                                     onclick="matrixRowModalReset()">
                                 + {{ __('Add row') }}
@@ -486,6 +489,38 @@
     </script>
 
     @if($canManage)
+        {{-- Модалка Personnel: кто показан колонками матрицы --}}
+        <div class="modal fade" id="matrixPersonnelModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-scrollable">
+                <div class="modal-content bg-gradient">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ __('Matrix personnel') }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="POST" action="{{ route('trainings.matrixPersonnel.update') }}">
+                        @csrf
+                        <div class="modal-body">
+                            <small class="text-muted d-block mb-2">{{ __('Checked people are shown as matrix columns. Trainings are kept either way.') }}</small>
+                            @foreach($personnel as $person)
+                                <label class="d-flex align-items-center gap-2 mb-1" style="cursor: pointer;">
+                                    <input type="checkbox" name="user_ids[]" value="{{ $person->id }}"
+                                           {{ $person->show_in_training_matrix ? 'checked' : '' }}>
+                                    <span class="text-truncate">
+                                        <span class="text-muted" style="font-variant-numeric: tabular-nums;">{{ $person->stamp }}</span>
+                                        {{ $person->selection_name }}
+                                        <span class="text-muted small">— {{ $person->role->name ?? '' }}</span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <div class="modal-footer py-1">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">{{ __('Save') }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         {{-- Модалка добавления/редактирования строки матрицы --}}
         <div class="modal fade" id="matrixRowModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">

@@ -597,12 +597,12 @@ class TrainingController extends Controller
             ->filter(fn ($category) => $category->rows->isNotEmpty())
             ->values();
 
-        // Производственные роли, порядок «как в Excel»: числовые stamp, затем буквенные.
+        // Колонки — явный флаг (модалка Personnel), роли не участвуют.
+        // Порядок «как в Excel»: числовые stamp, затем буквенные.
         $users = User::whereNotNull('stamp')
             ->where('stamp', '<>', '')
-            ->where('is_admin', false)
             ->whereNull('deleted_at')
-            ->whereHas('role', fn ($q) => $q->whereIn('name', ['Technician', 'Team Leader', 'Paint']))
+            ->where('show_in_training_matrix', true)
             ->get()
             ->sortBy(fn (User $user) => ctype_digit($user->stamp)
                 ? sprintf('0-%05d', (int) $user->stamp)
@@ -660,10 +660,50 @@ class TrainingController extends Controller
 
         $allCategories = TrainingCategory::orderBy('sort_order')->get(['id', 'name']);
 
+        // Все кандидаты в колонки для модалки Personnel (любой роли, лишь бы stamp)
+        $personnel = collect();
+        if ($canManage) {
+            $personnel = User::whereNotNull('stamp')
+                ->where('stamp', '<>', '')
+                ->whereNull('deleted_at')
+                ->with('role')
+                ->get()
+                ->sortBy(fn (User $user) => ctype_digit($user->stamp)
+                    ? sprintf('0-%05d', (int) $user->stamp)
+                    : '1-' . mb_strtolower($user->stamp))
+                ->values();
+        }
+
         return view('admin.trainings.show_all', compact(
             'categories', 'users', 'cells', 'canManage', 'unlinkedManuals', 'uncategorizedCount',
-            'allCategories', 'showInactive', 'inactiveCount'
+            'allCategories', 'showInactive', 'inactiveCount', 'personnel'
         ));
+    }
+
+    /** Модалка Personnel: отмеченные — в матрице, остальные (со stamp) — нет. */
+    public function matrixPersonnelUpdate(Request $request)
+    {
+        $this->ensureCanManageMatrix();
+
+        $data = $request->validate([
+            'user_ids' => 'nullable|array',
+            'user_ids.*' => 'integer|exists:users,id',
+        ]);
+        $checked = collect($data['user_ids'] ?? [])->map(fn ($id) => (int) $id);
+
+        User::whereNotNull('stamp')
+            ->where('stamp', '<>', '')
+            ->whereNull('deleted_at')
+            ->get()
+            ->each(function (User $user) use ($checked) {
+                $include = $checked->contains($user->id);
+                if ($user->show_in_training_matrix !== $include) {
+                    $user->show_in_training_matrix = $include;
+                    $user->save();
+                }
+            });
+
+        return back()->with('success', __('Matrix personnel updated.'));
     }
 
     public function matrixRowToggleActive(TrainingMatrixRow $row)

@@ -41,6 +41,7 @@ class TrainingShowAllTest extends TestCase
             'name' => 'Visible Technician ' . uniqid(),
             'stamp' => 'T01',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $systemAdmin = $this->createUserWithRole('Admin', [
             'name' => 'Hidden Training Admin ' . uniqid(),
@@ -66,13 +67,17 @@ class TrainingShowAllTest extends TestCase
             'form_type' => '112',
         ]);
 
-        $response = $this->actingAs($viewer)->get(route('trainings.showAll'));
+        // Смотрим глазами техника: у него нет модалки Personnel,
+        // где имена всех со stamp встречаются по определению.
+        $response = $this->actingAs($technician)->get(route('trainings.showAll'));
 
         $response->assertOk();
         $response->assertSee($technician->name);
         $response->assertSee('May-15-2026');
         $response->assertDontSee($systemAdmin->name);
         $response->assertDontSee('Jan-01-2024');
+
+        $this->actingAs($viewer)->get(route('trainings.showAll'))->assertOk();
     }
 
     public function test_legacy_training_is_shown_as_x(): void
@@ -82,6 +87,7 @@ class TrainingShowAllTest extends TestCase
             'name' => 'Legacy Tech ' . uniqid(),
             'stamp' => 'LX',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $manual = $this->createManual(['unit_name_training' => 'LEGACY-PN-' . uniqid()]);
         $this->createMatrixRowForManual($manual);
@@ -106,6 +112,7 @@ class TrainingShowAllTest extends TestCase
         $technician = $this->createUserWithRole('Technician', [
             'stamp' => 'OX',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $manual = $this->createManual(['unit_name_training' => 'OLDX-PN-' . uniqid()]);
         $this->createMatrixRowForManual($manual);
@@ -132,6 +139,7 @@ class TrainingShowAllTest extends TestCase
         $technician = $this->createUserWithRole('Technician', [
             'stamp' => 'RD',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $manual = $this->createManual(['unit_name_training' => 'RED-PN-' . uniqid()]);
         $this->createMatrixRowForManual($manual);
@@ -182,11 +190,13 @@ class TrainingShowAllTest extends TestCase
             'name' => 'Letter Stamp Tech ' . uniqid(),
             'stamp' => 'ZZ',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $numericTech = $this->createUserWithRole('Technician', [
             'name' => 'Numeric Stamp Tech ' . uniqid(),
             'stamp' => '97',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $manual = $this->createManual(['unit_name_training' => 'ORDER-PN-' . uniqid()]);
         $this->createMatrixRowForManual($manual);
@@ -210,6 +220,7 @@ class TrainingShowAllTest extends TestCase
         $technician = $this->createUserWithRole('Technician', [
             'stamp' => 'LT',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $manualA = $this->createManual(['unit_name_training' => 'LEG-A-' . uniqid()]);
         $manualB = $this->createManual(['unit_name_training' => 'LEG-B-' . uniqid()]);
@@ -241,6 +252,7 @@ class TrainingShowAllTest extends TestCase
         $technician = $this->createUserWithRole('Technician', [
             'stamp' => 'NP',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $manual = $this->createManual(['unit_name_training' => 'DENY-PN-' . uniqid()]);
 
@@ -258,6 +270,7 @@ class TrainingShowAllTest extends TestCase
         $technician = $this->createUserWithRole('Technician', [
             'stamp' => 'RF',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $manual = $this->createManual(['unit_name_training' => 'REFRESH-PN-' . uniqid()]);
 
@@ -293,6 +306,7 @@ class TrainingShowAllTest extends TestCase
         $technician = $this->createUserWithRole('Technician', [
             'stamp' => 'F2',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $manual = $this->createManual(['unit_name_training' => 'FORCE132-PN-' . uniqid()]);
 
@@ -346,6 +360,7 @@ class TrainingShowAllTest extends TestCase
         $technician = $this->createUserWithRole('Technician', [
             'stamp' => 'RX',
             'is_admin' => false,
+            'show_in_training_matrix' => true,
         ]);
         $manual = $this->createManual(['unit_name_training' => 'REISSUE-PN-' . uniqid()]);
         $this->createMatrixRowForManual($manual);
@@ -395,6 +410,51 @@ class TrainingShowAllTest extends TestCase
         // Возврат в работу
         $this->actingAs($admin)->post(route('trainings.matrixRows.toggleActive', ['row' => $row->id]));
         $this->assertTrue($row->fresh()->is_active);
+    }
+
+    public function test_personnel_modal_controls_matrix_columns(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $technician = $this->createUserWithRole('Technician', [
+            'name' => 'Personnel Tech ' . uniqid(),
+            'stamp' => 'PL',
+            'is_admin' => false,
+            'show_in_training_matrix' => true,
+        ]);
+        $manual = $this->createManual(['unit_name_training' => 'PERS-PN-' . uniqid()]);
+        $this->createMatrixRowForManual($manual);
+
+        $this->actingAs($admin)->get(route('trainings.showAll'))->assertSee($technician->name);
+
+        // Снимаем галку в Personnel (отправляем список без этого техника)
+        $response = $this->actingAs($admin)->post(route('trainings.matrixPersonnel.update'), [
+            'user_ids' => [],
+        ]);
+        $response->assertRedirect();
+
+        $this->assertFalse($technician->fresh()->show_in_training_matrix);
+        // Проверяем отсутствие колонки глазами другого техника: у админа имя
+        // осталось бы в модалке Personnel, у самого техника — в сайдбаре.
+        $otherViewer = $this->createUserWithRole('Technician', [
+            'name' => 'Other Viewer ' . uniqid(),
+            'stamp' => 'OV',
+            'is_admin' => false,
+            'show_in_training_matrix' => true,
+        ]);
+        $this->actingAs($otherViewer)->get(route('trainings.showAll'))->assertDontSee($technician->name);
+    }
+
+    public function test_technician_cannot_update_matrix_personnel(): void
+    {
+        $technician = $this->createUserWithRole('Technician', [
+            'stamp' => 'NA',
+            'is_admin' => false,
+            'show_in_training_matrix' => true,
+        ]);
+
+        $this->actingAs($technician)
+            ->post(route('trainings.matrixPersonnel.update'), ['user_ids' => []])
+            ->assertForbidden();
     }
 
     public function test_store_no_longer_backfills_missing_yearly_trainings(): void
