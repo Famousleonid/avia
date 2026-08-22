@@ -971,7 +971,10 @@
         </div>
     </div>
 
-    @if(Auth::user()->role?->name === 'Shop Certifying Authority (SCA)')
+    {{-- Вариант формы определяется ОБУЧАЕМЫМ (не тем, кто открыл страницу).
+         SCA = квалификация (флаг can_sign_certificates), не роль. Team Leader
+         не бывает SCA; если в данных всё же оба признака — печатается SCA-секция. --}}
+    @if($training->user->can_sign_certificates)
         <div class="row border-l-b-r" style="width: 920px">
             <div class="col-7 pt-3">
                 <h6><strong>REPORTS IN MAINTENACE RECORDS/FINAL RELEASE</strong>
@@ -1072,7 +1075,7 @@
                 </div>
             </div>
         </div>
-    @elseif(Auth::user()->role?->name === 'Team Leader')
+    @elseif($training->user->roleIs('Team Leader'))
         <div class="row border-l-b-r" style="width: 920px">
             <div class="col-7 pt-3">
                 <h6><strong>SUPERVISION OF MAINTENANCE WORK</strong></h6>
