@@ -262,9 +262,9 @@
                         <div class="col-4 pt-1 text-center
                         border-t"><h6><strong>1st</strong></h6></div>
                         <div class="col-4  pt-1 text-center
-                        border-l-t"><h6><strong>2st</strong></h6></div>
+                        border-l-t"><h6><strong>2nd</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>3st</strong></h6></div>
+                        border-l-t"><h6><strong>3rd</strong></h6></div>
                     </div>
                 </div>
                 <div class="col-5 border-t">
@@ -385,9 +385,9 @@
                         <div class="col-4 pt-1 text-center
                         border-t"><h6><strong>1st</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>2st</strong></h6></div>
+                        border-l-t"><h6><strong>2nd</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>3st</strong></h6></div>
+                        border-l-t"><h6><strong>3rd</strong></h6></div>
                     </div>
                 </div>
                 <div class="col-5  border-l">
@@ -483,9 +483,9 @@
                         <div class="col-4 pt-1 text-center
                         border-t"><h6><strong>1st</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>2st</strong></h6></div>
+                        border-l-t"><h6><strong>2nd</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>3st</strong></h6></div>
+                        border-l-t"><h6><strong>3rd</strong></h6></div>
                     </div>
                 </div>
                 <div class="col-5  border-l">
@@ -614,9 +614,9 @@
                         <div class="col-4 pt-1 text-center
                         border-t"><h6><strong>1st</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>2st</strong></h6></div>
+                        border-l-t"><h6><strong>2nd</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>3st</strong></h6></div>
+                        border-l-t"><h6><strong>3rd</strong></h6></div>
                     </div>
                 </div>
                 <div class="col-5  border-l">
@@ -818,9 +818,9 @@
                         <div class="col-4 pt-1 text-center
                         border-t"><h6><strong>1st</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>2st</strong></h6></div>
+                        border-l-t"><h6><strong>2nd</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>3st</strong></h6></div>
+                        border-l-t"><h6><strong>3rd</strong></h6></div>
                     </div>
                 </div>
                 <div class="col-5  border-l">
@@ -918,9 +918,9 @@
                         <div class="col-4 pt-1 text-center
                         border-t"><h6><strong>1st</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>2st</strong></h6></div>
+                        border-l-t"><h6><strong>2nd</strong></h6></div>
                         <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>3st</strong></h6></div>
+                        border-l-t"><h6><strong>3rd</strong></h6></div>
                     </div>
                 </div>
                 <div class="col-5  border-l">
@@ -977,7 +977,7 @@
     @if($training->user->can_sign_certificates)
         <div class="row border-l-b-r" style="width: 920px">
             <div class="col-7 pt-3">
-                <h6><strong>REPORTS IN MAINTENACE RECORDS/FINAL RELEASE</strong>
+                <h6><strong>REPORTS IN MAINTENANCE RECORDS/FINAL RELEASE</strong>
                 </h6>
             </div>
             <div class="col-5">
@@ -989,9 +989,9 @@
                             <div class="col-4 pt-1 text-center
                         border-t"><h6><strong>1st</strong></h6></div>
                             <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>2st</strong></h6></div>
+                        border-l-t"><h6><strong>2nd</strong></h6></div>
                             <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>3st</strong></h6></div>
+                        border-l-t"><h6><strong>3rd</strong></h6></div>
                         </div>
                     </div>
                     <div class="col-5  border-l">
@@ -1089,9 +1089,9 @@
                             <div class="col-4 pt-1 text-center
                         border-t"><h6><strong>1st</strong></h6></div>
                             <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>2st</strong></h6></div>
+                        border-l-t"><h6><strong>2nd</strong></h6></div>
                             <div class="col-4 pt-1 text-center
-                        border-l-t"><h6><strong>3st</strong></h6></div>
+                        border-l-t"><h6><strong>3rd</strong></h6></div>
                         </div>
                     </div>
                     <div class="col-5  border-l">
@@ -1214,7 +1214,7 @@
     <div class="row border-l-b-r" style="width: 920px">
         <div class="col-7 ">
             <div class="row">
-                <div class="col-2" style="font-size: 0.85rem;">2st attempt</div>
+                <div class="col-2" style="font-size: 0.85rem;">2nd attempt</div>
                 <div class="col-10  pt-3 text-center">
                     <h6></h6>
                 </div>
@@ -1244,7 +1244,7 @@
     <div class="row border-l-b-r" style="width: 920px">
         <div class="col-7 ">
             <div class="row">
-                <div class="col-2" style="font-size: 0.85rem;">3st attempt</div>
+                <div class="col-2" style="font-size: 0.85rem;">3rd attempt</div>
                 <div class="col-10  pt-3 text-center">
                     <h6></h6>
                 </div>
@@ -1377,8 +1377,7 @@
     <div class="row border-l-r" style="width: 920px">
         <div class="col-10 text-center">
             @if($showImage === 'true')
-                @if(Auth::user()->role !== null && Auth::user()->role->name !==
-           'Component Technician')
+                @if(Auth::user()->role !== null && Auth::user()->role->name !== 'Technician')
                 <div class="ps-5 " style="height: 1px">
                     <img src="{{ asset('img\sign\sign_vn.png') }}"
                          alt="Sign" class="" style="width: 150px">

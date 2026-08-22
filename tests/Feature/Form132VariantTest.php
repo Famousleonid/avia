@@ -17,7 +17,7 @@ class Form132VariantTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
-    private const SCA_SECTION = 'REPORTS IN MAINTENACE RECORDS/FINAL RELEASE';
+    private const SCA_SECTION = 'REPORTS IN MAINTENANCE RECORDS/FINAL RELEASE';
     private const TL_SECTION = 'SUPERVISION OF MAINTENANCE WORK';
 
     private function form132For(array $traineeAttributes, string $traineeRole)
@@ -37,6 +37,31 @@ class Form132VariantTest extends TestCase
         ]);
 
         return $this->actingAs($viewer)->get(route('trainings.form132', ['id' => $training->id]));
+    }
+
+    public function test_form112_topics_follow_trainee_sca_flag(): void
+    {
+        $viewer = $this->createUserWithRole('Admin', ['stamp' => 'VW']);
+        $sca = $this->createUserWithRole('Manager', [
+            'stamp' => 'SC',
+            'is_admin' => false,
+            'can_sign_certificates' => true,
+        ]);
+        $manual = $this->createManual(['unit_name_training' => 'F112-PN-' . uniqid()]);
+
+        $training = Training::query()->create([
+            'user_id' => $sca->id,
+            'manuals_id' => $manual->id,
+            'date_training' => '2026-08-21',
+            'form_type' => '112',
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('trainings.form112', ['id' => $training->id]));
+
+        $response->assertOk();
+        // SCA-топики (аудит WO-пакета) вместо технических
+        $response->assertSee('All Work Order (WO) sheets are identified');
+        $response->assertDontSee('Introduction, Description and Operation');
     }
 
     public function test_technician_form_has_no_extra_section(): void
