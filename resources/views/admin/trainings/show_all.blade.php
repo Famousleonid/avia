@@ -229,26 +229,42 @@
         <div class="card shadow">
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h6 class="mb-0">PART NUMBER APPROVED PERSONNEL</h6>
+                    <div class="d-flex align-items-center gap-3">
+                        <h6 class="mb-0">{{ $scaMode ? 'SCA PERSONNEL TRAINING' : 'PART NUMBER APPROVED PERSONNEL' }}</h6>
+                        @if($canManage)
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ route('trainings.showAll') }}"
+                                   class="btn py-0 {{ $scaMode ? 'btn-outline-secondary' : 'btn-info' }}">{{ __('Production') }}</a>
+                                <a href="{{ route('trainings.showAll', ['sca' => 1]) }}"
+                                   class="btn py-0 {{ $scaMode ? 'btn-info' : 'btn-outline-secondary' }}">SCA</a>
+                            </div>
+                        @endif
+                        <input type="search" id="matrixSearch" class="form-control form-control-sm"
+                               style="width: 220px;" placeholder="{{ __('Search unit / P/N…') }}"
+                               autocomplete="off">
+                    </div>
                     @if($canManage)
                         <div class="d-flex align-items-center gap-3">
-                            @if($uncategorizedCount > 0)
+                            @php $modeParams = $scaMode ? ['sca' => 1] : []; @endphp
+                            @if(!$scaMode && $uncategorizedCount > 0)
                                 <span class="badge-no-cmm" title="{{ __('CMMs with training PN that are not linked to any matrix row') }}">
                                     {{ __('CMM not in matrix:') }} {{ $uncategorizedCount }}
                                 </span>
                             @endif
                             @if($showInactive)
-                                <a href="{{ route('trainings.showAll') }}" class="btn btn-outline-secondary btn-sm py-0">
+                                <a href="{{ route('trainings.showAll', $modeParams) }}" class="btn btn-outline-secondary btn-sm py-0">
                                     {{ __('Hide inactive') }}
                                 </a>
                             @elseif($inactiveCount > 0)
-                                <a href="{{ route('trainings.showAll', ['show_inactive' => 1]) }}" class="btn btn-outline-secondary btn-sm py-0">
+                                <a href="{{ route('trainings.showAll', $modeParams + ['show_inactive' => 1]) }}" class="btn btn-outline-secondary btn-sm py-0">
                                     {{ __('Show inactive') }} ({{ $inactiveCount }})
                                 </a>
                             @endif
-                            <button class="btn btn-outline-info btn-sm py-0" data-bs-toggle="modal" data-bs-target="#matrixPersonnelModal">
-                                {{ __('Personnel') }}
-                            </button>
+                            @unless($scaMode)
+                                <button class="btn btn-outline-info btn-sm py-0" data-bs-toggle="modal" data-bs-target="#matrixPersonnelModal">
+                                    {{ __('Personnel') }}
+                                </button>
+                            @endunless
                             <button class="btn btn-outline-info btn-sm py-0" data-bs-toggle="modal" data-bs-target="#matrixRowModal"
                                     onclick="matrixRowModalReset()">
                                 + {{ __('Add row') }}
@@ -318,9 +334,9 @@
                                         </td>
                                         <td class="col-part">
                                             {{ $row->part_number }}
-                                            @unless($row->manual_id)
+                                            @if(!$category->is_sca && !$row->manual_id)
                                                 <span class="badge-no-cmm" title="{{ __('No CMM registered in avia for this unit') }}">no CMM</span>
-                                            @endunless
+                                            @endif
                                             @if($canManage)
                                                 @php
                                                     $rowPayload = [
@@ -346,14 +362,27 @@
                                         </td>
                                         @foreach($users as $user)
                                             @php
-                                                $cell = $row->manual_id ? ($cells[$row->manual_id][$user->id] ?? null) : null;
-                                                // Клик: Admin/Manager — по любой колонке, остальные — только по своей
-                                                $clickable = $row->manual_id && ($canManage || $user->id === auth()->id());
+                                                $cell = $cells[$row->id][$user->id] ?? null;
+                                                // Клик: управляющие — любая колонка; TL — своя team; техник — своя.
+                                                // Курсы (SCA-секции) — только в колонках людей с SCA-квалификацией.
+                                                $clickable = $category->is_sca
+                                                    ? ($canManage && $user->can_sign_certificates)
+                                                    : ($row->manual_id && ($canManage || auth()->user()->canManageTrainingsFor($user)));
                                                 $clickAttrs = '';
                                                 if ($clickable) {
-                                                    if ($cell === null) {
-                                                        // Пары ещё нет — первичное обучение через create-форму
-                                                        $clickAttrs = 'data-create-url="' . e(route('trainings.create', ['user_id' => $user->id, 'manual_id' => $row->manual_id])) . '"';
+                                                    if ($category->is_sca) {
+                                                        // Курс: дата пишется на строку напрямую, модалка для любой ячейки
+                                                        $clickAttrs = 'data-course-row="' . $row->id . '" data-train-user="' . $user->id . '"'
+                                                            . ' data-train-user-name="' . e($user->selection_name) . '"'
+                                                            . ' data-train-pn="' . e($row->part_number) . '"';
+                                                    } elseif ($cell === null) {
+                                                        // Пары ещё нет — первичное обучение через create-форму;
+                                                        // return_url возвращает в матрицу (Cancel и после сохранения)
+                                                        $clickAttrs = 'data-create-url="' . e(route('trainings.create', [
+                                                            'user_id' => $user->id,
+                                                            'manual_id' => $row->manual_id,
+                                                            'return_url' => route('trainings.showAll', $scaMode ? ['sca' => 1] : []),
+                                                        ])) . '"';
                                                     } else {
                                                         $clickAttrs = 'data-train-manual="' . $row->manual_id . '" data-train-user="' . $user->id . '"'
                                                             . ' data-train-user-name="' . e($user->selection_name) . '"'
@@ -428,6 +457,32 @@
 
     <script>
         (function () {
+            // Поиск по строкам: описание юнита + парт-номер/курс.
+            // Группы без совпадений скрываются целиком.
+            const searchInput = document.getElementById('matrixSearch');
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    const q = this.value.trim().toLowerCase();
+                    const rows = document.querySelectorAll('.training-table tbody tr');
+                    let currentGroup = null;
+                    let groupHasVisible = false;
+                    rows.forEach(function (tr) {
+                        if (tr.querySelector('td.group-row')) {
+                            if (currentGroup) currentGroup.style.display = groupHasVisible ? '' : 'none';
+                            currentGroup = tr;
+                            groupHasVisible = false;
+                            return;
+                        }
+                        const unit = tr.querySelector('td.col-unit')?.textContent.toLowerCase() ?? '';
+                        const pn = tr.querySelector('td.col-part')?.textContent.toLowerCase() ?? '';
+                        const match = !q || unit.includes(q) || pn.includes(q);
+                        tr.style.display = match ? '' : 'none';
+                        if (match) groupHasVisible = true;
+                    });
+                    if (currentGroup) currentGroup.style.display = groupHasVisible ? '' : 'none';
+                });
+            }
+
             let trainCtx = null;
             const modalEl = document.getElementById('matrixTrainModal');
 
@@ -437,14 +492,15 @@
                         window.location.href = td.dataset.createUrl;
                         return;
                     }
-                    trainCtx = { manual: td.dataset.trainManual, user: td.dataset.trainUser };
+                    trainCtx = { manual: td.dataset.trainManual, user: td.dataset.trainUser, courseRow: td.dataset.courseRow };
                     document.getElementById('matrixTrainInfo').textContent =
                         td.dataset.trainPn + ' — ' + td.dataset.trainUserName;
                     document.getElementById('matrixTrainDate').value = '{{ now()->format('Y-m-d') }}';
                     document.getElementById('matrixTrainError').style.display = 'none';
                     const wrap132 = document.getElementById('matrixTrain132Wrap');
                     if (wrap132) {
-                        wrap132.style.display = td.dataset.trainNeed132 === '1' ? '' : 'none';
+                        // Для SCA-курсов форм 112/132 нет
+                        wrap132.style.display = (!trainCtx.courseRow && td.dataset.trainNeed132 === '1') ? '' : 'none';
                         document.getElementById('matrixTrain132').checked = false;
                     }
                     new bootstrap.Modal(modalEl).show();
@@ -462,15 +518,25 @@
                 }
                 try {
                     const body = new FormData();
-                    body.append('manuals_id[]', trainCtx.manual);
-                    body.append('date_training[]', date);
-                    body.append('form_type[]', '112');
-                    body.append('user_id', trainCtx.user);
-                    const cb132 = document.getElementById('matrixTrain132');
-                    if (cb132 && cb132.checked) {
-                        body.append('create_form_132', '1');
+                    let endpoint;
+                    if (trainCtx.courseRow) {
+                        // SCA-курс: дата на строку, без форм 112/132
+                        endpoint = @json(route('trainings.matrixCourseDate.store'));
+                        body.append('matrix_row_id', trainCtx.courseRow);
+                        body.append('date_training', date);
+                        body.append('user_id', trainCtx.user);
+                    } else {
+                        endpoint = @json(route('trainings.createTraining'));
+                        body.append('manuals_id[]', trainCtx.manual);
+                        body.append('date_training[]', date);
+                        body.append('form_type[]', '112');
+                        body.append('user_id', trainCtx.user);
+                        const cb132 = document.getElementById('matrixTrain132');
+                        if (cb132 && cb132.checked) {
+                            body.append('create_form_132', '1');
+                        }
                     }
-                    const response = await fetch(@json(route('trainings.createTraining')), {
+                    const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: { 'X-CSRF-TOKEN': @json(csrf_token()), 'Accept': 'application/json' },
                         body: body,
@@ -545,13 +611,19 @@
                             <div class="form-group mt-2" id="matrixRowNewCategoryWrap">
                                 <label class="form-label">{{ __('New group name') }}</label>
                                 <input type="text" name="new_category_name" id="matrixRowNewCategory" class="form-control">
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input" type="checkbox" id="matrixRowNewCategorySca" name="is_sca" value="1" {{ $scaMode ? 'checked' : '' }}>
+                                    <label class="form-check-label small" for="matrixRowNewCategorySca">
+                                        {{ __('SCA group (courses; cells only for SCA-qualified people)') }}
+                                    </label>
+                                </div>
                             </div>
                             <div class="form-group mt-2">
                                 <label class="form-label">{{ __('Unit Description (column 1)') }}</label>
                                 <input type="text" name="description" id="matrixRowDescription" class="form-control">
                             </div>
                             <div class="form-group mt-2">
-                                <label class="form-label">{{ __('Part Number (as in matrix)') }}</label>
+                                <label class="form-label">{{ __('Part Number / Course name') }}</label>
                                 <input type="text" name="part_number" id="matrixRowPartNumber" class="form-control" required>
                             </div>
                             <div class="form-group mt-2">
@@ -562,6 +634,7 @@
                                         <option value="{{ $m->id }}">{{ $m->unit_name_training }} ({{ $m->title }})</option>
                                     @endforeach
                                 </select>
+                                <small class="text-muted">{{ __('Leave empty for SCA courses.') }}</small>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -634,6 +707,7 @@
             // В edit-режиме к списку несвязанных CMM добавляется текущий привязанный.
             function matrixRowSetManualOptions(currentId, currentLabel) {
                 const select = document.getElementById('matrixRowManual');
+                if (!select) return; // SCA-режим: курсы без CMM
                 select.querySelector('option[data-current]')?.remove();
                 if (currentId) {
                     const opt = document.createElement('option');

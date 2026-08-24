@@ -541,6 +541,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::post('trainings/matrix-categories/{category}/move', [TrainingController::class, 'matrixCategoryMove'])->name('trainings.matrixCategories.move');
         Route::post('trainings/matrix-rows/{row}/toggle-active', [TrainingController::class, 'matrixRowToggleActive'])->name('trainings.matrixRows.toggleActive');
         Route::post('trainings/matrix-personnel', [TrainingController::class, 'matrixPersonnelUpdate'])->name('trainings.matrixPersonnel.update');
+        Route::post('trainings/matrix-course-date', [TrainingController::class, 'matrixCourseDateStore'])->name('trainings.matrixCourseDate.store');
         Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
         Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
         Route::post('/trainings/createTraining', [TrainingController::class, 'createTraining'])->name('trainings.createTraining');

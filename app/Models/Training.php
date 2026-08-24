@@ -9,11 +9,17 @@ class Training extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'user_id', 'manuals_id',
+        'user_id', 'manuals_id', 'matrix_row_id',
         'date_training', 'form_type', 'is_legacy',
     ];
 
     protected $casts = ['is_legacy' => 'boolean'];
+
+    /** Тренинг по SCA-курсу (строке матрицы без CMM); форм 112/132 у таких нет. */
+    public function matrixRow()
+    {
+        return $this->belongsTo(TrainingMatrixRow::class, 'matrix_row_id');
+    }
 
 
     public function manual()

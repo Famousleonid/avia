@@ -122,14 +122,15 @@
 
 
 
-    @roles("Admin|Team Leader|Manager")
-
+    {{-- Admin, Manager-с-SCA — всё; Team Leader — своя team; участники матрицы — своя колонка.
+         Manager без SCA пункт не видит. --}}
+    @if(auth()->user()?->canViewTrainingMatrix())
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('trainings.showAll')}}">
             <i class="bi bi-list-check me-2"></i> <span>Training All</span>
         </a>
     </li>
-    @endroles
+    @endif
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('users.index')}}">
             <i class="bi bi-person-arms-up me-2"></i> <span>Technician</span>

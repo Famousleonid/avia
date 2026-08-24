@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class TrainingCategory extends Model
 {
-    protected $fillable = ['name', 'sort_order'];
+    protected $fillable = ['name', 'sort_order', 'is_sca'];
+
+    protected $casts = ['is_sca' => 'boolean'];
 
     public function rows()
     {

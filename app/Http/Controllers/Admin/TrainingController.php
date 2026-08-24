@@ -53,6 +53,7 @@ class TrainingController extends Controller
 
         $trainingLists = Training::where('user_id', $selectedUserId)
             ->where('is_legacy', false) // legacy («Old training», X в матрице) — не события, форм у них нет
+            ->whereNull('matrix_row_id') // тренинги SCA-курсов живут в матрице, не здесь
             ->with('manual')
             ->get()
             ->groupBy('manuals_id');
@@ -115,10 +116,7 @@ class TrainingController extends Controller
 
     public function create(Request $request)
     {
-        $userId = auth()->id();
-        if ($request->filled('user_id') && auth()->user()->roleIs(['Admin', 'Manager'])) {
-            $userId = (int) $request->user_id;
-        }
+        $userId = $this->resolveTargetUserId($request);
 
         $planes = Plane::pluck('type', 'id');
         $addedCmmIds = Training::where('user_id', $userId)->pluck('manuals_id');
@@ -136,17 +134,31 @@ class TrainingController extends Controller
         return view('admin.trainings.create', compact('manuals', 'planes', 'userId'));
     }
 
-    public function store(Request $request)
+    /**
+     * Чей тренинг добавляем: себе — всегда; чужой user_id — Admin/Manager-с-SCA
+     * любому, Team Leader — участникам своей team.
+     */
+    private function resolveTargetUserId(Request $request): int
     {
         $userId = auth()->id();
-        if ($request->filled('user_id') && auth()->user()->roleIs(['Admin', 'Manager'])) {
-            $userId = (int) $request->user_id;
+        if ($request->filled('user_id')) {
+            $target = User::find((int) $request->user_id);
+            if ($target && auth()->user()->canManageTrainingsFor($target)) {
+                $userId = $target->id;
+            }
         }
+
+        return $userId;
+    }
+
+    public function store(Request $request)
+    {
+        $userId = $this->resolveTargetUserId($request);
 
         // «Old training»: обучение было до появления системы, дата неизвестна.
         // Пишутся legacy-записи без дат и без форм 112/132; в матрице — «X».
         if ($request->boolean('is_legacy')) {
-            if (!auth()->user()->roleIs(['Admin', 'Manager'])) {
+            if (!auth()->user()->canManageTrainingMatrix()) {
                 abort(403);
             }
 
@@ -266,7 +278,7 @@ class TrainingController extends Controller
         // за пропущенные годы удалена сознательно (решение от 21.08.2026).
 
         $returnUrl = $request->input('return_url');
-        if ($returnUrl && (str_contains($returnUrl, '/tdrs/') || str_contains($returnUrl, '/mains/'))) {
+        if ($returnUrl && (str_contains($returnUrl, '/tdrs/') || str_contains($returnUrl, '/mains/') || str_contains($returnUrl, '/trainings/show-all'))) {
             return redirect($returnUrl)->with('success', 'Unit added for trainings.');
         }
 
@@ -290,10 +302,7 @@ class TrainingController extends Controller
                 'create_form_132' => 'nullable|boolean',
             ]);
 
-            $userId = auth()->id();
-            if ($request->filled('user_id') && auth()->user()->roleIs(['Admin', 'Manager'])) {
-                $userId = (int) $validatedData['user_id'];
-            }
+            $userId = $this->resolveTargetUserId($request);
             $createdCount = 0;
             $skippedCount = 0;
 
@@ -312,7 +321,7 @@ class TrainingController extends Controller
                 ->where('is_legacy', true)
                 ->exists();
             $forceForm132 = $request->boolean('create_form_132')
-                && auth()->user()->roleIs(['Admin', 'Manager']);
+                && auth()->user()->canManageTrainingMatrix();
 
             foreach ($validatedData['manuals_id'] as $key => $manualId) {
                 $trainingDate = $this->fridayOf($validatedData['date_training'][$key]);
@@ -575,20 +584,58 @@ class TrainingController extends Controller
     }
 
     /**
-     * Матрица допусков «как Excel MINIMUM REQUIREMENTS»: строки — training_matrix_rows
-     * по группам, колонки — производственный персонал по номеру stamp, ячейка —
-     * последняя дата (красная старше matrix_red_after_days) / «X» (legacy или дата
-     * старше matrix_legacy_after_years) / пусто.
+     * Матрица допусков «как Excel MINIMUM REQUIREMENTS». Два режима:
+     * production (парт-номера, колонки — Personnel) и SCA (курсы, колонки —
+     * люди с can_sign_certificates). Видимость по роли смотрящего:
+     * Technician/производственник — только своя колонка; Team Leader — своя
+     * team (и может добавлять тренинги тимматам); Admin и Manager-с-SCA — всё;
+     * Manager без SCA — страница закрыта.
      */
     public function showAll(Request $request)
     {
-        $canManage = auth()->user()->roleIs(['Admin', 'Manager']);
+        $viewer = auth()->user();
+        abort_unless($viewer->canViewTrainingMatrix(), 403);
+
+        $canManage = $viewer->canManageTrainingMatrix();
+
+        // Два вида: production (все, кроме SCA-людей; только производственные
+        // группы) и SCA (люди с can_sign_certificates; ВСЕ их тренинги —
+        // production-группы + курсы). Переключатель только у управляющих.
+        $scaMode = $canManage && $request->boolean('sca');
 
         // Неактивные юниты (сняли галку Active — «с ним пока не работаем»)
-        // скрыты; Admin/Manager может показать их переключателем.
+        // скрыты; переключателем показываются только управляющим.
         $showInactive = $canManage && $request->boolean('show_inactive');
 
-        $categories = TrainingCategory::with([
+        $stampOrder = fn (User $user) => ctype_digit($user->stamp)
+            ? sprintf('0-%05d', (int) $user->stamp)
+            : '1-' . mb_strtolower($user->stamp);
+
+        if ($scaMode) {
+            $users = User::whereNotNull('stamp')
+                ->where('stamp', '<>', '')
+                ->whereNull('deleted_at')
+                ->where('can_sign_certificates', true)
+                ->get()->sortBy($stampOrder)->values();
+        } else {
+            $users = User::whereNotNull('stamp')
+                ->where('stamp', '<>', '')
+                ->whereNull('deleted_at')
+                ->where('show_in_training_matrix', true)
+                ->where('can_sign_certificates', false) // SCA-люди — в своём виде
+                ->get()->sortBy($stampOrder)->values();
+
+            if (!$canManage) {
+                $users = $viewer->roleIs('Team Leader')
+                    ? $users->filter(fn (User $user) => $viewer->team_id !== null
+                        && (int) $user->team_id === (int) $viewer->team_id)->values()
+                    : $users->filter(fn (User $user) => $user->id === $viewer->id)->values();
+            }
+        }
+
+        // SCA-вид: все группы (production + курсы); production-вид: только production
+        $categories = TrainingCategory::when(!$scaMode, fn ($q) => $q->where('is_sca', false))
+            ->with([
                 'rows' => fn ($q) => $q->when(!$showInactive, fn ($qq) => $qq->where('is_active', true))->orderBy('sort_order'),
                 'rows.manual',
             ])
@@ -597,51 +644,55 @@ class TrainingController extends Controller
             ->filter(fn ($category) => $category->rows->isNotEmpty())
             ->values();
 
-        // Колонки — явный флаг (модалка Personnel), роли не участвуют.
-        // Порядок «как в Excel»: числовые stamp, затем буквенные.
-        $users = User::whereNotNull('stamp')
-            ->where('stamp', '<>', '')
-            ->whereNull('deleted_at')
-            ->where('show_in_training_matrix', true)
-            ->get()
-            ->sortBy(fn (User $user) => ctype_digit($user->stamp)
-                ? sprintf('0-%05d', (int) $user->stamp)
-                : '1-' . mb_strtolower($user->stamp))
-            ->values();
-
-        $manualIds = $categories->flatMap(fn ($category) => $category->rows->pluck('manual_id'))->filter()->values();
+        $rows = $categories->flatMap->rows;
+        $rowByManualId = $rows->whereNotNull('manual_id')->keyBy('manual_id');
         $userIds = $users->pluck('id');
 
-        $trainings = $manualIds->isEmpty() ? collect() : Training::whereIn('manuals_id', $manualIds)
+        // Тренинги обоих видов: по CMM (production) и по строкам-курсам (SCA)
+        $manualIds = $rowByManualId->keys();
+        $manualTrainings = $manualIds->isEmpty() ? collect() : Training::whereIn('manuals_id', $manualIds)
+            ->whereNull('matrix_row_id')
             ->whereIn('user_id', $userIds)
             ->get();
+        $courseRowIds = $rows->filter(fn ($row) => $row->category?->is_sca)->pluck('id');
+        $courseTrainings = $courseRowIds->isEmpty() ? collect() : Training::whereIn('matrix_row_id', $courseRowIds)
+            ->whereIn('user_id', $userIds)
+            ->get();
+
+        $trainings = $manualTrainings->concat($courseTrainings);
+        $rowIdOf = fn ($training) => $training->matrix_row_id
+            ?? ($rowByManualId[$training->manuals_id]->id ?? null);
 
         $redAfter = now()->subDays((int) config('trainings.matrix_red_after_days', 350))->startOfDay();
         $legacyAfter = now()->subYears((int) config('trainings.matrix_legacy_after_years', 3))->startOfDay();
 
-        // cells[manual_id][user_id] = ['kind' => 'date'|'x', 'date' => ?Carbon, 'red' => bool, 'need132' => bool]
+        // cells[row_id][user_id] = ['kind' => 'date'|'x', 'date' => ?Carbon, 'red' => bool, 'need132' => bool]
         $cells = [];
-        foreach ($trainings->groupBy(fn ($t) => $t->manuals_id . '|' . $t->user_id) as $key => $pair) {
-            [$manualId, $userId] = explode('|', $key);
+        foreach ($trainings->groupBy(fn ($t) => $rowIdOf($t) . '|' . $t->user_id) as $key => $pair) {
+            [$rowId, $userId] = explode('|', $key);
+            if ($rowId === '') {
+                continue;
+            }
+            $isCoursePair = $pair->first()->matrix_row_id !== null;
             $isLegacyPair = $pair->contains(fn ($t) => $t->is_legacy);
             $lastDate = $pair->where('is_legacy', false)
                 ->whereNotNull('date_training')
                 // Перевыпущенная 132 у legacy-пары — не тренинг: X остаётся до реального refresh-112
-                ->when($isLegacyPair, fn ($c) => $c->filter(fn ($t) => (string) $t->form_type === '112'))
+                ->when(!$isCoursePair && $isLegacyPair, fn ($c) => $c->filter(fn ($t) => (string) $t->form_type === '112'))
                 ->max('date_training');
 
             // Legacy-пара без 132 (бумажная эпоха): 132 не положена, но может быть
             // создана по явному запросу — потеря бланка / перевыпуск.
-            $need132 = $isLegacyPair
+            $need132 = !$isCoursePair && $isLegacyPair
                 && !$pair->contains(fn ($t) => (string) $t->form_type === '132');
 
             if ($lastDate !== null) {
                 $lastDate = \Carbon\Carbon::parse($lastDate);
-                $cells[$manualId][$userId] = $lastDate->lt($legacyAfter)
+                $cells[$rowId][$userId] = $lastDate->lt($legacyAfter)
                     ? ['kind' => 'x', 'date' => $lastDate, 'red' => false, 'need132' => $need132]
                     : ['kind' => 'date', 'date' => $lastDate, 'red' => $lastDate->lt($redAfter), 'need132' => $need132];
             } elseif ($isLegacyPair) {
-                $cells[$manualId][$userId] = ['kind' => 'x', 'date' => null, 'red' => false, 'need132' => $need132];
+                $cells[$rowId][$userId] = ['kind' => 'x', 'date' => null, 'red' => false, 'need132' => $need132];
             }
         }
 
@@ -658,26 +709,60 @@ class TrainingController extends Controller
             $inactiveCount = TrainingMatrixRow::where('is_active', false)->count();
         }
 
-        $allCategories = TrainingCategory::orderBy('sort_order')->get(['id', 'name']);
+        $allCategories = TrainingCategory::orderBy('sort_order')->get(['id', 'name', 'is_sca']);
 
-        // Все кандидаты в колонки для модалки Personnel (любой роли, лишь бы stamp)
+        // Кандидаты в production-колонки для модалки Personnel (SCA-люди — в своём виде)
         $personnel = collect();
-        if ($canManage) {
+        if ($canManage && !$scaMode) {
             $personnel = User::whereNotNull('stamp')
                 ->where('stamp', '<>', '')
                 ->whereNull('deleted_at')
+                ->where('can_sign_certificates', false)
                 ->with('role')
-                ->get()
-                ->sortBy(fn (User $user) => ctype_digit($user->stamp)
-                    ? sprintf('0-%05d', (int) $user->stamp)
-                    : '1-' . mb_strtolower($user->stamp))
-                ->values();
+                ->get()->sortBy($stampOrder)->values();
         }
 
         return view('admin.trainings.show_all', compact(
-            'categories', 'users', 'cells', 'canManage', 'unlinkedManuals', 'uncategorizedCount',
+            'categories', 'users', 'cells', 'canManage', 'scaMode', 'unlinkedManuals', 'uncategorizedCount',
             'allCategories', 'showInactive', 'inactiveCount', 'personnel'
         ));
+    }
+
+    /** SCA-вкладка: дата тренинга по строке-курсу (без CMM и без форм 112/132). */
+    public function matrixCourseDateStore(Request $request)
+    {
+        $this->ensureCanManageMatrix();
+
+        $data = $request->validate([
+            'matrix_row_id' => 'required|integer|exists:training_matrix_rows,id',
+            'user_id' => 'required|integer|exists:users,id',
+            'date_training' => 'required|date|before_or_equal:today',
+        ]);
+
+        $row = TrainingMatrixRow::findOrFail($data['matrix_row_id']);
+        abort_unless($row->category?->is_sca, 422);
+
+        // Курсы — только для людей с SCA-квалификацией
+        $target = User::findOrFail($data['user_id']);
+        abort_unless((bool) $target->can_sign_certificates, 422);
+
+        $date = $this->fridayOf($data['date_training']);
+        $exists = Training::where('user_id', $data['user_id'])
+            ->where('matrix_row_id', $row->id)
+            ->where('date_training', $date)
+            ->exists();
+
+        if (!$exists) {
+            Training::create([
+                'user_id' => $data['user_id'],
+                'manuals_id' => null,
+                'matrix_row_id' => $row->id,
+                'date_training' => $date,
+                'form_type' => null,
+            ]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     /** Модалка Personnel: отмеченные — в матрице, остальные (со stamp) — нет. */
@@ -694,6 +779,7 @@ class TrainingController extends Controller
         User::whereNotNull('stamp')
             ->where('stamp', '<>', '')
             ->whereNull('deleted_at')
+            ->where('can_sign_certificates', false) // SCA-колонки квалификацией, не Personnel
             ->get()
             ->each(function (User $user) use ($checked) {
                 $include = $checked->contains($user->id);
@@ -721,7 +807,7 @@ class TrainingController extends Controller
 
     private function ensureCanManageMatrix(): void
     {
-        if (!auth()->user()->roleIs(['Admin', 'Manager'])) {
+        if (!auth()->user()->canManageTrainingMatrix()) {
             abort(403);
         }
     }
@@ -736,6 +822,7 @@ class TrainingController extends Controller
             'description' => 'nullable|string|max:255',
             'part_number' => 'required|string|max:255',
             'manual_id' => 'nullable|integer|exists:manuals,id|unique:training_matrix_rows,manual_id',
+            'is_sca' => 'nullable|boolean',
         ]);
 
         if (empty($data['training_category_id']) && empty($data['new_category_name'])) {
@@ -746,7 +833,10 @@ class TrainingController extends Controller
         if (!$categoryId) {
             $category = TrainingCategory::firstOrCreate(
                 ['name' => trim($data['new_category_name'])],
-                ['sort_order' => (int) TrainingCategory::max('sort_order') + 1]
+                [
+                    'sort_order' => (int) TrainingCategory::max('sort_order') + 1,
+                    'is_sca' => $request->boolean('is_sca'),
+                ]
             );
             $categoryId = $category->id;
         }

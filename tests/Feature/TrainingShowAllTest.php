@@ -463,6 +463,157 @@ class TrainingShowAllTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_technician_sees_only_own_column(): void
+    {
+        $tech1 = $this->createUserWithRole('Technician', [
+            'name' => 'Own Column Tech ' . uniqid(),
+            'stamp' => 'C1',
+            'is_admin' => false,
+            'show_in_training_matrix' => true,
+        ]);
+        $tech2 = $this->createUserWithRole('Technician', [
+            'name' => 'Foreign Column Tech ' . uniqid(),
+            'stamp' => 'C2',
+            'is_admin' => false,
+            'show_in_training_matrix' => true,
+        ]);
+        $manual = $this->createManual(['unit_name_training' => 'OWNCOL-PN-' . uniqid()]);
+        $this->createMatrixRowForManual($manual);
+
+        $response = $this->actingAs($tech1)->get(route('trainings.showAll'));
+
+        $response->assertOk();
+        $response->assertSee($tech1->name);
+        $response->assertDontSee($tech2->name);
+        // Техник не SCA — секции курсов ему не показываются
+        $response->assertDontSee('CCAR145');
+    }
+
+    public function test_team_leader_sees_and_manages_only_his_team(): void
+    {
+        $leader = $this->createUserWithRole('Team Leader', [
+            'stamp' => 'TL',
+            'is_admin' => false,
+            'show_in_training_matrix' => true,
+        ]);
+        $teammate = $this->createUserWithRole('Technician', [
+            'name' => 'Teammate Tech ' . uniqid(),
+            'stamp' => 'TM',
+            'is_admin' => false,
+            'show_in_training_matrix' => true,
+            'team_id' => $leader->team_id,
+        ]);
+        $otherTeam = \App\Models\Team::query()->create(['name' => 'Other Team ' . uniqid()]);
+        $outsider = $this->createUserWithRole('Technician', [
+            'name' => 'Outsider Tech ' . uniqid(),
+            'stamp' => 'OT',
+            'is_admin' => false,
+            'show_in_training_matrix' => true,
+            'team_id' => $otherTeam->id,
+        ]);
+        $manual = $this->createManual(['unit_name_training' => 'TEAM-PN-' . uniqid()]);
+        $this->createMatrixRowForManual($manual);
+
+        $response = $this->actingAs($leader)->get(route('trainings.showAll'));
+        $response->assertOk();
+        $response->assertSee($teammate->name);
+        $response->assertDontSee($outsider->name);
+
+        // TL добавляет тренинг тиммату
+        $this->actingAs($leader)->postJson(route('trainings.createTraining'), [
+            'manuals_id' => [$manual->id],
+            'date_training' => [now()->format('Y-m-d')],
+            'form_type' => ['112'],
+            'user_id' => $teammate->id,
+        ])->assertOk();
+        $this->assertTrue(Training::query()->where('user_id', $teammate->id)->where('manuals_id', $manual->id)->exists());
+
+        // Но не чужому
+        $this->actingAs($leader)->postJson(route('trainings.createTraining'), [
+            'manuals_id' => [$manual->id],
+            'date_training' => [now()->format('Y-m-d')],
+            'form_type' => ['112'],
+            'user_id' => $outsider->id,
+        ]);
+        $this->assertFalse(Training::query()->where('user_id', $outsider->id)->where('manuals_id', $manual->id)->exists());
+    }
+
+    public function test_manager_without_sca_flag_gets_403(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'stamp' => 'M0',
+            'is_admin' => false,
+            'can_sign_certificates' => false,
+        ]);
+
+        $this->actingAs($manager)->get(route('trainings.showAll'))->assertForbidden();
+    }
+
+    public function test_sca_view_shows_all_sca_trainings_and_production_view_excludes_sca_people(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'stamp' => 'M1',
+            'is_admin' => false,
+            'can_sign_certificates' => true,
+            'show_in_training_matrix' => true,
+        ]);
+        $manual = $this->createManual(['unit_name_training' => 'MGRSCA-PN-' . uniqid()]);
+        $row = $this->createMatrixRowForManual($manual);
+
+        // SCA-вид: production-группы + курсы, колонка менеджера
+        $scaView = $this->actingAs($manager)->get(route('trainings.showAll', ['sca' => 1]));
+        $scaView->assertOk();
+        $scaView->assertSee($row->part_number);
+        $scaView->assertSee('CCAR145');
+        $scaView->assertSee($manager->name);
+
+        // Production-вид (глазами админа — иначе имя менеджера есть в сайдбаре):
+        // SCA-людей в колонках нет, курсов нет
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'A2']);
+        // Смена юзера в том же тесте: сбросить сессию (AuthenticateSession) и заново посеять версию
+        $this->flushSession();
+        $this->withSession([\App\Http\Middleware\EnsureAuthSessionVersion::SESSION_KEY => 1]);
+        $prodView = $this->actingAs($admin)->get(route('trainings.showAll'));
+        $prodView->assertOk();
+        $prodView->assertSee($row->part_number);
+        $prodView->assertDontSee($manager->name);
+        $prodView->assertDontSee('CCAR145');
+    }
+
+    public function test_course_date_is_stored_on_matrix_row(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $sca = $this->createUserWithRole('Manager', [
+            'stamp' => 'S1',
+            'is_admin' => false,
+            'can_sign_certificates' => true,
+            'show_in_training_matrix' => true,
+        ]);
+
+        $courseRow = TrainingMatrixRow::query()
+            ->whereHas('category', fn ($q) => $q->where('is_sca', true))
+            ->firstOrFail();
+
+        $this->actingAs($admin)->postJson(route('trainings.matrixCourseDate.store'), [
+            'matrix_row_id' => $courseRow->id,
+            'user_id' => $sca->id,
+            'date_training' => now()->format('Y-m-d'),
+        ])->assertOk();
+
+        $record = Training::query()
+            ->where('user_id', $sca->id)
+            ->where('matrix_row_id', $courseRow->id)
+            ->first();
+        $this->assertNotNull($record);
+        $this->assertNull($record->manuals_id);
+        $this->assertNull($record->form_type);
+
+        // Дата видна в SCA-виде
+        $page = $this->actingAs($admin)->get(route('trainings.showAll', ['sca' => 1]));
+        $page->assertOk();
+        $page->assertSee(\Carbon\Carbon::parse($record->date_training)->format('M-d-Y'));
+    }
+
     public function test_store_no_longer_backfills_missing_yearly_trainings(): void
     {
         $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);

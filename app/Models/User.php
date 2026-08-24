@@ -180,6 +180,35 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return in_array($this->roleName(), $roles, true);
     }
 
+    // ---- Матрица тренингов (Training All) ----
+
+    /** Полный доступ к матрице: все колонки, управление строками/группами/Personnel. */
+    public function canManageTrainingMatrix(): bool
+    {
+        return $this->roleIs('Admin')
+            || ($this->roleIs('Manager') && $this->can_sign_certificates);
+    }
+
+    /** Видит страницу Training All (хотя бы в урезанном виде). Manager без SCA — нет. */
+    public function canViewTrainingMatrix(): bool
+    {
+        return $this->canManageTrainingMatrix()
+            || $this->roleIs('Team Leader')
+            || (bool) $this->show_in_training_matrix;
+    }
+
+    /** Может добавлять тренинги этому сотруднику (клик по ячейке, формы). */
+    public function canManageTrainingsFor(User $target): bool
+    {
+        if ($this->canManageTrainingMatrix() || $this->id === $target->id) {
+            return true;
+        }
+
+        return $this->roleIs('Team Leader')
+            && $this->team_id !== null
+            && (int) $target->team_id === (int) $this->team_id;
+    }
+
     public function hasAnyRole(string $pipeSeparated): bool
     {
         $roles = explode('|', $pipeSeparated);

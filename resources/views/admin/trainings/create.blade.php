@@ -75,7 +75,7 @@
                     @if(isset($userId) && $userId != auth()->id())
                         <input type="hidden" name="user_id" value="{{ $userId }}">
                     @endif
-                    @php $canMarkLegacy = auth()->user()->roleIs(['Admin', 'Manager']); @endphp
+                    @php $canMarkLegacy = auth()->user()->canManageTrainingMatrix(); @endphp
                     @if($canMarkLegacy)
                         <div class="form-check mt-2">
                             <input class="form-check-input" type="checkbox" id="is_legacy" name="is_legacy" value="1">
@@ -166,8 +166,14 @@
                                 <i class="bi bi-arrow-left"></i> Back to TDR
                             </a>
                         @endif
-                        <a href="{{ route('trainings.index', isset($userId) && $userId != auth()->id() ? ['user_id' => $userId] : []) }}"
-                           class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                        @php
+                            // Cancel возвращает туда, откуда пришли (матрица/TDR), но только внутри приложения
+                            $cancelUrl = request('return_url');
+                            if (!$cancelUrl || !\Illuminate\Support\Str::startsWith($cancelUrl, url('/'))) {
+                                $cancelUrl = route('trainings.index', isset($userId) && $userId != auth()->id() ? ['user_id' => $userId] : []);
+                            }
+                        @endphp
+                        <a href="{{ $cancelUrl }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                 </form>
             </div>
