@@ -153,7 +153,7 @@
         }
     </style>
 
-    <div class="container ">
+    <div class="container-fluid px-4 px-xl-5">
         <div class="card shadow">
             <div class="card-header">
                 <div class="d-flex justify-content-between flex-wrap align-items-center gap-2">
@@ -251,7 +251,7 @@
                             </td>
 
                             <td class="text-center">
-                                {{ isset($trainingList['first_training']) ? Carbon::parse($trainingList['first_training']->date_training)->format('M-d-Y') : 'N/A' }}
+                                {{ isset($trainingList['first_training']) ? Carbon::parse($trainingList['first_training']->date_training)->format('d/M/Y') : 'N/A' }}
                             </td>
 
                             @php
@@ -270,15 +270,15 @@
                                 @elseif($isOverdue)
                                     <span style="background: #b3423a; color: #fff; border-radius: 4px; padding: 1px 8px; font-weight: 700;"
                                           title="{{ __(':days days since last training — refresh required (MP-20)', ['days' => $daysSince112]) }}">
-                                        {{ $last112Date->format('M-d-Y') }}
+                                        {{ $last112Date->format('d/M/Y') }}
                                     </span>
                                 @elseif($isDueSoon)
                                     <span style="color: #e0a800; font-weight: 600;"
                                           title="{{ __(':days days since last training — renewal due', ['days' => $daysSince112]) }}">
-                                        {{ $last112Date->format('M-d-Y') }}
+                                        {{ $last112Date->format('d/M/Y') }}
                                     </span>
                                 @else
-                                    {{ $last112Date->format('M-d-Y') }}
+                                    {{ $last112Date->format('d/M/Y') }}
                                 @endif
                             </td>
 
@@ -296,9 +296,6 @@
                                     <button class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1"
                                             data-bs-toggle="modal"
                                             data-bs-target="#trainingModal{{ $trainingList['first_training']->manuals_id }}"
-                                            data-tippy-content="{{ __('Training dates & forms') }}"
-                                            data-tippy-placement="top"
-                                            title="{{ __('Training dates & forms') }}"
                                             aria-label="{{ __('Training dates & forms') }}">
                                         <i class="bi bi-journal-text"></i> {{ __('Dates & Forms') }}
                                     </button>
@@ -307,9 +304,7 @@
                                     <button class="btn btn-danger btn-sm d-inline-flex align-items-center gap-1 delete-training-btn"
                                             data-user-id="{{ $selectedUserId }}"
                                             data-manual-id="{{ $trainingList['first_training']->manuals_id }}"
-                                            data-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}"
-                                            data-tippy-content="{{ __('Delete Training') }}"
-                                            data-tippy-placement="top">
+                                            data-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                     @endroles
@@ -348,7 +343,7 @@
                     <div class="modal-body">
                         <p class="text-muted small mb-3">
                             {{ __('Last Form 112') }}:
-                            {{ $trainingList['last_training_112'] ? Carbon::parse($trainingList['last_training_112']->date_training)->format('M-d-Y') : __('No Form 112 yet') }}
+                            {{ $trainingList['last_training_112'] ? Carbon::parse($trainingList['last_training_112']->date_training)->format('d/M/Y') : __('No Form 112 yet') }}
                         </p>
 
                         @php
@@ -386,22 +381,21 @@
                                     @if($training->isApproved())
                                         <span class="badge"
                                               style="background: rgba(46, 125, 79, 0.18); color: #4caf7d; border: 1px solid #2e7d4f;"
-                                              title="{{ __('Approved by :name, :date', ['name' => $training->approvedBy->selection_name ?? '?', 'date' => $training->approved_at?->format('M-d-Y')]) }}">
+                                              title="{{ __('Approved by :name, :date', ['name' => $training->approvedBy->selection_name ?? '?', 'date' => $training->approved_at?->format('d/M/Y')]) }}">
                                             ✓ {{ __('Approved') }}
                                         </span>
                                         @if($viewerIsDesignated)
                                             <button type="button"
                                                     class="btn btn-outline-warning btn-sm unapprove-training-btn"
                                                     data-training-id="{{ $training->id }}"
-                                                    data-tippy-content="{{ __('Remove approval (designated only)') }}">
+                                                    title="{{ __('Remove approval (designated only)') }}">
                                                 ✗
                                             </button>
                                         @endif
                                     @elseif($viewerCanApprove)
                                         <button type="button"
                                                 class="btn btn-outline-success btn-sm approve-training-btn"
-                                                data-training-id="{{ $training->id }}"
-                                                data-tippy-content="{{ __('Approve training') }}">
+                                                data-training-id="{{ $training->id }}">
                                             ✓ {{ __('Approve') }}
                                         </button>
                                     @endif
@@ -418,8 +412,6 @@
                                             width="34"
                                             fontSize="72px"
                                             class="formLink"
-                                            title="{{ __('View/Print Form 112') }}"
-                                            data-tippy-content="{{ __('View/Print Form 112') }}"
                                             id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}"
                                         />
                                     @elseif($training->form_type == '132')
@@ -431,8 +423,6 @@
                                             width="34"
                                             fontSize="72px"
                                             class="formLink"
-                                            title="{{ __('View/Print Form 132') }}"
-                                            data-tippy-content="{{ __('View/Print Form 132') }}"
                                             id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}"
                                         />
                                     @endif
@@ -442,8 +432,7 @@
                                     @if($training->form_type == '112' && !$frozen)
                                         <button type="button"
                                                 class="btn btn-outline-danger btn-sm delete-training-date-btn"
-                                                data-training-id="{{ $training->id }}"
-                                                data-tippy-content="{{ __('Delete training date') }}">
+                                                data-training-id="{{ $training->id }}">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     @endif

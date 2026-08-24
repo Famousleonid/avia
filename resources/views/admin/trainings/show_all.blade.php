@@ -5,13 +5,19 @@
         .table-container {
             overflow-x: auto;
             overflow-y: auto;
-            max-height: 82vh;
+            /* экран минус шапка карточки, легенда и футер — низ карточки всегда виден */
+            max-height: calc(100vh - 240px);
             position: relative;
         }
 
         .training-table {
+            /* Ширина по контенту: при одной-двух колонках (техник/TL)
+               таблица не растягивается на всю карточку. margin:auto центрирует
+               узкую таблицу; у широкой авто-отступы схлопываются в 0 и скролл
+               работает как обычно */
             width: max-content;
-            min-width: 100%;
+            margin-left: auto;
+            margin-right: auto;
             border-collapse: separate;
             border-spacing: 0;
         }
@@ -20,7 +26,7 @@
         .training-table td {
             white-space: nowrap;
             vertical-align: middle;
-            padding: 5px 8px;
+            padding: 6px 12px; /* воздух */
             border: 1px solid var(--avia-border);
             background: var(--avia-panel);
             color: var(--avia-text);
@@ -37,13 +43,14 @@
             padding: 6px 8px;
         }
 
-        /* Замороженные левые колонки: описание (0) + парт-номер (220px) */
+        /* Замороженные левые колонки: ширина по контенту (+пределы),
+           сдвиг второй колонки вычисляется JS по фактической ширине первой */
         .training-table th.col-unit,
         .training-table td.col-unit {
             position: sticky !important;
             left: 0;
-            min-width: 220px;
-            max-width: 220px;
+            min-width: 150px;
+            max-width: 360px;
             z-index: 30;
             background: var(--avia-panel) !important;
             overflow: hidden;
@@ -55,9 +62,9 @@
         .training-table th.col-part,
         .training-table td.col-part {
             position: sticky !important;
-            left: 220px;
-            min-width: 250px;
-            max-width: 250px;
+            left: var(--col-part-left, 220px);
+            min-width: 190px;
+            max-width: 420px;
             z-index: 30;
             background: var(--avia-surface-raised) !important;
             box-shadow: 4px 0 12px rgba(0, 0, 0, 0.28);
@@ -75,8 +82,7 @@
 
         .training-table th.user-column,
         .training-table td.user-column {
-            min-width: 96px;
-            width: 96px;
+            min-width: 90px;
             text-align: center;
         }
 
@@ -161,13 +167,32 @@
 
         .row-tools button:hover { color: var(--avia-text); }
 
+        /* Узкий режим (мало колонок): карточка по ширине таблицы, по центру */
+        .matrix-narrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .matrix-narrow .card {
+            /* min-content: ширину диктует таблица (nowrap), а легенда и шапка
+               переносятся, не распирая карточку */
+            width: min-content;
+            min-width: 420px;
+            max-width: 100%;
+        }
+
+        .matrix-narrow .matrix-legend {
+            min-width: 0;
+        }
+
         .matrix-legend {
             font-size: 12px;
             color: var(--avia-text-muted);
             display: flex;
-            gap: 18px;
+            gap: 2px 18px; /* строки легенды плотно */
             flex-wrap: wrap;
-            margin-top: 8px;
+            margin-top: 6px;
         }
 
         /* Колонка Active (только Admin/Manager) — левее замороженных колонок */
@@ -198,11 +223,6 @@
             left: 36px;
         }
 
-        .training-table.has-active-col th.col-part,
-        .training-table.has-active-col td.col-part {
-            left: 256px;
-        }
-
         /* Неактивный юнит («с ним пока не работаем») — штриховка как в Excel */
         .row-inactive td {
             color: var(--avia-text-muted);
@@ -230,7 +250,9 @@
         }
     </style>
 
-    <div class="container-fluid px-4 px-xl-5">
+    {{-- Карточка всегда по ширине таблицы и по центру: узкая — компактное окно,
+         широкая — до краёв экрана со скроллом внутри --}}
+    <div class="container-fluid px-4 mt-3 matrix-narrow">
         <div class="card shadow">
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -467,6 +489,19 @@
 
     <script>
         (function () {
+            // Сдвиг второй замороженной колонки = фактическая граница первой
+            // (ширины теперь по контенту, фиксированного офсета нет)
+            function syncStickyOffsets() {
+                const table = document.querySelector('.training-table');
+                const unitTh = document.querySelector('.training-table th.col-unit');
+                if (table && unitTh) {
+                    table.style.setProperty('--col-part-left', (unitTh.offsetLeft + unitTh.offsetWidth) + 'px');
+                }
+            }
+            window.addEventListener('load', syncStickyOffsets);
+            window.addEventListener('resize', syncStickyOffsets);
+            syncStickyOffsets();
+
             // Поиск по строкам: описание юнита + парт-номер/курс.
             // Группы без совпадений скрываются целиком.
             const searchInput = document.getElementById('matrixSearch');
@@ -490,6 +525,7 @@
                         if (match) groupHasVisible = true;
                     });
                     if (currentGroup) currentGroup.style.display = groupHasVisible ? '' : 'none';
+                    syncStickyOffsets(); // ширины колонок могли измениться
                 });
             }
 
