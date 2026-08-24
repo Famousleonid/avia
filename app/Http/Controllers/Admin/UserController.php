@@ -66,6 +66,7 @@ class UserController extends Controller
         $user->qa_access = $request->boolean('qa_access');
         $user->ec_access = $request->boolean('ec_access');
         $user->can_sign_certificates = $request->boolean('can_sign_certificates');
+        $user->can_manage_approved_trainings = $request->boolean('can_manage_approved_trainings');
         $user->email_verified_at = $request->has('email_verified_at') ? now() : null;
         $notificationPrefs = array_merge($user->notification_prefs ?? [], [
             'manuals_full_access' => $request->boolean('manuals_full_access'),
@@ -139,6 +140,7 @@ class UserController extends Controller
         $validated['qa_access'] = $request->boolean('qa_access');
         $validated['ec_access'] = $request->boolean('ec_access');
         $validated['can_sign_certificates'] = $request->boolean('can_sign_certificates');
+        $validated['can_manage_approved_trainings'] = $request->boolean('can_manage_approved_trainings');
         $validated['email_verified_at'] = $request->has('email_verified_at') ? now() : null;
         $notificationPrefs = array_merge($user->notification_prefs ?? [], [
             'manuals_full_access' => $request->boolean('manuals_full_access'),

@@ -11,9 +11,20 @@ class Training extends Model
     protected $fillable = [
         'user_id', 'manuals_id', 'matrix_row_id',
         'date_training', 'form_type', 'is_legacy',
+        'approved_by', 'approved_at',
     ];
 
-    protected $casts = ['is_legacy' => 'boolean'];
+    protected $casts = ['is_legacy' => 'boolean', 'approved_at' => 'datetime'];
+
+    public function isApproved(): bool
+    {
+        return $this->approved_by !== null;
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
 
     /** Тренинг по SCA-курсу (строке матрицы без CMM); форм 112/132 у таких нет. */
     public function matrixRow()

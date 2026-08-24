@@ -280,7 +280,12 @@
                             {{ $trainingList['last_training_112'] ? Carbon::parse($trainingList['last_training_112']->date_training)->format('M-d-Y') : __('No Form 112 yet') }}
                         </p>
 
+                        @php
+                            $viewerCanApprove = auth()->user()->canApproveTrainings();
+                            $viewerIsDesignated = auth()->user()->canManageApprovedTrainings();
+                        @endphp
                         @foreach($trainingList['trainings'] as $training)
+                            @php $frozen = $training->isApproved() && !$viewerIsDesignated; @endphp
                             <div class="row g-2 mb-2 align-items-center edit-training-row"
                                  data-training-id="{{ $training->id }}"
                                  data-original-date="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
@@ -289,7 +294,8 @@
                                 </div>
 
                                 <div class="col">
-                                    @if((string) $training->form_type === '132')
+                                    @if((string) $training->form_type === '132' || $frozen)
+                                        {{-- 132 базовая; принятая запись заморожена для всех, кроме назначенных --}}
                                         <input type="date"
                                                class="form-control form-control-sm"
                                                value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}"
@@ -298,6 +304,31 @@
                                         <input type="date"
                                                class="form-control form-control-sm edit-training-date-input"
                                                value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
+                                    @endif
+                                </div>
+
+                                <div class="col-auto">
+                                    @if($training->isApproved())
+                                        <span class="badge"
+                                              style="background: rgba(46, 125, 79, 0.18); color: #4caf7d; border: 1px solid #2e7d4f;"
+                                              title="{{ __('Approved by :name, :date', ['name' => $training->approvedBy->selection_name ?? '?', 'date' => $training->approved_at?->format('M-d-Y')]) }}">
+                                            ✓ {{ __('Approved') }}
+                                        </span>
+                                        @if($viewerIsDesignated)
+                                            <button type="button"
+                                                    class="btn btn-outline-warning btn-sm unapprove-training-btn"
+                                                    data-training-id="{{ $training->id }}"
+                                                    data-tippy-content="{{ __('Remove approval (designated only)') }}">
+                                                ✗
+                                            </button>
+                                        @endif
+                                    @elseif($viewerCanApprove)
+                                        <button type="button"
+                                                class="btn btn-outline-success btn-sm approve-training-btn"
+                                                data-training-id="{{ $training->id }}"
+                                                data-tippy-content="{{ __('Approve training') }}">
+                                            ✓ {{ __('Approve') }}
+                                        </button>
                                     @endif
                                 </div>
 
@@ -320,7 +351,7 @@
                                 </div>
 
                                 <div class="col-auto">
-                                    @if($training->form_type == '112')
+                                    @if($training->form_type == '112' && !$frozen)
                                         <button type="button"
                                                 class="btn btn-outline-danger btn-sm delete-training-date-btn"
                                                 data-training-id="{{ $training->id }}"
@@ -331,6 +362,17 @@
                                 </div>
                             </div>
                         @endforeach
+
+                        @if($viewerCanApprove && $trainingList['trainings']->contains(fn ($t) => !$t->isApproved()))
+                            <div class="text-end mt-2">
+                                <button type="button"
+                                        class="btn btn-outline-success btn-sm approve-unit-btn"
+                                        data-user-id="{{ $selectedUserId }}"
+                                        data-manual-id="{{ $trainingList['first_training']->manuals_id }}">
+                                    ✓ {{ __('Approve all dates of this unit') }}
+                                </button>
+                            </div>
+                        @endif
 
                         <hr class="my-3">
 
@@ -697,6 +739,67 @@
                             }
 
                             showNotification(result.data.message || '{{ __("Training date deleted.") }}', 'success');
+                            location.reload();
+                        })
+                        .catch(function (err) {
+                            showNotification('{{ __("Error") }}: ' + err.message, 'error');
+                        });
+                });
+            });
+
+            // Приёмка тренингов: approve / unapprove / approve всего юнита
+            function trainingApprovalPost(url) {
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+                })
+                    .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                    .then(function (result) {
+                        if (!result.ok || !result.data.success) {
+                            showNotification('{{ __("Error") }}: ' + (result.data.message || ''), 'error');
+                            return;
+                        }
+                        location.reload();
+                    })
+                    .catch(function (err) {
+                        showNotification('{{ __("Error") }}: ' + err.message, 'error');
+                    });
+            }
+
+            document.querySelectorAll('.approve-training-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    trainingApprovalPost(baseUrl + '/' + this.getAttribute('data-training-id') + '/approve');
+                });
+            });
+
+            document.querySelectorAll('.unapprove-training-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    if (!confirm('{{ __("Remove approval from this training?") }}')) return;
+                    trainingApprovalPost(baseUrl + '/' + this.getAttribute('data-training-id') + '/unapprove');
+                });
+            });
+
+            document.querySelectorAll('.approve-unit-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const params = new URLSearchParams({
+                        user_id: this.getAttribute('data-user-id'),
+                        manual_id: this.getAttribute('data-manual-id'),
+                    });
+                    fetch('{{ route('trainings.approveUnit') }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: params.toString()
+                    })
+                        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                        .then(function (result) {
+                            if (!result.ok || !result.data.success) {
+                                showNotification('{{ __("Error") }}: ' + (result.data.message || ''), 'error');
+                                return;
+                            }
                             location.reload();
                         })
                         .catch(function (err) {

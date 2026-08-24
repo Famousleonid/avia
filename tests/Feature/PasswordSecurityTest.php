@@ -18,6 +18,14 @@ class PasswordSecurityTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Первый бут процесса может получить env=local (см. avia-гочу) — без
+        // посева версии EnsureAuthSessionVersion разлогинивает actingAs-запросы.
+        $this->withSession([EnsureAuthSessionVersion::SESSION_KEY => 1]);
+    }
+
     public function test_password_policy_requires_eight_characters_and_at_symbol(): void
     {
         $user = $this->createUserWithRole('Technician', [

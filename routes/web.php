@@ -542,6 +542,10 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::post('trainings/matrix-rows/{row}/toggle-active', [TrainingController::class, 'matrixRowToggleActive'])->name('trainings.matrixRows.toggleActive');
         Route::post('trainings/matrix-personnel', [TrainingController::class, 'matrixPersonnelUpdate'])->name('trainings.matrixPersonnel.update');
         Route::post('trainings/matrix-course-date', [TrainingController::class, 'matrixCourseDateStore'])->name('trainings.matrixCourseDate.store');
+        Route::post('trainings/{id}/approve', [TrainingController::class, 'approve'])->name('trainings.approve');
+        Route::post('trainings/{id}/unapprove', [TrainingController::class, 'unapprove'])->name('trainings.unapprove');
+        Route::post('trainings/approve-unit', [TrainingController::class, 'approveUnit'])->name('trainings.approveUnit');
+        Route::get('trainings/matrix-pair-history', [TrainingController::class, 'matrixPairHistory'])->name('trainings.matrixPairHistory');
         Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
         Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
         Route::post('/trainings/createTraining', [TrainingController::class, 'createTraining'])->name('trainings.createTraining');

@@ -54,7 +54,7 @@ class TrainingController extends Controller
         $trainingLists = Training::where('user_id', $selectedUserId)
             ->where('is_legacy', false) // legacy («Old training», X в матрице) — не события, форм у них нет
             ->whereNull('matrix_row_id') // тренинги SCA-курсов живут в матрице, не здесь
-            ->with('manual')
+            ->with(['manual', 'approvedBy'])
             ->get()
             ->groupBy('manuals_id');
 
@@ -479,6 +479,102 @@ class TrainingController extends Controller
         return view('admin.trainings.form132', compact('training', 'showImage', 'user'));
     }
 
+    /** Принять тренинг (одну запись). SCA-Manager/Admin или назначенный. */
+    public function approve(string $id)
+    {
+        abort_unless(auth()->user()->canApproveTrainings(), 403);
+
+        $training = Training::findOrFail($id);
+        if (!$training->isApproved()) {
+            $training->update(['approved_by' => auth()->id(), 'approved_at' => now()]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /** Принять весь юнит (или курс): все записи пары разом. */
+    public function approveUnit(Request $request)
+    {
+        abort_unless(auth()->user()->canApproveTrainings(), 403);
+
+        $data = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'manual_id' => 'nullable|required_without:matrix_row_id|integer|exists:manuals,id',
+            'matrix_row_id' => 'nullable|required_without:manual_id|integer|exists:training_matrix_rows,id',
+        ]);
+
+        $count = Training::where('user_id', $data['user_id'])
+            ->when(isset($data['matrix_row_id']),
+                fn ($q) => $q->where('matrix_row_id', $data['matrix_row_id']),
+                fn ($q) => $q->where('manuals_id', $data['manual_id'])->whereNull('matrix_row_id'))
+            ->whereNull('approved_by')
+            ->update(['approved_by' => auth()->id(), 'approved_at' => now()]);
+
+        return response()->json(['success' => true, 'approved' => $count]);
+    }
+
+    /**
+     * История пары (юнит+сотрудник или курс+сотрудник) для модалки матрицы:
+     * список дат со статусами приёмки. Только просмотр; approve — отдельными
+     * эндпоинтами, кнопки рендерятся по can_approve.
+     */
+    public function matrixPairHistory(Request $request)
+    {
+        $viewer = auth()->user();
+        abort_unless($viewer->canViewTrainingMatrix(), 403);
+
+        $data = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'manual_id' => 'nullable|required_without:matrix_row_id|integer|exists:manuals,id',
+            'matrix_row_id' => 'nullable|required_without:manual_id|integer|exists:training_matrix_rows,id',
+        ]);
+
+        $target = User::findOrFail($data['user_id']);
+        if (isset($data['matrix_row_id'])) {
+            abort_unless($viewer->canManageTrainingMatrix(), 403);
+        } else {
+            abort_unless($viewer->canManageTrainingMatrix() || $viewer->canManageTrainingsFor($target), 403);
+        }
+
+        $records = Training::with('approvedBy')
+            ->where('user_id', $target->id)
+            ->when(isset($data['matrix_row_id']),
+                fn ($q) => $q->where('matrix_row_id', $data['matrix_row_id']),
+                fn ($q) => $q->where('manuals_id', $data['manual_id'])->whereNull('matrix_row_id'))
+            ->get()
+            ->sortBy([
+                fn ($a, $b) => (int) $b->is_legacy <=> (int) $a->is_legacy, // legacy первым
+                fn ($a, $b) => strcmp((string) $a->date_training, (string) $b->date_training),
+            ])
+            ->values()
+            ->map(fn (Training $t) => [
+                'id' => $t->id,
+                'label' => $t->is_legacy
+                    ? __('Old training (X)')
+                    : ($t->form_type ? __('Form') . ' ' . $t->form_type : __('Course')),
+                'date' => $t->date_training ? \Carbon\Carbon::parse($t->date_training)->format('M-d-Y') : '—',
+                'approved' => $t->isApproved(),
+                'approved_by' => $t->approvedBy->selection_name ?? null,
+                'approved_at' => $t->approved_at?->format('M-d-Y'),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'can_approve' => $viewer->canApproveTrainings(),
+            'records' => $records,
+        ]);
+    }
+
+    /** Снять приёмку — только назначенный (can_manage_approved_trainings). */
+    public function unapprove(string $id)
+    {
+        abort_unless(auth()->user()->canManageApprovedTrainings(), 403);
+
+        Training::findOrFail($id)->update(['approved_by' => null, 'approved_at' => null]);
+
+        return response()->json(['success' => true]);
+    }
+
     public function update(Request $request, string $id)
     {
         $training = Training::findOrFail($id);
@@ -488,6 +584,14 @@ class TrainingController extends Controller
 
         if (!$canEdit) {
             return response()->json(['success' => false, 'message' => __('Unauthorized')], 403);
+        }
+
+        // Принятый тренинг заморожен — менять может только назначенный
+        if ($training->isApproved() && !auth()->user()->canManageApprovedTrainings()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Training is approved and locked. Contact the designated manager.'),
+            ], 422);
         }
 
         if ((string) $training->form_type === '132') {
@@ -522,6 +626,14 @@ class TrainingController extends Controller
                 'success' => false,
                 'message' => __('Unauthorized'),
             ], 403);
+        }
+
+        // Принятый тренинг заморожен — удалять может только назначенный
+        if ($training->isApproved() && !auth()->user()->canManageApprovedTrainings()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Training is approved and locked. Contact the designated manager.'),
+            ], 422);
         }
 
         // Форму 132 считаем "базовой" и не даём удалить из этого интерфейса,
@@ -564,6 +676,18 @@ class TrainingController extends Controller
                 'success' => false,
                 'message' => __('Unauthorized'),
             ], 403);
+        }
+
+        // Юнит с принятыми тренингами целиком удаляет только назначенный
+        $hasApproved = Training::where('user_id', $targetUserId)
+            ->where('manuals_id', $request->manual_id)
+            ->whereNotNull('approved_by')
+            ->exists();
+        if ($hasApproved && !auth()->user()->canManageApprovedTrainings()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Unit has approved trainings and is locked. Contact the designated manager.'),
+            ], 422);
         }
 
         try {
@@ -675,11 +799,14 @@ class TrainingController extends Controller
             }
             $isCoursePair = $pair->first()->matrix_row_id !== null;
             $isLegacyPair = $pair->contains(fn ($t) => $t->is_legacy);
-            $lastDate = $pair->where('is_legacy', false)
+            $lastRecord = $pair->where('is_legacy', false)
                 ->whereNotNull('date_training')
                 // Перевыпущенная 132 у legacy-пары — не тренинг: X остаётся до реального refresh-112
                 ->when(!$isCoursePair && $isLegacyPair, fn ($c) => $c->filter(fn ($t) => (string) $t->form_type === '112'))
-                ->max('date_training');
+                ->sortByDesc('date_training')
+                ->first();
+            $lastDate = $lastRecord?->date_training;
+            $lastApproved = (bool) $lastRecord?->approved_by;
 
             // Legacy-пара без 132 (бумажная эпоха): 132 не положена, но может быть
             // создана по явному запросу — потеря бланка / перевыпуск.
@@ -689,10 +816,10 @@ class TrainingController extends Controller
             if ($lastDate !== null) {
                 $lastDate = \Carbon\Carbon::parse($lastDate);
                 $cells[$rowId][$userId] = $lastDate->lt($legacyAfter)
-                    ? ['kind' => 'x', 'date' => $lastDate, 'red' => false, 'need132' => $need132]
-                    : ['kind' => 'date', 'date' => $lastDate, 'red' => $lastDate->lt($redAfter), 'need132' => $need132];
+                    ? ['kind' => 'x', 'date' => $lastDate, 'red' => false, 'need132' => $need132, 'approved' => $lastApproved]
+                    : ['kind' => 'date', 'date' => $lastDate, 'red' => $lastDate->lt($redAfter), 'need132' => $need132, 'approved' => $lastApproved];
             } elseif ($isLegacyPair) {
-                $cells[$rowId][$userId] = ['kind' => 'x', 'date' => null, 'red' => false, 'need132' => $need132];
+                $cells[$rowId][$userId] = ['kind' => 'x', 'date' => null, 'red' => false, 'need132' => $need132, 'approved' => false];
             }
         }
 

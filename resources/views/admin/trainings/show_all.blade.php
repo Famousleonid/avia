@@ -213,6 +213,11 @@
             background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(140, 140, 140, 0.18) 6px 9px);
         }
 
+        /* Последний тренинг пары принят (approved) — зелёная рамка ячейки */
+        td.user-column.cell-approved {
+            box-shadow: inset 0 0 0 2px #2e7d4f;
+        }
+
         /* Кликабельная ячейка: клик = добавить тренинг этой паре */
         td.user-column.cell-click {
             cursor: pointer;
@@ -391,7 +396,7 @@
                                                     }
                                                 }
                                             @endphp
-                                            <td class="user-column {{ $clickable ? 'cell-click' : '' }}" {!! $clickAttrs !!}
+                                            <td class="user-column {{ $clickable ? 'cell-click' : '' }} {{ !empty($cell['approved']) ? 'cell-approved' : '' }}" {!! $clickAttrs !!}
                                                 @if($clickable) title="{{ $cell === null ? __('Add unit for this user') : __('Add training date') }}" @endif>
                                                 @if($cell === null)
                                                     <span class="text-muted">-</span>
@@ -418,6 +423,7 @@
                         <span><span class="training-date-old">Jan-01-2025</span> — {{ __('older than :days days, refresh required', ['days' => config('trainings.matrix_red_after_days', 350)]) }}</span>
                         <span><span class="training-x">X</span> — {{ __('trained in the past; unit not currently worked on (older than :years years or old training)', ['years' => config('trainings.matrix_legacy_after_years', 3)]) }}</span>
                         <span><span class="text-muted">-</span> — {{ __('never trained') }}</span>
+                        <span><span style="box-shadow: inset 0 0 0 2px #2e7d4f; padding: 1px 8px; border-radius: 3px;">{{ __('date') }}</span> — {{ __('last training approved') }}</span>
                         <span><span class="badge-no-cmm">no CMM</span> — {{ __('unit not registered in avia') }}</span>
                     </div>
                 @endif
@@ -427,7 +433,7 @@
 
     {{-- Модалка «добавить дату тренинга» по клику на ячейку --}}
     <div class="modal fade" id="matrixTrainModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-sm">
+        <div class="modal-dialog">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h6 class="modal-title">{{ __('Add training date') }}</h6>
@@ -447,6 +453,10 @@
                         </div>
                     @endif
                     <div class="text-danger small mt-1" id="matrixTrainError" style="display: none;"></div>
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-link btn-sm p-0" id="matrixTrainHistoryBtn">{{ __('Show history') }}</button>
+                        <div id="matrixTrainHistory" class="mt-2 small" style="display: none; max-height: 240px; overflow-y: auto; overflow-x: hidden;"></div>
+                    </div>
                 </div>
                 <div class="modal-footer py-1">
                     <button type="button" class="btn btn-outline-primary btn-sm" id="matrixTrainSave">{{ __('Save') }}</button>
@@ -503,8 +513,113 @@
                         wrap132.style.display = (!trainCtx.courseRow && td.dataset.trainNeed132 === '1') ? '' : 'none';
                         document.getElementById('matrixTrain132').checked = false;
                     }
+                    const historyBox = document.getElementById('matrixTrainHistory');
+                    historyBox.style.display = 'none';
+                    historyBox.innerHTML = '';
                     new bootstrap.Modal(modalEl).show();
                 });
+            });
+
+            // История пары + выборочный/общий апрув (кнопки — только can_approve)
+            let approvalsChanged = false;
+
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                if (approvalsChanged) {
+                    location.reload(); // обновить зелёные рамки ячеек
+                }
+            });
+
+            function pairParams() {
+                const p = new URLSearchParams({ user_id: trainCtx.user });
+                if (trainCtx.courseRow) {
+                    p.append('matrix_row_id', trainCtx.courseRow);
+                } else {
+                    p.append('manual_id', trainCtx.manual);
+                }
+                return p;
+            }
+
+            async function approvalPost(url, body) {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': @json(csrf_token()), 'Accept': 'application/json' },
+                    body: body,
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Error');
+                }
+                approvalsChanged = true;
+                await loadPairHistory();
+            }
+
+            async function loadPairHistory() {
+                const box = document.getElementById('matrixTrainHistory');
+                box.style.display = '';
+                box.textContent = '…';
+                try {
+                    const response = await fetch(@json(route('trainings.matrixPairHistory')) + '?' + pairParams(), {
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.message || 'Error');
+                    }
+                    box.innerHTML = '';
+                    if (!data.records.length) {
+                        box.textContent = @json(__('No trainings yet.'));
+                        return;
+                    }
+                    let hasUnapproved = false;
+                    data.records.forEach(function (rec) {
+                        const line = document.createElement('div');
+                        line.className = 'd-flex justify-content-between align-items-center mb-1 gap-2 flex-wrap';
+
+                        const left = document.createElement('span');
+                        left.textContent = rec.label + ' — ' + rec.date;
+                        left.style.whiteSpace = 'nowrap';
+                        line.appendChild(left);
+
+                        if (rec.approved) {
+                            const badge = document.createElement('span');
+                            badge.textContent = '✓ ' + (rec.approved_by || '') + (rec.approved_at ? ' · ' + rec.approved_at : '');
+                            badge.style.cssText = 'color:#4caf7d;border:1px solid #2e7d4f;border-radius:4px;padding:0 6px;white-space:nowrap;font-size:.9em;';
+                            line.appendChild(badge);
+                        } else {
+                            hasUnapproved = true;
+                            if (data.can_approve) {
+                                const btn = document.createElement('button');
+                                btn.type = 'button';
+                                btn.className = 'btn btn-outline-success btn-sm py-0';
+                                btn.textContent = '✓ ' + @json(__('Approve'));
+                                btn.addEventListener('click', function () {
+                                    approvalPost(@json(route('trainings.approve', ['id' => '__ID__'])).replace('__ID__', rec.id), null)
+                                        .catch(function (error) { box.textContent = error.message; });
+                                });
+                                line.appendChild(btn);
+                            }
+                        }
+                        box.appendChild(line);
+                    });
+
+                    if (data.can_approve && hasUnapproved) {
+                        const allBtn = document.createElement('button');
+                        allBtn.type = 'button';
+                        allBtn.className = 'btn btn-outline-success btn-sm py-0 mt-1';
+                        allBtn.textContent = '✓ ' + @json(__('Approve all'));
+                        allBtn.addEventListener('click', function () {
+                            approvalPost(@json(route('trainings.approveUnit')), pairParams())
+                                .catch(function (error) { box.textContent = error.message; });
+                        });
+                        box.appendChild(allBtn);
+                    }
+                } catch (error) {
+                    box.textContent = error.message;
+                }
+            }
+
+            document.getElementById('matrixTrainHistoryBtn').addEventListener('click', function () {
+                loadPairHistory();
             });
 
             document.getElementById('matrixTrainSave').addEventListener('click', async function () {

@@ -138,6 +138,36 @@
                         <div class="col-12 col-md-4 d-flex align-items-end">
                             <div class="form-check">
                                 <input type="checkbox"
+                                       name="can_sign_certificates"
+                                       id="can_sign_certificates"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('can_sign_certificates') ? 'checked' : '' }}>
+                                <label for="can_sign_certificates" class="form-check-label"
+                                       title="SCA qualification: SCA training view, SCA form variants, training approval (with Manager/Admin role)">
+                                    SCA (can sign certificates)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="can_manage_approved_trainings"
+                                       id="can_manage_approved_trainings"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('can_manage_approved_trainings') ? 'checked' : '' }}>
+                                <label for="can_manage_approved_trainings" class="form-check-label"
+                                       title="Designated: may delete/edit/unapprove approved trainings">
+                                    Manage approved trainings
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox"
                                        name="email_verified_at"
                                        id="email_verified_at"
                                        class="form-check-input"
