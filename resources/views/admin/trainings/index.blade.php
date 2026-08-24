@@ -184,11 +184,32 @@
                                 {{ isset($trainingList['first_training']) ? Carbon::parse($trainingList['first_training']->date_training)->format('M-d-Y') : 'N/A' }}
                             </td>
 
-                            <td class="text-center"
-                                @if($trainingList['is_due_for_update'])
-                                    style="color: red"
-                                @endif>
-                                {{ $trainingList['last_training_112'] ? Carbon::parse($trainingList['last_training_112']->date_training)->format('M-d-Y') : 'N/A' }}
+                            @php
+                                // Просрочка как в матрице: >350 дней — красная плашка,
+                                // 180–350 (renewal_threshold_days) — оранжевый «скоро»
+                                $last112Date = $trainingList['last_training_112']
+                                    ? Carbon::parse($trainingList['last_training_112']->date_training)
+                                    : null;
+                                $daysSince112 = $trainingList['days_since_last_training_112'];
+                                $isOverdue = $last112Date && $daysSince112 > (int) config('trainings.matrix_red_after_days', 350);
+                                $isDueSoon = $last112Date && !$isOverdue && $trainingList['is_due_for_update'];
+                            @endphp
+                            <td class="text-center">
+                                @if(!$last112Date)
+                                    N/A
+                                @elseif($isOverdue)
+                                    <span style="background: #b3423a; color: #fff; border-radius: 4px; padding: 1px 8px; font-weight: 700;"
+                                          title="{{ __(':days days since last training — refresh required (MP-20)', ['days' => $daysSince112]) }}">
+                                        {{ $last112Date->format('M-d-Y') }}
+                                    </span>
+                                @elseif($isDueSoon)
+                                    <span style="color: #e0a800; font-weight: 600;"
+                                          title="{{ __(':days days since last training — renewal due', ['days' => $daysSince112]) }}">
+                                        {{ $last112Date->format('M-d-Y') }}
+                                    </span>
+                                @else
+                                    {{ $last112Date->format('M-d-Y') }}
+                                @endif
                             </td>
 
                             <td class="text-center">
@@ -201,14 +222,15 @@
 
                             <td class="text-center">
                                 <div class="actions-cell d-inline-flex align-items-center justify-content-center gap-2 flex-nowrap">
-                                    <button class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1"
+                                    {{-- Не «редактирование», а карточка юнита: даты, печать форм, добавление --}}
+                                    <button class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1"
                                             data-bs-toggle="modal"
                                             data-bs-target="#trainingModal{{ $trainingList['first_training']->manuals_id }}"
                                             data-tippy-content="{{ __('Training dates & forms') }}"
                                             data-tippy-placement="top"
                                             title="{{ __('Training dates & forms') }}"
                                             aria-label="{{ __('Training dates & forms') }}">
-                                        <i class="bi bi-pencil-square"></i>
+                                        <i class="bi bi-journal-text"></i> {{ __('Dates & Forms') }}
                                     </button>
 
                                     @roles("Admin|Manager")
