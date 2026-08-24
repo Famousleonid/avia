@@ -49,12 +49,17 @@ class TrainingApprovalTest extends TestCase
         ]);
     }
 
-    public function test_sca_manager_can_approve_and_plain_admin_cannot(): void
+    public function test_sca_manager_can_approve_and_plain_manager_cannot(): void
     {
         $training = $this->makeTraining();
 
-        $plainAdmin = $this->createUserWithRole('Admin', ['stamp' => 'PA', 'can_sign_certificates' => false]);
-        $this->actingAs($plainAdmin)
+        // Manager без SCA-флага и без is_admin — апрув запрещён
+        $plainManager = $this->createUserWithRole('Manager', [
+            'stamp' => 'PM',
+            'is_admin' => false,
+            'can_sign_certificates' => false,
+        ]);
+        $this->actingAs($plainManager)
             ->postJson(route('trainings.approve', ['id' => $training->id]))
             ->assertForbidden();
 
@@ -70,6 +75,28 @@ class TrainingApprovalTest extends TestCase
         $training->refresh();
         $this->assertSame($scaManager->id, (int) $training->approved_by);
         $this->assertNotNull($training->approved_at);
+    }
+
+    public function test_is_admin_checkbox_grants_full_training_rights(): void
+    {
+        $training = $this->makeTraining();
+
+        // Любая роль с чекбоксом is_admin — без ограничений
+        $superuser = $this->createUserWithRole('Manager', [
+            'stamp' => 'SU',
+            'is_admin' => true,
+            'can_sign_certificates' => false,
+        ]);
+
+        $this->actingAs($superuser)
+            ->postJson(route('trainings.approve', ['id' => $training->id]))
+            ->assertOk();
+
+        // Принятую запись может удалить (is_admin = как назначенный)
+        $this->actingAs($superuser)
+            ->deleteJson(route('trainings.destroy', ['training' => $training->id]))
+            ->assertOk();
+        $this->assertNull($training->fresh());
     }
 
     public function test_approved_training_is_locked_except_for_designated(): void
@@ -129,6 +156,30 @@ class TrainingApprovalTest extends TestCase
         $this->assertNull($training->fresh()->approved_by);
     }
 
+    public function test_form_132_date_editable_by_admin_only(): void
+    {
+        $training = $this->makeTraining();
+        $form132 = Training::query()->create([
+            'user_id' => $training->user_id,
+            'manuals_id' => $training->manuals_id,
+            'date_training' => '2026-08-21',
+            'form_type' => '132',
+        ]);
+
+        $manager = $this->createUserWithRole('Manager', ['stamp' => 'MG', 'is_admin' => false]);
+        $this->actingAs($manager)
+            ->putJson(route('trainings.update', ['training' => $form132->id]), ['date_training' => '2026-08-14'])
+            ->assertStatus(422);
+
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $this->actAsFresh($admin)
+            ->putJson(route('trainings.update', ['training' => $form132->id]), ['date_training' => '2026-08-14'])
+            ->assertOk();
+
+        // Дата нормализуется к пятнице своей недели (14.08.2026 — пятница)
+        $this->assertSame('2026-08-14', $form132->fresh()->date_training);
+    }
+
     public function test_matrix_pair_history_returns_records_with_approval_state(): void
     {
         $training = $this->makeTraining();
@@ -147,8 +198,8 @@ class TrainingApprovalTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('success', true);
-        // Обычный админ без SCA историю видит, но апрувить не может
-        $response->assertJsonPath('can_approve', false);
+        // is_admin — суперправа, в т.ч. приёмка
+        $response->assertJsonPath('can_approve', true);
         $response->assertJsonPath('records.0.approved', true);
         $this->assertSame('Aug-21-2026', $response->json('records.0.date'));
 

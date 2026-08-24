@@ -682,17 +682,21 @@
                         @csrf
                         <div class="modal-body">
                             <small class="text-muted d-block mb-2">{{ __('Checked people are shown as matrix columns. Trainings are kept either way.') }}</small>
-                            @foreach($personnel as $person)
-                                <label class="d-flex align-items-center gap-2 mb-1" style="cursor: pointer;">
-                                    <input type="checkbox" name="user_ids[]" value="{{ $person->id }}"
-                                           {{ $person->show_in_training_matrix ? 'checked' : '' }}>
-                                    <span class="text-truncate">
-                                        <span class="text-muted" style="font-variant-numeric: tabular-nums;">{{ $person->stamp }}</span>
-                                        {{ $person->selection_name }}
-                                        <span class="text-muted small">— {{ $person->role->name ?? '' }}</span>
-                                    </span>
-                                </label>
-                            @endforeach
+                            <input type="search" class="form-control form-control-sm mb-2" id="personnelSearch"
+                                   placeholder="{{ __('Search by name / stamp / role…') }}" autocomplete="off">
+                            <div id="personnelList" style="max-height: 55vh; overflow-y: auto;">
+                                @foreach($personnel as $person)
+                                    <label class="d-flex align-items-center gap-2 mb-1 personnel-row" style="cursor: pointer;">
+                                        <input type="checkbox" name="user_ids[]" value="{{ $person->id }}"
+                                               {{ $person->show_in_training_matrix ? 'checked' : '' }}>
+                                        <span class="text-truncate">
+                                            <span class="text-muted" style="font-variant-numeric: tabular-nums;">{{ $person->stamp }}</span>
+                                            {{ $person->selection_name }}
+                                            <span class="text-muted small">— {{ $person->role->name ?? '' }}</span>
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </div>
                         </div>
                         <div class="modal-footer py-1">
                             <button type="submit" class="btn btn-outline-primary btn-sm">{{ __('Save') }}</button>
@@ -785,6 +789,17 @@
                 form.action = matrixRowRoutes.toggleActive.replace('__ID__', id);
                 document.getElementById('matrixRowMoveDirection').value = '';
                 form.submit();
+            }
+
+            // Поиск в модалке Personnel (имя / stamp / роль)
+            const personnelSearch = document.getElementById('personnelSearch');
+            if (personnelSearch) {
+                personnelSearch.addEventListener('input', function () {
+                    const q = this.value.trim().toLowerCase();
+                    document.querySelectorAll('#personnelList .personnel-row').forEach(function (row) {
+                        row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
+                    });
+                });
             }
 
             function matrixRowToggleNewCategory() {

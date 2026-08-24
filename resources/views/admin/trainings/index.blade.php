@@ -35,6 +35,26 @@
         .actions-cell .btn {
             padding: .25rem .5rem;
             line-height: 1.1;
+            white-space: nowrap; /* «Dates & Forms» в одну строку */
+        }
+
+        /* Ширина по контенту: даты и кнопки не переносятся */
+        #trainingsTable td,
+        #trainingsTable th {
+            white-space: nowrap;
+        }
+
+        /* Вертикальный скролл при большом списке, шапка прилипает */
+        .trainings-table-wrap {
+            max-height: 72vh;
+            overflow: auto;
+        }
+
+        .trainings-table-wrap #trainingsTable thead th {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background: var(--avia-surface);
         }
 
         .actions-cell span {
@@ -81,6 +101,55 @@
             color: inherit !important;
             box-shadow: none !important;
         }
+
+        /* Select2 (поиск в селекте юзера) под тёмную тему — как на create-форме */
+        html[data-bs-theme="dark"] .select2-selection--single {
+            background-color: var(--avia-input) !important;
+            color: gray !important;
+            height: 31px !important;
+            border: 1px solid var(--avia-border) !important;
+            align-items: center !important;
+            border-radius: 8px;
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-selection__rendered {
+            color: #999999;
+            line-height: 1.9 !important;
+        }
+
+        html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
+            background-color: var(--avia-surface-raised) !important;
+            color: var(--avia-text);
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-dropdown {
+            max-height: 40vh !important;
+            overflow-y: auto !important;
+            border: 1px solid #ccc !important;
+            border-radius: 8px;
+            color: white;
+            background-color: var(--avia-input) !important;
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-results__option:hover {
+            background-color: #6ea8fe;
+            color: #000000;
+        }
+
+        /* Шире выпадашка, имена без переносов, скролл списка */
+        .select2-container .select2-dropdown {
+            min-width: 320px !important;
+            width: auto !important;
+        }
+
+        .select2-container .select2-results__option {
+            white-space: nowrap !important;
+        }
+
+        .select2-results__options {
+            max-height: 60vh !important;
+            overflow-y: auto !important;
+        }
     </style>
 
     <div class="container ">
@@ -96,8 +165,7 @@
                                 <label class="form-label mb-0 small text-muted">{{ __('User') }}:</label>
                                 <select class="form-select form-select-sm"
                                         id="userSelectDropdown"
-                                        style="min-width: 180px;"
-                                        onchange="window.location.href='{{ route('trainings.index') }}?user_id=' + this.value">
+                                        style="min-width: 300px;">
                                     @foreach($users as $u)
                                         <option value="{{ $u->id }}" {{ $selectedUserId == $u->id ? 'selected' : '' }}>
                                             {{ $u->stamp }} — {{ $u->selection_name }}
@@ -133,6 +201,7 @@
             </div>
 
             <div class="card-body">
+                <div class="trainings-table-wrap">
                 <table id="trainingsTable"
                        class="table table-bordered table-hover dir-table">
                     <thead>
@@ -249,6 +318,7 @@
                     @endforeach
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
@@ -283,9 +353,14 @@
                         @php
                             $viewerCanApprove = auth()->user()->canApproveTrainings();
                             $viewerIsDesignated = auth()->user()->canManageApprovedTrainings();
+                            $viewerIsAdmin = auth()->user()->roleIs('Admin') || auth()->user()->isAdmin();
                         @endphp
                         @foreach($trainingList['trainings'] as $training)
-                            @php $frozen = $training->isApproved() && !$viewerIsDesignated; @endphp
+                            @php
+                                $frozen = $training->isApproved() && !$viewerIsDesignated;
+                                // 132 редактирует только Admin; принятые — только назначенный
+                                $dateLocked = $frozen || ((string) $training->form_type === '132' && !$viewerIsAdmin);
+                            @endphp
                             <div class="row g-2 mb-2 align-items-center edit-training-row"
                                  data-training-id="{{ $training->id }}"
                                  data-original-date="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
@@ -294,8 +369,7 @@
                                 </div>
 
                                 <div class="col">
-                                    @if((string) $training->form_type === '132' || $frozen)
-                                        {{-- 132 базовая; принятая запись заморожена для всех, кроме назначенных --}}
+                                    @if($dateLocked)
                                         <input type="date"
                                                class="form-control form-control-sm"
                                                value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}"
@@ -333,20 +407,33 @@
                                 </div>
 
                                 <div class="col-auto">
+                                    {{-- Paper-кнопка (малый размер) вместо текстовой View/Print --}}
                                     @if($training->form_type == '112')
-                                        <a href="{{ route('trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
-                                           class="btn btn-success btn-sm formLink"
-                                           target="_blank"
-                                           id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}">
-                                            {{ __('View/Print') }}
-                                        </a>
+                                        <x-paper-button
+                                            text="112"
+                                            href="{{ route('trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
+                                            target="_blank"
+                                            color="outline-success"
+                                            width="34"
+                                            fontSize="72px"
+                                            class="formLink"
+                                            title="{{ __('View/Print Form 112') }}"
+                                            data-tippy-content="{{ __('View/Print Form 112') }}"
+                                            id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}"
+                                        />
                                     @elseif($training->form_type == '132')
-                                        <a href="{{ route('trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
-                                           class="btn btn-info btn-sm formLink"
-                                           target="_blank"
-                                           id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}">
-                                            {{ __('View/Print') }}
-                                        </a>
+                                        <x-paper-button
+                                            text="132"
+                                            href="{{ route('trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
+                                            target="_blank"
+                                            color="outline-info"
+                                            width="34"
+                                            fontSize="72px"
+                                            class="formLink"
+                                            title="{{ __('View/Print Form 132') }}"
+                                            data-tippy-content="{{ __('View/Print Form 132') }}"
+                                            id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}"
+                                        />
                                     @endif
                                 </div>
 
@@ -902,6 +989,35 @@
                         .finally(() => {
                             bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'))?.hide();
                         });
+                });
+            }
+        });
+    </script>
+    <script>
+        // Селект юзера: поиск (select2) + переход при выборе
+        window.addEventListener('load', function () {
+            const select = document.getElementById('userSelectDropdown');
+            if (!select) return;
+
+            if (window.jQuery && jQuery.fn.select2) {
+                jQuery(select).select2({
+                    theme: 'bootstrap-5',
+                    width: 'style',
+                    dropdownAutoWidth: true,
+                });
+                // Скролл списка: инлайн-стили поверх любых тем select2
+                jQuery(select).on('select2:open', function () {
+                    document.querySelectorAll('.select2-results__options').forEach(function (el) {
+                        el.style.maxHeight = '60vh';
+                        el.style.overflowY = 'auto';
+                    });
+                });
+                jQuery(select).on('change', function () {
+                    window.location.href = '{{ route('trainings.index') }}?user_id=' + this.value;
+                });
+            } else {
+                select.addEventListener('change', function () {
+                    window.location.href = '{{ route('trainings.index') }}?user_id=' + this.value;
                 });
             }
         });

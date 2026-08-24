@@ -182,10 +182,12 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 
     // ---- Матрица тренингов (Training All) ----
 
-    /** Полный доступ к матрице: все колонки, управление строками/группами/Personnel. */
+    /** Полный доступ к матрице: все колонки, управление строками/группами/Personnel.
+     *  Чекбокс is_admin — суперправа: без ограничений везде. */
     public function canManageTrainingMatrix(): bool
     {
-        return $this->roleIs('Admin')
+        return $this->isAdmin()
+            || $this->roleIs('Admin')
             || ($this->roleIs('Manager') && $this->can_sign_certificates);
     }
 
@@ -197,17 +199,18 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
             || (bool) $this->show_in_training_matrix;
     }
 
-    /** Приёмка тренинга: SCA-квалифицированные Manager/Admin и назначенные. */
+    /** Приёмка тренинга: SCA-квалифицированные Manager/Admin, назначенные, is_admin. */
     public function canApproveTrainings(): bool
     {
-        return ($this->roleIs(['Admin', 'Manager']) && $this->can_sign_certificates)
+        return $this->isAdmin()
+            || ($this->roleIs(['Admin', 'Manager']) && $this->can_sign_certificates)
             || (bool) $this->can_manage_approved_trainings;
     }
 
-    /** Назначенный: только он может удалять/менять/снимать принятые тренинги. */
+    /** Удалять/менять/снимать принятые тренинги: назначенные и is_admin. */
     public function canManageApprovedTrainings(): bool
     {
-        return (bool) $this->can_manage_approved_trainings;
+        return $this->isAdmin() || (bool) $this->can_manage_approved_trainings;
     }
 
     /** Может добавлять тренинги этому сотруднику (клик по ячейке, формы). */

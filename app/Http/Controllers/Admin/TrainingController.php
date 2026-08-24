@@ -88,17 +88,24 @@ class TrainingController extends Controller
                 'last_training_112' => $lastTraining112,
                 'days_since_last_training_112' => $daysSinceLastTraining112,
                 'is_due_for_update' => $isDueForUpdate,
-                'trainings' => $sortedTrainings,
+                // В модалке 132 всегда первая (перевыпущенная не должна тонуть в списке дат)
+                'trainings' => $sortedTrainings->sortBy([
+                    fn ($a, $b) => (int) ((string) $b->form_type === '132') <=> (int) ((string) $a->form_type === '132'),
+                    fn ($a, $b) => strcmp((string) $a->date_training, (string) $b->date_training),
+                ])->values(),
             ];
         }
 
         $users = collect();
         if ($canViewAllUsers) {
+            // Порядок как в матрице: числовые stamp по возрастанию, затем буквенные
             $users = User::whereNotNull('stamp')
                 ->where('stamp', '<>', '')
                 ->whereNull('deleted_at')
                 ->get()
-                ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+                ->sortBy(fn (User $user) => ctype_digit($user->stamp)
+                    ? sprintf('0-%05d', (int) $user->stamp)
+                    : '1-' . mb_strtolower($user->stamp))
                 ->values();
         }
 
@@ -594,10 +601,13 @@ class TrainingController extends Controller
             ], 422);
         }
 
-        if ((string) $training->form_type === '132') {
+        // Дату Form 132 правит только Admin (принятую — только назначенный, см. выше)
+        if ((string) $training->form_type === '132'
+            && !auth()->user()->roleIs('Admin')
+            && !auth()->user()->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => __('Form 132 cannot be edited.'),
+                'message' => __('Form 132 date can be edited by Admin only.'),
             ], 422);
         }
 
