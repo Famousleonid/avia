@@ -356,7 +356,7 @@
                                                        title="{{ $row->is_active ? __('Uncheck: unit not currently worked on — hide row (not deleted)') : __('Check: return unit to the matrix') }}">
                                             </td>
                                         @endif
-                                        <td class="col-unit" title="{{ $row->description }}">
+                                        <td class="col-unit">
                                             {{ $row->description ?? '' }}
                                         </td>
                                         <td class="col-part">
@@ -381,9 +381,6 @@
                                                     <button type="button" title="{{ __('Edit row') }}"
                                                             data-bs-toggle="modal" data-bs-target="#matrixRowModal"
                                                             onclick='matrixRowModalEdit(@json($rowPayload))'>✎</button>
-                                                    <button type="button" title="{{ __('Move up') }}" onclick="matrixRowMove({{ $row->id }}, 'up')">▲</button>
-                                                    <button type="button" title="{{ __('Move down') }}" onclick="matrixRowMove({{ $row->id }}, 'down')">▼</button>
-                                                    <button type="button" title="{{ __('Delete row') }}" onclick="matrixRowDelete({{ $row->id }}, @json($row->part_number))">✕</button>
                                                 </span>
                                             @endif
                                         </td>
@@ -419,16 +416,16 @@
                                                 }
                                             @endphp
                                             <td class="user-column {{ $clickable ? 'cell-click' : '' }} {{ !empty($cell['approved']) ? 'cell-approved' : '' }}" {!! $clickAttrs !!}
-                                                @if($clickable) title="{{ $cell === null ? __('Add unit for this user') : __('Add training date') }}" @endif>
+                                                @if($clickable) title="{{ $cell === null ? __('Add unit for this user') : __('New Training Date') }}" @endif>
                                                 @if($cell === null)
                                                     <span class="text-muted">-</span>
                                                 @elseif($cell['kind'] === 'x')
                                                     <span class="training-x"
-                                                          @if($cell['date']) title="{{ __('Last training:') }} {{ $cell['date']->format('M-d-Y') }} — {{ __('refresh required (MP-20)') }}"
+                                                          @if($cell['date']) title="{{ __('Last training:') }} {{ $cell['date']->format('d/M/Y') }} — {{ __('refresh required (MP-20)') }}"
                                                           @else title="{{ __('Old training (no date on record)') }}" @endif>X</span>
                                                 @else
                                                     <span class="{{ $cell['red'] ? 'training-date-old' : 'training-date-fresh' }}">
-                                                        {{ $cell['date']->format('M-d-Y') }}
+                                                        {{ $cell['date']->format('d/M/Y') }}
                                                     </span>
                                                 @endif
                                             </td>
@@ -441,8 +438,8 @@
                     </div>
 
                     <div class="matrix-legend">
-                        <span><span class="training-date-fresh">Jan-01-2026</span> — {{ __('training up to date') }}</span>
-                        <span><span class="training-date-old">Jan-01-2025</span> — {{ __('older than :days days, refresh required', ['days' => config('trainings.matrix_red_after_days', 350)]) }}</span>
+                        <span><span class="training-date-fresh">01/Jan/2026</span> — {{ __('training up to date') }}</span>
+                        <span><span class="training-date-old">01/Jan/2025</span> — {{ __('older than :days days, refresh required', ['days' => config('trainings.matrix_red_after_days', 350)]) }}</span>
                         <span><span class="training-x">X</span> — {{ __('trained in the past; unit not currently worked on (older than :years years or old training)', ['years' => config('trainings.matrix_legacy_after_years', 3)]) }}</span>
                         <span><span class="text-muted">-</span> — {{ __('never trained') }}</span>
                         <span><span style="box-shadow: inset 0 0 0 2px #2e7d4f; padding: 1px 8px; border-radius: 3px;">{{ __('date') }}</span> — {{ __('last training approved') }}</span>
@@ -458,12 +455,13 @@
         <div class="modal-dialog">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
-                    <h6 class="modal-title">{{ __('Add training date') }}</h6>
+                    <h6 class="modal-title">{{ __('New Training Date') }}</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="small mb-2" id="matrixTrainInfo"></div>
-                    <input type="date" id="matrixTrainDate" class="form-control" max="{{ now()->format('Y-m-d') }}">
+                    {{-- data-project-date: проектный flatpickr с форматом 24/Aug/2026 --}}
+                    <input type="text" id="matrixTrainDate" class="form-control" data-project-date autocomplete="off">
                     <small class="text-muted">{{ __('The date is normalized to the Friday of its week.') }}</small>
                     @if($canManage)
                         {{-- Только для legacy-пары без 132: бланк потерян / нужен перевыпуск --}}
@@ -476,8 +474,15 @@
                     @endif
                     <div class="text-danger small mt-1" id="matrixTrainError" style="display: none;"></div>
                     <div class="mt-2">
-                        <button type="button" class="btn btn-link btn-sm p-0" id="matrixTrainHistoryBtn">{{ __('Show history') }}</button>
-                        <div id="matrixTrainHistory" class="mt-2 small" style="display: none; max-height: 240px; overflow-y: auto; overflow-x: hidden;"></div>
+                        <div class="d-flex align-items-center gap-3">
+                            <button type="button" class="btn btn-link btn-sm p-0" id="matrixTrainHistoryBtn">{{ __('Show history') }}</button>
+                            <button type="button" class="btn btn-outline-success btn-sm py-0" id="matrixTrainApproveAll" style="display: none;">✓ {{ __('Approve all') }}</button>
+                        </div>
+                        <div id="matrixTrainHistory" class="mt-2 small" style="display: none;">
+                            {{-- 132/legacy закреплены, скроллятся только 112-е --}}
+                            <div id="matrixTrainHistoryPinned"></div>
+                            <div id="matrixTrainHistoryScroll" style="max-height: 200px; overflow-y: auto; overflow-x: hidden;"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer py-1">
@@ -538,10 +543,15 @@
                         window.location.href = td.dataset.createUrl;
                         return;
                     }
-                    trainCtx = { manual: td.dataset.trainManual, user: td.dataset.trainUser, courseRow: td.dataset.courseRow };
+                    trainCtx = { manual: td.dataset.trainManual, user: td.dataset.trainUser, courseRow: td.dataset.courseRow, td: td };
                     document.getElementById('matrixTrainInfo').textContent =
                         td.dataset.trainPn + ' — ' + td.dataset.trainUserName;
-                    document.getElementById('matrixTrainDate').value = '{{ now()->format('Y-m-d') }}';
+                    const dateInput = document.getElementById('matrixTrainDate');
+                    dateInput.value = '{{ now()->format('d/M/Y') }}';
+                    if (window.initProjectDatePickers) {
+                        window.initProjectDatePickers(modalEl);
+                    }
+                    dateInput._projectDatePicker?.setDate(new Date(), false);
                     document.getElementById('matrixTrainError').style.display = 'none';
                     const wrap132 = document.getElementById('matrixTrain132Wrap');
                     if (wrap132) {
@@ -549,21 +559,67 @@
                         wrap132.style.display = (!trainCtx.courseRow && td.dataset.trainNeed132 === '1') ? '' : 'none';
                         document.getElementById('matrixTrain132').checked = false;
                     }
-                    const historyBox = document.getElementById('matrixTrainHistory');
-                    historyBox.style.display = 'none';
-                    historyBox.innerHTML = '';
+                    document.getElementById('matrixTrainHistory').style.display = 'none';
+                    document.getElementById('matrixTrainHistoryPinned').innerHTML = '';
+                    document.getElementById('matrixTrainHistoryScroll').innerHTML = '';
+                    document.getElementById('matrixTrainApproveAll').style.display = 'none';
                     new bootstrap.Modal(modalEl).show();
                 });
             });
 
-            // История пары + выборочный/общий апрув (кнопки — только can_approve)
-            let approvalsChanged = false;
+            // История пары + выборочный/общий апрув (кнопки — только can_approve).
+            // Страница НЕ перезагружается: ячейка матрицы обновляется на месте.
+            const MATRIX_RED_DAYS = @json((int) config('trainings.matrix_red_after_days', 350));
+            const MATRIX_LEGACY_YEARS = @json((int) config('trainings.matrix_legacy_after_years', 3));
 
-            modalEl.addEventListener('hidden.bs.modal', function () {
-                if (approvalsChanged) {
-                    location.reload(); // обновить зелёные рамки ячеек
+            function parseHistoryDate(str) {
+                const m = String(str || '').match(/^(\d{1,2})\/([A-Za-z]{3})\/(\d{4})$/);
+                if (!m) return null;
+                const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+                const month = months.indexOf(m[2].toLowerCase());
+                return month < 0 ? null : new Date(Number(m[3]), month, Number(m[1]));
+            }
+
+            // Перерисовка ячейки по свежей истории (та же логика, что на сервере)
+            function updateCellFromRecords(records) {
+                const td = trainCtx?.td;
+                if (!td) return;
+
+                const hasLegacy = records.some(r => r.label.indexOf('Old training') !== -1);
+                const dated = records
+                    .map(r => ({ rec: r, date: parseHistoryDate(r.date) }))
+                    .filter(x => x.date && x.rec.label.indexOf('Old training') === -1)
+                    // перевыпущенная 132 у legacy-пары — не тренинг
+                    .filter(x => !(hasLegacy && x.rec.label.indexOf('132') !== -1))
+                    .sort((a, b) => b.date - a.date);
+
+                const last = dated[0] || null;
+                td.classList.toggle('cell-approved', !!last?.rec.approved);
+
+                if (!last) {
+                    td.innerHTML = hasLegacy
+                        ? '<span class="training-x">X</span>'
+                        : '<span class="text-muted">-</span>';
+                    return;
                 }
-            });
+
+                const days = (Date.now() - last.date.getTime()) / 86400000;
+                if (days > MATRIX_LEGACY_YEARS * 365) {
+                    const x = document.createElement('span');
+                    x.className = 'training-x';
+                    x.textContent = 'X';
+                    x.title = @json(__('Last training:')) + ' ' + last.rec.date + ' — ' + @json(__('refresh required (MP-20)'));
+                    td.innerHTML = '';
+                    td.appendChild(x);
+                    return;
+                }
+
+                const span = document.createElement('span');
+                span.className = days > MATRIX_RED_DAYS ? 'training-date-old' : 'training-date-fresh';
+                span.textContent = last.rec.date;
+                td.innerHTML = '';
+                td.appendChild(span);
+            }
 
             function pairParams() {
                 const p = new URLSearchParams({ user_id: trainCtx.user });
@@ -585,14 +641,18 @@
                 if (!response.ok || !data.success) {
                     throw new Error(data.message || 'Error');
                 }
-                approvalsChanged = true;
                 await loadPairHistory();
             }
 
             async function loadPairHistory() {
                 const box = document.getElementById('matrixTrainHistory');
+                const pinned = document.getElementById('matrixTrainHistoryPinned');
+                const scroll = document.getElementById('matrixTrainHistoryScroll');
+                const approveAllBtn = document.getElementById('matrixTrainApproveAll');
                 box.style.display = '';
-                box.textContent = '…';
+                pinned.textContent = '…';
+                scroll.innerHTML = '';
+                approveAllBtn.style.display = 'none';
                 try {
                     const response = await fetch(@json(route('trainings.matrixPairHistory')) + '?' + pairParams(), {
                         headers: { 'Accept': 'application/json' },
@@ -601,9 +661,9 @@
                     if (!response.ok || !data.success) {
                         throw new Error(data.message || 'Error');
                     }
-                    box.innerHTML = '';
+                    pinned.innerHTML = '';
                     if (!data.records.length) {
-                        box.textContent = @json(__('No trainings yet.'));
+                        pinned.textContent = @json(__('No trainings yet.'));
                         return;
                     }
                     let hasUnapproved = false;
@@ -630,43 +690,126 @@
                                 btn.textContent = '✓ ' + @json(__('Approve'));
                                 btn.addEventListener('click', function () {
                                     approvalPost(@json(route('trainings.approve', ['id' => '__ID__'])).replace('__ID__', rec.id), null)
-                                        .catch(function (error) { box.textContent = error.message; });
+                                        .catch(function (error) { pinned.textContent = error.message; });
                                 });
                                 line.appendChild(btn);
                             }
                         }
-                        box.appendChild(line);
+                        if (rec.editable) {
+                            const editBtn = document.createElement('button');
+                            editBtn.type = 'button';
+                            editBtn.className = 'btn btn-link btn-sm p-0';
+                            editBtn.textContent = '✎';
+                            editBtn.addEventListener('click', function () {
+                                startEditHistoryDate(rec, line);
+                            });
+                            line.appendChild(editBtn);
+                        }
+
+                        // 132 и legacy закреплены над скроллом; 112/курсы скроллятся
+                        (rec.label.indexOf('112') === -1 ? pinned : scroll).appendChild(line);
                     });
 
-                    if (data.can_approve && hasUnapproved) {
-                        const allBtn = document.createElement('button');
-                        allBtn.type = 'button';
-                        allBtn.className = 'btn btn-outline-success btn-sm py-0 mt-1';
-                        allBtn.textContent = '✓ ' + @json(__('Approve all'));
-                        allBtn.addEventListener('click', function () {
-                            approvalPost(@json(route('trainings.approveUnit')), pairParams())
-                                .catch(function (error) { box.textContent = error.message; });
-                        });
-                        box.appendChild(allBtn);
-                    }
+                    approveAllBtn.style.display = (data.can_approve && hasUnapproved) ? '' : 'none';
+                    updateCellFromRecords(data.records);
                 } catch (error) {
-                    box.textContent = error.message;
+                    pinned.textContent = error.message;
                 }
             }
 
+            // Инлайн-правка даты записи истории (право проверяет сервер)
+            function startEditHistoryDate(rec, line) {
+                line.innerHTML = '';
+
+                const label = document.createElement('span');
+                label.textContent = rec.label;
+                label.style.whiteSpace = 'nowrap';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control form-control-sm';
+                input.style.maxWidth = '140px';
+                input.setAttribute('data-project-date', '');
+                input.autocomplete = 'off';
+                input.value = rec.date;
+
+                const saveBtn = document.createElement('button');
+                saveBtn.type = 'button';
+                saveBtn.className = 'btn btn-outline-primary btn-sm py-0';
+                saveBtn.textContent = @json(__('Save'));
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.type = 'button';
+                cancelBtn.className = 'btn btn-outline-secondary btn-sm py-0';
+                cancelBtn.textContent = '✕';
+
+                line.append(label, input, saveBtn, cancelBtn);
+                if (window.initProjectDatePickers) {
+                    window.initProjectDatePickers(line);
+                }
+
+                cancelBtn.addEventListener('click', function () { loadPairHistory(); });
+                saveBtn.addEventListener('click', async function () {
+                    const picked = input._projectDatePicker?.selectedDates?.[0];
+                    if (!picked) return;
+                    const ymd = picked.getFullYear() + '-'
+                        + String(picked.getMonth() + 1).padStart(2, '0') + '-'
+                        + String(picked.getDate()).padStart(2, '0');
+                    try {
+                        const response = await fetch(@json(url('trainings')) + '/' + rec.id, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': @json(csrf_token()),
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({ date_training: ymd }),
+                        });
+                        const data = await response.json();
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Error');
+                        }
+                        await loadPairHistory(); // история + ячейка обновятся без reload
+                    } catch (error) {
+                        document.getElementById('matrixTrainHistoryPinned').textContent = error.message;
+                    }
+                });
+            }
+
+            document.getElementById('matrixTrainApproveAll').addEventListener('click', function () {
+                approvalPost(@json(route('trainings.approveUnit')), pairParams())
+                    .catch(function (error) {
+                        document.getElementById('matrixTrainHistoryPinned').textContent = error.message;
+                    });
+            });
+
             document.getElementById('matrixTrainHistoryBtn').addEventListener('click', function () {
+                // Повторный клик — скрыть историю (и Approve all вместе с ней)
+                const box = document.getElementById('matrixTrainHistory');
+                if (box.style.display !== 'none') {
+                    box.style.display = 'none';
+                    document.getElementById('matrixTrainHistoryPinned').innerHTML = '';
+                    document.getElementById('matrixTrainHistoryScroll').innerHTML = '';
+                    document.getElementById('matrixTrainApproveAll').style.display = 'none';
+                    return;
+                }
                 loadPairHistory();
             });
 
             document.getElementById('matrixTrainSave').addEventListener('click', async function () {
                 if (!trainCtx) return;
-                const date = document.getElementById('matrixTrainDate').value;
                 const errEl = document.getElementById('matrixTrainError');
-                if (!date) {
+                // flatpickr показывает 24/Aug/2026; на сервер шлём Y-m-d
+                const dateInput = document.getElementById('matrixTrainDate');
+                const picked = dateInput._projectDatePicker?.selectedDates?.[0];
+                if (!picked) {
                     errEl.textContent = @json(__('Select a date.'));
                     errEl.style.display = '';
                     return;
                 }
+                const date = picked.getFullYear() + '-'
+                    + String(picked.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(picked.getDate()).padStart(2, '0');
                 try {
                     const body = new FormData();
                     let endpoint;
@@ -696,7 +839,17 @@
                     if (!response.ok || !data.success) {
                         throw new Error(data.message || 'Error');
                     }
-                    window.location.reload();
+                    // Без перезагрузки: обновить ячейку из свежей истории и закрыть модалку
+                    try {
+                        const histResp = await fetch(@json(route('trainings.matrixPairHistory')) + '?' + pairParams(), {
+                            headers: { 'Accept': 'application/json' },
+                        });
+                        const hist = await histResp.json();
+                        if (histResp.ok && hist.success) {
+                            updateCellFromRecords(hist.records);
+                        }
+                    } catch (ignored) {}
+                    bootstrap.Modal.getInstance(modalEl)?.hide();
                 } catch (error) {
                     errEl.textContent = error.message;
                     errEl.style.display = '';
@@ -893,10 +1046,13 @@
             }
 
             function matrixRowDelete(id, pn) {
-                if (!confirm(@json(__('Delete matrix row')) + ' ' + pn + '?')) return;
-                const form = document.getElementById('matrixRowDeleteForm');
-                form.action = matrixRowRoutes.destroy.replace('__ID__', id);
-                form.submit();
+                window.appConfirm(@json(__('Delete matrix row')) + ' ' + pn + '?', { okText: @json(__('Delete')), okClass: 'btn-danger' })
+                    .then(function (ok) {
+                        if (!ok) return;
+                        const form = document.getElementById('matrixRowDeleteForm');
+                        form.action = matrixRowRoutes.destroy.replace('__ID__', id);
+                        form.submit();
+                    });
             }
         </script>
     @endif

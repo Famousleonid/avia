@@ -451,7 +451,7 @@
                 btn.onclick = async () => {
                     const mediaId = triggerEl?.dataset.mediaId;
                     if (!mediaId) return window.notifyError('Media ID not found!');
-                    if (!confirm('Are you sure you want to delete this photo?')) return;
+                    if (!await window.appConfirm('Are you sure you want to delete this photo?')) return;
 
                     try {
                         await makeRequest(`/mobile/workorders/photo/delete/${mediaId}`, 'DELETE');

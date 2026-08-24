@@ -865,16 +865,21 @@
                     return;
                 }
 
-                // Предупреждение при смене unit, если есть TDR
+                // Предупреждение при смене unit, если есть TDR (наша модалка вместо confirm)
                 const newUnitId = parseInt(document.getElementById('unit_id').value || '0', 10);
-                if (HAS_TDRS && newUnitId !== INITIAL_UNIT_ID) {
+                if (HAS_TDRS && newUnitId !== INITIAL_UNIT_ID && workorderForm.dataset.unitChangeOk !== '1') {
                     const msg = 'Workorder has TDR records. Changing Unit (and thus Manual) may cause data inconsistency. Components in TDR may not match the new Manual. Continue?';
-                    if (!confirm(msg)) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
-                        return;
-                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.appConfirm(msg).then(function (ok) {
+                        if (!ok) {
+                            if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                            return;
+                        }
+                        workorderForm.dataset.unitChangeOk = '1';
+                        workorderForm.requestSubmit ? workorderForm.requestSubmit() : workorderForm.submit();
+                    });
+                    return;
                 }
 
                 if (releaseDraft) {

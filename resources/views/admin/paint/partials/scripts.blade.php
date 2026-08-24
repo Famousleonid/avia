@@ -420,8 +420,9 @@
                         if (ok) runPaintLostDelete(url);
                     });
                 } else {
-                    if (!window.confirm('Delete this record?')) return;
-                    runPaintLostDelete(url);
+                    window.appConfirm('Delete this record?', { okText: 'Delete', okClass: 'btn-danger' }).then(function (ok) {
+                        if (ok) runPaintLostDelete(url);
+                    });
                 }
             });
         });

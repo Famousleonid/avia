@@ -295,8 +295,8 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
         if (el('otherTableDataFontSize')) el('otherTableDataFontSize').value = parseNum(settings.otherTableDataFontSize) || 13;
     }
 
-    function resetPrintSettings() {
-        if (confirm('Reset all print settings to default values?')) {
+    async function resetPrintSettings() {
+        if (await (window.appConfirm ? window.appConfirm('Reset all print settings to default values?') : Promise.resolve(confirm('Reset all print settings to default values?')))) {
             window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
             loadSettingsToForm(defaultSettings);
             applyPrintSettings(defaultSettings);

@@ -639,8 +639,8 @@
         });
     }
 
-    function deleteRecord(recordId) {
-        if (!confirm('{{ __("Are you sure you want to delete this record?") }}')) return;
+    async function deleteRecord(recordId) {
+        if (!await window.appConfirm('{{ __("Are you sure you want to delete this record?") }}', { okText: 'Delete', okClass: 'btn-danger' })) return;
         $.ajax({
             url: '{{ route("rm_reports.destroy", ":id") }}'.replace(':id', recordId),
             type: 'POST',

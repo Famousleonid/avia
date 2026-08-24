@@ -3054,7 +3054,7 @@
             function confirmDiscardUnsavedChanges() {
                 if (!hasUnsavedChanges()) return Promise.resolve(true);
                 if (!unsavedModalEl || !window.bootstrap?.Modal) {
-                    return Promise.resolve(window.confirm(unsavedChangesMessage));
+                    return window.appConfirm(unsavedChangesMessage);
                 }
                 if (unsavedPromptPromise) return unsavedPromptPromise;
 
@@ -4175,7 +4175,7 @@
             async function deleteContact(button) {
                 const form = button.closest('.js-contact-row');
                 const id = form?.dataset.contactId;
-                if (!id || !confirm('Delete contact?')) return;
+                if (!id || !await window.appConfirm('Delete contact?', { okText: 'Delete', okClass: 'btn-danger' })) return;
 
                 try {
                     const data = await requestJson(urlFor(routes.destroyContact, id), { method: 'DELETE' });
@@ -4235,7 +4235,7 @@
             async function deleteNote(button) {
                 const noteEl = button.closest('[data-note-id]');
                 const id = noteEl?.dataset.noteId;
-                if (!id || !confirm('Delete note?')) return;
+                if (!id || !await window.appConfirm('Delete note?', { okText: 'Delete', okClass: 'btn-danger' })) return;
 
                 try {
                     const data = await requestJson(urlFor(routes.destroyNote, id), { method: 'DELETE' });
@@ -5053,7 +5053,7 @@
             mediaBody.addEventListener('click', async (event) => {
                 const deleteBtn = event.target.closest('.js-marketing-file-delete');
                 if (deleteBtn) {
-                    if (!window.confirm(`Delete ${deleteBtn.dataset.fileName || 'this file'}?`)) return;
+                    if (!await window.appConfirm(`Delete ${deleteBtn.dataset.fileName || 'this file'}?`, { okText: 'Delete', okClass: 'btn-danger' })) return;
                     deleteBtn.disabled = true;
                     try {
                         await requestJson(deleteBtn.dataset.deleteUrl, { method: 'DELETE' });

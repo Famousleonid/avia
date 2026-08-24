@@ -458,8 +458,8 @@
     </div>
 
     <script>
-        function clearForm() {
-            if(confirm('{{__("Are you sure you want to clear all data?")}}')) {
+        async function clearForm() {
+            if (await window.appConfirm('{{__("Are you sure you want to clear all data?")}}')) {
                 document.getElementById('bushings-form').reset();
                 // После сброса формы деактивируем все поля и устанавливаем значения по умолчанию
                 document.querySelectorAll('[data-group]').forEach(function(field) {

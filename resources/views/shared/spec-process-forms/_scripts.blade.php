@@ -162,8 +162,8 @@
         }
     };
 
-    window.specProcessFormResetPrintSettings = function() {
-        if (confirm('Reset all print settings to default values?')) {
+    window.specProcessFormResetPrintSettings = async function() {
+        if (await (window.appConfirm ? window.appConfirm('Reset all print settings to default values?') : Promise.resolve(confirm('Reset all print settings to default values?')))) {
             window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
             refreshProcessFormLayout(defaultSettings);
             const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));

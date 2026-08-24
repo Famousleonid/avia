@@ -604,7 +604,7 @@
         }
 
         // Функция для сохранения выбранных записей в workorder
-        function saveSelectedRecords() {
+        async function saveSelectedRecords() {
             const selectedRecords = Array.from(document.querySelectorAll('.record-checkbox:checked'))
                 .map(cb => cb.value);
 
@@ -629,7 +629,7 @@
             }
             confirmMessage += ' to this work order?';
 
-            if (confirm(confirmMessage)) {
+            if (await window.appConfirm(confirmMessage)) {
                 // Создаем форму для отправки POST запроса
                 var form = document.createElement('form');
                 form.method = 'POST';
@@ -706,8 +706,8 @@
         }
 
         // Функция для удаления одной записи
-        function deleteRecord(recordId) {
-            if (confirm('Are you sure you want to delete this record?')) {
+        async function deleteRecord(recordId) {
+            if (await window.appConfirm('Are you sure you want to delete this record?', { okText: 'Delete', okClass: 'btn-danger' })) {
                 // Создаем форму для отправки DELETE запроса
                 var form = document.createElement('form');
                 form.method = 'POST';

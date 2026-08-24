@@ -81,7 +81,7 @@
                         <form class="machining-photo-del"
                               method="POST"
                               action="{{ route('mobile.machining.workorder.media.destroy', [$workorder, $p['id']]) }}"
-                              onsubmit="return confirm('Delete this photo?');">
+                              data-app-confirm="Delete this photo?">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-danger">×</button>

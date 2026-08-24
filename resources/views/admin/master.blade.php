@@ -438,5 +438,7 @@
     @include('admin.ai_widget')
 @endif
 
+@include('components.app-confirm')
+
 </body>
 </html>

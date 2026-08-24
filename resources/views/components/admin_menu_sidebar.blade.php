@@ -365,13 +365,13 @@
                     </li>
 
                     <li class="nav-item press-spinner">
-                        <form action="{{ route('admin.database.backup') }}" method="post" class="m-0" id="admin-database-backup-form">
+                        <form action="{{ route('admin.database.backup') }}" method="post" class="m-0" id="admin-database-backup-form"
+                              data-app-confirm="Create a full database backup now? This may take a minute.">
                             @csrf
                             <button type="submit"
                                     class="nav-link w-100 text-start border-0 bg-transparent"
                                     style="color: inherit;"
-                                    title="Create full database backup (stored under storage/app/backups)"
-                                    onclick="return confirm('Create a full database backup now? This may take a minute.');">
+                                    title="Create full database backup (stored under storage/app/backups)">
                                 <i class="bi bi-database-down me-2"></i><span>Database backup</span>
                             </button>
                         </form>

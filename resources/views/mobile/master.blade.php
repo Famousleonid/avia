@@ -301,6 +301,7 @@
 
 @yield('scripts')
 
+@include('components.app-confirm')
 
 </body>
 </html>

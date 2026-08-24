@@ -366,14 +366,16 @@
 
                                 <div class="col">
                                     @if($dateLocked)
-                                        <input type="date"
+                                        <input type="text"
                                                class="form-control form-control-sm"
-                                               value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}"
+                                               value="{{ \Carbon\Carbon::parse($training->date_training)->format('d/M/Y') }}"
                                                disabled>
                                     @else
-                                        <input type="date"
+                                        {{-- data-project-date: проектный flatpickr, формат 24/Aug/2026 --}}
+                                        <input type="text"
                                                class="form-control form-control-sm edit-training-date-input"
-                                               value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
+                                               data-project-date autocomplete="off"
+                                               value="{{ \Carbon\Carbon::parse($training->date_training)->format('d/M/Y') }}">
                                     @endif
                                 </div>
 
@@ -460,8 +462,10 @@
                             </div>
 
                             <div class="col">
-                                <input type="date"
-                                       class="form-control form-control-sm add-training-date-input">
+                                <input type="text"
+                                       class="form-control form-control-sm add-training-date-input"
+                                       data-project-date autocomplete="off"
+                                       placeholder="{{ __('dd/Mon/yyyy') }}">
                             </div>
 
                             <div class="col-auto">
@@ -598,6 +602,44 @@
         </div>
     </div>
 
+    <!-- Modal: Confirm delete single training date -->
+    <div class="modal fade" id="confirmDeleteDateModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ __('Confirm Delete') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">{{ __('Delete this training date?') }}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteDateBtn">{{ __('Delete') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirm remove approval -->
+    <div class="modal fade" id="confirmUnapproveModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ __('Remove approval') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">{{ __('Remove approval from this training?') }}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-warning" id="confirmUnapproveBtn">{{ __('Remove') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const selectedUserId = {{ $selectedUserId }};
         const authUserId = {{ auth()->id() }};
@@ -655,6 +697,22 @@
             const baseUrl = '{{ url("trainings") }}';
             const csrfToken = '{{ csrf_token() }}';
 
+            // Значение проектного date-инпута (24/Aug/2026) → 'Y-m-d' для сервера
+            function projectDateInputToYmd(input) {
+                const picked = input._projectDatePicker?.selectedDates?.[0];
+                if (picked) {
+                    return picked.getFullYear() + '-'
+                        + String(picked.getMonth() + 1).padStart(2, '0') + '-'
+                        + String(picked.getDate()).padStart(2, '0');
+                }
+                const m = String(input.value || '').trim().match(/^(\d{1,2})[\/.]([a-z]{3})[\/.](\d{4})$/i);
+                if (!m) return '';
+                const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+                const month = months.indexOf(m[2].toLowerCase());
+                if (month < 0) return '';
+                return m[3] + '-' + String(month + 1).padStart(2, '0') + '-' + String(Number(m[1])).padStart(2, '0');
+            }
+
             // Сохранение изменённых дат
             document.querySelectorAll('.edit-training-save-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
@@ -672,7 +730,7 @@
 
                         if (!input || !trainingId) return;
 
-                        const newDate = input.value.trim();
+                        const newDate = projectDateInputToYmd(input);
                         if (newDate && newDate !== originalDate) {
                             updates.push({ id: trainingId, date_training: newDate });
                         }
@@ -742,7 +800,7 @@
                     const input = row.querySelector('.add-training-date-input');
                     if (!input || !manualsId) return;
 
-                    const dateYmd = input.value.trim();
+                    const dateYmd = projectDateInputToYmd(input);
 
                     if (!dateYmd) {
                         showNotification('{{ __("Please select a date.") }}', 'warning');
@@ -787,16 +845,25 @@
                 });
             });
 
-            // Удаление отдельной даты тренинга
+            // Удаление отдельной даты тренинга — своя модалка вместо браузерного confirm
+            let pendingDeleteDateId = null;
+
             document.querySelectorAll('.delete-training-date-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     const trainingId = this.getAttribute('data-training-id');
                     if (!trainingId) return;
 
-                    if (!confirm('{{ __("Are you sure you want to delete this training date?") }}')) {
-                        return;
-                    }
+                    pendingDeleteDateId = trainingId;
+                    new bootstrap.Modal(document.getElementById('confirmDeleteDateModal')).show();
+                });
+            });
 
+            document.getElementById('confirmDeleteDateBtn')?.addEventListener('click', function () {
+                const trainingId = pendingDeleteDateId;
+                if (!trainingId) return;
+                bootstrap.Modal.getInstance(document.getElementById('confirmDeleteDateModal'))?.hide();
+
+                (function () {
                     fetch(baseUrl + '/' + trainingId, {
                         method: 'DELETE',
                         headers: {
@@ -821,7 +888,7 @@
                         .catch(function (err) {
                             showNotification('{{ __("Error") }}: ' + err.message, 'error');
                         });
-                });
+                })();
             });
 
             // Приёмка тренингов: approve / unapprove / approve всего юнита
@@ -849,11 +916,20 @@
                 });
             });
 
+            // Снятие приёмки — своя модалка вместо браузерного confirm
+            let pendingUnapproveId = null;
+
             document.querySelectorAll('.unapprove-training-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    if (!confirm('{{ __("Remove approval from this training?") }}')) return;
-                    trainingApprovalPost(baseUrl + '/' + this.getAttribute('data-training-id') + '/unapprove');
+                    pendingUnapproveId = this.getAttribute('data-training-id');
+                    new bootstrap.Modal(document.getElementById('confirmUnapproveModal')).show();
                 });
+            });
+
+            document.getElementById('confirmUnapproveBtn')?.addEventListener('click', function () {
+                if (!pendingUnapproveId) return;
+                bootstrap.Modal.getInstance(document.getElementById('confirmUnapproveModal'))?.hide();
+                trainingApprovalPost(baseUrl + '/' + pendingUnapproveId + '/unapprove');
             });
 
             document.querySelectorAll('.approve-unit-btn').forEach(function (btn) {

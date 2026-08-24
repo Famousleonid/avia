@@ -370,7 +370,7 @@
                                             method="POST"
                                             action="{{ route('admin.project-settings.user-background.destroy', ['user' => $selectedUser->id]) }}"
                                             class="mt-2"
-                                            onsubmit="return confirm('Remove the project background for this user?')"
+                                            data-app-confirm="Remove the project background for this user?"
                                         >
                                             @csrf
                                             @method('DELETE')

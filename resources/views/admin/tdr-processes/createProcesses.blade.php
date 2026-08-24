@@ -637,10 +637,10 @@
             const saveIncompleteButton = document.getElementById('descriptionRequirementSaveIncomplete');
 
             if (!modalElement || !messageElement || !returnButton || !saveIncompleteButton || !window.bootstrap?.Modal) {
-                return Promise.resolve(window.confirm(
-                    'Description is missing required ' + message + '.\n\n' +
-                    'Slava S will not accept the printed form without this information. Save anyway?'
-                ));
+                return window.appConfirm(
+                    'Description is missing required ' + message + '. '
+                    + 'Slava S will not accept the printed form without this information. Save anyway?'
+                );
             }
 
             messageElement.textContent = message;

@@ -1798,7 +1798,7 @@
                         okText: 'Change',
                         cancelText: 'Cancel',
                     })
-                    : window.confirm('Change Component PN for this workorder?');
+                    : await window.appConfirm('Change Component PN for this workorder?', { okText: 'Change' });
 
                 if (!ok) {
                     select.value = originalValue;
