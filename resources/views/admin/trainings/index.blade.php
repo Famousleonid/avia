@@ -8,6 +8,7 @@
             .table th:nth-child(5), .table td:nth-child(5) {
                 display: none;
             }
+        }
 
         @media (max-width: 770px) {
             .table th:nth-child(2), .table td:nth-child(2),
@@ -46,7 +47,7 @@
 
         /* Вертикальный скролл при большом списке, шапка прилипает */
         .trainings-table-wrap {
-            max-height: 72vh;
+            max-height: 85vh;
             overflow: auto;
         }
 
