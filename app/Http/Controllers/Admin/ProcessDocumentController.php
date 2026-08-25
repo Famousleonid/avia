@@ -128,6 +128,28 @@ class ProcessDocumentController extends Controller
 
     // ── Generation (2c.1) — template + WO data → PDF in WO library ─
 
+    /**
+     * Browser view of the document for a WO (Part Processes tab): HTML pages
+     * with print CSS, print-only — nothing is generated or stored.
+     */
+    public function view(Request $request, Workorder $workorder, ProcessDocument $processDocument)
+    {
+        // EC: show only the pages of one place (parameter) — mirrors generate()
+        $onlyParam = $request->input('parameter_id') ? (int) $request->input('parameter_id') : null;
+
+        $pagesHtml = app(ProcessDocumentRenderer::class)
+            ->renderHtmlPages($processDocument, $workorder, [], $onlyParam);
+
+        return view('admin.process-documents.view', [
+            'workorder'   => $workorder,
+            'document'    => $processDocument,
+            'pagesHtml'   => $pagesHtml,
+            'parameterId' => $onlyParam,
+            // колонтитул листа — имя процесса-владельца чертежа
+            'caption'     => $processDocument->ownerProcessName() ?: (string) $processDocument->title,
+        ]);
+    }
+
     public function generate(Request $request, Workorder $workorder, ProcessDocument $processDocument)
     {
         $context = [

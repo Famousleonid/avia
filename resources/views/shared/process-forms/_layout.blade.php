@@ -44,6 +44,12 @@
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" onclick="window.print()">Print Form</button>
     <button class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#printSettingsModal">⚙️ Print Settings</button>
+    @if(!empty($figPagesHtml))
+        <label class="ms-3" style="cursor:pointer">
+            <input type="checkbox" class="form-check-input" id="includeFigChk" checked>
+            {{ __('Print with Fig.') }} ({{ count($figPagesHtml) }})
+        </label>
+    @endif
 </div>
 @endif
 
@@ -67,6 +73,10 @@
         @include('shared.process-forms._footer')
     </div>
 </div>
+
+@if(!$embedded)
+@include('shared.process-forms._fig-attachment')
+@endif
 
 @if(!$embedded)
 @if(!isset($hideBootstrapJS) || !$hideBootstrapJS)

@@ -789,4 +789,23 @@ class FitsClearancesTorqueTest extends TestCase
         $this->assertStringContainsString('data-ref="4"', $html);
         $this->assertStringContainsString('data-ref="5"', $html);
     }
+
+    // ---- Process document browser view (Part Processes doc buttons) ----
+
+    public function test_process_document_view_page_renders_without_storing_pdf(): void
+    {
+        $manual = $this->createManual();
+        $doc = $manual->documents()->create(['doc_type' => 'manual_page', 'title' => 'Chrome dwg', 'sort_order' => 0]);
+        $doc->pages()->create(['page_no' => 1, 'image_path' => 't/dwg.png', 'image_width' => 1000, 'image_height' => 800, 'sort_order' => 0]);
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $resp = $this->actingAs($this->admin())
+            ->get(route('process-documents.view', ['workorder' => $wo->id, 'processDocument' => $doc->id]))
+            ->assertOk();
+        $resp->assertSee('Chrome dwg');
+        $resp->assertSee('window.print()', false);
+        // Print-only page: no Save PDF action, nothing lands in the WO library.
+        $resp->assertDontSee('savePdfBtn', false);
+        $this->assertCount(0, $wo->fresh()->getMedia('pdfs'));
+    }
 }

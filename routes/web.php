@@ -468,6 +468,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::delete('/process-documents/{processDocument}', [ProcessDocumentController::class, 'destroyDocument'])->name('process-documents.destroy');
     // generate concrete PDF for a WO (2c.1)
     Route::post('/workorders/{workorder}/process-documents/{processDocument}/generate', [ProcessDocumentController::class, 'generate'])->name('process-documents.generate');
+    // browser view of the document for a WO (Part Processes tab, print-only)
+    Route::get('/workorders/{workorder}/process-documents/{processDocument}/view', [ProcessDocumentController::class, 'view'])->name('process-documents.view');
     // pages
     Route::post('/process-documents/{processDocument}/pages', [ProcessDocumentController::class, 'storePage'])->name('process-documents.pages.store');
     Route::post('/process-document-pages/{processDocumentPage}/image', [ProcessDocumentController::class, 'uploadPageImage'])->name('process-document-pages.image');

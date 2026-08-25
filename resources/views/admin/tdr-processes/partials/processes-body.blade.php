@@ -78,20 +78,12 @@
             $phaseDocsByRp[$_d->documentable_id][] = $_d;
         }
     }
-    // Документы привязаны к процессу → показываются на строке через $docsByRp /
-    // $phaseDocsByRp. Машининг, переименованный в Machining (EC), сохраняет
-    // rule_process_ids, поэтому тот же чертёж виден и в ремонте, и в EC.
-    $showDocColumn = !empty($docsByRp) || !empty($phaseDocsByRp);
+    // Документы привязаны к процессу → кнопка doc рендерится в колонке Form
+    // через $docsByRp / $phaseDocsByRp. Машининг, переименованный в Machining (EC),
+    // сохраняет rule_process_ids, поэтому тот же чертёж виден и в ремонте, и в EC.
 @endphp
 
 <style>
-    /* Document column (2c.1): ширину задаёт <colgroup>; nowrap обязателен — иначе
-       одиночное слово "Document" рвётся по буквам (глобально overflow-wrap:anywhere)
-       и раздувает высоту шапки. */
-    .process-doc-col,
-    .process-doc-cell {
-        white-space: nowrap;
-    }
     .tdr-process-inline-create-row > td {
         background: rgba(13, 202, 240, .07);
         border-top: 2px solid rgba(13, 202, 240, .45);
@@ -153,7 +145,7 @@
         min-width: 1100px;
     }
     .tdr-processes-table col:nth-child(2) {
-        width: {{ $showDocColumn ? 31 : 36 }}% !important;
+        width: 36% !important;
     }
     .tdr-processes-table col:nth-child(6) {
         width: 19% !important;
@@ -253,12 +245,11 @@
         <table class="display table table-sm table-hover align-middle bg-gradient dir-table sortable-table tdr-processes-table">
             <colgroup>
                 <col style="width: 11%">{{-- Process Name --}}
-                <col style="width: {{ $showDocColumn ? 37 : 42 }}%">{{-- Process (поглощает остаток) --}}
+                <col style="width: 42%">{{-- Process (поглощает остаток) --}}
                 <col style="width: 17%">{{-- Description --}}
                 <col style="width: 9%">{{-- Traveler --}}
                 <col style="width: 8%">{{-- Action --}}
                 <col style="width: 13%">{{-- Form --}}
-                @if($showDocColumn)<col style="width: 5%">{{-- Document --}}@endif
             </colgroup>
             <thead>
             <tr>
@@ -270,7 +261,6 @@
                 </th>
                 <th class="text-primary text-center process-action-col">{{ __('Action') }}</th>
                 <th class="text-primary text-center process-form-col">{{ __('Form') }}</th>
-                @if($showDocColumn)<th class="text-primary text-center process-doc-col">{{ __('Document') }}</th>@endif
             </tr>
             </thead>
             <tbody id="sortable-tbody">
@@ -351,16 +341,16 @@
                                     @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                     <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                         @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
+                                        @include('admin.tdr-processes.partials.processes-body-document-controls')
                                     </td>
                                 @else
-                                    <td class="text-center align-middle text-muted small">—</td>
+                                    <td class="text-center align-middle text-muted small">— @include('admin.tdr-processes.partials.processes-body-document-controls')</td>
                                 @endif
                             @else
                             <td class="text-center">
                                 @include('admin.tdr-processes.partials.processes-body-standard-form-controls', ['combinedFormProcessId' => null])
                             </td>
                             @endif
-                            @include('admin.tdr-processes.partials.processes-body-document-cell')
                         </tr>
                     @elseif($isNdtWithPlus)
                         <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
@@ -395,16 +385,16 @@
                                     @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                     <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                         @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
+                                        @include('admin.tdr-processes.partials.processes-body-document-controls')
                                     </td>
                                 @else
-                                    <td class="text-center align-middle text-muted small">—</td>
+                                    <td class="text-center align-middle text-muted small">— @include('admin.tdr-processes.partials.processes-body-document-controls')</td>
                                 @endif
                             @else
                             <td class="text-center">
                                 @include('admin.tdr-processes.partials.processes-body-standard-form-controls', ['combinedFormProcessId' => null])
                             </td>
                             @endif
-                            @include('admin.tdr-processes.partials.processes-body-document-cell')
                         </tr>
                     @else
                         @if(is_array($processData) && !empty($processData))
@@ -433,16 +423,16 @@
                                             @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                             <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                                 @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
+                                        @include('admin.tdr-processes.partials.processes-body-document-controls')
                                             </td>
                                         @else
-                                            <td class="text-center align-middle text-muted small">—</td>
+                                            <td class="text-center align-middle text-muted small">— @include('admin.tdr-processes.partials.processes-body-document-controls')</td>
                                         @endif
                                     @else
                                     <td class="text-center">
                                         @include('admin.tdr-processes.partials.processes-body-standard-form-controls', ['combinedFormProcessId' => $process])
                                     </td>
                                     @endif
-                                    @include('admin.tdr-processes.partials.processes-body-document-cell')
                                 </tr>
                             @endforeach
                         @else
@@ -467,16 +457,16 @@
                                         @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                         <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                             @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
+                                        @include('admin.tdr-processes.partials.processes-body-document-controls')
                                         </td>
                                     @else
-                                        <td class="text-center align-middle text-muted small">—</td>
+                                        <td class="text-center align-middle text-muted small">— @include('admin.tdr-processes.partials.processes-body-document-controls')</td>
                                     @endif
                                 @else
                                 <td class="text-center">
                                     @include('admin.tdr-processes.partials.processes-body-standard-form-controls', ['combinedFormProcessId' => null])
                                 </td>
                                 @endif
-                                @include('admin.tdr-processes.partials.processes-body-document-cell')
                             </tr>
                         @endif
                     @endif
@@ -510,7 +500,6 @@
                     </div>
                 </td>
                 <td></td>
-                @if($showDocColumn)<td></td>@endif
             </tr>
             <tr class="tdr-process-inline-add-row">
                 <td class="text-start">
@@ -521,7 +510,7 @@
                         {{ __('Add') }}
                     </button>
                 </td>
-                <td colspan="{{ $showDocColumn ? 6 : 5 }}"></td>
+                <td colspan="5"></td>
             </tr>
             </tbody>
         </table>

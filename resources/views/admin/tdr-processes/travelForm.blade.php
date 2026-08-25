@@ -340,6 +340,12 @@
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" type="button" onclick="window.print()">Print Form</button>
     <button class="btn btn-secondary ms-2" type="button" data-bs-toggle="modal" data-bs-target="#printSettingsModal">⚙️ Print Settings</button>
+    @if(!empty($figPagesHtml))
+        <label class="ms-3" style="cursor:pointer">
+            <input type="checkbox" class="form-check-input" id="includeFigChk" checked>
+            {{ __('Print with Fig.') }} ({{ count($figPagesHtml) }})
+        </label>
+    @endif
 </div>
 
 <div class="container-fluid">
@@ -606,6 +612,9 @@
 
     </footer>
 </div>
+
+{{-- страница traveler — letter landscape: чертёж разворачиваем на листе на 90° --}}
+@include('shared.process-forms._fig-attachment', ['figRotatePrint' => true])
 
 @include('shared.process-forms._print-settings-modal', ['module' => 'travel-form', 'formConfig' => $formConfig, 'showFormTypes' => ['other']])
 @include('shared.process-forms._scripts', ['module' => 'travel-form', 'formConfig' => $formConfig])

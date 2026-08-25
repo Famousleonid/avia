@@ -7,8 +7,9 @@
     $formParams = array_merge($formParams, $formRouteExtraParams);
 @endphp
 
-@if($canPrintForm)
-    <div class="d-flex gap-1 justify-content-center align-items-center process-form-controls">
+{{-- слева с отступом: кнопки Form стоят ровно по вертикали вне зависимости от наличия кнопки doc --}}
+<div class="d-flex gap-1 justify-content-start align-items-center process-form-controls ps-2">
+    @if($canPrintForm)
         <input type="checkbox"
                class="form-check-input mt-0 combined-form-select"
                data-tdr-process-id="{{ $tdrProcessRow->id }}"
@@ -31,7 +32,6 @@
            data-tdr-process-id="{{ $tdrProcessRow->id }}"
            @if($combinedFormProcessId !== null) data-process="{{ $combinedFormProcessId }}" @endif
            target="_blank">{{ __('Form') }}</a>
-    </div>
-@else
-    <div class="d-flex gap-2 justify-content-center"></div>
-@endif
+    @endif
+    @include('admin.tdr-processes.partials.processes-body-document-controls')
+</div>

@@ -615,6 +615,9 @@ class TdrProcessController extends Controller
 
         $formConfig = config('process_forms.travel-form', config('process_forms.tdr-processes'));
 
+        // Fig: чертежи всех строк traveler-группы (общий чертёж — один раз)
+        $figPagesHtml = $this->figPagesHtmlForRows($tdrProcesses, $current_wo);
+
         return view('admin.tdr-processes.travelForm', compact(
             'current_tdr',
             'current_wo',
@@ -624,7 +627,8 @@ class TdrProcessController extends Controller
             'repairNum',
             'vendorName',
             'travelerGroup',
-            'formConfig'
+            'formConfig',
+            'figPagesHtml'
         ));
     }
 
@@ -1034,6 +1038,10 @@ class TdrProcessController extends Controller
             'machining_header_manual_libs' => $this->machiningHeaderManualLibsForWorkorder($process_name, (int) $current_wo->id),
         ];
 
+        // Fig: чертежи процесса — предлагаются к печати вслед за формой
+        // (чекбокс «Print with Fig.» в тулбаре).
+        $viewData['figPagesHtml'] = $this->figPagesHtmlForRows([$current_tdrs_process], $current_wo);
+
         // Обработка случая для NDT-форм
         if ($process_name->process_sheet_name == 'NDT') {
             $ndt_ids = $this->ndtFormNameIds($process_name);
@@ -1235,7 +1243,57 @@ class TdrProcessController extends Controller
             ];
         }
 
+        // Fig: чертежи всех выбранных строк (общий чертёж печатается один раз)
+        $viewData['figPagesHtml'] = $this->figPagesHtmlForRows($selectedRows, $current_wo);
+
         return view('admin.tdr-processes.processesForm', $viewData);
+    }
+
+    /**
+     * Fig-страницы для печати вслед за формой: документы rule-process (и
+     * Start/Finish phase rule-process) переданных строк. Дедупликация по
+     * документу — чертёж, привязанный к нескольким строкам, попадает один раз.
+     */
+    private function figPagesHtmlForRows(iterable $rows, \App\Models\Workorder $current_wo): array
+    {
+        $rpIds = [];
+        $phaseRpIds = [];
+        foreach ($rows as $row) {
+            foreach ((array) ($row->rule_process_ids ?? []) as $rid) {
+                $rpIds[] = (int) $rid;
+            }
+            foreach ((array) ($row->phase_rule_process_ids ?? []) as $rid) {
+                $phaseRpIds[] = (int) $rid;
+            }
+        }
+
+        $figDocs = [];
+        if (!empty($rpIds)) {
+            foreach (\App\Models\ProcessDocument::where('documentable_type', \App\Models\ManualParameterRuleProcess::class)
+                ->whereIn('documentable_id', array_unique($rpIds))->orderBy('sort_order')->get() as $d) {
+                $figDocs[$d->id] = $d;
+            }
+        }
+        if (!empty($phaseRpIds)) {
+            foreach (\App\Models\ProcessDocument::where('documentable_type', \App\Models\MasterRulePhaseRuleProcess::class)
+                ->whereIn('documentable_id', array_unique($phaseRpIds))->orderBy('sort_order')->get() as $d) {
+                $figDocs['p' . $d->id] = $d;
+            }
+        }
+
+        $figPagesHtml = [];
+        if (!empty($figDocs)) {
+            $renderer = app(\App\Services\Measurements\ProcessDocumentRenderer::class);
+            foreach ($figDocs as $d) {
+                // колонтитул листа — имя процесса-владельца чертежа
+                $caption = $d->ownerProcessName() ?: (string) $d->title;
+                foreach ($renderer->renderHtmlPages($d, $current_wo) as $figHtml) {
+                    $figPagesHtml[] = ['caption' => $caption, 'html' => $figHtml];
+                }
+            }
+        }
+
+        return $figPagesHtml;
     }
 
     public function processes(Request $request, $tdrId)

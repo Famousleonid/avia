@@ -67,15 +67,38 @@ class ProcessDocumentRenderer
     }
 
     /**
+     * Browser view of a whole document: every page as standalone HTML with a
+     * direct image src — no PDF, nothing stored. One HTML string per page.
+     *
+     * @return string[]
+     */
+    public function renderHtmlPages(ProcessDocument $document, Workorder $workorder, array $context = [], ?int $onlyParameterId = null): array
+    {
+        $document->loadMissing('pages.elements');
+
+        $pages = $document->pages;
+        if ($onlyParameterId !== null) {
+            $pages = $pages->where('parameter_id', $onlyParameterId)->values();
+        }
+
+        $docParam = $onlyParameterId
+            ? ManualParameter::find($onlyParameterId)
+            : $this->documentParameter($document);
+
+        return $pages->map(fn($p) => $this->renderSinglePageHtml($p, $workorder, $context, $docParam))->all();
+    }
+
+    /**
      * Render a single ProcessDocumentPage as a standalone HTML string (with direct image src).
      * Used for browser preview (not PDF).
      */
     public function renderSinglePageHtml($page, Workorder $workorder, array $context = [], ?ManualParameter $docParam = null): string
     {
         $page->loadMissing('elements');
-        $pageHtml = $this->renderPage($page, $workorder, $context, $docParam, true);
 
-        return '<div class="pdw-page">' . $pageHtml . '</div>';
+        // renderPage сам оборачивает страницу в .pdw-page — вторая обёртка
+        // давала вложенный .pdw-page и дублировала print-поворот Fig (2×−90°=180°).
+        return $this->renderPage($page, $workorder, $context, $docParam, true);
     }
 
     /**
@@ -198,7 +221,13 @@ class ProcessDocumentRenderer
     private function renderPage($page, Workorder $workorder, array $context, ?ManualParameter $docParam, bool $directSrc = false): string
     {
         if ($directSrc) {
-            $imgTag = $page->image_path ? '<img src="' . htmlspecialchars($page->image_path, ENT_QUOTES) . '" alt="">' : '<div style="height:200px"></div>';
+            $src = $page->image_path;
+            // image_path может хранить абсолютный URL чужого окружения
+            // (https://aviatechnik.ca/...) — отдаём same-origin, оставляя только путь
+            if ($src && preg_match('#^https?://#i', $src)) {
+                $src = parse_url($src, PHP_URL_PATH) ?: $src;
+            }
+            $imgTag = $src ? '<img src="' . htmlspecialchars($src, ENT_QUOTES) . '" alt="">' : '<div style="height:200px"></div>';
         } else {
             $img = $this->imageDataUri($page->image_path);
             $imgTag = $img ? '<img src="' . $img . '" alt="">' : '<div style="height:200px"></div>';

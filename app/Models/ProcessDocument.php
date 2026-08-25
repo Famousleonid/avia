@@ -33,4 +33,14 @@ class ProcessDocument extends Model
     {
         return $this->hasMany(ProcessDocumentPage::class, 'document_id')->orderBy('sort_order')->orderBy('page_no');
     }
+
+    /** Имя процесса-владельца (подпись на листах Fig); null для документов уровня Manual. */
+    public function ownerProcessName(): ?string
+    {
+        $owner = $this->documentable;
+
+        return $owner && method_exists($owner, 'manualProcess')
+            ? $owner->manualProcess?->process?->process_name?->name
+            : null;
+    }
 }
