@@ -679,6 +679,44 @@ class TrainingShowAllTest extends TestCase
         $response->assertSee('<strong>35</strong>', false);
     }
 
+    public function test_index_shows_sca_courses_section_for_sca_user_only(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $sca = $this->createUserWithRole('Manager', [
+            'stamp' => 'S1',
+            'is_admin' => false,
+            'can_sign_certificates' => true,
+        ]);
+        $technician = $this->createUserWithRole('Technician', [
+            'stamp' => 'TN',
+            'is_admin' => false,
+        ]);
+
+        $courseRow = TrainingMatrixRow::query()
+            ->whereHas('category', fn ($q) => $q->where('is_sca', true))
+            ->firstOrFail();
+        Training::query()->create([
+            'user_id' => $sca->id,
+            'manuals_id' => null,
+            'matrix_row_id' => $courseRow->id,
+            'date_training' => '2026-08-21',
+            'form_type' => null,
+        ]);
+
+        $scaPage = $this->actingAs($admin)->get(route('trainings.index', ['user_id' => $sca->id]));
+        $scaPage->assertOk();
+        $scaPage->assertSee('SCA Courses');
+        $scaPage->assertSee($courseRow->part_number);
+        $scaPage->assertSee('21/Aug/2026');
+        // Модалка истории дат курса
+        $scaPage->assertSee('courseModal' . $courseRow->id, false);
+
+        // У не-SCA сотрудника секции нет
+        $techPage = $this->actingAs($admin)->get(route('trainings.index', ['user_id' => $technician->id]));
+        $techPage->assertOk();
+        $techPage->assertDontSee('SCA Courses');
+    }
+
     public function test_store_no_longer_backfills_missing_yearly_trainings(): void
     {
         $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);

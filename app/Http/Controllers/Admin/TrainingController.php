@@ -112,6 +112,44 @@ class TrainingController extends Controller
             ];
         }
 
+        // SCA-курсы выбранного сотрудника (для людей с can_sign_certificates):
+        // все активные курсы + первая/последняя даты записей
+        $selectedUser = User::find($selectedUserId);
+        $scaCourses = collect();
+        if ($selectedUser?->can_sign_certificates) {
+            $courseRows = TrainingMatrixRow::whereHas('category', fn ($q) => $q->where('is_sca', true))
+                ->where('is_active', true)
+                ->with('category')
+                ->get()
+                ->sortBy(fn ($row) => [$row->category->sort_order ?? 0, $row->sort_order])
+                ->values();
+            $courseTrainings = Training::whereIn('matrix_row_id', $courseRows->pluck('id'))
+                ->where('user_id', $selectedUserId)
+                ->get()
+                ->groupBy('matrix_row_id');
+            $redAfterDays = (int) config('trainings.matrix_red_after_days', 350);
+            $scaCourses = $courseRows->map(function ($row) use ($courseTrainings, $redAfterDays) {
+                $records = ($courseTrainings[$row->id] ?? collect())->whereNotNull('date_training')->sortBy('date_training');
+                $last = $records->last();
+                $daysSince = $last ? \Carbon\Carbon::parse($last->date_training)->diffInDays(now()) : null;
+
+                return [
+                    'id' => $row->id,
+                    'name' => $row->part_number,
+                    'first' => $records->first()?->date_training,
+                    'last' => $last?->date_training,
+                    'count' => $records->count(),
+                    'overdue' => $daysSince !== null && $daysSince > $redAfterDays,
+                    'days_since' => $daysSince,
+                    'records' => $records->map(fn ($t) => [
+                        'id' => $t->id,
+                        'date' => $t->date_training,
+                        'approved' => $t->isApproved(),
+                    ])->values(),
+                ];
+            });
+        }
+
         $users = collect();
         if ($canViewAllUsers) {
             // Порядок как в матрице: числовые stamp по возрастанию, затем буквенные
@@ -134,7 +172,8 @@ class TrainingController extends Controller
             'selectedUserId',
             'canViewAllUsers',
             'renewalThresholdDays',
-            'totalHoursAll'
+            'totalHoursAll',
+            'scaCourses'
         ));
     }
 

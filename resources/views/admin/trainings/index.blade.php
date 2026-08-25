@@ -207,6 +207,69 @@
             </div>
 
             <div class="card-body">
+                @if($scaCourses->isNotEmpty())
+                    {{-- SCA-курсы (только для сотрудника с SCA-квалификацией); секция сворачивается --}}
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <h6 class="mb-0">{{ __('SCA Courses') }}</h6>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                id="scaCoursesToggle"
+                                aria-expanded="true"
+                                aria-controls="scaCoursesBody">
+                            <i class="bi bi-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div id="scaCoursesBody">
+                        <div class="trainings-table-wrap mb-3" style="max-height: 40vh;">
+                            <table class="table table-bordered table-hover dir-table" id="scaCoursesTable">
+                                <thead>
+                                <tr>
+                                    <th class="text-center align-middle">{{ __('Course') }}</th>
+                                    <th class="text-center align-middle">{{ __('First Training Date') }}</th>
+                                    <th class="text-center align-middle">{{ __('Last Training Date') }}</th>
+                                    <th class="text-center align-middle">{{ __('Records') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($scaCourses as $course)
+                                    <tr>
+                                        <td>{{ $course['name'] }}</td>
+                                        <td class="text-center">
+                                            {{ $course['first'] ? Carbon::parse($course['first'])->format('d/M/Y') : '—' }}
+                                        </td>
+                                        <td class="text-center">
+                                            @if(!$course['last'])
+                                                <span class="text-muted">{{ __('never') }}</span>
+                                            @elseif($course['overdue'])
+                                                <span style="background: #b3423a; color: #fff; border-radius: 4px; padding: 1px 8px; font-weight: 700;"
+                                                      title="{{ __(':days days since last training — refresh required (MP-20)', ['days' => $course['days_since']]) }}">
+                                                    {{ Carbon::parse($course['last'])->format('d/M/Y') }}
+                                                </span>
+                                            @else
+                                                {{ Carbon::parse($course['last'])->format('d/M/Y') }}
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            @if($course['count'] > 0)
+                                                {{-- Клик по числу — история дат курса (правка/удаление) --}}
+                                                <button type="button"
+                                                        class="btn btn-link p-0 m-0 align-baseline text-decoration-none"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#courseModal{{ $course['id'] }}">
+                                                    {{ $course['count'] }}
+                                                </button>
+                                            @else
+                                                <span class="text-muted">0</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="trainings-table-wrap">
                 <table id="trainingsTable"
                        class="table table-bordered table-hover dir-table">
@@ -582,6 +645,101 @@
 
     @endforeach
 
+    {{-- Модалки истории дат SCA-курсов: правка/удаление через общие обработчики
+         (.edit-training-save-btn / .delete-training-date-btn / approve-кнопки) --}}
+    @php
+        $courseViewerCanApprove = auth()->user()->canApproveTrainings();
+        $courseViewerIsDesignated = auth()->user()->canManageApprovedTrainings();
+        $courseViewerManages = auth()->user()->canManageTrainingMatrix();
+    @endphp
+    @foreach($scaCourses as $course)
+        @if($course['count'] > 0)
+            <div class="modal fade" id="courseModal{{ $course['id'] }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">{{ __('SCA Course') }}: {{ $course['name'] }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            @foreach($course['records'] as $record)
+                                @php $recordFrozen = $record['approved'] && !$courseViewerIsDesignated; @endphp
+                                <div class="row g-2 mb-2 align-items-center edit-training-row"
+                                     data-training-id="{{ $record['id'] }}"
+                                     data-original-date="{{ Carbon::parse($record['date'])->format('Y-m-d') }}">
+                                    <div class="col-auto" style="min-width: 60px;">
+                                        <span class="text-muted">{{ $loop->iteration }}.</span>
+                                    </div>
+
+                                    <div class="col">
+                                        @if($recordFrozen || !$courseViewerManages)
+                                            <input type="text"
+                                                   class="form-control form-control-sm"
+                                                   value="{{ Carbon::parse($record['date'])->format('d/M/Y') }}"
+                                                   disabled>
+                                        @else
+                                            <input type="text"
+                                                   class="form-control form-control-sm edit-training-date-input"
+                                                   data-project-date autocomplete="off"
+                                                   value="{{ Carbon::parse($record['date'])->format('d/M/Y') }}">
+                                        @endif
+                                    </div>
+
+                                    <div class="col-auto">
+                                        @if($record['approved'])
+                                            <span class="badge"
+                                                  style="background: rgba(46, 125, 79, 0.18); color: #4caf7d; border: 1px solid #2e7d4f;">
+                                                ✓ {{ __('Approved') }}
+                                            </span>
+                                            @if($courseViewerIsDesignated)
+                                                <button type="button"
+                                                        class="btn btn-outline-warning btn-sm unapprove-training-btn"
+                                                        data-training-id="{{ $record['id'] }}"
+                                                        title="{{ __('Remove approval (designated only)') }}">
+                                                    ✗
+                                                </button>
+                                            @endif
+                                        @elseif($courseViewerCanApprove)
+                                            <button type="button"
+                                                    class="btn btn-outline-success btn-sm approve-training-btn"
+                                                    data-training-id="{{ $record['id'] }}">
+                                                ✓ {{ __('Approve') }}
+                                            </button>
+                                        @endif
+                                    </div>
+
+                                    <div class="col-auto">
+                                        @if($courseViewerManages && !$recordFrozen)
+                                            <button type="button"
+                                                    class="btn btn-outline-danger btn-sm delete-training-date-btn"
+                                                    data-training-id="{{ $record['id'] }}">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                {{ __('Cancel') }}
+                            </button>
+                            @if($courseViewerManages)
+                                <button type="button"
+                                        class="btn btn-primary edit-training-save-btn"
+                                        data-modal-id="courseModal{{ $course['id'] }}">
+                                    {{ __('Save') }}
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endforeach
+
     <!-- Modal: Confirm delete -->
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
@@ -694,6 +852,25 @@
                     if (icon) {
                         icon.className = (sortOrder > 0 ? 'bi bi-arrow-down' : 'bi bi-arrow-up') + ' text-muted small ms-1';
                     }
+                });
+            }
+
+            // Сворачивание секции SCA-курсов (состояние переживает перезагрузку)
+            const scaToggle = document.getElementById('scaCoursesToggle');
+            const scaBody = document.getElementById('scaCoursesBody');
+            if (scaToggle && scaBody) {
+                const applyScaState = function (collapsed) {
+                    scaBody.style.display = collapsed ? 'none' : '';
+                    const icon = scaToggle.querySelector('i');
+                    if (icon) icon.className = collapsed ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+                    scaToggle.setAttribute('aria-expanded', String(!collapsed));
+                };
+                let scaCollapsed = localStorage.getItem('scaCoursesCollapsed') === '1';
+                applyScaState(scaCollapsed);
+                scaToggle.addEventListener('click', function () {
+                    scaCollapsed = !scaCollapsed;
+                    localStorage.setItem('scaCoursesCollapsed', scaCollapsed ? '1' : '0');
+                    applyScaState(scaCollapsed);
                 });
             }
 
