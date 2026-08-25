@@ -186,9 +186,12 @@
         }
 
         .col-date {
-            width: 90px;
+            width: 110px;
             font-size: 0.8rem;
             font-weight: normal;
+        }
+        .col-instruction {
+            width: 140px;
         }
         .col-PO {
             width: 90px;
@@ -650,7 +653,7 @@
                     <th class="text-center text-primary sortable" data-sort-key="customer">
                         Customer <i class="bi bi-chevron-expand ms-1"></i>
                     </th>
-                    <th class="text-center text-primary sortable" data-sort-key="instruction">
+                    <th class="text-center text-primary sortable col-instruction" data-sort-key="instruction">
                         Instruction <i class="bi bi-chevron-expand ms-1"></i>
                     </th>
                     <th class="text-center text-primary col-date">Open Date</th>

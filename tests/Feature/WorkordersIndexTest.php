@@ -65,6 +65,22 @@ class WorkordersIndexTest extends TestCase
         $response->assertDontSee('dropdownCssClass', false);
     }
 
+    public function test_workorders_index_displays_open_date_in_project_format(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'open_at' => '2026-12-01',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('workorders.index'));
+
+        $response->assertOk();
+        $response->assertSee((string) $workorder->number);
+        $response->assertSee('01/Dec/2026');
+        $response->assertDontSee('01.12.2026');
+    }
+
     public function test_review_accounts_are_absent_from_workorder_technician_selects(): void
     {
         $admin = $this->createUserWithRole('Admin');

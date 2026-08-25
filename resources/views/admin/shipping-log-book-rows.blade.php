@@ -14,7 +14,7 @@
             {{ $workorder->customer?->name ?? '' }}
         </td>
         <td class="text-center">{{ $workorder->customer_po }}</td>
-        <td class="text-center">
+        <td class="text-center shipping-log-col-completed">
             {{ $shippingLogDate($completedDate) }}
         </td>
         <td class="shipping-log-col-shipment">

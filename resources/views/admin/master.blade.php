@@ -201,24 +201,26 @@
     (function () {
         const projectDateMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
-        function parseProjectDate(value) {
-            const match = String(value || '').trim().match(/^(\d{1,2})[/.]([a-z]{3})[/.](\d{4})$/i);
+        function parseProjectDate(value, allowShortYear = false) {
+            const yearPattern = allowShortYear ? '(\\d{2}|\\d{4})' : '(\\d{4})';
+            const match = String(value || '').trim().match(new RegExp('^(\\d{1,2})[/.]([a-z]{3})[/.]' + yearPattern + '$', 'i'));
             if (!match) return null;
 
             const day = Number(match[1]);
             const month = projectDateMonths.indexOf(match[2].toLowerCase());
-            const year = Number(match[3]);
+            const year = match[3].length === 2 ? 2000 + Number(match[3]) : Number(match[3]);
             if (!day || month < 0 || !year) return null;
 
             const date = new Date(year, month, day);
             return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day ? date : null;
         }
 
-        function formatProjectDate(date, capitalizeMonth = true) {
+        function formatProjectDate(date, capitalizeMonth = true, shortYear = false) {
             if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
             const month = projectDateMonths[date.getMonth()];
             const displayMonth = capitalizeMonth ? month.charAt(0).toUpperCase() + month.slice(1) : month;
-            return String(date.getDate()).padStart(2, '0') + '/' + displayMonth + '/' + date.getFullYear();
+            const year = shortYear ? String(date.getFullYear()).slice(-2) : String(date.getFullYear());
+            return String(date.getDate()).padStart(2, '0') + '/' + displayMonth + '/' + year;
         }
 
         window.initProjectDatePickers = function (root = document) {
@@ -227,21 +229,22 @@
             root.querySelectorAll('input[data-project-date]').forEach(input => {
                 if (input._projectDatePicker) return;
                 const capitalizeMonth = !input.hasAttribute('data-project-date-lower');
+                const shortYear = input.hasAttribute('data-project-date-short-year');
 
                 input._projectDatePicker = flatpickr(input, {
                     allowInput: true,
-                    dateFormat: 'd/M/Y',
-                    defaultDate: parseProjectDate(input.value) || null,
+                    dateFormat: shortYear ? 'd/M/y' : 'd/M/Y',
+                    defaultDate: parseProjectDate(input.value, shortYear) || null,
                     disableMobile: true,
-                    formatDate: date => formatProjectDate(date, capitalizeMonth),
-                    parseDate: parseProjectDate,
+                    formatDate: date => formatProjectDate(date, capitalizeMonth, shortYear),
+                    parseDate: value => parseProjectDate(value, shortYear),
                     onChange(selectedDates, dateStr, instance) {
-                        input.value = selectedDates[0] ? formatProjectDate(selectedDates[0], capitalizeMonth) : '';
+                        input.value = selectedDates[0] ? formatProjectDate(selectedDates[0], capitalizeMonth, shortYear) : '';
                     },
                     onClose(selectedDates) {
-                        const parsed = parseProjectDate(input.value);
+                        const parsed = parseProjectDate(input.value, shortYear);
                         if (parsed) {
-                            input.value = formatProjectDate(parsed, capitalizeMonth);
+                            input.value = formatProjectDate(parsed, capitalizeMonth, shortYear);
                         }
                     },
                 });

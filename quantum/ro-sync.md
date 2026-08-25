@@ -320,6 +320,44 @@ Nital Etch Inspection is not a STD database/list.
 
 ## Avia Storage Audit
 
+### 2026-08-24 TDR P/N mismatch example: R9273 / W107849
+
+Confirmed against current production staging and TDR data:
+
+```text
+Quantum source_uid = rod:33371
+RO = R9273
+WO = W107849
+REF = RSV -> process_names EHSV Repair
+Quantum PN = 53014-103
+Quantum SN = 1386
+
+Matching WO TDR process = EHSV Repair, tdr_processes.id 4279
+TDR component PN = 53014-103 (32-51-04)
+TDR SN = NSN
+```
+
+The process exists, but the exact-PN target query does not match because the
+current normalization removes spaces only:
+
+```text
+53014-103 != 53014-103(32-51-04)
+```
+
+Diagnostic rule:
+
+```text
+If the WO + REF/process exists on one or more TDR rows but their component P/N
+does not equal the Quantum P/N, keep apply_status = unresolved and report
+TDR P/N mismatch with both Quantum and TDR P/N values.
+
+Use No TDR process target only when no TDR row exists for that WO + process.
+```
+
+The RO shown in the Vendor Tracking Quantum table is the source
+`quantum_ro_lines.ro_number`; it does not mean `tdr_processes.repair_order`
+was populated. For this incident the target repair_order remained null.
+
 ### 2026-08-14 stale deleted-detail example: R9238 / W107873
 
 Confirmed against both current production staging and live Quantum Oracle:

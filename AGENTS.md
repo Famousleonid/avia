@@ -40,7 +40,7 @@ Laravel/PHP tests:
 - Для старого localStorage-like поведения используй `window.UserScopedStorage` или `window.UserScopedSessionStorage`.
 
 Date format project rule:
-- User-facing dates must be displayed as `dd/mmm/yyyy`, for example `12/may/2026`.
+- User-facing dates must be displayed as `dd/Mmm/yyyy` with an English title-case three-letter month, for example `01/Dec/2026`.
 - In PHP views/services use `format_project_date()` or Blade `@projectDate(...)` for display.
 - In PHP request parsing use `parse_project_date()` when accepting user typed project dates.
 - Keep ISO `Y-m-d` only for database values, JSON/API contracts, tests, filenames, sorting keys, and native HTML `<input type="date">` values.

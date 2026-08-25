@@ -14,8 +14,8 @@
         $ec = $ecStatuses[$workorder->id] ?? null;
         $ecState = $ec['state'] ?? 'none';
 
-        $startDate = optional($ec['date_start'] ?? null)->format('d.m.Y');
-        $finishDate = optional($ec['date_finish'] ?? null)->format('d.m.Y');
+        $startDate = format_project_date($ec['date_start'] ?? null);
+        $finishDate = format_project_date($ec['date_finish'] ?? null);
 
         $startBy = $ec['date_start_user'] ?? ($ec['user_name'] ?? '');
         $finishBy = $ec['date_finish_user'] ?? ($ec['user_name'] ?? '');
@@ -71,12 +71,12 @@
                class="approve-btn"
                data-id="{{ $workorder->id }}"
                data-approve-at="{{ $workorder->approve_at ? $workorder->approve_at->format('Y-m-d') : '' }}"
-               data-approve-title="{{ $workorder->approve_at ? ($workorder->approve_at->format('d.m.Y') . ' ' . $workorder->approve_name) : '' }}"
+               data-approve-title="{{ $workorder->approve_at ? ((format_project_date($workorder->approve_at) ?? '') . ' ' . $workorder->approve_name) : '' }}"
                onclick="return false;">
                 @if($workorder->approve_at)
                     <img class="approve-icon"
                          src="{{ asset('img/ok.png') }}" width="20"
-                         title="{{ $workorder->approve_at->format('d.m.Y') }} {{ $workorder->approve_name }}">
+                         title="{{ format_project_date($workorder->approve_at) }} {{ $workorder->approve_name }}">
                 @else
                     <img class="approve-icon" src="{{ asset('img/icon_no.png') }}" width="12">
                 @endif
@@ -84,7 +84,7 @@
             @else
                 @if($workorder->approve_at)
                     <img src="{{ asset('img/ok.png') }}" width="20"
-                         title="{{ $workorder->approve_at->format('d.m.Y') }} {{ $workorder->approve_name }}">
+                         title="{{ format_project_date($workorder->approve_at) }} {{ $workorder->approve_name }}">
                 @else
                     <img src="{{ asset('img/icon_no.png') }}" width="12">
                 @endif
@@ -173,7 +173,7 @@
         <td class="text-center">
             @if($workorder->open_at)
                 <span style="display: none">{{ $workorder->open_at->format('Ymd') }}</span>
-                {{ $workorder->open_at->format('d.m.Y') }}
+                {{ format_project_date($workorder->open_at) }}
             @else
                 <span style="display: none"></span>
             @endif

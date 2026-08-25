@@ -403,12 +403,14 @@ class QuantumRoBufferApplyService
         $processName = $processNames->first();
         $serialNumber = $this->normalizeSerialNumber($line->serial_number);
 
-        $tdrQuery = TdrProcess::query()
+        $processTdrQuery = TdrProcess::query()
             ->select('tdr_processes.*')
             ->join('tdrs', 'tdrs.id', '=', 'tdr_processes.tdrs_id')
             ->join('components', 'components.id', '=', 'tdrs.component_id')
             ->where('tdrs.workorder_id', $workorder->id)
-            ->where('tdr_processes.process_names_id', $processName->id)
+            ->where('tdr_processes.process_names_id', $processName->id);
+
+        $tdrQuery = (clone $processTdrQuery)
             ->whereRaw(
                 "REPLACE(UPPER(TRIM(components.part_number)), ' ', '') = ?",
                 [$this->normalizePartNumber($line->pn)]
@@ -453,6 +455,27 @@ class QuantumRoBufferApplyService
             return [
                 'status' => 'unresolved',
                 'message' => "Multiple TDR process targets for WO {$line->wo_number}, REF {$line->bom_ref}",
+            ];
+        }
+
+        $otherPartNumbers = (clone $processTdrQuery)
+            ->select('components.part_number')
+            ->distinct()
+            ->orderBy('components.part_number')
+            ->pluck('components.part_number')
+            ->map(fn ($partNumber): string => trim((string) $partNumber))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($otherPartNumbers->isNotEmpty()) {
+            $tdrPartNumbers = $otherPartNumbers
+                ->map(fn (string $partNumber): string => "[{$partNumber}]")
+                ->implode(', ');
+
+            return [
+                'status' => 'unresolved',
+                'message' => "TDR P/N mismatch for WO {$line->wo_number}, REF {$line->bom_ref}, process {$processName->name}: Quantum P/N [{$line->pn}], TDR P/N {$tdrPartNumbers}",
             ];
         }
 

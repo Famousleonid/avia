@@ -3121,6 +3121,7 @@
                     'Bushing batch not found',
                     'No process_names.code matched REF',
                     'Multiple process_names.code matched REF',
+                    'TDR P/N mismatch',
                     'No TDR process target',
                     'Multiple TDR process targets',
                     'No target process',

@@ -25,7 +25,7 @@
                 Customer <i class="bi bi-chevron-expand ms-1"></i>
             </th>
 
-            <th class="text-center text-primary sortable" data-sort="instruction">
+            <th class="text-center text-primary sortable col-instruction" data-sort="instruction">
                 Instruction <i class="bi bi-chevron-expand ms-1"></i>
             </th>
 
@@ -33,7 +33,7 @@
                 Open Date <i class="bi bi-chevron-expand ms-1"></i>
             </th>
 
-            <th class="text-center text-primary col-date">
+            <th class="text-center text-primary col-PO">
                 Customer PO
             </th>
 
@@ -76,11 +76,12 @@
 
                 try {
                     if ($openAt instanceof \Carbon\CarbonInterface) {
-                        $openAtFormatted = $openAt->format('d.m.Y');
+                        $openAtFormatted = format_project_date($openAt) ?? '';
                         $openAtSort = $openAt->format('Ymd');
                     } elseif (!empty($openAt)) {
-                        $openAtFormatted = \Illuminate\Support\Carbon::parse($openAt)->format('d.m.Y');
-                        $openAtSort = \Illuminate\Support\Carbon::parse($openAt)->format('Ymd');
+                        $openAtDate = \Illuminate\Support\Carbon::parse($openAt);
+                        $openAtFormatted = format_project_date($openAtDate) ?? '';
+                        $openAtSort = $openAtDate->format('Ymd');
                     }
                 } catch (\Throwable $e) {
                     $openAtFormatted = (string) $openAt;
@@ -94,10 +95,11 @@
                 try {
                     if ($approveAt instanceof \Carbon\CarbonInterface) {
                         $approveAtIso = $approveAt->format('Y-m-d');
-                        $approveTitle = $approveAt->format('d.m.Y') . ' ' . ($workorder->approve_name ?? '');
+                        $approveTitle = (format_project_date($approveAt) ?? '') . ' ' . ($workorder->approve_name ?? '');
                     } elseif (!empty($approveAt)) {
-                        $approveAtIso = \Illuminate\Support\Carbon::parse($approveAt)->format('Y-m-d');
-                        $approveTitle = \Illuminate\Support\Carbon::parse($approveAt)->format('d.m.Y') . ' ' . ($workorder->approve_name ?? '');
+                        $approveAtDate = \Illuminate\Support\Carbon::parse($approveAt);
+                        $approveAtIso = $approveAtDate->format('Y-m-d');
+                        $approveTitle = (format_project_date($approveAtDate) ?? '') . ' ' . ($workorder->approve_name ?? '');
                     }
                 } catch (\Throwable $e) {
                     $approveAtIso = '';

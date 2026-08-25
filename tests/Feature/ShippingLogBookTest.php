@@ -46,7 +46,124 @@ class ShippingLogBookTest extends TestCase
         $response->assertSee('15/May/2026');
         $response->assertSee('16/May/2026');
         $response->assertSee('Picked Up');
+        $response->assertSee('data-filter-key="wo"', false);
+        $response->assertSee('data-filter-key="notes"', false);
+        $response->assertSee('data-filter-key="completed_from"', false);
+        $response->assertSee('data-filter-key="completed_to"', false);
+        $response->assertSee('data-filter-key="shipment_from"', false);
+        $response->assertSee('data-filter-key="shipment_to"', false);
+        $response->assertSee('Open Completed from calendar');
+        $response->assertSee('Clear column filters');
+        $response->assertSee('CONFIDENTIAL — FOR INTERNAL USE ONLY');
         $response->assertSeeInOrder(['Technician', 'Shipping Log Book', 'Materials']);
+    }
+
+    public function test_column_filters_are_combined_across_the_complete_result_set(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $matchingCustomer = $this->createCustomer(['name' => 'Combined Filter Customer']);
+        $otherCustomer = $this->createCustomer(['name' => 'Different Filter Customer']);
+        $matchingUnit = $this->createUnit(['part_number' => 'FILTER-PN-77']);
+        $otherUnit = $this->createUnit(['part_number' => 'FILTER-PN-88']);
+
+        $matching = $this->createWorkorder([
+            'user_id' => $manager->id,
+            'number' => 107680,
+            'customer_id' => $matchingCustomer->id,
+            'unit_id' => $matchingUnit->id,
+            'shipping_freight_forwarder' => 'Combined DHL',
+        ]);
+        $matching->forceFill([
+            'done_at' => '2026-05-15',
+            'shipping_shipment_at' => '2026-05-16',
+        ])->save();
+
+        $this->createWorkorder([
+            'user_id' => $manager->id,
+            'number' => 107681,
+            'customer_id' => $matchingCustomer->id,
+            'unit_id' => $otherUnit->id,
+            'shipping_freight_forwarder' => 'Combined DHL',
+        ]);
+
+        $this->createWorkorder([
+            'user_id' => $manager->id,
+            'number' => 107682,
+            'customer_id' => $otherCustomer->id,
+            'unit_id' => $matchingUnit->id,
+            'shipping_freight_forwarder' => 'Combined DHL',
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('shipping-log-book.index', [
+            'fragment' => 1,
+            'per_page' => 100,
+            'filters' => [
+                'part' => 'PN-77',
+                'customer' => 'Combined Filter',
+                'completed_from' => '14/may/2026',
+                'completed_to' => '15/may/2026',
+                'shipment_from' => '16/may/2026',
+                'shipment_to' => '17/may/2026',
+                'forwarder' => 'DHL',
+            ],
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('total_count', 1);
+        $response->assertJsonPath('loaded_count', 1);
+        $this->assertStringContainsString('w107680', $response->json('html'));
+        $this->assertStringNotContainsString('w107681', $response->json('html'));
+        $this->assertStringNotContainsString('w107682', $response->json('html'));
+    }
+
+    public function test_date_filters_support_one_sided_inclusive_ranges(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $customerPo = 'ONE-SIDED-DATE-'.random_int(10000, 99999);
+
+        foreach ([
+            [107683, '2026-05-10', '2026-05-11'],
+            [107684, '2026-05-15', '2026-05-16'],
+            [107685, '2026-05-20', '2026-05-21'],
+        ] as [$number, $completedAt, $shipmentAt]) {
+            $workorder = $this->createWorkorder([
+                'user_id' => $manager->id,
+                'number' => $number,
+                'customer_po' => $customerPo,
+            ]);
+            $workorder->forceFill([
+                'done_at' => $completedAt,
+                'shipping_shipment_at' => $shipmentAt,
+            ])->save();
+        }
+
+        $fromOnly = $this->actingAs($manager)->getJson(route('shipping-log-book.index', [
+            'fragment' => 1,
+            'per_page' => 100,
+            'filters' => [
+                'customer_po' => $customerPo,
+                'completed_from' => '15/may/26',
+            ],
+        ]));
+
+        $fromOnly->assertOk()->assertJsonPath('total_count', 2);
+        $this->assertStringNotContainsString('w107683', $fromOnly->json('html'));
+        $this->assertStringContainsString('w107684', $fromOnly->json('html'));
+        $this->assertStringContainsString('w107685', $fromOnly->json('html'));
+
+        $toOnly = $this->actingAs($manager)->getJson(route('shipping-log-book.index', [
+            'fragment' => 1,
+            'per_page' => 100,
+            'filters' => [
+                'customer_po' => $customerPo,
+                'shipment_to' => '16/may/26',
+            ],
+        ]));
+
+        $toOnly->assertOk()->assertJsonPath('total_count', 2);
+        $this->assertStringContainsString('w107683', $toOnly->json('html'));
+        $this->assertStringContainsString('w107684', $toOnly->json('html'));
+        $this->assertStringNotContainsString('w107685', $toOnly->json('html'));
     }
 
     public function test_admin_can_update_shipping_log_fields(): void

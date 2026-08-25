@@ -13,6 +13,20 @@ use Illuminate\Validation\ValidationException;
 
 class ShippingLogBookController extends Controller
 {
+    private const COLUMN_FILTER_KEYS = [
+        'wo',
+        'part',
+        'customer',
+        'customer_po',
+        'completed_from',
+        'completed_to',
+        'shipment_from',
+        'shipment_to',
+        'forwarder',
+        'awb',
+        'notes',
+    ];
+
     public function index(Request $request): View|JsonResponse
     {
         $this->authorizeAccess($request);
@@ -30,6 +44,7 @@ class ShippingLogBookController extends Controller
                 'total_count' => $payload['totalCount'],
                 'sort' => $payload['sort'],
                 'direction' => $payload['direction'],
+                'filters' => $payload['filters'],
             ]);
         }
 
@@ -41,6 +56,7 @@ class ShippingLogBookController extends Controller
             'totalCount' => $payload['totalCount'],
             'sort' => $payload['sort'],
             'direction' => $payload['direction'],
+            'filters' => $payload['filters'],
         ]);
     }
 
@@ -101,6 +117,7 @@ class ShippingLogBookController extends Controller
         $perPage = max(1, min(150, (int) $request->query('per_page', 100)));
         $page = max(1, (int) $request->query('page', 1));
         [$sort, $direction] = $this->normalizeSort($request);
+        $filters = $this->normalizeColumnFilters($request);
 
         $query = Workorder::query()
             ->where('is_draft', false)
@@ -111,6 +128,7 @@ class ShippingLogBookController extends Controller
             ]);
 
         $this->applySearch($query, $q);
+        $this->applyColumnFilters($query, $filters);
 
         $totalCount = (clone $query)->count();
 
@@ -130,7 +148,105 @@ class ShippingLogBookController extends Controller
             'totalCount' => $totalCount,
             'sort' => $sort,
             'direction' => $direction,
+            'filters' => $filters,
         ];
+    }
+
+    private function normalizeColumnFilters(Request $request): array
+    {
+        $requested = $request->query('filters', []);
+        if (! is_array($requested)) {
+            $requested = [];
+        }
+
+        $filters = [];
+        foreach (self::COLUMN_FILTER_KEYS as $key) {
+            $filters[$key] = mb_substr(trim((string) ($requested[$key] ?? '')), 0, 255);
+        }
+
+        return $filters;
+    }
+
+    private function applyColumnFilters(Builder $query, array $filters): void
+    {
+        $wo = preg_replace('/^w/i', '', $filters['wo']);
+        if ($wo !== '') {
+            $query->where('workorders.number', 'like', $this->likeValue($wo));
+        }
+
+        if ($filters['part'] !== '') {
+            $like = $this->likeValue($filters['part']);
+            $query->whereHas('unit', fn (Builder $unit) => $unit->where('part_number', 'like', $like));
+        }
+
+        if ($filters['customer'] !== '') {
+            $like = $this->likeValue($filters['customer']);
+            $query->whereHas('customer', fn (Builder $customer) => $customer->where('name', 'like', $like));
+        }
+
+        $this->applyLikeFilter($query, 'workorders.customer_po', $filters['customer_po']);
+        $this->applyDateRangeFilter(
+            $query,
+            'workorders.done_at',
+            $filters['completed_from'],
+            $filters['completed_to']
+        );
+        $this->applyDateRangeFilter(
+            $query,
+            'workorders.shipping_shipment_at',
+            $filters['shipment_from'],
+            $filters['shipment_to']
+        );
+        $this->applyLikeFilter($query, 'workorders.shipping_freight_forwarder', $filters['forwarder']);
+        $this->applyLikeFilter($query, 'workorders.shipping_awb_no', $filters['awb']);
+        $this->applyLikeFilter($query, 'workorders.shipping_notes', $filters['notes']);
+    }
+
+    private function applyLikeFilter(Builder $query, string $column, string $value): void
+    {
+        if ($value !== '') {
+            $query->where($column, 'like', $this->likeValue($value));
+        }
+    }
+
+    private function applyDateRangeFilter(Builder $query, string $column, string $from, string $to): void
+    {
+        $fromDate = $this->parseFilterDate($from);
+        $toDate = $this->parseFilterDate($to);
+
+        if ($fromDate !== null && $toDate !== null && $fromDate > $toDate) {
+            [$fromDate, $toDate] = [$toDate, $fromDate];
+        }
+
+        if ($fromDate !== null) {
+            $query->whereDate($column, '>=', $fromDate);
+        }
+
+        if ($toDate !== null) {
+            $query->whereDate($column, '<=', $toDate);
+        }
+    }
+
+    private function parseFilterDate(string $value): ?string
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{2}[\/.][a-z]{3}[\/.])(\d{2})$/i', $value, $matches)) {
+            $value = $matches[1].'20'.$matches[2];
+        }
+
+        try {
+            return parse_project_date($value);
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+    }
+
+    private function likeValue(string $value): string
+    {
+        return '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value) . '%';
     }
 
     private function normalizeSort(Request $request): array
@@ -182,7 +298,7 @@ class ShippingLogBookController extends Controller
             return;
         }
 
-        $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q) . '%';
+        $like = $this->likeValue($q);
 
         $query->where(function (Builder $where) use ($like): void {
             $where->where('workorders.number', 'like', $like)

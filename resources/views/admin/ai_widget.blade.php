@@ -235,6 +235,12 @@
             display: none;
         }
     }
+
+    @media print {
+        .ai-widget {
+            display: none !important;
+        }
+    }
 </style>
 {{-- AI Assistant Floating Widget --}}
 <div id="aiAssistantWidget" class="ai-widget">

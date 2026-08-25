@@ -262,6 +262,60 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame($vendor->id, $secondTarget->vendor_id);
     }
 
+    public function test_detail_part_reports_pn_mismatch_when_process_exists_for_another_component_pn(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum P/N Mismatch Vendor']);
+        $processCode = 'RSV'.random_int(10000, 99999);
+        $processName = ProcessName::query()->create([
+            'name' => 'EHSV Repair P/N mismatch '.uniqid(),
+            'code' => $processCode,
+            'process_sheet_name' => 'RO',
+            'form_number' => 'RO',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '53014-103 (32-51-04)',
+            'name' => 'Servo Valve',
+            'ipl_num' => '1-'.random_int(1000, 9999),
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $target = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => '53014-103',
+            'serial_number' => '1386',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => $processCode,
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(0, $stats['applied']);
+        $this->assertSame(1, $stats['unresolved']);
+        $line->refresh();
+        $target->refresh();
+        $this->assertSame('unresolved', $line->apply_status);
+        $this->assertStringContainsString('TDR P/N mismatch', (string) $line->apply_message);
+        $this->assertStringContainsString('Quantum P/N [53014-103]', (string) $line->apply_message);
+        $this->assertStringContainsString('TDR P/N [53014-103 (32-51-04)]', (string) $line->apply_message);
+        $this->assertNull($target->repair_order);
+    }
+
     public function test_detail_part_falls_back_to_single_wo_pn_ref_target_when_quantum_serial_does_not_match(): void
     {
         $workorder = $this->createWorkorder();
