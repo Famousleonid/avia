@@ -124,6 +124,7 @@ class TrainingController extends Controller
     public function create(Request $request)
     {
         $userId = $this->resolveTargetUserId($request);
+        $targetUser = User::findOrFail($userId);
 
         $planes = Plane::pluck('type', 'id');
         $addedCmmIds = Training::where('user_id', $userId)->pluck('manuals_id');
@@ -138,7 +139,7 @@ class TrainingController extends Controller
             })
             ->get();
 
-        return view('admin.trainings.create', compact('manuals', 'planes', 'userId'));
+        return view('admin.trainings.create', compact('manuals', 'planes', 'userId', 'targetUser'));
     }
 
     /**
@@ -161,6 +162,24 @@ class TrainingController extends Controller
     public function store(Request $request)
     {
         $userId = $this->resolveTargetUserId($request);
+
+        // Формы шлют даты проектного формата 24/Aug/2026 — нормализуем к Y-m-d
+        $normalizeProjectDate = function ($value) {
+            if (is_string($value) && preg_match('/^(\d{1,2})\/([A-Za-z]{3})\/(\d{4})$/', trim($value), $m)) {
+                $ts = strtotime($m[1] . ' ' . $m[2] . ' ' . $m[3]);
+                if ($ts) {
+                    return date('Y-m-d', $ts);
+                }
+            }
+
+            return $value;
+        };
+        $request->merge([
+            'date_training' => $normalizeProjectDate($request->input('date_training')),
+            'additional_training_date' => $normalizeProjectDate($request->input('additional_training_date')),
+            'form_132_date' => $normalizeProjectDate($request->input('form_132_date')),
+            'training_dates' => array_map($normalizeProjectDate, (array) $request->input('training_dates', [])),
+        ]);
 
         // «Old training»: обучение было до появления системы, дата неизвестна.
         // Пишутся legacy-записи без дат и без форм 112/132; в матрице — «X».

@@ -66,7 +66,15 @@
     <div class="container">
         <div class="card">
             <div class="card-header">
-                <h4>{{ __('Select Unit') }}</h4>
+                <h4 class="mb-0">{{ __('Select Unit') }}</h4>
+                {{-- Кому добавляется тренинг — особенно важно для Admin/Manager/TL --}}
+                <div class="mt-1 {{ $userId != auth()->id() ? 'text-warning' : 'text-muted' }}">
+                    {{ __('Trainee') }}:
+                    <strong>{{ $targetUser->stamp }} — {{ $targetUser->selection_name }}</strong>
+                    @if($userId == auth()->id())
+                        ({{ __('you') }})
+                    @endif
+                </div>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ route('trainings.store') }}" id="training_create_form">
@@ -134,7 +142,9 @@
 
                     <div class="form-group mt-3" id="date_training_group">
                         <label for="date_training">{{ __('First Training Date') }}</label>
-                        <input type="date" id="date_training" name="date_training" class="form-control" required>
+                        {{-- data-project-date: проектный flatpickr, формат 24/Aug/2026 --}}
+                        <input type="text" id="date_training" name="date_training" class="form-control"
+                               data-project-date autocomplete="off" placeholder="{{ __('dd/Mon/yyyy') }}" required>
                     </div>
 
                     <div class="form-group mt-3">
@@ -152,7 +162,8 @@
 
                     <div class="form-group mt-3" id="additional_training_date_group" style="display: none;">
                         <label for="additional_training_date">{{ __('Additional Training Date') }}</label>
-                        <input type="date" id="additional_training_date" name="additional_training_date" class="form-control">
+                        <input type="text" id="additional_training_date" name="additional_training_date" class="form-control"
+                               data-project-date autocomplete="off" placeholder="{{ __('dd/Mon/yyyy') }}">
                         <small class="form-text text-muted">
                             <i class="bi bi-info-circle"></i>
                             {{ __('Last training was more than 360 days ago. You can add a training on the date of adding the unit or choose another date.') }}
@@ -161,7 +172,13 @@
                     </div>
                     <div class="text-end">
                         <button type="submit" class="btn btn-primary mt-3">{{ __('Add Component') }}</button>
-                        @if(request('manual_id'))
+                        @php
+                            // «Back to TDR» — только если реально пришли из TDR/Main
+                            // (из матрицы тоже приходит manual_id, но там возврат делает Cancel)
+                            $cameFromTdr = str_contains(request('return_url', ''), '/tdrs/')
+                                || str_contains(request('return_url', ''), '/mains/');
+                        @endphp
+                        @if(request('manual_id') && $cameFromTdr)
                             <a href="{{ request()->get('return_url', url()->previous()) }}" class="btn btn-outline-info mt-3">
                                 <i class="bi bi-arrow-left"></i> Back to TDR
                             </a>
@@ -228,8 +245,25 @@
                 }
             }
 
+            // Значение проектного date-инпута (24/Aug/2026) → 'Y-m-d'
+            function projToYmd(input) {
+                if (!input) return '';
+                const picked = input._projectDatePicker?.selectedDates?.[0];
+                if (picked) {
+                    return picked.getFullYear() + '-'
+                        + String(picked.getMonth() + 1).padStart(2, '0') + '-'
+                        + String(picked.getDate()).padStart(2, '0');
+                }
+                const m = String(input.value || '').trim().match(/^(\d{1,2})[\/.]([a-z]{3})[\/.](\d{4})$/i);
+                if (!m) return '';
+                const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+                const month = months.indexOf(m[2].toLowerCase());
+                if (month < 0) return '';
+                return m[3] + '-' + String(month + 1).padStart(2, '0') + '-' + String(Number(m[1])).padStart(2, '0');
+            }
+
             function getFirstDate() {
-                const v = $('#date_training').val();
+                const v = projToYmd(document.getElementById('date_training'));
                 return v ? new Date(v + 'T00:00:00') : null;
             }
 
@@ -242,7 +276,8 @@
             function getTrainingDatesEntered() {
                 const dates = [];
                 document.querySelectorAll('input[name="training_dates[]"]').forEach(function(inp) {
-                    if (inp.value) dates.push(inp.value);
+                    const ymd = projToYmd(inp);
+                    if (ymd) dates.push(ymd);
                 });
                 return dates.sort();
             }
@@ -265,9 +300,12 @@
                 row.className = 'input-group input-group-sm mb-1';
                 row.id = id;
                 row.innerHTML =
-                    '<input type="date" name="training_dates[]" class="form-control" value="' + (value || '') + '">' +
+                    '<input type="text" name="training_dates[]" class="form-control" data-project-date autocomplete="off" placeholder="{{ __('dd/Mon/yyyy') }}" value="' + (value || '') + '">' +
                     '<button type="button" class="btn btn-outline-danger remove-training-date" data-row-id="' + id + '" aria-label="Remove"><i class="bi bi-dash"></i></button>';
                 document.getElementById('training_dates_list').appendChild(row);
+                if (window.initProjectDatePickers) {
+                    window.initProjectDatePickers(row);
+                }
                 $(row).find('.remove-training-date').on('click', function() {
                     document.getElementById(id).remove();
                 });
@@ -284,8 +322,9 @@
                 let valid = true;
                 document.querySelectorAll('input[name="training_dates[]"]').forEach(function(inp) {
                     inp.classList.remove('is-invalid');
-                    if (!inp.value) return;
-                    const d = new Date(inp.value + 'T00:00:00');
+                    const ymd = projToYmd(inp);
+                    if (!ymd) return;
+                    const d = new Date(ymd + 'T00:00:00');
                     if (firstDate && d <= firstDate) {
                         inp.classList.add('is-invalid');
                         valid = false;
@@ -302,7 +341,7 @@
             }
 
             function validateAdditionalDate() {
-                const v = $('#additional_training_date').val();
+                const v = projToYmd(document.getElementById('additional_training_date'));
                 if (!v) return true;
                 const firstDate = getFirstDate();
                 const today = getTodayStart();
@@ -359,9 +398,12 @@
                 additionalTrainingAsked = true;
                 bootstrap.Modal.getInstance(document.getElementById('additionalTrainingModal')).hide();
                 $('#additional_training_date_group').show();
-                const todayStr = getTodayStart().toISOString().slice(0, 10);
-                if (!$('#additional_training_date').val()) {
-                    $('#additional_training_date').val(todayStr);
+                const addInput = document.getElementById('additional_training_date');
+                if (window.initProjectDatePickers) {
+                    window.initProjectDatePickers(document);
+                }
+                if (!addInput.value) {
+                    addInput._projectDatePicker?.setDate(new Date(), true);
                 }
                 $('#additional_training_date').focus();
                 formPendingSubmit = false;

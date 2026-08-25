@@ -325,7 +325,7 @@
                                 <th class="col-unit">{{ __('Unit Description') }}</th>
                                 <th class="col-part text-center">PART NUMBER APPROVED</th>
                                 @foreach($users as $user)
-                                    <th class="user-column" title="Stamp {{ $user->stamp }}">
+                                    <th class="user-column">
                                         {{ $user->selection_name }}
                                         <span class="stamp-no">{{ $user->stamp }}</span>
                                     </th>
@@ -507,12 +507,32 @@
             window.addEventListener('resize', syncStickyOffsets);
             syncStickyOffsets();
 
-            // Поиск по строкам: описание юнита + парт-номер/курс.
-            // Группы без совпадений скрываются целиком.
+            // Поиск: по строкам (описание + парт-номер/курс) И по колонкам
+            // (имя/штамп в шапке). Если запрос совпал с сотрудником — фильтруются
+            // колонки; иначе — строки (группы без совпадений скрываются).
             const searchInput = document.getElementById('matrixSearch');
             if (searchInput) {
-                searchInput.addEventListener('input', function () {
-                    const q = this.value.trim().toLowerCase();
+                const headerRow = document.querySelector('.training-table thead tr');
+                const userThs = headerRow ? Array.from(headerRow.querySelectorAll('th.user-column')) : [];
+                const userColBase = headerRow && userThs.length
+                    ? Array.from(headerRow.children).indexOf(userThs[0])
+                    : -1;
+
+                function setColumnVisibility(visibleFlags) {
+                    if (userColBase < 0) return;
+                    userThs.forEach(function (th, i) {
+                        th.style.display = visibleFlags[i] ? '' : 'none';
+                    });
+                    document.querySelectorAll('.training-table tbody tr').forEach(function (tr) {
+                        if (tr.querySelector('td.group-row')) return; // colspan-строка группы
+                        userThs.forEach(function (_, i) {
+                            const cell = tr.children[userColBase + i];
+                            if (cell) cell.style.display = visibleFlags[i] ? '' : 'none';
+                        });
+                    });
+                }
+
+                function filterRows(q) {
                     const rows = document.querySelectorAll('.training-table tbody tr');
                     let currentGroup = null;
                     let groupHasVisible = false;
@@ -530,6 +550,20 @@
                         if (match) groupHasVisible = true;
                     });
                     if (currentGroup) currentGroup.style.display = groupHasVisible ? '' : 'none';
+                }
+
+                searchInput.addEventListener('input', function () {
+                    const q = this.value.trim().toLowerCase();
+                    const colFlags = userThs.map(th => th.textContent.toLowerCase().includes(q));
+                    const anyColMatch = q && colFlags.some(Boolean);
+
+                    if (anyColMatch) {
+                        setColumnVisibility(colFlags);
+                        filterRows(''); // все строки видимы
+                    } else {
+                        setColumnVisibility(userThs.map(() => true));
+                        filterRows(q);
+                    }
                     syncStickyOffsets(); // ширины колонок могли измениться
                 });
             }
