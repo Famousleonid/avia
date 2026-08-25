@@ -411,7 +411,8 @@
                                                         $clickAttrs = 'data-train-manual="' . $row->manual_id . '" data-train-user="' . $user->id . '"'
                                                             . ' data-train-user-name="' . e($user->selection_name) . '"'
                                                             . ' data-train-pn="' . e($row->part_number) . '"'
-                                                            . ' data-train-need132="' . (!empty($cell['need132']) ? 1 : 0) . '"';
+                                                            . ' data-train-need132="' . (!empty($cell['need132']) ? 1 : 0) . '"'
+                                                            . ' data-train-legacy="' . (!empty($cell['legacy']) ? 1 : 0) . '"';
                                                     }
                                                 }
                                             @endphp
@@ -460,9 +461,20 @@
                 </div>
                 <div class="modal-body">
                     <div class="small mb-2" id="matrixTrainInfo"></div>
-                    {{-- data-project-date: проектный flatpickr с форматом 24/Aug/2026 --}}
-                    <input type="text" id="matrixTrainDate" class="form-control" data-project-date autocomplete="off">
-                    <small class="text-muted">{{ __('The date is normalized to the Friday of its week.') }}</small>
+                    @if($canApprove)
+                        {{-- «Old Training»: пометить пару X (legacy) без даты --}}
+                        <div class="form-check mb-2" id="matrixTrainLegacyWrap">
+                            <input class="form-check-input" type="checkbox" id="matrixTrainLegacy">
+                            <label class="form-check-label" for="matrixTrainLegacy">
+                                {{ __('Old Training') }} <span class="text-muted small">({{ __('mark as «X», no date') }})</span>
+                            </label>
+                        </div>
+                    @endif
+                    <div id="matrixTrainDateWrap">
+                        {{-- data-project-date: проектный flatpickr с форматом 24/Aug/2026 --}}
+                        <input type="text" id="matrixTrainDate" class="form-control" data-project-date autocomplete="off">
+                        <small class="text-muted">{{ __('The date is normalized to the Friday of its week.') }}</small>
+                    </div>
                     @if($canManage)
                         {{-- Только для legacy-пары без 132: бланк потерян / нужен перевыпуск --}}
                         <div class="form-check mt-2" id="matrixTrain132Wrap" style="display: none;">
@@ -577,7 +589,7 @@
                         window.location.href = td.dataset.createUrl;
                         return;
                     }
-                    trainCtx = { manual: td.dataset.trainManual, user: td.dataset.trainUser, courseRow: td.dataset.courseRow, td: td };
+                    trainCtx = { manual: td.dataset.trainManual, user: td.dataset.trainUser, courseRow: td.dataset.courseRow, td: td, legacy: td.dataset.trainLegacy === '1' };
                     document.getElementById('matrixTrainInfo').textContent =
                         td.dataset.trainPn + ' — ' + td.dataset.trainUserName;
                     const dateInput = document.getElementById('matrixTrainDate');
@@ -586,6 +598,14 @@
                         window.initProjectDatePickers(modalEl);
                     }
                     dateInput._projectDatePicker?.setDate(new Date(), false);
+                    const legacyCb = document.getElementById('matrixTrainLegacy');
+                    if (legacyCb) {
+                        // Чекбокс отражает текущее состояние пары: X стоит → галка стоит
+                        legacyCb.checked = trainCtx.legacy;
+                        // Old Training — только для production-пар (не для SCA-курсов)
+                        document.getElementById('matrixTrainLegacyWrap').style.display = trainCtx.courseRow ? 'none' : '';
+                        document.getElementById('matrixTrainDateWrap').style.display = trainCtx.legacy ? 'none' : '';
+                    }
                     document.getElementById('matrixTrainError').style.display = 'none';
                     const wrap132 = document.getElementById('matrixTrain132Wrap');
                     if (wrap132) {
@@ -628,12 +648,26 @@
                     .sort((a, b) => b.date - a.date);
 
                 const last = dated[0] || null;
+                td.dataset.trainLegacy = hasLegacy ? '1' : '0';
+
+                // Ручная отметка X приоритетна над датами (как на сервере)
+                if (hasLegacy) {
+                    td.classList.remove('cell-approved');
+                    const x = document.createElement('span');
+                    x.className = 'training-x';
+                    x.textContent = 'X';
+                    if (last) {
+                        x.title = @json(__('Last training:')) + ' ' + last.rec.date + ' — ' + @json(__('refresh required (MP-20)'));
+                    }
+                    td.innerHTML = '';
+                    td.appendChild(x);
+                    return;
+                }
+
                 td.classList.toggle('cell-approved', !!last?.rec.approved);
 
                 if (!last) {
-                    td.innerHTML = hasLegacy
-                        ? '<span class="training-x">X</span>'
-                        : '<span class="text-muted">-</span>';
+                    td.innerHTML = '<span class="text-muted">-</span>';
                     return;
                 }
 
@@ -830,9 +864,54 @@
                 loadPairHistory();
             });
 
+            const legacyCheckbox = document.getElementById('matrixTrainLegacy');
+            if (legacyCheckbox) {
+                legacyCheckbox.addEventListener('change', function () {
+                    document.getElementById('matrixTrainDateWrap').style.display = this.checked ? 'none' : '';
+                });
+            }
+
             document.getElementById('matrixTrainSave').addEventListener('click', async function () {
                 if (!trainCtx) return;
                 const errEl = document.getElementById('matrixTrainError');
+
+                // «Old Training» — переключение X по чекбоксу (постановка/снятие)
+                if (legacyCheckbox && !trainCtx.courseRow && legacyCheckbox.checked !== trainCtx.legacy) {
+                    try {
+                        const body = new FormData();
+                        body.append('user_id', trainCtx.user);
+                        body.append('manual_id', trainCtx.manual);
+                        const endpoint = legacyCheckbox.checked
+                            ? @json(route('trainings.matrixLegacy.store'))
+                            : @json(route('trainings.matrixLegacy.remove'));
+                        const response = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': @json(csrf_token()), 'Accept': 'application/json' },
+                            body: body,
+                        });
+                        const data = await response.json();
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Error');
+                        }
+                        const histResp = await fetch(@json(route('trainings.matrixPairHistory')) + '?' + pairParams(), {
+                            headers: { 'Accept': 'application/json' },
+                        });
+                        const hist = await histResp.json();
+                        if (histResp.ok && hist.success) {
+                            updateCellFromRecords(hist.records);
+                        }
+                        bootstrap.Modal.getInstance(modalEl)?.hide();
+                    } catch (error) {
+                        errEl.textContent = error.message;
+                        errEl.style.display = '';
+                    }
+                    return;
+                }
+                if (legacyCheckbox?.checked && !trainCtx.courseRow) {
+                    // X уже стоит и не менялся — просто закрыть
+                    bootstrap.Modal.getInstance(modalEl)?.hide();
+                    return;
+                }
                 // flatpickr показывает 24/Aug/2026; на сервер шлём Y-m-d
                 const dateInput = document.getElementById('matrixTrainDate');
                 const picked = dateInput._projectDatePicker?.selectedDates?.[0];

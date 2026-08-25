@@ -614,6 +614,71 @@ class TrainingShowAllTest extends TestCase
         $page->assertSee(\Carbon\Carbon::parse($record->date_training)->format('d/M/Y'));
     }
 
+    public function test_index_shows_training_hours_per_unit_and_total(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $technician = $this->createUserWithRole('Technician', [
+            'stamp' => 'TH',
+            'is_admin' => false,
+        ]);
+        $manual = $this->createManual([
+            'unit_name_training' => 'HOURS-PN-' . uniqid(),
+            'training_hours' => '13', // часов в день
+        ]);
+
+        // Первый (13×5=65) + update через 100 дней (2×5=10) + refresh через 400 дней (65)
+        foreach ([['2024-01-05', '132'], ['2024-01-05', '112'], ['2024-04-14', '112'], ['2025-05-19', '112']] as [$date, $type]) {
+            Training::query()->create([
+                'user_id' => $technician->id,
+                'manuals_id' => $manual->id,
+                'date_training' => $date,
+                'form_type' => $type,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('trainings.index', ['user_id' => $technician->id]));
+
+        $response->assertOk();
+        $response->assertSee('Total Hours');
+        $response->assertSee('140 hrs');
+        $response->assertSee('Total training hours');
+        $response->assertSee('<strong>140</strong>', false);
+    }
+
+    public function test_hours_counted_for_x_pairs_when_112_exists(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $technician = $this->createUserWithRole('Technician', [
+            'stamp' => 'XH',
+            'is_admin' => false,
+        ]);
+        $manual = $this->createManual([
+            'unit_name_training' => 'XHOURS-PN-' . uniqid(),
+            'training_hours' => '7',
+        ]);
+
+        // Legacy-пара (X) с refresh-112: legacy без часов, 112 = 7×5 как первичный
+        Training::query()->create([
+            'user_id' => $technician->id,
+            'manuals_id' => $manual->id,
+            'date_training' => null,
+            'form_type' => null,
+            'is_legacy' => true,
+        ]);
+        Training::query()->create([
+            'user_id' => $technician->id,
+            'manuals_id' => $manual->id,
+            'date_training' => '2020-06-05', // старше 3 лет — в матрице X, но часы считаются
+            'form_type' => '112',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('trainings.index', ['user_id' => $technician->id]));
+
+        $response->assertOk();
+        $response->assertSee('35 hrs');
+        $response->assertSee('<strong>35</strong>', false);
+    }
+
     public function test_store_no_longer_backfills_missing_yearly_trainings(): void
     {
         $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);

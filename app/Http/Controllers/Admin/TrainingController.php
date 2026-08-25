@@ -65,6 +65,7 @@ class TrainingController extends Controller
         $scopes = Scope::pluck('scope', 'id');
         $renewalThresholdDays = (int) config('trainings.renewal_threshold_days', 180);
 
+        $totalHoursAll = 0.0;
         foreach ($trainingLists as $manualId => $trainings) {
             $sortedTrainings = $trainings->sortBy('date_training');
             $firstTraining = $sortedTrainings->first();
@@ -77,6 +78,20 @@ class TrainingController extends Controller
             $daysSinceLastTraining112 = $lastTraining112
                 ? \Carbon\Carbon::parse($lastTraining112->date_training)->diffInDays(\Carbon\Carbon::now())
                 : null;
+
+            // Часы — как печатает форма 112 (5 дней недели):
+            // первый тренинг и Refresh (разрыв >= 365 дней) = training_hours × 5,
+            // ежегодный update = 2 × 5. Считаются только 112-е.
+            $manualDailyHours = (float) ($firstTraining->manual->training_hours ?? 0);
+            $unitHours = 0.0;
+            $previousDate = null;
+            foreach ($trainings112 as $t112) {
+                $isFirstOrRefresh = $previousDate === null
+                    || \Carbon\Carbon::parse($t112->date_training)->diffInDays(\Carbon\Carbon::parse($previousDate)) >= 365;
+                $unitHours += ($isFirstOrRefresh ? $manualDailyHours : 2) * 5;
+                $previousDate = $t112->date_training;
+            }
+            $totalHoursAll += $unitHours;
             $isDueForUpdate = $lastTraining112
                 ? $daysSinceLastTraining112 >= $renewalThresholdDays
                 : true;
@@ -88,6 +103,7 @@ class TrainingController extends Controller
                 'last_training_112' => $lastTraining112,
                 'days_since_last_training_112' => $daysSinceLastTraining112,
                 'is_due_for_update' => $isDueForUpdate,
+                'total_hours' => $unitHours,
                 // В модалке 132 всегда первая (перевыпущенная не должна тонуть в списке дат)
                 'trainings' => $sortedTrainings->sortBy([
                     fn ($a, $b) => (int) ((string) $b->form_type === '132') <=> (int) ((string) $a->form_type === '132'),
@@ -117,7 +133,8 @@ class TrainingController extends Controller
             'users',
             'selectedUserId',
             'canViewAllUsers',
-            'renewalThresholdDays'
+            'renewalThresholdDays',
+            'totalHoursAll'
         ));
     }
 
@@ -757,6 +774,7 @@ class TrainingController extends Controller
         abort_unless($viewer->canViewTrainingMatrix(), 403);
 
         $canManage = $viewer->canManageTrainingMatrix();
+        $canApprove = $viewer->canApproveTrainings();
 
         // Два вида: production (все, кроме SCA-людей; только производственные
         // группы) и SCA (люди с can_sign_certificates; ВСЕ их тренинги —
@@ -849,13 +867,16 @@ class TrainingController extends Controller
             $need132 = !$isCoursePair && $isLegacyPair
                 && !$pair->contains(fn ($t) => (string) $t->form_type === '132');
 
-            if ($lastDate !== null) {
+            if ($isLegacyPair) {
+                // Ручная отметка «Old Training» приоритетна: ячейка X независимо
+                // от дат (последняя дата — в тултипе); снимается чекбоксом в модалке
+                $lastDate = $lastDate !== null ? \Carbon\Carbon::parse($lastDate) : null;
+                $cells[$rowId][$userId] = ['kind' => 'x', 'date' => $lastDate, 'red' => false, 'need132' => $need132, 'approved' => false, 'legacy' => true];
+            } elseif ($lastDate !== null) {
                 $lastDate = \Carbon\Carbon::parse($lastDate);
                 $cells[$rowId][$userId] = $lastDate->lt($legacyAfter)
-                    ? ['kind' => 'x', 'date' => $lastDate, 'red' => false, 'need132' => $need132, 'approved' => $lastApproved]
-                    : ['kind' => 'date', 'date' => $lastDate, 'red' => $lastDate->lt($redAfter), 'need132' => $need132, 'approved' => $lastApproved];
-            } elseif ($isLegacyPair) {
-                $cells[$rowId][$userId] = ['kind' => 'x', 'date' => null, 'red' => false, 'need132' => $need132, 'approved' => false];
+                    ? ['kind' => 'x', 'date' => $lastDate, 'red' => false, 'need132' => $need132, 'approved' => $lastApproved, 'legacy' => false]
+                    : ['kind' => 'date', 'date' => $lastDate, 'red' => $lastDate->lt($redAfter), 'need132' => $need132, 'approved' => $lastApproved, 'legacy' => false];
             }
         }
 
@@ -886,9 +907,68 @@ class TrainingController extends Controller
         }
 
         return view('admin.trainings.show_all', compact(
-            'categories', 'users', 'cells', 'canManage', 'scaMode', 'unlinkedManuals', 'uncategorizedCount',
+            'categories', 'users', 'cells', 'canManage', 'canApprove', 'scaMode', 'unlinkedManuals', 'uncategorizedCount',
             'allCategories', 'showInactive', 'inactiveCount', 'personnel'
         ));
+    }
+
+    /**
+     * «Old Training» из модалки матрицы: пометить пару X (legacy-запись без даты).
+     * Доступно тем, кто вправе принимать тренинги.
+     */
+    public function matrixLegacyStore(Request $request)
+    {
+        abort_unless(auth()->user()->canApproveTrainings(), 403);
+
+        $data = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'manual_id' => 'required|integer|exists:manuals,id',
+        ]);
+
+        $exists = Training::where('user_id', $data['user_id'])
+            ->where('manuals_id', $data['manual_id'])
+            ->where('is_legacy', true)
+            ->exists();
+
+        if (!$exists) {
+            Training::create([
+                'user_id' => $data['user_id'],
+                'manuals_id' => $data['manual_id'],
+                'date_training' => null,
+                'form_type' => null,
+                'is_legacy' => true,
+            ]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /** Снятие «Old Training»: удаление legacy-отметки пары (чекбокс в модалке). */
+    public function matrixLegacyRemove(Request $request)
+    {
+        abort_unless(auth()->user()->canApproveTrainings(), 403);
+
+        $data = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'manual_id' => 'required|integer|exists:manuals,id',
+        ]);
+
+        $legacy = Training::where('user_id', $data['user_id'])
+            ->where('manuals_id', $data['manual_id'])
+            ->where('is_legacy', true)
+            ->get();
+
+        // Принятую отметку снимает только назначенный
+        if ($legacy->contains(fn ($t) => $t->isApproved()) && !auth()->user()->canManageApprovedTrainings()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Old Training mark is approved and locked. Contact the designated manager.'),
+            ], 422);
+        }
+
+        Training::whereIn('id', $legacy->pluck('id'))->delete();
+
+        return response()->json(['success' => true]);
     }
 
     /** SCA-вкладка: дата тренинга по строке-курсу (без CMM и без форм 112/132). */

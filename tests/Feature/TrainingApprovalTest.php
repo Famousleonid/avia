@@ -180,6 +180,70 @@ class TrainingApprovalTest extends TestCase
         $this->assertSame('2026-08-14', $form132->fresh()->date_training);
     }
 
+    public function test_matrix_legacy_endpoint_marks_pair_as_old_training(): void
+    {
+        $scaManager = $this->createUserWithRole('Manager', [
+            'stamp' => 'SM',
+            'is_admin' => false,
+            'can_sign_certificates' => true,
+        ]);
+        $technician = $this->createUserWithRole('Technician', ['stamp' => 'LG', 'is_admin' => false]);
+        $manual = $this->createManual(['unit_name_training' => 'MXLEG-PN-' . uniqid()]);
+
+        $this->actingAs($scaManager)->postJson(route('trainings.matrixLegacy.store'), [
+            'user_id' => $technician->id,
+            'manual_id' => $manual->id,
+        ])->assertOk();
+
+        $this->assertTrue(Training::query()
+            ->where('user_id', $technician->id)
+            ->where('manuals_id', $manual->id)
+            ->where('is_legacy', true)
+            ->whereNull('date_training')
+            ->exists());
+
+        // Обычный manager без прав приёмки — 403
+        $plainManager = $this->createUserWithRole('Manager', [
+            'stamp' => 'PL',
+            'is_admin' => false,
+            'can_sign_certificates' => false,
+        ]);
+        $this->actAsFresh($plainManager)->postJson(route('trainings.matrixLegacy.store'), [
+            'user_id' => $technician->id,
+            'manual_id' => $manual->id,
+        ])->assertForbidden();
+    }
+
+    public function test_matrix_legacy_remove_clears_x_mark(): void
+    {
+        $scaManager = $this->createUserWithRole('Manager', [
+            'stamp' => 'SM',
+            'is_admin' => false,
+            'can_sign_certificates' => true,
+        ]);
+        $technician = $this->createUserWithRole('Technician', ['stamp' => 'LR', 'is_admin' => false]);
+        $manual = $this->createManual(['unit_name_training' => 'XREM-PN-' . uniqid()]);
+
+        Training::query()->create([
+            'user_id' => $technician->id,
+            'manuals_id' => $manual->id,
+            'date_training' => null,
+            'form_type' => null,
+            'is_legacy' => true,
+        ]);
+
+        $this->actingAs($scaManager)->postJson(route('trainings.matrixLegacy.remove'), [
+            'user_id' => $technician->id,
+            'manual_id' => $manual->id,
+        ])->assertOk();
+
+        $this->assertFalse(Training::query()
+            ->where('user_id', $technician->id)
+            ->where('manuals_id', $manual->id)
+            ->where('is_legacy', true)
+            ->exists());
+    }
+
     public function test_matrix_pair_history_returns_records_with_approval_state(): void
     {
         $training = $this->makeTraining();

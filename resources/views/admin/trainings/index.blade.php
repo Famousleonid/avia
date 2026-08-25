@@ -183,6 +183,11 @@
                                style="min-width: 200px;"
                                placeholder="{{ __('Search') }}…"
                                aria-label="{{ __('Search') }}">
+
+                        <span class="text-muted">
+                            {{ __('Total training hours') }}:
+                            <strong>{{ number_format($totalHoursAll, $totalHoursAll == floor($totalHoursAll) ? 0 : 1, '.', ' ') }}</strong>
+                        </span>
                     </div>
 
                     <div class="form-check form-switch pt-1">
@@ -226,7 +231,7 @@
                             {{ __('Last Training Date') }}
                         </th>
                         <th data-priority="5" data-visible="true" class="text-center align-middle">
-                            {{ __('Form 132') }}
+                            {{ __('Total Hours') }}
                         </th>
                         <th data-priority="6" data-visible="true" class="text-center align-middle">
                             {{ __('Actions') }}
@@ -282,12 +287,12 @@
                                 @endif
                             </td>
 
+                            @php
+                                $unitHoursValue = $trainingList['total_hours'];
+                                $unitHoursText = number_format($unitHoursValue, $unitHoursValue == floor($unitHoursValue) ? 0 : 1, '.', ' ');
+                            @endphp
                             <td class="text-center">
-                                @if($trainingList['form_132'])
-                                    <label>OK</label>
-                                @else
-                                    <label>No</label>
-                                @endif
+                                {{ $unitHoursText }} hrs
                             </td>
 
                             <td class="text-center">
