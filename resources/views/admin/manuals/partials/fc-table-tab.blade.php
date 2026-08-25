@@ -428,7 +428,7 @@
         window.print();
     });
     document.getElementById('fcDetectBtn').addEventListener('click', async () => {
-        if (!confirm('Create fits for points that have both an OD and an ID parameter? Existing pairs are kept.')) return;
+        if (!await window.appConfirm('Create fits for points that have both an OD and an ID parameter? Existing pairs are kept.')) return;
         try {
             const r = await api('/manuals/' + MANUAL_ID + '/fits/detect', { method: 'POST' });
             await loadAll();
@@ -443,7 +443,7 @@
             const fit = fits.find(f => String(f.id) === editBtn.dataset.id);
             if (fit) showForm(fit);
         } else if (delBtn) {
-            if (!confirm('Delete this fit?')) return;
+            if (!await window.appConfirm('Delete this fit?', { okText: 'Delete', okClass: 'btn-danger' })) return;
             try { await api('/fits/' + delBtn.dataset.id, { method: 'DELETE' }); await loadAll(); }
             catch (err) { alert(err.message); }
         }

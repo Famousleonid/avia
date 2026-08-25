@@ -194,7 +194,7 @@
                     @endif
                     <button type="submit"
                             class="btn btn-outline-danger btn-sm"
-                            @if($useProjectDeleteConfirm) data-manual-part-delete-button @else onclick="return confirm('Are you sure you want to delete this component?');" @endif
+                            @if($useProjectDeleteConfirm) data-manual-part-delete-button @else data-app-confirm="{{ __('Are you sure you want to delete this component?') }}" @endif
                             @disabled($partMutationLocked)
                             @if($partMutationLocked) title="{{ __('Manual parts are locked') }}" @endif>
                         <i class="bi bi-trash"></i>

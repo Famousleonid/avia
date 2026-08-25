@@ -1117,7 +1117,7 @@
                     danger: true
                 });
             } else {
-                confirmed = window.confirm('Delete this lost image?');
+                confirmed = await window.appConfirm('Delete this lost image?', { okText: 'Delete', okClass: 'btn-danger' });
             }
 
             if (!confirmed) {

@@ -67,7 +67,7 @@
                         <form method="POST"
                               action="{{ route('mobile.machining.workorder.media.destroy', [$workorder, $pdf['id']]) }}"
                               class="d-inline"
-                              onsubmit="return confirm('Delete this PDF?');">
+                              data-app-confirm="Delete this PDF?">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>

@@ -559,10 +559,17 @@ class TrainingController extends Controller
                 'label' => $t->is_legacy
                     ? __('Old training (X)')
                     : ($t->form_type ? __('Form') . ' ' . $t->form_type : __('Course')),
-                'date' => $t->date_training ? \Carbon\Carbon::parse($t->date_training)->format('M-d-Y') : '—',
+                'date' => $t->date_training ? \Carbon\Carbon::parse($t->date_training)->format('d/M/Y') : '—',
                 'approved' => $t->isApproved(),
                 'approved_by' => $t->approvedBy->selection_name ?? null,
-                'approved_at' => $t->approved_at?->format('M-d-Y'),
+                'approved_at' => $t->approved_at?->format('d/M/Y'),
+                // Право правки даты этим просмотрщиком (те же правила, что в update())
+                'editable' => !$t->is_legacy
+                    && $t->date_training !== null
+                    && ($t->isApproved()
+                        ? $viewer->canManageApprovedTrainings()
+                        : ($viewer->roleIs(['Admin', 'Manager']) || $t->user_id === $viewer->id))
+                    && ((string) $t->form_type !== '132' || $viewer->roleIs('Admin') || $viewer->isAdmin()),
             ]);
 
         return response()->json([

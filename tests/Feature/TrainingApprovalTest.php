@@ -201,7 +201,7 @@ class TrainingApprovalTest extends TestCase
         // is_admin — суперправа, в т.ч. приёмка
         $response->assertJsonPath('can_approve', true);
         $response->assertJsonPath('records.0.approved', true);
-        $this->assertSame('Aug-21-2026', $response->json('records.0.date'));
+        $this->assertSame('21/Aug/2026', $response->json('records.0.date'));
 
         // Техник видит историю своей пары
         $technician = \App\Models\User::findOrFail($training->user_id);

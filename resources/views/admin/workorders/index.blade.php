@@ -501,10 +501,9 @@
                 @endcan
                 @role('Admin')
                 <form method="POST" action="{{ route('workorders.recalcStages') }}" class="ms-2"
-                      onsubmit="return confirm('Recalculate stages for ALL workorders?');">
+                      data-app-confirm="Recalculate stages for ALL workorders?">
                     @csrf
-                    <button type="submit" class="btn btn-outline-warning btn-sm"
-                            onclick="if (typeof showLoadingSpinner === 'function') showLoadingSpinner();">
+                    <button type="submit" class="btn btn-outline-warning btn-sm">
                         <i class="bi bi-arrow-repeat me-1"></i>
                     </button>
                 </form>
@@ -1583,9 +1582,9 @@
                     return;
                 }
 
-                if (window.confirm(message)) {
-                    submitDeleteForm(currentFormId);
-                }
+                window.appConfirm(message).then(ok => {
+                    if (ok) submitDeleteForm(currentFormId);
+                });
             });
 
             deleteModal?.addEventListener('show.bs.modal', event => {

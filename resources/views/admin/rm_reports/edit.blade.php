@@ -666,8 +666,8 @@
         }
 
         // Функция для удаления записи
-        function deleteRecord(recordId) {
-            if (confirm('{{ __("Are you sure you want to delete this record?") }}')) {
+        async function deleteRecord(recordId) {
+            if (await window.appConfirm('{{ __("Are you sure you want to delete this record?") }}', { okText: 'Delete', okClass: 'btn-danger' })) {
                 // Создаем форму для удаления
                 var form = document.createElement('form');
                 form.method = 'POST';

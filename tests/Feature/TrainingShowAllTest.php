@@ -81,9 +81,9 @@ class TrainingShowAllTest extends TestCase
 
         $response->assertOk();
         $response->assertSee($technician->name);
-        $response->assertSee('May-15-2026');
+        $response->assertSee('15/May/2026');
         $response->assertDontSee($systemAdmin->name);
-        $response->assertDontSee('Jan-01-2024');
+        $response->assertDontSee('01/Jan/2024');
     }
 
     public function test_legacy_training_is_shown_as_x(): void
@@ -162,7 +162,7 @@ class TrainingShowAllTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('training-date-old', false);
-        $response->assertSee($redDate->format('M-d-Y'));
+        $response->assertSee($redDate->format('d/M/Y'));
     }
 
     public function test_row_without_manual_is_rendered_with_no_cmm_badge(): void
@@ -611,7 +611,7 @@ class TrainingShowAllTest extends TestCase
         // Дата видна в SCA-виде
         $page = $this->actingAs($admin)->get(route('trainings.showAll', ['sca' => 1]));
         $page->assertOk();
-        $page->assertSee(\Carbon\Carbon::parse($record->date_training)->format('M-d-Y'));
+        $page->assertSee(\Carbon\Carbon::parse($record->date_training)->format('d/M/Y'));
     }
 
     public function test_store_no_longer_backfills_missing_yearly_trainings(): void

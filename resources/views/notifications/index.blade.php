@@ -208,7 +208,7 @@
                 const id = item?.dataset?.notifId;
                 if (!id) return;
 
-                if (!confirm('Delete this notification?')) return;
+                if (!await window.appConfirm('Delete this notification?')) return;
 
                 await delNotif(id);
 
@@ -246,7 +246,7 @@
 
             // Delete all
             document.getElementById('btnDeleteAll')?.addEventListener('click', async () => {
-                if (!confirm('Delete ALL notifications?')) return;
+                if (!await window.appConfirm('Delete ALL notifications?')) return;
 
                 const r = await fetch(`{{ route('notifications.deleteAll') }}`, {
                     method: 'DELETE',
