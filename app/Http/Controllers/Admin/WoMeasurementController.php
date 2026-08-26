@@ -1401,60 +1401,16 @@ class WoMeasurementController extends Controller
     {
         $data = $request->validate([
             'inspection_component_id' => 'required|exists:manual_inspection_components,id',
+            'rule_overrides'          => 'nullable|array',
+            'rule_overrides.*'        => 'integer|exists:manual_parameter_repair_rules,id',
         ]);
 
         $icId = (int) $data['inspection_component_id'];
-
-        // Find Repair TDR for this IC — bridge via ipl_num same as in data()
-        $directComponentIds = ManualInspectionComponentVariant::where('inspection_component_id', $icId)
-            ->pluck('component_id');
-
-        $manual  = $workorder->unit->manuals;
-        $useWear = $workorder->usesWearLimits();
-
-        // Extend lookup via ipl_num to handle different component records for same part
-        $variantIplNums = Component::whereIn('id', $directComponentIds)->pluck('ipl_num')->filter()->unique();
-        $allComponentIds = Component::where('manual_id', $manual->id)
-            ->whereIn('ipl_num', $variantIplNums)
-            ->pluck('id')
-            ->merge($directComponentIds)
-            ->unique()->values();
-
-        $tdr = Tdr::where('workorder_id', $workorder->id)
-            ->where('tdr_type', Tdr::TYPE_COMPONENT_TDR)
-            ->whereIn('component_id', $allComponentIds)
-            ->first();
-
-        if (!$tdr) {
+        $ctx  = $this->rebuildContext($workorder, $icId, $data['rule_overrides'] ?? [], true);
+        if (!$ctx) {
             return response()->json(['error' => 'No Repair TDR found for this part'], 404);
         }
-
-        // Collect rule IDs from current FAIL measurements
-        $paramIds = ManualParameter::where('inspection_component_id', $icId)->pluck('id');
-
-        $allFails = WoMeasurement::where('workorder_id', $workorder->id)
-            ->whereIn('manual_parameter_id', $paramIds)
-            ->where('result', 'FAIL')
-            ->get(['id', 'manual_parameter_id', 'result', 'codes_id', 'manual_parameter_repair_rule_id', 'stage']);
-
-        // For FAILs without a rule_id, try to re-resolve now
-        // (rule may have been added after the measurement was saved)
-        $paramsById = ManualParameter::whereIn('id', $allFails->pluck('manual_parameter_id')->unique())
-            ->with('repairRules.triggers')
-            ->get()->keyBy('id');
-
-        $ruleIds = [];
-        foreach ($allFails as $m) {
-            $rId = $m->manual_parameter_repair_rule_id;
-            if (!$rId) {
-                $param = $paramsById[$m->manual_parameter_id] ?? null;
-                if ($param) {
-                    $rId = $this->resolveRepairRule($param, $m->result, $m->codes_id, $useWear);
-                }
-            }
-            if ($rId) $ruleIds[] = $rId;
-        }
-        $ruleIds = array_values(array_unique($ruleIds));
+        $tdr = $ctx['tdr'];
 
         // Delete only processes that haven't started
         $startedExists = TdrProcess::where('tdrs_id', $tdr->id)->whereNotNull('date_start')->exists();
@@ -1470,25 +1426,17 @@ class WoMeasurementController extends Controller
         // Mark the sync point: the Update button stays inactive until newer
         // measurements of this part appear.
         $syncId = WoMeasurement::where('workorder_id', $workorder->id)
-            ->whereIn('manual_parameter_id', $paramIds)
+            ->whereIn('manual_parameter_id', $ctx['paramIds'])
             ->max('id');
         $tdr->update(['last_synced_measurement_id' => $syncId]);
 
-        if (empty($ruleIds)) {
-            return response()->json(['ok' => true, 'message' => 'No repair rules matched — processes cleared']);
+        if (empty($ctx['mainRuleIds'])) {
+            return response()->json([
+                'ok'       => true,
+                'message'  => 'No repair rules matched — processes cleared',
+                'warnings' => $ctx['warnings'],
+            ]);
         }
-
-        // Re-run pipeline. Defect codes of ALL current FAILs feed the phase-rule
-        // conditions (has_defect) — the rebuild sees the same information the
-        // initial build had.
-        $ctx = new PipelineContext();
-        $ctx->inspectionComponentId = $icId;
-        $ctx->mainRuleIds           = $ruleIds;
-        $ctx->defectCodeIds         = $allFails->pluck('codes_id')->filter()
-            ->map(fn ($v) => (int) $v)->unique()->values()->all();
-        $ctx->heldPendingEc         = false;
-
-        app(RepairPipeline::class)->run($ctx);
 
         // Started rows are kept as history. A new group is skipped only when a
         // started row covers the SAME plan node (see coveredByStartedRow) — two
@@ -1500,11 +1448,7 @@ class WoMeasurementController extends Controller
 
         $existingSorts = TdrProcess::where('tdrs_id', $tdr->id)->pluck('sort_order')->toArray();
 
-        foreach ($ctx->orderedGroups() as $group) {
-            if (! $this->isValidProcessNameId($group['process_names_id'] ?? null)) {
-                continue;
-            }
-
+        foreach ($this->plannedGroups($icId, $ctx['mainRuleIds'], $ctx['defectCodeIds']) as $group) {
             if ($this->coveredByStartedRow($group, $startedRows)) continue;
 
             $sort = $baseSort + (int) $group['sort_order'];
@@ -1523,7 +1467,287 @@ class WoMeasurementController extends Controller
             ]);
         }
 
-        return response()->json(['ok' => true, 'tdr_id' => $tdr->id]);
+        return response()->json(['ok' => true, 'tdr_id' => $tdr->id, 'warnings' => $ctx['warnings']]);
+    }
+
+    /**
+     * Dry-run of updatePartProcesses — the preview the technician confirms
+     * before the plan is rebuilt. Nothing is written: no deletions, no sync
+     * point move, rule overrides stay in memory.
+     *
+     * Returns the per-point route choices (radio options when several rules
+     * match), action warnings (order_new / ec rules that cannot be merged into
+     * a repair plan), and the diff vs the current TdrProcess rows:
+     * kept (started history) / unchanged / added / removed.
+     */
+    public function previewPartProcesses(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'inspection_component_id' => 'required|exists:manual_inspection_components,id',
+            'rule_overrides'          => 'nullable|array',
+            'rule_overrides.*'        => 'integer|exists:manual_parameter_repair_rules,id',
+        ]);
+
+        $icId = (int) $data['inspection_component_id'];
+        $ctx  = $this->rebuildContext($workorder, $icId, $data['rule_overrides'] ?? [], false);
+        if (!$ctx) {
+            return response()->json(['error' => 'No Repair TDR found for this part'], 404);
+        }
+
+        $groups = $this->plannedGroups($icId, $ctx['mainRuleIds'], $ctx['defectCodeIds']);
+
+        $rows      = TdrProcess::where('tdrs_id', $ctx['tdr']->id)->orderBy('sort_order')->get();
+        $started   = $rows->filter(fn ($r) => $r->date_start !== null)->values();
+        $unstarted = $rows->filter(fn ($r) => $r->date_start === null)->values();
+
+        $nameIds = collect($groups)->pluck('process_names_id')
+            ->merge($rows->pluck('process_names_id'))
+            ->filter()->unique()->values();
+        $names = ProcessName::whereIn('id', $nameIds)->pluck('name', 'id');
+
+        $rowEntry = fn ($r) => [
+            'name'        => (string) ($names[(int) $r->process_names_id] ?? ('#' . $r->process_names_id)),
+            'description' => (string) ($r->description ?? ''),
+        ];
+        $groupEntry = fn ($g) => [
+            'name'        => (string) ($names[(int) $g['process_names_id']] ?? ('#' . $g['process_names_id'])),
+            'description' => (string) ($g['description'] ?? ''),
+            'phase'       => $g['phase'] ?? 'main',
+        ];
+
+        // Match planned groups against existing unstarted rows by plan-node
+        // identity (greedy, each row consumed once) — what matches is
+        // "unchanged", the rest is "added"; unmatched rows are "removed".
+        $consumed  = [];
+        $added     = [];
+        $unchanged = [];
+        foreach ($groups as $g) {
+            if ($this->coveredByStartedRow($g, $started)) continue;
+            $match = null;
+            foreach ($unstarted as $i => $row) {
+                if (isset($consumed[$i])) continue;
+                if ($this->rowCoversGroup($g, $row)) { $match = $i; break; }
+            }
+            if ($match !== null) {
+                $consumed[$match] = true;
+                $unchanged[] = $groupEntry($g);
+            } else {
+                $added[] = $groupEntry($g);
+            }
+        }
+        $removed = [];
+        foreach ($unstarted as $i => $row) {
+            if (!isset($consumed[$i])) $removed[] = $rowEntry($row);
+        }
+
+        return response()->json([
+            'tdr_id'    => $ctx['tdr']->id,
+            'points'    => $ctx['points'],
+            'warnings'  => $ctx['warnings'],
+            'kept'      => $started->map($rowEntry)->values()->all(),
+            'unchanged' => $unchanged,
+            'added'     => $added,
+            'removed'   => $removed,
+        ]);
+    }
+
+    /**
+     * Shared context for the rebuild (apply) and its preview: the part's Repair
+     * TDR, current FAILs with their chosen rules (persisted / overridden /
+     * auto-resolved), per-point rule options, defect codes.
+     *
+     * $ruleOverrides: param_id => rule_id — the technician's route choice for a
+     * point; applied to EVERY current FAIL of that param, persisted only when
+     * $persistOverrides (apply), in-memory for preview.
+     *
+     * Returns null when the part has no Repair TDR.
+     */
+    private function rebuildContext(Workorder $workorder, int $icId, array $ruleOverrides = [], bool $persistOverrides = false): ?array
+    {
+        // Find Repair TDR for this IC — bridge via ipl_num same as in data()
+        $directComponentIds = ManualInspectionComponentVariant::where('inspection_component_id', $icId)
+            ->pluck('component_id');
+
+        $manual  = $workorder->unit->manuals;
+        $useWear = $workorder->usesWearLimits();
+
+        $variantIplNums = Component::whereIn('id', $directComponentIds)->pluck('ipl_num')->filter()->unique();
+        $allComponentIds = Component::where('manual_id', $manual->id)
+            ->whereIn('ipl_num', $variantIplNums)
+            ->pluck('id')
+            ->merge($directComponentIds)
+            ->unique()->values();
+
+        $tdr = Tdr::where('workorder_id', $workorder->id)
+            ->where('tdr_type', Tdr::TYPE_COMPONENT_TDR)
+            ->whereIn('component_id', $allComponentIds)
+            ->first();
+        if (!$tdr) {
+            return null;
+        }
+
+        $paramIds = ManualParameter::where('inspection_component_id', $icId)->pluck('id');
+
+        $allFails = WoMeasurement::where('workorder_id', $workorder->id)
+            ->whereIn('manual_parameter_id', $paramIds)
+            ->where('result', 'FAIL')
+            ->orderBy('id')
+            ->get(['id', 'manual_parameter_id', 'result', 'actual_value', 'codes_id', 'manual_parameter_repair_rule_id', 'stage']);
+
+        $paramsById = ManualParameter::whereIn('id', $allFails->pluck('manual_parameter_id')->unique())
+            ->with(['repairRules.triggers', 'repairRules.processes', 'codes', 'points'])
+            ->get()->keyBy('id');
+
+        // Technician's route choice — override every FAIL of the point. The rule
+        // must belong to the point's parameter (foreign rules are ignored).
+        foreach ($ruleOverrides as $paramId => $ruleId) {
+            $param = $paramsById[(int) $paramId] ?? null;
+            $rule  = $param?->repairRules->firstWhere('id', (int) $ruleId);
+            if (!$rule) continue;
+            foreach ($allFails->where('manual_parameter_id', (int) $paramId) as $m) {
+                $m->manual_parameter_repair_rule_id = $rule->id;
+                if ($persistOverrides) $m->save();
+            }
+        }
+
+        // Chosen rule per FAIL: persisted/overridden, else auto-resolved
+        // (the rule may have been added after the measurement was saved).
+        $ruleIds       = [];
+        $chosenByParam = [];
+        foreach ($allFails as $m) {
+            $rId = $m->manual_parameter_repair_rule_id;
+            if (!$rId) {
+                $param = $paramsById[$m->manual_parameter_id] ?? null;
+                if ($param) {
+                    $rId = $this->resolveRepairRule($param, $m->result, $m->codes_id, $useWear);
+                }
+            }
+            if ($rId) {
+                $ruleIds[] = (int) $rId;
+                $chosenByParam[$m->manual_parameter_id] = (int) $rId;
+            }
+        }
+        $ruleIds = array_values(array_unique($ruleIds));
+
+        // Non-repair rules cannot be merged into the repair plan (order_new / ec
+        // have their own flows) — surface them as warnings instead of silently
+        // blending their processes in.
+        $rulesById   = ManualParameterRepairRule::whereIn('id', $ruleIds)->get()->keyBy('id');
+        $mainRuleIds = [];
+        $warnings    = [];
+        foreach ($ruleIds as $rid) {
+            $rule = $rulesById[$rid] ?? null;
+            if (!$rule) continue;
+            $action = $rule->action ?? ($rule->order_replacement ? 'order_new' : 'repair');
+            if ($action === 'repair') {
+                $mainRuleIds[] = $rid;
+                continue;
+            }
+            $warnings[] = [
+                'param_id'  => (int) $rule->manual_parameter_id,
+                'param'     => (string) ($paramsById[(int) $rule->manual_parameter_id]?->description ?? ''),
+                'rule_id'   => (int) $rule->id,
+                'rule_name' => (string) ($rule->name ?? ''),
+                'action'    => $action,
+            ];
+        }
+
+        // Per-point info for the preview UI: latest FAIL + its matching rules.
+        $points = [];
+        foreach ($allFails->groupBy('manual_parameter_id') as $paramId => $ms) {
+            $param = $paramsById[$paramId] ?? null;
+            if (!$param) continue;
+            $latest  = $ms->last();
+            $options = $this->matchingRules($param, $latest, $useWear);
+            $chosen  = $chosenByParam[$paramId] ?? null;
+            if ($chosen && !collect($options)->contains(fn ($r) => (int) $r->id === $chosen)) {
+                $extra = $param->repairRules->firstWhere('id', $chosen);
+                if ($extra) $options[] = $extra;
+            }
+            $points[] = [
+                'param_id'       => (int) $paramId,
+                'description'    => (string) ($param->description ?? ''),
+                'pt_codes'       => $param->points->pluck('code')->filter()->unique()->values()->implode(', '),
+                'chosen_rule_id' => $chosen,
+                'no_rule'        => $chosen === null,
+                'options'        => collect($options)->map(fn ($r) => [
+                    'id'            => (int) $r->id,
+                    'name'          => (string) ($r->name ?? ''),
+                    'action'        => $r->action ?? ($r->order_replacement ? 'order_new' : 'repair'),
+                    'process_count' => $r->processes->count(),
+                ])->values()->all(),
+            ];
+        }
+
+        return [
+            'tdr'           => $tdr,
+            'paramIds'      => $paramIds,
+            'mainRuleIds'   => $mainRuleIds,
+            'defectCodeIds' => $allFails->pluck('codes_id')->filter()
+                ->map(fn ($v) => (int) $v)->unique()->values()->all(),
+            'warnings'      => $warnings,
+            'points'        => $points,
+        ];
+    }
+
+    /**
+     * ALL rules of the parameter matching this measurement — the preview's
+     * radio options. Mirrors tdrMatchingRules() in measurements/tab.js.
+     */
+    private function matchingRules(ManualParameter $param, WoMeasurement $m, bool $useWear): array
+    {
+        $codesId = $m->codes_id ? (int) $m->codes_id : null;
+        $findingContext = null;
+        if ($codesId) {
+            $pc = $param->codes->firstWhere('codes_id', $codesId);
+            $findingContext = $pc?->finding_context ?? 'inspection';
+        }
+
+        $limits = $param->effectiveLimits($useWear);
+        $v = $m->actual_value !== null ? (float) $m->actual_value : null;
+        $dimFail = $limits['min'] !== null && $limits['max'] !== null && $v !== null
+            && !($v >= (float) $limits['min'] && $v <= (float) $limits['max']);
+        $failTriggers = $useWear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
+
+        return $param->repairRules->filter(function ($rule) use ($codesId, $findingContext, $dimFail, $failTriggers) {
+            $trigs = $rule->triggers;
+            if ($codesId) {
+                if ($findingContext === 'measurement') {
+                    if ($trigs->contains(fn ($t) => $t->trigger === 'finding_measurement'
+                        && ($t->codes_id === null || (int) $t->codes_id === $codesId))) {
+                        return true;
+                    }
+                } elseif ($trigs->contains(fn ($t) => in_array($t->trigger, ['finding_inspection', 'finding'], true)
+                    && ($t->codes_id === null || (int) $t->codes_id === $codesId))) {
+                    return true;
+                }
+            }
+
+            return $dimFail && $trigs->contains(fn ($t) => in_array($t->trigger, $failTriggers, true));
+        })->values()->all();
+    }
+
+    /**
+     * Run the repair pipeline for the part and return the valid ordered groups.
+     */
+    private function plannedGroups(int $icId, array $mainRuleIds, array $defectCodeIds): array
+    {
+        if (empty($mainRuleIds)) {
+            return [];
+        }
+
+        $ctx = new PipelineContext();
+        $ctx->inspectionComponentId = $icId;
+        $ctx->mainRuleIds           = $mainRuleIds;
+        $ctx->defectCodeIds         = $defectCodeIds;
+        $ctx->heldPendingEc         = false;
+
+        app(RepairPipeline::class)->run($ctx);
+
+        return array_values(array_filter(
+            $ctx->orderedGroups(),
+            fn ($g) => $this->isValidProcessNameId($g['process_names_id'] ?? null)
+        ));
     }
 
     private function isValidProcessNameId(mixed $value): bool
@@ -1542,29 +1766,40 @@ class WoMeasurementController extends Controller
      */
     private function coveredByStartedRow(array $group, $startedRows): bool
     {
-        $nameId   = (int) ($group['process_names_id'] ?? 0);
-        $groupIds = array_map('intval', array_merge(
-            (array) ($group['rule_process_ids'] ?? []),
-            (array) ($group['phase_rule_process_ids'] ?? [])
-        ));
-
         foreach ($startedRows as $row) {
-            if ((int) $row->process_names_id !== $nameId) {
-                continue;
-            }
-            $rowIds = array_map('intval', array_merge(
-                (array) ($row->rule_process_ids ?? []),
-                (array) ($row->phase_rule_process_ids ?? [])
-            ));
-            if (empty($groupIds) || empty($rowIds)) {
-                return true; // no node identity on either side → name match
-            }
-            if (array_intersect($groupIds, $rowIds)) {
+            if ($this->rowCoversGroup($group, $row)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Is this TdrProcess row the same plan node as the pipeline group?
+     * Same process name AND overlapping source ids; a row/group without any
+     * source ids falls back to name-only matching (legacy rows, the EC row).
+     */
+    private function rowCoversGroup(array $group, $row): bool
+    {
+        if ((int) $row->process_names_id !== (int) ($group['process_names_id'] ?? 0)) {
+            return false;
+        }
+
+        $groupIds = array_map('intval', array_merge(
+            (array) ($group['rule_process_ids'] ?? []),
+            (array) ($group['phase_rule_process_ids'] ?? [])
+        ));
+        $rowIds = array_map('intval', array_merge(
+            (array) ($row->rule_process_ids ?? []),
+            (array) ($row->phase_rule_process_ids ?? [])
+        ));
+
+        if (empty($groupIds) || empty($rowIds)) {
+            return true; // no node identity on either side → name match
+        }
+
+        return (bool) array_intersect($groupIds, $rowIds);
     }
 
     public function revertPartTdr(Request $request, Workorder $workorder)

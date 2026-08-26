@@ -137,12 +137,20 @@ class RepairPlanRebuildTest extends TestCase
         ]);
     }
 
-    private function updateProcesses($wo, $ic)
+    private function updateProcesses($wo, $ic, array $extra = [])
     {
         return $this->actingAs($this->admin())
-            ->postJson(route('workorders.update-part-processes', $wo->id), [
+            ->postJson(route('workorders.update-part-processes', $wo->id), array_merge([
                 'inspection_component_id' => $ic->id,
-            ]);
+            ], $extra));
+    }
+
+    private function previewProcesses($wo, $ic, array $extra = [])
+    {
+        return $this->actingAs($this->admin())
+            ->postJson(route('workorders.update-part-processes.preview', $wo->id), array_merge([
+                'inspection_component_id' => $ic->id,
+            ], $extra));
     }
 
     /** Plan rows of a TDR in execution order, with their process-name id. */
@@ -346,5 +354,112 @@ class RepairPlanRebuildTest extends TestCase
         $names = $this->planRows($tdr)->pluck('process_names_id')->map(fn ($v) => (int) $v)->all();
         $this->assertContains($chrome->process->process_names_id, $names, 'Plan must follow the chosen rule');
         $this->assertNotContains($grind->process->process_names_id, $names, 'Auto-resolved rule must not override the choice');
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage 2: Update preview (dry-run diff + rule overrides + action warnings)
+    // -------------------------------------------------------------------------
+
+    /** Preview shows the diff (added rows for the new fault) and writes NOTHING. */
+    public function test_preview_returns_diff_without_mutating_plan(): void
+    {
+        $d = $this->makeTwoPointPart();
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+        $this->updateProcesses($d['wo'], $d['ic'])->assertOk();
+
+        $rowsBefore = $this->planRows($tdr)->pluck('id')->all();
+        $syncBefore = $tdr->fresh()->last_synced_measurement_id;
+
+        // New fault appears → preview only
+        $this->failMeasurement($d['wo'], $d['paramB'], $d['ruleB']->id);
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+
+        $machiningNameId = $d['machining']->process->process_names_id;
+        $addedNames = collect($preview['added'])->pluck('name')->all();
+        $this->assertContains(
+            \App\Models\ProcessName::find($machiningNameId)->name,
+            $addedNames,
+            'Preview must show the new point machining as added'
+        );
+        $this->assertNotEmpty($preview['unchanged'], 'Existing NDT/Plating stay in the plan');
+
+        // Dry-run: nothing changed
+        $this->assertSame($rowsBefore, $this->planRows($tdr)->pluck('id')->all(), 'Preview must not touch plan rows');
+        $this->assertSame($syncBefore, $tdr->fresh()->last_synced_measurement_id, 'Preview must not move the sync point');
+    }
+
+    /** Preview lists all matching rules per point; apply with an override follows it and persists. */
+    public function test_preview_rule_override_is_applied_and_persisted(): void
+    {
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder([
+            'unit_id'        => $this->createUnit(['manual_id' => $manual->id])->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+        $ic = $this->createInspectionComponent($manual, 'Rod');
+        $component = $this->createComponent($manual, ['name' => 'Rod']);
+        $this->attachComponentToIc($ic, $component);
+        $param = $this->createParameter($manual, $ic, [
+            'description' => 'Bore', 'orig_dim_min' => 10.0, 'orig_dim_max' => 10.1,
+        ]);
+
+        $grind  = $this->makeManualProcess($manual, 'Grinding', 'point');
+        $chrome = $this->makeManualProcess($manual, 'Chrome', 'part');
+        $rule1 = $this->makeRule($param, 'Grind oversize', [$grind]);
+        $rule2 = $this->makeRule($param, 'Chrome build-up', [$chrome]);
+
+        $meas = $this->failMeasurement($wo, $param, null); // auto-resolve → rule1
+        $tdr = $this->makeRepairTdr($wo, $component);
+
+        $preview = $this->previewProcesses($wo, $ic)->assertOk()->json();
+        $point = collect($preview['points'])->firstWhere('param_id', $param->id);
+        $this->assertCount(2, $point['options'], 'Both matching rules are offered');
+        $this->assertSame($rule1->id, $point['chosen_rule_id'], 'Auto-resolved rule preselected');
+
+        // Preview with the override reflects the other route
+        $preview2 = $this->previewProcesses($wo, $ic, ['rule_overrides' => [$param->id => $rule2->id]])
+            ->assertOk()->json();
+        $this->assertContains(
+            \App\Models\ProcessName::find($chrome->process->process_names_id)->name,
+            collect($preview2['added'])->pluck('name')->all()
+        );
+        $this->assertNull($meas->fresh()->manual_parameter_repair_rule_id, 'Preview must not persist the override');
+
+        // Apply with the override → persisted + plan follows it
+        $this->updateProcesses($wo, $ic, ['rule_overrides' => [$param->id => $rule2->id]])->assertOk();
+        $this->assertSame($rule2->id, (int) $meas->fresh()->manual_parameter_repair_rule_id);
+        $names = $this->planRows($tdr)->pluck('process_names_id')->map(fn ($v) => (int) $v)->all();
+        $this->assertContains($chrome->process->process_names_id, $names);
+        $this->assertNotContains($grind->process->process_names_id, $names);
+    }
+
+    /**
+     * FIX D acceptance: a point whose chosen rule has action=order_new is NOT
+     * silently merged into the repair plan — it is surfaced as a warning.
+     */
+    public function test_order_new_rule_is_warned_and_not_merged(): void
+    {
+        $d = $this->makeTwoPointPart();
+
+        // Point B's route becomes an Order New rule WITH processes (worst case)
+        $d['ruleB']->update(['action' => 'order_new']);
+
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $this->failMeasurement($d['wo'], $d['paramB'], $d['ruleB']->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $warning = collect($preview['warnings'])->firstWhere('param_id', $d['paramB']->id);
+        $this->assertNotNull($warning, 'order_new rule must be surfaced as a warning');
+        $this->assertSame('order_new', $warning['action']);
+
+        $apply = $this->updateProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertNotEmpty($apply['warnings']);
+
+        // Plan contains only point A's machining (one row), not B's
+        $machiningNameId = $d['machining']->process->process_names_id;
+        $machiningRows = $this->planRows($tdr)->where('process_names_id', $machiningNameId);
+        $this->assertCount(1, $machiningRows, 'Order New point must not contribute repair processes');
     }
 }

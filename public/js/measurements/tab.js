@@ -993,18 +993,127 @@
         }
         const part = partsTree.find(p => p.id === activePartId);
         if (!part) return;
+        openUpdatePreview(part, {});
+    });
+
+    /* ── Update processes preview: confirm the diff before rebuilding ─ */
+    let updPrevModal = null;
+    let updPrevOverrides = {};      // param_id -> rule_id (technician's route choice)
+    let updPrevPart = null;
+
+    function getUpdPrevModal() {
+        if (!updPrevModal) updPrevModal = new bootstrap.Modal(document.getElementById('msUpdPrevModal'));
+        return updPrevModal;
+    }
+
+    async function openUpdatePreview(part, overrides) {
+        updPrevPart = part;
+        updPrevOverrides = overrides || {};
+        const body = document.getElementById('msUpdPrevBody');
+        const err  = document.getElementById('msUpdPrevErr');
+        err.classList.add('d-none');
+        body.innerHTML = '<span class="text-secondary">Building preview…</span>';
+        getUpdPrevModal().show();
+        try {
+            const data = await apiFetch('/workorders/' + WO_ID + '/update-part-processes/preview', {
+                method: 'POST',
+                body: JSON.stringify({ inspection_component_id: part.id, rule_overrides: updPrevOverrides }),
+            });
+            renderUpdatePreview(data);
+        } catch (e) {
+            body.innerHTML = '';
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        }
+    }
+
+    function renderUpdatePreview(data) {
+        const body = document.getElementById('msUpdPrevBody');
+        const h = [];
+
+        // Per-point route choice — radio when several rules match the point
+        const choicePoints = (data.points || []).filter(p => (p.options || []).length > 1);
+        if (choicePoints.length) {
+            h.push('<div class="fw-semibold mb-1">Route per point</div>');
+            choicePoints.forEach(p => {
+                h.push(`<div class="border rounded px-2 py-1 mb-2">
+                    <div class="mb-1">${p.pt_codes ? '<span class="badge bg-secondary" style="font-size:9px">' + esc(p.pt_codes) + '</span> ' : ''}<span class="fw-semibold">${esc(p.description || '')}</span></div>`);
+                p.options.forEach(o => {
+                    const sel = (updPrevOverrides[p.param_id] ?? p.chosen_rule_id) === o.id;
+                    const outcome = o.action === 'order_new' ? 'Order New' : o.action === 'ec' ? 'EC' : ('Repair' + (o.process_count ? ' · ' + o.process_count + ' proc.' : ''));
+                    h.push(`<div class="form-check py-0">
+                        <input class="form-check-input ms-updprev-rule" type="radio" name="updprev-${p.param_id}"
+                            data-param-id="${p.param_id}" data-rule-id="${o.id}" id="updprev-${p.param_id}-${o.id}" ${sel ? 'checked' : ''}>
+                        <label class="form-check-label" for="updprev-${p.param_id}-${o.id}" style="cursor:pointer">
+                            ${esc(o.name || 'Rule ' + o.id)} <span class="text-secondary">→ ${esc(outcome)}</span>
+                        </label>
+                    </div>`);
+                });
+                h.push('</div>');
+            });
+        }
+
+        // Points that cannot be merged into the repair plan (order_new / ec rules)
+        const warn = [];
+        (data.warnings || []).forEach(w => {
+            const label = w.action === 'order_new' ? 'Order New' : 'EC';
+            warn.push(`<div>${esc(w.param || '')} — rule «${esc(w.rule_name || '')}» requires <strong>${label}</strong>: handle it separately, it is NOT merged into this repair plan.</div>`);
+        });
+        (data.points || []).filter(p => p.no_rule).forEach(p => {
+            warn.push(`<div>${esc(p.description || '')} — no matching repair rule: the point contributes no processes.</div>`);
+        });
+        if (warn.length) {
+            h.push('<div class="alert alert-warning py-1 px-2 mb-2" style="font-size:11px">' + warn.join('') + '</div>');
+        }
+
+        const section = (title, items, cls, sign) => {
+            if (!items || !items.length) return;
+            h.push(`<div class="fw-semibold mt-2 mb-1">${title}</div>`);
+            items.forEach(it => {
+                h.push(`<div class="${cls}" style="font-size:11px">${sign} ${esc(it.name)}${it.description ? ' <span class="text-secondary">— ' + esc(it.description) + '</span>' : ''}</div>`);
+            });
+        };
+        section('Added', data.added, 'text-success', '+');
+        section('Removed', data.removed, 'text-danger', '−');
+        section('Kept (work started)', data.kept, 'text-secondary', '=');
+        section('Unchanged', data.unchanged, 'text-secondary', '=');
+
+        if (!(data.added || []).length && !(data.removed || []).length && !warn.length) {
+            h.push('<div class="text-secondary mt-2">The plan is already up to date.</div>');
+        }
+
+        body.innerHTML = h.join('');
+
+        // Route change → refetch the preview with the new choice
+        body.querySelectorAll('.ms-updprev-rule').forEach(inp => {
+            inp.addEventListener('change', () => {
+                const next = { ...updPrevOverrides };
+                next[parseInt(inp.dataset.paramId, 10)] = parseInt(inp.dataset.ruleId, 10);
+                openUpdatePreview(updPrevPart, next);
+            });
+        });
+    }
+
+    document.getElementById('msUpdPrevApplyBtn')?.addEventListener('click', async function () {
+        const part = updPrevPart;
+        if (!part) return;
         this.disabled = true;
         try {
-            await apiFetch('/workorders/' + WO_ID + '/update-part-processes', {
+            const res = await apiFetch('/workorders/' + WO_ID + '/update-part-processes', {
                 method: 'POST',
-                body: JSON.stringify({ inspection_component_id: part.id }),
+                body: JSON.stringify({ inspection_component_id: part.id, rule_overrides: updPrevOverrides }),
             });
+            getUpdPrevModal().hide();
             // sync point reached — the button goes inactive until newer measurements
             const maxId = Math.max(0, ...part.params.flatMap(p => paramMeasurements(p).map(m => m.id)));
             icsSyncedMeas.set(part.id, maxId);
             updateRepairActionState(part);
             document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
-            if (typeof showNotification === 'function') showNotification('Repair processes updated', 'success');
+            if (typeof showNotification === 'function') {
+                showNotification('Repair processes updated', 'success');
+                (res.warnings || []).forEach(w => showNotification(
+                    (w.param || '') + ': rule requires ' + (w.action === 'order_new' ? 'Order New' : 'EC') + ' — handle separately', 'warning'));
+            }
         } catch (e) { alert(e.message); }
         finally { this.disabled = false; }
     });

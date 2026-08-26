@@ -203,6 +203,26 @@
         </div>
     </div>
 
+    {{-- Update processes preview: confirm the rebuilt plan before applying --}}
+    <div class="modal fade" id="msUpdPrevModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0">Update repair processes — preview</h6>
+                    <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="font-size:12px">
+                    <div id="msUpdPrevBody"></div>
+                    <div class="text-danger small d-none mt-2" id="msUpdPrevErr"></div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="msUpdPrevApplyBtn">Apply changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Component panel --}}
     <div id="ms-tab-entry">
         <div id="ms-comp-hdr" style="display:none">
