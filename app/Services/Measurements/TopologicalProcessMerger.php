@@ -130,8 +130,10 @@ class TopologicalProcessMerger
     }
 
     /**
-     * Kahn's algorithm. Ties are broken by first-seen insertion order so the
-     * output is deterministic across PHP versions and rule orderings.
+     * Kahn's algorithm. Ties among READY nodes are broken by ProcessName
+     * plan_order (lower = earlier, null = 100; e.g. Machining = 10 — in-house
+     * work runs before the part ships to vendors), then by first-seen insertion
+     * order so the output stays deterministic.
      */
     private function topoSort(array $nodes, array $predsOf, array $insertOrder): array
     {
@@ -149,12 +151,14 @@ class TopologicalProcessMerger
             $inDegree[$nodeKey] = count($predsOf[$nodeKey]);
         }
 
+        $rank = fn ($k) => [$this->planOrderOf((int) $nodes[$k]['process_names_id']), $insertOrder[$k]];
+
         // Initial ready queue: nodes with no predecessors
         $queue = array_values(array_filter(
             array_keys($inDegree),
             fn ($k) => $inDegree[$k] === 0
         ));
-        usort($queue, fn ($a, $b) => $insertOrder[$a] <=> $insertOrder[$b]);
+        usort($queue, fn ($a, $b) => $rank($a) <=> $rank($b));
 
         $ordered = [];
         while (!empty($queue)) {
@@ -167,10 +171,10 @@ class TopologicalProcessMerger
                     $newReady[] = $succ;
                 }
             }
-            usort($newReady, fn ($a, $b) => $insertOrder[$a] <=> $insertOrder[$b]);
+            usort($newReady, fn ($a, $b) => $rank($a) <=> $rank($b));
             // Append new-ready nodes to front of remaining queue so they are
-            // processed in insertion-order before any previously-ready nodes
-            // that happened to share the same predecessor.
+            // processed before previously-ready nodes that happened to share
+            // the same predecessor (keeps each place's chain locally together).
             $queue = array_merge($newReady, $queue);
         }
 
@@ -198,6 +202,18 @@ class TopologicalProcessMerger
         }
 
         return $this->scopeCache[$nameId];
+    }
+
+    /** @var array<int,int> nameId → plan_order (null → 100) */
+    private array $planOrderCache = [];
+
+    private function planOrderOf(int $nameId): int
+    {
+        if (!array_key_exists($nameId, $this->planOrderCache)) {
+            $this->planOrderCache[$nameId] = (int) (ProcessName::find($nameId)?->plan_order ?? 100);
+        }
+
+        return $this->planOrderCache[$nameId];
     }
 
     private function processNameExists(int $nameId): bool

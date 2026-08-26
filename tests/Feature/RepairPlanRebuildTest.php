@@ -41,14 +41,14 @@ class RepairPlanRebuildTest extends TestCase
     }
 
     /** ProcessName with scope (point|part) → Process → ManualProcess for the manual. */
-    private function makeManualProcess($manual, string $name, string $scope): ManualProcess
+    private function makeManualProcess($manual, string $name, string $scope, array $pnAttrs = []): ManualProcess
     {
-        $pn = ProcessName::create([
+        $pn = ProcessName::create(array_merge([
             'name'               => $name . ' ' . uniqid(),
             'scope'              => $scope,
             'process_sheet_name' => $name,
             'form_number'        => 'F-' . random_int(1, 9999),
-        ]);
+        ], $pnAttrs));
         $proc = Process::create(['process_names_id' => $pn->id, 'process' => 'P-' . uniqid()]);
 
         return ManualProcess::create(['manual_id' => $manual->id, 'processes_id' => $proc->id]);
@@ -613,6 +613,40 @@ class RepairPlanRebuildTest extends TestCase
             [$nameOf($chrome), $nameOf($silver), $nameOf($ndt4), $nameOf($paint)],
             $names,
             'With chrome in the plan, the single shared NDT-4 goes after silver'
+        );
+    }
+
+    /**
+     * plan_order priority (§2): among equally-ready nodes the merger prefers
+     * lower plan_order — in-house machining opens the plan even when another
+     * route's chain was inserted first.
+     */
+    public function test_plan_order_puts_machining_headed_chain_first(): void
+    {
+        $d = $this->makeTwoPointPart(); // ruleA/ruleB both start with Machining (plan_order null)
+        $manual = $d['manual'];
+
+        // Point A route starts with vendor Strip (default priority), point B with
+        // in-house Blend (plan_order 10). B is created AFTER A — without the
+        // priority the plan would open with Strip.
+        $strip = $this->makeManualProcess($manual, 'Strip', 'point');
+        $blend = $this->makeManualProcess($manual, 'Blend', 'point', ['plan_order' => 10]);
+        $ndt   = $d['ndt'];
+
+        $ruleA = $this->makeRule($d['paramA'], 'Vendor first', [$strip, $ndt]);
+        $ruleB = $this->makeRule($d['paramB'], 'In-house first', [$blend, $ndt]);
+
+        $this->failMeasurement($d['wo'], $d['paramA'], $ruleA->id);
+        $this->failMeasurement($d['wo'], $d['paramB'], $ruleB->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+
+        $this->updateProcesses($d['wo'], $d['ic'])->assertOk();
+
+        $first = $this->planRows($tdr)->first();
+        $this->assertSame(
+            $blend->process->process_names_id,
+            (int) $first->process_names_id,
+            'In-house machining (plan_order 10) must open the plan'
         );
     }
 

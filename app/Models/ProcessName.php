@@ -30,6 +30,7 @@ class ProcessName extends Model
     protected $fillable = [
         'name','code','process_sheet_name','form_number','std_days', 'notify_user_id','print_form','show_in_process_picker','sequence_exempt',
         'stage','scope', // EC gate / plan structure: start|prep|ndt|post|finish ; point|part
+        'plan_order',    // merger tie-break among ready nodes: lower = earlier (null = 100); Machining=10 (in-house first)
     ];
     public $timestamps = false;
 
