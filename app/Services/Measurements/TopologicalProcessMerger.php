@@ -90,10 +90,15 @@ class TopologicalProcessMerger
                     // Each rule contributes its own unique row for point-scope processes
                     $nodeKey = 'pt|' . $rule->id . '|' . $rp->id;
                 } else {
-                    // Part-scope: N-th occurrence of same nameId in any rule maps to same node
-                    $occ                     = $occurrenceCount[$nameId] ?? 0;
-                    $occurrenceCount[$nameId] = $occ + 1;
-                    $nodeKey                 = 'p|' . $nameId . '|' . $occ;
+                    // Part-scope: merges across rules only for the SAME OPERATION —
+                    // the same process name with different operations means
+                    // different rows, in sequence. N-th occurrence of the same
+                    // (name, operation) in any rule maps to the same node.
+                    $procId                   = (int) $process->id;
+                    $occKey                   = $nameId . '|' . $procId;
+                    $occ                      = $occurrenceCount[$occKey] ?? 0;
+                    $occurrenceCount[$occKey] = $occ + 1;
+                    $nodeKey                  = 'p|' . $nameId . '|' . $procId . '|' . $occ;
                 }
 
                 // Create node on first encounter

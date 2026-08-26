@@ -651,6 +651,49 @@ class RepairPlanRebuildTest extends TestCase
     }
 
     /**
+     * Part-scope merging is per OPERATION: the same process name with the same
+     * operation merges into one row across rules; a different operation under
+     * the same name stays its own row, in sequence.
+     */
+    public function test_part_scope_merges_only_same_operation(): void
+    {
+        $d = $this->makeTwoPointPart();
+        $manual = $d['manual'];
+
+        // One Bake NAME, two different operations (AMS 2759/9 vs /11)
+        $bakePn = ProcessName::create([
+            'name' => 'Bake ' . uniqid(), 'scope' => 'part',
+            'process_sheet_name' => 'Bake', 'form_number' => 'F-1',
+        ]);
+        $bake9  = Process::create(['process_names_id' => $bakePn->id, 'process' => 'AMS 2759/9']);
+        $bake11 = Process::create(['process_names_id' => $bakePn->id, 'process' => 'AMS 2759/11']);
+        $mp9  = ManualProcess::create(['manual_id' => $manual->id, 'processes_id' => $bake9->id]);
+        $mp11 = ManualProcess::create(['manual_id' => $manual->id, 'processes_id' => $bake11->id]);
+
+        $paramC = $this->createParameter($manual, $d['ic'], [
+            'description' => 'Point C', 'orig_dim_min' => 3.0, 'orig_dim_max' => 3.1, 'sort_order' => 2,
+        ]);
+        $paramD = $this->createParameter($manual, $d['ic'], [
+            'description' => 'Point D', 'orig_dim_min' => 4.0, 'orig_dim_max' => 4.1, 'sort_order' => 3,
+        ]);
+        // C: bake /9 ; D: bake /9 then bake /11 — /9 merges across rules, /11 is its own row
+        $ruleC = $this->makeRule($paramC, 'C route', [$mp9]);
+        $ruleD = $this->makeRule($paramD, 'D route', [$mp9, $mp11]);
+
+        $this->failMeasurement($d['wo'], $paramC, $ruleC->id);
+        $this->failMeasurement($d['wo'], $paramD, $ruleD->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+
+        $this->updateProcesses($d['wo'], $d['ic'])->assertOk();
+
+        $bakeRows = $this->planRows($tdr)->filter(fn ($r) => (int) $r->process_names_id === $bakePn->id)->values();
+        $this->assertCount(2, $bakeRows, 'Same name, different operations → two rows');
+        $this->assertSame([$bake9->id], array_values($bakeRows[0]->processes), 'First row: /9 merged from both rules');
+        $this->assertCount(2, $bakeRows[0]->rule_process_ids, '/9 accumulated from both rules');
+        $this->assertSame([$bake11->id], array_values($bakeRows[1]->processes), 'Second row: /11 on its own, after /9');
+    }
+
+    /**
      * FIX D acceptance: a point whose chosen rule has action=order_new is NOT
      * silently merged into the repair plan — it is surfaced as a warning.
      */
