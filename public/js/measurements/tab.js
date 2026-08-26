@@ -1997,6 +1997,19 @@ ${sections}
             : null;
         const failTriggers = wear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
 
+        // Banded dimensional trigger (min/max delta) matches only when the
+        // exceedance past the limit falls in the band (mirror of backend).
+        const dimTrigOk = t => {
+            if (!failTriggers.includes(t.trigger)) return false;
+            const banded = t.min_delta != null || t.max_delta != null;
+            if (!banded) return true;
+            const ex = (t.trigger === 'above_orig' || t.trigger === 'above_wear')
+                ? (av != null && lim.max != null ? av - lim.max : null)
+                : (av != null && lim.min != null ? lim.min - av : null);
+            if (ex == null || ex <= 0) return false;
+            return ex > (t.min_delta ?? 0) && (t.max_delta == null || ex <= t.max_delta);
+        };
+
         return rules.filter(rule => {
             const trigs = rule.triggers || [];
             if (codesId) {
@@ -2006,7 +2019,7 @@ ${sections}
                     return true;
                 }
             }
-            return dimFail && trigs.some(t => failTriggers.includes(t.trigger));
+            return dimFail && trigs.some(dimTrigOk);
         });
     }
 

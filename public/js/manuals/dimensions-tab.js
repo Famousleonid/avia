@@ -2381,7 +2381,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         const inspFindTrigs = trigList.filter(function (t) { return t.trigger === 'finding_inspection' || t.trigger === 'finding'; });
 
                         const measNames = measTrigs.map(function (t) {
-                            return `<span style="font-weight:600;color:var(--bs-body-color)">${escHtml(TRIGGER_LABELS[t.trigger] || t.trigger)}</span>`;
+                            const band = deltaBandLabel(t);
+                            return `<span style="font-weight:600;color:var(--bs-body-color)">${escHtml(TRIGGER_LABELS[t.trigger] || t.trigger)}</span>` + (band ? ` <span>(${band})</span>` : '');
                         }).join(', ');
                         const measRow = measTrigs.length > 0
                             ? `<div style="padding-left:16px;font-size:11px;color:var(--bs-secondary-color);margin-top:2px">Measurement · ${measNames}</div>`
@@ -2851,6 +2852,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // ==========================
     let dimRuleProcesses = [];
     let dimRuleTriggers  = [];
+
+    // Delta band label for a dimensional trigger: "Δ > 0.01", "Δ ≤ 0.01", "Δ 0.005–0.01"
+    function deltaBandLabel(t) {
+        const lo = t.min_delta != null ? String(+t.min_delta) : null;
+        const hi = t.max_delta != null ? String(+t.max_delta) : null;
+        if (lo != null && hi != null) return `Δ ${lo}–${hi}`;
+        if (lo != null) return `Δ &gt; ${lo}`;
+        if (hi != null) return `Δ ≤ ${hi}`;
+        return '';
+    }
     let activeRuleParam  = null;
     const ruleModal = new bootstrap.Modal(document.getElementById('dimRepairRuleModal'));
 
@@ -2984,8 +2995,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const tl = TRIGGER_LABELS[t.trigger] || t.trigger;
             const isFindTrigger = t.trigger === 'finding' || t.trigger === 'finding_measurement' || t.trigger === 'finding_inspection';
             const cl = t.code_name ? ' · ' + escHtml(t.code_name) : (isFindTrigger ? ' · any defect' : '');
+            const band = deltaBandLabel(t);
             return `<div class="dim-rule-process-item">
-                <span class="flex-grow-1" style="font-size:12px">${escHtml(tl)}${cl}</span>
+                <span class="flex-grow-1" style="font-size:12px">${escHtml(tl)}${cl}${band ? ' <span style="color:var(--bs-secondary-color)">· ' + band + '</span>' : ''}</span>
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-trig-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)">
                     <i class="bi bi-x"></i>
                 </button>
@@ -3051,7 +3063,11 @@ document.addEventListener('DOMContentLoaded', function () {
             return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing, is_gate: !!p.is_gate, process_names_id: p.process_names_id || null, scope: p.scope || null };
         });
         dimRuleTriggers = (rule.triggers || []).map(function (t) {
-            return { trigger: t.trigger, codes_id: t.codes_id || null, code_name: t.code_name || null };
+            return {
+                trigger: t.trigger, codes_id: t.codes_id || null, code_name: t.code_name || null,
+                min_delta: t.min_delta != null ? +t.min_delta : null,
+                max_delta: t.max_delta != null ? +t.max_delta : null,
+            };
         });
         document.getElementById('dimRuleId').value      = rule.id;
         document.getElementById('dimRuleParamId').value = param.id;
@@ -3077,12 +3093,17 @@ document.addEventListener('DOMContentLoaded', function () {
         ruleModal.show();
     }
 
+    const DIM_TRIGGER_TYPES = ['below_orig', 'above_orig', 'below_wear', 'above_wear'];
+
     document.getElementById('dimRuleTriggerSel').addEventListener('change', function () {
         const val      = this.value;
         const codeEl   = document.getElementById('dimRuleTriggerCode');
         const addBtn   = document.getElementById('dimRuleTriggerAddBtn');
         const isFinding = val === 'finding' || val === 'finding_measurement' || val === 'finding_inspection';
+        const isDim     = DIM_TRIGGER_TYPES.includes(val);
         codeEl.classList.toggle('d-none', !isFinding);
+        document.getElementById('dimRuleTriggerMinDelta').classList.toggle('d-none', !isDim);
+        document.getElementById('dimRuleTriggerMaxDelta').classList.toggle('d-none', !isDim);
         addBtn.classList.toggle('d-none', !val);
     });
 
@@ -3090,13 +3111,26 @@ document.addEventListener('DOMContentLoaded', function () {
         const triggerVal = document.getElementById('dimRuleTriggerSel').value;
         if (!triggerVal) return;
         const isFinding  = triggerVal === 'finding' || triggerVal === 'finding_measurement' || triggerVal === 'finding_inspection';
+        const isDim      = DIM_TRIGGER_TYPES.includes(triggerVal);
         const codesIdVal = isFinding ? (document.getElementById('dimRuleTriggerCode').value || null) : null;
         const codeName   = isFinding && codesIdVal
             ? (document.getElementById('dimRuleTriggerCode').options[document.getElementById('dimRuleTriggerCode').selectedIndex]?.text || null)
             : null;
-        dimRuleTriggers.push({ trigger: triggerVal, codes_id: codesIdVal ? parseInt(codesIdVal) : null, code_name: codeName });
+        const minDeltaEl = document.getElementById('dimRuleTriggerMinDelta');
+        const maxDeltaEl = document.getElementById('dimRuleTriggerMaxDelta');
+        const minDelta   = isDim && minDeltaEl.value !== '' ? parseFloat(minDeltaEl.value) : null;
+        const maxDelta   = isDim && maxDeltaEl.value !== '' ? parseFloat(maxDeltaEl.value) : null;
+        dimRuleTriggers.push({
+            trigger: triggerVal,
+            codes_id: codesIdVal ? parseInt(codesIdVal) : null,
+            code_name: codeName,
+            min_delta: minDelta,
+            max_delta: maxDelta,
+        });
         document.getElementById('dimRuleTriggerSel').value = '';
         document.getElementById('dimRuleTriggerCode').classList.add('d-none');
+        minDeltaEl.value = ''; maxDeltaEl.value = '';
+        minDeltaEl.classList.add('d-none'); maxDeltaEl.classList.add('d-none');
         document.getElementById('dimRuleTriggerAddBtn').classList.add('d-none');
         renderRuleTriggerList();
     });
@@ -3122,7 +3156,7 @@ document.addEventListener('DOMContentLoaded', function () {
             action:            (document.querySelector('input[name="dimRuleAction"]:checked')?.value || 'repair'),
             notes:             notes || null,
             triggers:          dimRuleTriggers.map(function (t) {
-                return { trigger: t.trigger, codes_id: t.codes_id || null };
+                return { trigger: t.trigger, codes_id: t.codes_id || null, min_delta: t.min_delta, max_delta: t.max_delta };
             }),
             processes:         dimRuleProcesses.map(function (p, i) {
                 return { id: p.rule_process_id || null, manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, is_gate: !!p.is_gate, sort_order: i };

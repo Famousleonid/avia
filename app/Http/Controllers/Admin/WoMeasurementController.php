@@ -11,6 +11,7 @@ use App\Models\ManualInspectionComponent;
 use App\Models\ManualInspectionComponentVariant;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRepairRule;
+use App\Models\ManualParameterRuleTrigger;
 use App\Models\Necessary;
 use App\Models\ProcessName;
 use App\Models\Tdr;
@@ -386,7 +387,8 @@ class WoMeasurementController extends Controller
             $dimensionalResult,
             $data['codes_id'] ?? null,
             $useWear,
-            $findingContext
+            $findingContext,
+            ($data['actual_value'] ?? null) !== null ? (float) $data['actual_value'] : null
         );
 
         $measurement = WoMeasurement::create($data);
@@ -1619,7 +1621,10 @@ class WoMeasurementController extends Controller
             if (!$rId) {
                 $param = $paramsById[$m->manual_parameter_id] ?? null;
                 if ($param) {
-                    $rId = $this->resolveRepairRule($param, $m->result, $m->codes_id, $useWear);
+                    $rId = $this->resolveRepairRule(
+                        $param, $m->result, $m->codes_id, $useWear, null,
+                        $m->actual_value !== null ? (float) $m->actual_value : null
+                    );
                 }
             }
             if ($rId) {
@@ -1709,7 +1714,7 @@ class WoMeasurementController extends Controller
             && !($v >= (float) $limits['min'] && $v <= (float) $limits['max']);
         $failTriggers = $useWear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
 
-        return $param->repairRules->filter(function ($rule) use ($codesId, $findingContext, $dimFail, $failTriggers) {
+        return $param->repairRules->filter(function ($rule) use ($codesId, $findingContext, $dimFail, $failTriggers, $v, $limits) {
             $trigs = $rule->triggers;
             if ($codesId) {
                 if ($findingContext === 'measurement') {
@@ -1723,7 +1728,8 @@ class WoMeasurementController extends Controller
                 }
             }
 
-            return $dimFail && $trigs->contains(fn ($t) => in_array($t->trigger, $failTriggers, true));
+            return $dimFail && $trigs->contains(fn ($t) => in_array($t->trigger, $failTriggers, true)
+                && $t->acceptsExceedance($this->triggerExceedance($t, $v, $limits)));
         })->values()->all();
     }
 
@@ -1914,7 +1920,23 @@ class WoMeasurementController extends Controller
         return rtrim(rtrim(number_format($v, 4, '.', ''), '0'), '.');
     }
 
-    private function resolveRepairRule(ManualParameter $parameter, ?string $result, ?int $codesId, bool $useWear, ?string $findingContext = null): ?int
+    /**
+     * Exceedance for a dimensional trigger: how far the value is past the limit
+     * on the trigger's side (above max / below min). Null when unknown.
+     */
+    private function triggerExceedance(ManualParameterRuleTrigger $t, ?float $value, array $limits): ?float
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (in_array($t->trigger, ['above_orig', 'above_wear'], true)) {
+            return $limits['max'] !== null ? $value - (float) $limits['max'] : null;
+        }
+
+        return $limits['min'] !== null ? (float) $limits['min'] - $value : null;
+    }
+
+    private function resolveRepairRule(ManualParameter $parameter, ?string $result, ?int $codesId, bool $useWear, ?string $findingContext = null, ?float $value = null): ?int
     {
         $rules = $parameter->repairRules;
 
@@ -1951,11 +1973,16 @@ class WoMeasurementController extends Controller
             }
         }
 
-        // Dimensional FAIL (no explicit finding selected)
+        // Dimensional FAIL (no explicit finding selected). Banded triggers
+        // (min/max delta, §8a) match only when the exceedance falls in the band —
+        // e.g. Silver up to 0.010" over max, Chrome-in-hole beyond that.
         if ($result === 'FAIL') {
             $failTriggers = $useWear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
+            $limits = $parameter->effectiveLimits($useWear);
             foreach ($rules as $rule) {
-                if ($rule->triggers->contains(fn($t) => in_array($t->trigger, $failTriggers))) {
+                $hit = $rule->triggers->contains(fn($t) => in_array($t->trigger, $failTriggers)
+                    && $t->acceptsExceedance($this->triggerExceedance($t, $value, $limits)));
+                if ($hit) {
                     return $rule->id;
                 }
             }

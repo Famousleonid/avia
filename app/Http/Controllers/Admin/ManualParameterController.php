@@ -334,6 +334,8 @@ class ManualParameterController extends Controller
             'triggers'                      => 'required|array|min:1',
             'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
+            'triggers.*.min_delta'          => 'nullable|numeric|min:0',
+            'triggers.*.max_delta'          => 'nullable|numeric|min:0',
         ]);
 
         $action = $this->resolveAction($data);
@@ -367,6 +369,8 @@ class ManualParameterController extends Controller
             'triggers'                      => 'required|array|min:1',
             'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
+            'triggers.*.min_delta'          => 'nullable|numeric|min:0',
+            'triggers.*.max_delta'          => 'nullable|numeric|min:0',
         ]);
 
         $action = $this->resolveAction($data);
@@ -434,11 +438,16 @@ class ManualParameterController extends Controller
     {
         $rule->triggers()->delete();
         $findingTypes = ['finding', 'finding_measurement', 'finding_inspection'];
+        $dimTypes     = ['below_orig', 'above_orig', 'below_wear', 'above_wear'];
         foreach ($triggers as $t) {
+            $isDim = in_array($t['trigger'], $dimTypes, true);
             ManualParameterRuleTrigger::create([
                 'repair_rule_id' => $rule->id,
                 'trigger'        => $t['trigger'],
                 'codes_id'       => in_array($t['trigger'], $findingTypes) ? ($t['codes_id'] ?? null) : null,
+                // delta band (exceedance from the limit) only makes sense on dimensional triggers
+                'min_delta'      => $isDim ? ($t['min_delta'] ?? null) : null,
+                'max_delta'      => $isDim ? ($t['max_delta'] ?? null) : null,
             ]);
         }
     }
@@ -454,6 +463,8 @@ class ManualParameterController extends Controller
             'trigger'   => $t->trigger,
             'codes_id'  => $t->codes_id,
             'code_name' => $t->code?->name,
+            'min_delta' => $t->min_delta,
+            'max_delta' => $t->max_delta,
         ])->values()->all();
         $data['processes'] = $rule->processes->map(function ($rp) {
             $mp    = $rp->manualProcess;

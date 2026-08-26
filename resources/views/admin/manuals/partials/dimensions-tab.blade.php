@@ -560,6 +560,13 @@
                                 <select class="form-select form-select-sm d-none" id="dimRuleTriggerCode" style="max-width:180px">
                                     <option value="">— Any defect —</option>
                                 </select>
+                                {{-- Delta band (dimensional triggers): exceedance past the limit, from > Δ to ≤ Δ --}}
+                                <input type="number" step="0.0001" min="0" class="form-control form-control-sm d-none"
+                                       id="dimRuleTriggerMinDelta" placeholder="over > Δ" title="Fires only when exceedance is MORE than this (leave empty = from 0)"
+                                       style="max-width:105px">
+                                <input type="number" step="0.0001" min="0" class="form-control form-control-sm d-none"
+                                       id="dimRuleTriggerMaxDelta" placeholder="up to ≤ Δ" title="Fires only when exceedance is AT MOST this (leave empty = no upper bound)"
+                                       style="max-width:105px">
                                 <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="dimRuleTriggerAddBtn">Add</button>
                             </div>
                         </div>

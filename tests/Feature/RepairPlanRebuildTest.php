@@ -435,6 +435,81 @@ class RepairPlanRebuildTest extends TestCase
     }
 
     /**
+     * Threshold triggers (§8a): the exceedance past the limit picks the route —
+     * up to the band → Silver, beyond it → Chrome. No radio needed: exactly one
+     * rule matches each measurement.
+     */
+    public function test_threshold_trigger_routes_by_exceedance(): void
+    {
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder([
+            'unit_id'        => $this->createUnit(['manual_id' => $manual->id])->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+        $ic = $this->createInspectionComponent($manual, 'Rod');
+        $component = $this->createComponent($manual, ['name' => 'Rod']);
+        $this->attachComponentToIc($ic, $component);
+
+        $silver = $this->makeManualProcess($manual, 'Silver', 'point');
+        $chrome = $this->makeManualProcess($manual, 'ChromeHole', 'point');
+
+        // Three identical bores measured at different exceedances
+        $mk = function (string $desc) use ($manual, $ic, $silver, $chrome) {
+            $param = $this->createParameter($manual, $ic, [
+                'description' => $desc, 'orig_dim_min' => 10.0, 'orig_dim_max' => 10.1,
+            ]);
+            $silverRule = ManualParameterRepairRule::create([
+                'manual_parameter_id' => $param->id, 'name' => 'Silver restoration', 'action' => 'repair',
+            ]);
+            ManualParameterRuleTrigger::create([
+                'repair_rule_id' => $silverRule->id, 'trigger' => 'above_orig', 'max_delta' => 0.010,
+            ]);
+            ManualParameterRuleProcess::create([
+                'repair_rule_id' => $silverRule->id, 'manual_process_id' => $silver->id, 'sort_order' => 0,
+            ]);
+            $chromeRule = ManualParameterRepairRule::create([
+                'manual_parameter_id' => $param->id, 'name' => 'Chrome in hole', 'action' => 'repair',
+            ]);
+            ManualParameterRuleTrigger::create([
+                'repair_rule_id' => $chromeRule->id, 'trigger' => 'above_orig', 'min_delta' => 0.010,
+            ]);
+            ManualParameterRuleProcess::create([
+                'repair_rule_id' => $chromeRule->id, 'manual_process_id' => $chrome->id, 'sort_order' => 0,
+            ]);
+
+            return [$param, $silverRule, $chromeRule];
+        };
+        [$pSmall, $silverSmall]      = $mk('Bore small wear');
+        [$pBig, , $chromeBig]        = $mk('Bore big wear');
+        [$pBoundary, $silverBound]   = $mk('Bore boundary wear');
+
+        // store() auto-resolve: exceedance 0.005 → Silver
+        $saved = $this->actingAs($this->admin())
+            ->postJson(route('workorders.measurements.store', $wo->id), [
+                'manual_parameter_id' => $pSmall->id, 'stage' => 'initial', 'actual_value' => 10.105,
+            ])->assertCreated()->json();
+        $this->assertSame('FAIL', $saved['result']);
+        $this->assertSame($silverSmall->id, $saved['manual_parameter_repair_rule_id']);
+
+        // rebuild re-resolve: exceedance 0.05 → Chrome; boundary 0.010 (≤) → Silver
+        $this->failMeasurement($wo, $pBig, null, ['actual_value' => 10.150]);
+        $this->failMeasurement($wo, $pBoundary, null, ['actual_value' => 10.110]);
+        $this->makeRepairTdr($wo, $component);
+
+        $preview = $this->previewProcesses($wo, $ic)->assertOk()->json();
+        $byParam = collect($preview['points'])->keyBy('param_id');
+
+        $this->assertSame($silverSmall->id, $byParam[$pSmall->id]['chosen_rule_id']);
+        $this->assertSame($chromeBig->id, $byParam[$pBig->id]['chosen_rule_id']);
+        $this->assertSame($silverBound->id, $byParam[$pBoundary->id]['chosen_rule_id'], 'Exceedance equal to the threshold stays in the band');
+
+        // The band makes the choice unambiguous — exactly one option, no radio
+        foreach ([$pSmall->id, $pBig->id, $pBoundary->id] as $pid) {
+            $this->assertCount(1, $byParam[$pid]['options'], 'Banded triggers must offer a single route');
+        }
+    }
+
+    /**
      * FIX D acceptance: a point whose chosen rule has action=order_new is NOT
      * silently merged into the repair plan — it is surfaced as a warning.
      */
