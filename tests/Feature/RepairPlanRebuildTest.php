@@ -556,6 +556,67 @@ class RepairPlanRebuildTest extends TestCase
     }
 
     /**
+     * Conditional rule processes (§8b) — the rod's NDT-4 case: the Silver route
+     * runs NDT-4 BEFORE silver when chrome is not redone, but when a chrome
+     * route is in the same plan, the shared NDT-4 goes AFTER silver.
+     */
+    public function test_conditional_rule_process_switches_position_by_plan_contents(): void
+    {
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder([
+            'unit_id'        => $this->createUnit(['manual_id' => $manual->id])->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+        $ic = $this->createInspectionComponent($manual, 'Rod');
+        $component = $this->createComponent($manual, ['name' => 'Rod']);
+        $this->attachComponentToIc($ic, $component);
+        $paramOd = $this->createParameter($manual, $ic, [
+            'description' => 'OD', 'orig_dim_min' => 1.0, 'orig_dim_max' => 1.1,
+        ]);
+        $paramId = $this->createParameter($manual, $ic, [
+            'description' => 'ID', 'orig_dim_min' => 10.0, 'orig_dim_max' => 10.1,
+        ]);
+
+        $chrome = $this->makeManualProcess($manual, 'Chrome plating', 'point');
+        $ndt4   = $this->makeManualProcess($manual, 'NDT-4', 'part');
+        $silver = $this->makeManualProcess($manual, 'Silver', 'point');
+        $paint  = $this->makeManualProcess($manual, 'Paint', 'part');
+        $chromeNameId = $chrome->process->process_names_id;
+
+        // Rechrome (OD): Chrome → NDT-4 → Paint
+        $this->makeRule($paramOd, 'Rechrome', [$chrome, $ndt4, $paint]);
+        // Silver (ID): NDT-4[no chrome in plan] → Silver → NDT-4[chrome in plan] → Paint
+        $silverRule = $this->makeRule($paramId, 'Silver restoration', [$ndt4, $silver, $ndt4, $paint]);
+        $rows = $silverRule->processes()->orderBy('sort_order')->get();
+        $rows[0]->update(['condition' => ['type' => 'not_has_process', 'process_name_ids' => [$chromeNameId]]]);
+        $rows[2]->update(['condition' => ['type' => 'has_process', 'process_name_ids' => [$chromeNameId]]]);
+
+        $tdr = $this->makeRepairTdr($wo, $component);
+        $nameOf = fn ($mp) => \App\Models\ProcessName::find($mp->process->process_names_id)->name;
+
+        // Silver-only: NDT-4 BEFORE silver
+        $this->failMeasurement($wo, $paramId, $silverRule->id);
+        $this->updateProcesses($wo, $ic)->assertOk();
+        $this->assertSame(
+            [$nameOf($ndt4), $nameOf($silver), $nameOf($paint)],
+            $this->planRows($tdr)->pluck('process_names_id')
+                ->map(fn ($id) => \App\Models\ProcessName::find($id)->name)->all(),
+            'Without chrome, NDT-4 runs before silver'
+        );
+
+        // Chrome route joins → single NDT-4 AFTER silver
+        $this->failMeasurement($wo, $paramOd, null); // resolves to Rechrome
+        $this->updateProcesses($wo, $ic)->assertOk();
+        $names = $this->planRows($tdr)->pluck('process_names_id')
+            ->map(fn ($id) => \App\Models\ProcessName::find($id)->name)->all();
+        $this->assertSame(
+            [$nameOf($chrome), $nameOf($silver), $nameOf($ndt4), $nameOf($paint)],
+            $names,
+            'With chrome in the plan, the single shared NDT-4 goes after silver'
+        );
+    }
+
+    /**
      * FIX D acceptance: a point whose chosen rule has action=order_new is NOT
      * silently merged into the repair plan — it is surfaced as a warning.
      */

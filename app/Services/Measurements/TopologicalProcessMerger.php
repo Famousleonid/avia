@@ -45,11 +45,33 @@ class TopologicalProcessMerger
         $insertOrder = [];
         $seq         = 0;
 
+        // Plan contents for row conditions: process_name ids contributed by the
+        // UNCONDITIONAL rows of all matched rules (single pass, no fixpoint).
+        $planNameIds = [];
+        foreach ($rules as $rule) {
+            foreach ($rule->processes as $rp) {
+                if (!empty($rp->condition)) {
+                    continue;
+                }
+                $nameId = (int) ($rp->manualProcess?->process?->process_names_id ?? 0);
+                if ($nameId > 0 && $this->processNameExists($nameId)) {
+                    $planNameIds[$nameId] = true;
+                }
+            }
+        }
+        $planNameIds = array_keys($planNameIds);
+
         foreach ($rules as $rule) {
             $prevKey        = null;
             $occurrenceCount = [];   // nameId => count seen in this rule
 
             foreach ($rule->processes->sortBy('sort_order') as $rp) {
+                // Conditional row that doesn't apply: skip WITHOUT breaking the
+                // chain — its neighbors connect directly (prev → next).
+                if (! $rp->conditionMet($planNameIds)) {
+                    continue;
+                }
+
                 $process = $rp->manualProcess?->process;
                 if (!$process) {
                     $prevKey = null;   // gap in the chain — reset

@@ -2853,6 +2853,23 @@ document.addEventListener('DOMContentLoaded', function () {
     let dimRuleProcesses = [];
     let dimRuleTriggers  = [];
 
+    // Unique process names of this manual — options for the row-condition select
+    function condProcessNameOptions(selectedId) {
+        const seen = {};
+        let html = '';
+        (DIM_PROCESSES || []).forEach(function (mp) {
+            if (!mp.process_names_id || seen[mp.process_names_id]) return;
+            seen[mp.process_names_id] = true;
+            html += `<option value="${mp.process_names_id}" ${mp.process_names_id === selectedId ? 'selected' : ''}>${escHtml(mp.process_name || ('#' + mp.process_names_id))}</option>`;
+        });
+        return html;
+    }
+
+    function firstCondProcessNameId() {
+        const mp = (DIM_PROCESSES || []).find(function (m) { return m.process_names_id; });
+        return mp ? mp.process_names_id : null;
+    }
+
     // Delta band label for a dimensional trigger: "Δ > 0.01", "Δ ≤ 0.01", "Δ 0.005–0.01"
     function deltaBandLabel(t) {
         const lo = t.min_delta != null ? String(+t.min_delta) : null;
@@ -2888,11 +2905,21 @@ document.addEventListener('DOMContentLoaded', function () {
             const scopeBtn = p.process_names_id
                 ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-scope" data-idx="${i}" data-pnid="${p.process_names_id}" title="${scopeTitle}" style="font-size:9px;font-weight:700;color:${scopeColor};border:1px solid ${scopeColor};border-radius:3px;padding:0 4px;line-height:16px;text-decoration:none">${scope || '?'}</button>`
                 : '';
+            // Row condition (§8b): apply only when the plan HAS / LACKS a process
+            const condType  = p.condition?.type || null;
+            const condColor = condType === 'has_process' ? '#198754' : condType === 'not_has_process' ? '#dc3545' : 'var(--bs-secondary-color)';
+            const condTitle = condType === 'has_process' ? 'Только если в плане ЕСТЬ выбранный процесс (click → НЕТ)'
+                : condType === 'not_has_process' ? 'Только если в плане НЕТ выбранного процесса (click → всегда)'
+                : 'Всегда (click → условие «если в плане есть…»)';
+            const condBtn = `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-cond" data-idx="${i}" title="${condTitle}"
+                style="font-size:9px;font-weight:700;color:${condColor};border:1px solid ${condColor};border-radius:3px;padding:0 4px;line-height:16px;text-decoration:none;opacity:${condType ? '1' : '.55'}">${condType === 'has_process' ? 'if+' : condType === 'not_has_process' ? 'if−' : 'if'}</button>`;
+            const condSel = condType ? `<select class="form-select form-select-sm dim-rule-proc-cond-sel ms-1" data-idx="${i}"
+                style="font-size:10px;height:24px;padding:1px 18px 1px 4px;max-width:130px">${condProcessNameOptions(p.condition?.process_name_ids?.[0])}</select>` : '';
             return `<div class="dim-rule-process-item" data-idx="${i}">
                 <span class="dim-rule-proc-drag" draggable="true" data-idx="${i}" title="Drag to reorder" style="cursor:grab;color:var(--bs-secondary-color);font-size:12px;padding:0 2px">⠿</span>
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
                 <span style="flex:0 0 35%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
-                ${scopeBtn}
+                ${scopeBtn}${condBtn}${condSel}
                 <input type="text" class="form-control form-control-sm dim-rule-proc-note flex-grow-1 ms-1"
                        data-idx="${i}" value="${escHtml(p.description || '')}"
                        placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
@@ -2905,6 +2932,26 @@ document.addEventListener('DOMContentLoaded', function () {
         wrap.querySelectorAll('.dim-rule-proc-note').forEach(function (inp) {
             inp.addEventListener('input', function () {
                 dimRuleProcesses[parseInt(inp.dataset.idx)].description = inp.value;
+            });
+        });
+        // condition cycle: always → has_process → not_has_process → always
+        wrap.querySelectorAll('.dim-rule-proc-cond').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const idx = parseInt(btn.dataset.idx);
+                const cur = dimRuleProcesses[idx].condition?.type || null;
+                const next = cur === null ? 'has_process' : cur === 'has_process' ? 'not_has_process' : null;
+                dimRuleProcesses[idx].condition = next
+                    ? { type: next, process_name_ids: dimRuleProcesses[idx].condition?.process_name_ids || [firstCondProcessNameId()] }
+                    : null;
+                renderRuleProcessList();
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-proc-cond-sel').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+                const idx = parseInt(sel.dataset.idx);
+                if (dimRuleProcesses[idx].condition) {
+                    dimRuleProcesses[idx].condition.process_name_ids = [parseInt(sel.value)];
+                }
             });
         });
         wrap.querySelectorAll('.dim-rule-proc-remove').forEach(function (btn) {
@@ -3060,7 +3107,7 @@ document.addEventListener('DOMContentLoaded', function () {
         dimRuleProcesses = (rule.processes || []).slice().sort(function (a, b) {
             return (a.sort_order || 0) - (b.sort_order || 0);
         }).map(function (p) {
-            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing, is_gate: !!p.is_gate, process_names_id: p.process_names_id || null, scope: p.scope || null };
+            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing, is_gate: !!p.is_gate, condition: p.condition || null, process_names_id: p.process_names_id || null, scope: p.scope || null };
         });
         dimRuleTriggers = (rule.triggers || []).map(function (t) {
             return {
@@ -3159,7 +3206,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { trigger: t.trigger, codes_id: t.codes_id || null, min_delta: t.min_delta, max_delta: t.max_delta };
             }),
             processes:         dimRuleProcesses.map(function (p, i) {
-                return { id: p.rule_process_id || null, manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, is_gate: !!p.is_gate, sort_order: i };
+                return { id: p.rule_process_id || null, manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, is_gate: !!p.is_gate, condition: p.condition || null, sort_order: i };
             }),
         };
 

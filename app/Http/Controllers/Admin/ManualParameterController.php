@@ -330,6 +330,10 @@ class ManualParameterController extends Controller
             'processes.*.is_gate'           => 'boolean',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
             'processes.*.description'       => 'nullable|string|max:255',
+            'processes.*.condition'                    => 'nullable|array',
+            'processes.*.condition.type'               => 'nullable|in:has_process,not_has_process',
+            'processes.*.condition.process_name_ids'   => 'nullable|array',
+            'processes.*.condition.process_name_ids.*' => 'integer|exists:process_names,id',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
             'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
@@ -365,6 +369,10 @@ class ManualParameterController extends Controller
             'processes.*.is_gate'           => 'boolean',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
             'processes.*.description'       => 'nullable|string|max:255',
+            'processes.*.condition'                    => 'nullable|array',
+            'processes.*.condition.type'               => 'nullable|in:has_process,not_has_process',
+            'processes.*.condition.process_name_ids'   => 'nullable|array',
+            'processes.*.condition.process_name_ids.*' => 'integer|exists:process_names,id',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
             'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
@@ -417,10 +425,20 @@ class ManualParameterController extends Controller
             if ($isGate) {
                 $gateSeen = true;
             }
+            // Sanitize the optional row condition (§8b): known type + int name ids
+            $condition = null;
+            if (!empty($p['condition']['type']) && !empty($p['condition']['process_name_ids'])) {
+                $condition = [
+                    'type'             => $p['condition']['type'],
+                    'process_name_ids' => array_values(array_map('intval', $p['condition']['process_name_ids'])),
+                ];
+            }
+
             $attrs = [
                 'manual_process_id' => $p['manual_process_id'],
                 'description'       => $p['description'] ?? null,
                 'is_gate'           => $isGate,
+                'condition'         => $condition,
                 'sort_order'        => $p['sort_order'] ?? $i,
             ];
             $existing = !empty($p['id']) ? $rule->processes()->whereKey($p['id'])->first() : null;
@@ -478,6 +496,7 @@ class ManualParameterController extends Controller
                 'manual_process_id' => $rp->manual_process_id,
                 'description'       => $rp->description,
                 'is_gate'           => (bool) $rp->is_gate,
+                'condition'         => $rp->condition,
                 'sort_order'        => $rp->sort_order,
                 'label'             => $label,
                 'has_drawing'       => $hasDrawing,
