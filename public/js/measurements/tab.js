@@ -1076,22 +1076,44 @@
             h.push('<div class="alert alert-warning py-1 px-2 mb-2" style="font-size:11px">' + warn.join('') + '</div>');
         }
 
-        const section = (title, items, cls, sign) => {
-            if (!items || !items.length) return;
-            h.push(`<div class="fw-semibold mt-2 mb-1">${title}</div>`);
-            items.forEach(it => {
-                const ops = (it.ops || []).map(o =>
-                    `<div class="text-secondary" style="font-size:10px;padding-left:16px;line-height:1.35">${esc(o)}</div>`).join('');
-                h.push(`<div class="mb-1"><div class="${cls}" style="font-size:11px">${sign} ${esc(it.name)}${it.description ? ' <span class="text-secondary">— ' + esc(it.description) + '</span>' : ''}</div>${ops}</div>`);
+        // Resulting plan as ONE table in execution order; removed rows appended
+        // struck-through at the end (they have no position in the new plan).
+        const plan = data.plan || [];
+        const removedRows = data.removed || [];
+        if (plan.length || removedRows.length) {
+            const badge = st => st === 'added'
+                ? '<span class="badge" style="background:#198754;font-size:9px">new</span>'
+                : st === 'kept'
+                    ? '<span class="badge" style="background:#0d6efd;font-size:9px">started</span>'
+                    : '<span class="badge bg-secondary" style="font-size:9px;opacity:.45">=</span>';
+            const opsHtml = it => (it.ops || []).map(o =>
+                `<div class="text-secondary" style="font-size:10px;line-height:1.35">${esc(o)}</div>`).join('');
+            h.push(`<table class="table table-sm mb-1" style="font-size:11px">
+                <thead><tr class="text-secondary" style="font-size:10px">
+                    <th style="width:24px">#</th><th style="width:26%">Process</th><th>Operation</th><th style="width:52px"></th>
+                </tr></thead><tbody>`);
+            plan.forEach((it, i) => {
+                const hl = it.status === 'added' ? 'style="color:#198754;font-weight:600"' : '';
+                h.push(`<tr>
+                    <td class="text-secondary">${i + 1}</td>
+                    <td ${hl}>${esc(it.name)}${it.description ? '<div class="text-secondary fw-normal" style="font-size:10px">' + esc(it.description) + '</div>' : ''}</td>
+                    <td>${opsHtml(it)}</td>
+                    <td class="text-end">${badge(it.status)}</td>
+                </tr>`);
             });
-        };
-        section('Added', data.added, 'text-success', '+');
-        section('Removed', data.removed, 'text-danger', '−');
-        section('Kept (work started)', data.kept, 'text-secondary', '=');
-        section('Unchanged', data.unchanged, 'text-secondary', '=');
+            removedRows.forEach(it => {
+                h.push(`<tr style="text-decoration:line-through;opacity:.75">
+                    <td></td>
+                    <td class="text-danger">${esc(it.name)}</td>
+                    <td>${opsHtml(it)}</td>
+                    <td class="text-end"><span class="badge" style="background:#dc3545;font-size:9px">removed</span></td>
+                </tr>`);
+            });
+            h.push('</tbody></table>');
+        }
 
-        if (!(data.added || []).length && !(data.removed || []).length && !warn.length) {
-            h.push('<div class="text-secondary mt-2">The plan is already up to date.</div>');
+        if (!(data.added || []).length && !removedRows.length && !warn.length) {
+            h.push('<div class="text-secondary mt-1">The plan is already up to date.</div>');
         }
 
         body.innerHTML = h.join('');

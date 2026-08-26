@@ -1530,9 +1530,12 @@ class WoMeasurementController extends Controller
         // Match planned groups against existing unstarted rows by plan-node
         // identity (greedy, each row consumed once) — what matches is
         // "unchanged", the rest is "added"; unmatched rows are "removed".
+        // `plan` is the resulting traveler in ORDER: kept (started) rows first,
+        // then the pipeline groups with their status.
         $consumed  = [];
         $added     = [];
         $unchanged = [];
+        $plan      = $started->map(fn ($r) => $rowEntry($r) + ['status' => 'kept'])->values()->all();
         foreach ($groups as $g) {
             if ($this->coveredByStartedRow($g, $started)) continue;
             $match = null;
@@ -1543,8 +1546,10 @@ class WoMeasurementController extends Controller
             if ($match !== null) {
                 $consumed[$match] = true;
                 $unchanged[] = $groupEntry($g);
+                $plan[] = $groupEntry($g) + ['status' => 'unchanged'];
             } else {
                 $added[] = $groupEntry($g);
+                $plan[] = $groupEntry($g) + ['status' => 'added'];
             }
         }
         $removed = [];
@@ -1556,6 +1561,7 @@ class WoMeasurementController extends Controller
             'tdr_id'    => $ctx['tdr']->id,
             'points'    => $ctx['points'],
             'warnings'  => $ctx['warnings'],
+            'plan'      => $plan,
             'kept'      => $started->map($rowEntry)->values()->all(),
             'unchanged' => $unchanged,
             'added'     => $added,
