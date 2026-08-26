@@ -467,6 +467,16 @@
             partsList.insertAdjacentHTML('beforeend',
                 '<div class="px-3 py-2 text-secondary" style="font-size:11px">No F&amp;C points in this manual (checkbox on the point)</div>');
         }
+        if (!shown && msViewMode === 'all') {
+            // Every part is filtered out of the default list (repaired / ordered).
+            const repaired = partsTree.filter(p => !p.is_bush && partTdrFlags(p).repair);
+            const hint = repaired.length
+                ? 'In repair: ' + esc(repaired.map(p => p.label).join(', '))
+                    + ' — a repaired part is inspected from the <b>TDR tab → Inspect</b> button.'
+                : 'All parts are handled in other views (Ordered / TDR Inspect).';
+            partsList.insertAdjacentHTML('beforeend',
+                `<div class="px-3 py-2 text-secondary" style="font-size:11px">${hint}</div>`);
+        }
     }
 
     /* ── Viewer ───────────────────────────────────────────────── */
