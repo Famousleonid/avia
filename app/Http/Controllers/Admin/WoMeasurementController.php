@@ -1712,7 +1712,9 @@ class WoMeasurementController extends Controller
         $v = $m->actual_value !== null ? (float) $m->actual_value : null;
         $dimFail = $limits['min'] !== null && $limits['max'] !== null && $v !== null
             && !($v >= (float) $limits['min'] && $v <= (float) $limits['max']);
-        $failTriggers = $useWear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
+        // Trigger family follows the limits actually applied (orig fallback in wear mode)
+        $srcWear = ($limits['source'] ?? null) === 'wear';
+        $failTriggers = $srcWear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
 
         return $param->repairRules->filter(function ($rule) use ($codesId, $findingContext, $dimFail, $failTriggers, $v, $limits) {
             $trigs = $rule->triggers;
@@ -1977,8 +1979,12 @@ class WoMeasurementController extends Controller
         // (min/max delta, §8a) match only when the exceedance falls in the band —
         // e.g. Silver up to 0.010" over max, Chrome-in-hole beyond that.
         if ($result === 'FAIL') {
-            $failTriggers = $useWear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
+            // Trigger family follows the limits ACTUALLY applied: a wear-mode WO
+            // whose parameter has no wear limits falls back to orig limits, so
+            // orig triggers must match (mirrors tdrMatchingRules in tab.js).
             $limits = $parameter->effectiveLimits($useWear);
+            $srcWear = ($limits['source'] ?? null) === 'wear';
+            $failTriggers = $srcWear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
             foreach ($rules as $rule) {
                 $hit = $rule->triggers->contains(fn($t) => in_array($t->trigger, $failTriggers)
                     && $t->acceptsExceedance($this->triggerExceedance($t, $value, $limits)));

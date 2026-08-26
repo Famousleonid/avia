@@ -510,6 +510,52 @@ class RepairPlanRebuildTest extends TestCase
     }
 
     /**
+     * A wear-mode WO (instruction != Overhaul) whose parameter has NO wear
+     * limits falls back to orig limits — orig triggers must match then.
+     * Regression: backend used the WO flag for the trigger family while the
+     * limits (and the frontend) had already fallen back to orig.
+     */
+    public function test_orig_triggers_match_on_wear_mode_wo_without_wear_limits(): void
+    {
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder([
+            'unit_id'        => $this->createUnit(['manual_id' => $manual->id])->id,
+            'instruction_id' => $this->createInstruction(['name' => 'Repair ' . uniqid()])->id, // wear mode
+        ]);
+        $ic = $this->createInspectionComponent($manual, 'Rod');
+        $component = $this->createComponent($manual, ['name' => 'Rod']);
+        $this->attachComponentToIc($ic, $component);
+        $param = $this->createParameter($manual, $ic, [
+            'description' => 'Bore', 'orig_dim_min' => 10.0, 'orig_dim_max' => 10.1, // no wear limits
+        ]);
+
+        $silver = $this->makeManualProcess($manual, 'Silver', 'point');
+        $rule = ManualParameterRepairRule::create([
+            'manual_parameter_id' => $param->id, 'name' => 'Silver restoration', 'action' => 'repair',
+        ]);
+        ManualParameterRuleTrigger::create([
+            'repair_rule_id' => $rule->id, 'trigger' => 'above_orig', 'max_delta' => 0.010,
+        ]);
+        ManualParameterRuleProcess::create([
+            'repair_rule_id' => $rule->id, 'manual_process_id' => $silver->id, 'sort_order' => 0,
+        ]);
+
+        $saved = $this->actingAs($this->admin())
+            ->postJson(route('workorders.measurements.store', $wo->id), [
+                'manual_parameter_id' => $param->id, 'stage' => 'initial', 'actual_value' => 10.105,
+            ])->assertCreated()->json();
+        $this->assertSame('FAIL', $saved['result']);
+        $this->assertSame($rule->id, $saved['manual_parameter_repair_rule_id'], 'orig trigger must match via limits-source fallback');
+
+        $this->makeRepairTdr($wo, $component);
+        $preview = $this->previewProcesses($wo, $ic)->assertOk()->json();
+        $point = collect($preview['points'])->firstWhere('param_id', $param->id);
+        $this->assertSame($rule->id, $point['chosen_rule_id']);
+        $this->assertCount(1, $point['options']);
+        $this->assertSame([], $preview['warnings']);
+    }
+
+    /**
      * FIX D acceptance: a point whose chosen rule has action=order_new is NOT
      * silently merged into the repair plan — it is surfaced as a warning.
      */
