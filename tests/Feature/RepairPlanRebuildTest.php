@@ -382,6 +382,13 @@ class RepairPlanRebuildTest extends TestCase
             $addedNames,
             'Preview must show the new point machining as added'
         );
+        $addedMachining = collect($preview['added'])
+            ->first(fn ($g) => $g['name'] === \App\Models\ProcessName::find($machiningNameId)->name);
+        $this->assertContains(
+            $d['machining']->process->process,
+            $addedMachining['ops'],
+            'Preview entries must carry the operation texts'
+        );
         $this->assertNotEmpty($preview['unchanged'], 'Existing NDT/Plating stay in the plan');
 
         // Dry-run: nothing changed

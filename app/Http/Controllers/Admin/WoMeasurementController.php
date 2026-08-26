@@ -1507,14 +1507,24 @@ class WoMeasurementController extends Controller
             ->filter()->unique()->values();
         $names = ProcessName::whereIn('id', $nameIds)->pluck('name', 'id');
 
+        // Operation texts for every referenced process id (groups + rows)
+        $procIds = collect($groups)->flatMap(fn ($g) => (array) ($g['process_ids'] ?? []))
+            ->merge($rows->flatMap(fn ($r) => (array) ($r->processes ?? [])))
+            ->map(fn ($v) => (int) $v)->filter()->unique()->values();
+        $opTexts = \App\Models\Process::whereIn('id', $procIds)->pluck('process', 'id');
+        $opsOf = fn (array $ids) => collect($ids)->map(fn ($id) => (string) ($opTexts[(int) $id] ?? ''))
+            ->filter()->unique()->values()->all();
+
         $rowEntry = fn ($r) => [
             'name'        => (string) ($names[(int) $r->process_names_id] ?? ('#' . $r->process_names_id)),
             'description' => (string) ($r->description ?? ''),
+            'ops'         => $opsOf((array) ($r->processes ?? [])),
         ];
         $groupEntry = fn ($g) => [
             'name'        => (string) ($names[(int) $g['process_names_id']] ?? ('#' . $g['process_names_id'])),
             'description' => (string) ($g['description'] ?? ''),
             'phase'       => $g['phase'] ?? 'main',
+            'ops'         => $opsOf((array) ($g['process_ids'] ?? [])),
         ];
 
         // Match planned groups against existing unstarted rows by plan-node

@@ -1080,7 +1080,9 @@
             if (!items || !items.length) return;
             h.push(`<div class="fw-semibold mt-2 mb-1">${title}</div>`);
             items.forEach(it => {
-                h.push(`<div class="${cls}" style="font-size:11px">${sign} ${esc(it.name)}${it.description ? ' <span class="text-secondary">— ' + esc(it.description) + '</span>' : ''}</div>`);
+                const ops = (it.ops || []).map(o =>
+                    `<div class="text-secondary" style="font-size:10px;padding-left:16px;line-height:1.35">${esc(o)}</div>`).join('');
+                h.push(`<div class="mb-1"><div class="${cls}" style="font-size:11px">${sign} ${esc(it.name)}${it.description ? ' <span class="text-secondary">— ' + esc(it.description) + '</span>' : ''}</div>${ops}</div>`);
             });
         };
         section('Added', data.added, 'text-success', '+');
