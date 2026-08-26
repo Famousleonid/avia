@@ -950,6 +950,18 @@ class WoMeasurementController extends Controller
 
         $ruleIds = $data['rule_ids'] ?? [];
 
+        // Persist the technician's explicit rule choice on the measurement, so a
+        // later rebuild (Update processes) keeps it instead of falling back to
+        // the auto-resolved first matching rule.
+        if (!empty($ruleIds)) {
+            $chosen = ManualParameterRepairRule::find($ruleIds[0]);
+            if ($chosen
+                && (int) $chosen->manual_parameter_id === (int) $measurement->manual_parameter_id
+                && (int) $measurement->manual_parameter_repair_rule_id !== (int) $chosen->id) {
+                $measurement->update(['manual_parameter_repair_rule_id' => $chosen->id]);
+            }
+        }
+
         // codes_id: use measurement's own finding code if set;
         // for dimensional FAILs (no finding selected) fall back to the parameter's
         // measurement-context finding code (e.g. "Worn" on an OD parameter).
@@ -1466,20 +1478,25 @@ class WoMeasurementController extends Controller
             return response()->json(['ok' => true, 'message' => 'No repair rules matched — processes cleared']);
         }
 
-        // Re-run pipeline
+        // Re-run pipeline. Defect codes of ALL current FAILs feed the phase-rule
+        // conditions (has_defect) — the rebuild sees the same information the
+        // initial build had.
         $ctx = new PipelineContext();
         $ctx->inspectionComponentId = $icId;
         $ctx->mainRuleIds           = $ruleIds;
-        $ctx->defectCodeIds         = [];
+        $ctx->defectCodeIds         = $allFails->pluck('codes_id')->filter()
+            ->map(fn ($v) => (int) $v)->unique()->values()->all();
         $ctx->heldPendingEc         = false;
 
         app(RepairPipeline::class)->run($ctx);
 
-        // Skip process_names_id already covered by a started process (avoid duplicates on repeat)
-        $startedNameIds = TdrProcess::where('tdrs_id', $tdr->id)
+        // Started rows are kept as history. A new group is skipped only when a
+        // started row covers the SAME plan node (see coveredByStartedRow) — two
+        // points repaired by different rules share the "Machining" name but are
+        // different nodes and must both exist.
+        $startedRows = TdrProcess::where('tdrs_id', $tdr->id)
             ->whereNotNull('date_start')
-            ->pluck('process_names_id')
-            ->toArray();
+            ->get(['process_names_id', 'rule_process_ids', 'phase_rule_process_ids']);
 
         $existingSorts = TdrProcess::where('tdrs_id', $tdr->id)->pluck('sort_order')->toArray();
 
@@ -1488,7 +1505,7 @@ class WoMeasurementController extends Controller
                 continue;
             }
 
-            if (in_array($group['process_names_id'], $startedNameIds)) continue;
+            if ($this->coveredByStartedRow($group, $startedRows)) continue;
 
             $sort = $baseSort + (int) $group['sort_order'];
             while (in_array($sort, $existingSorts)) { $sort++; }
@@ -1514,6 +1531,40 @@ class WoMeasurementController extends Controller
         $id = (int) ($value ?? 0);
 
         return $id > 0 && ProcessName::query()->whereKey($id)->exists();
+    }
+
+    /**
+     * Does a STARTED TdrProcess row already cover this pipeline group (i.e. the
+     * same plan node)? Covered = same process name AND overlapping source ids
+     * (rule_process_ids for Main, phase_rule_process_ids for Start/Finish).
+     * A row/group without any source ids falls back to name-only matching
+     * (legacy rows, the EC row).
+     */
+    private function coveredByStartedRow(array $group, $startedRows): bool
+    {
+        $nameId   = (int) ($group['process_names_id'] ?? 0);
+        $groupIds = array_map('intval', array_merge(
+            (array) ($group['rule_process_ids'] ?? []),
+            (array) ($group['phase_rule_process_ids'] ?? [])
+        ));
+
+        foreach ($startedRows as $row) {
+            if ((int) $row->process_names_id !== $nameId) {
+                continue;
+            }
+            $rowIds = array_map('intval', array_merge(
+                (array) ($row->rule_process_ids ?? []),
+                (array) ($row->phase_rule_process_ids ?? [])
+            ));
+            if (empty($groupIds) || empty($rowIds)) {
+                return true; // no node identity on either side → name match
+            }
+            if (array_intersect($groupIds, $rowIds)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function revertPartTdr(Request $request, Workorder $workorder)
