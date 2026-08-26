@@ -1460,6 +1460,9 @@ class WoMeasurementController extends Controller
             TdrProcess::create([
                 'tdrs_id'                => $tdr->id,
                 'process_names_id'       => $group['process_names_id'],
+                'plus_process'           => !empty($group['plus_process_name_ids'])
+                    ? implode(',', $group['plus_process_name_ids'])
+                    : null,
                 'processes'              => $group['process_ids'],
                 'rule_process_ids'       => $group['rule_process_ids'] ?? [],
                 'phase_rule_process_ids' => $group['phase_rule_process_ids'] ?? [],
@@ -1502,10 +1505,20 @@ class WoMeasurementController extends Controller
         $started   = $rows->filter(fn ($r) => $r->date_start !== null)->values();
         $unstarted = $rows->filter(fn ($r) => $r->date_start === null)->values();
 
+        $rowPlusIds = fn ($r) => array_values(array_filter(array_map('intval',
+            explode(',', (string) ($r->plus_process ?? '')))));
         $nameIds = collect($groups)->pluck('process_names_id')
+            ->merge(collect($groups)->flatMap(fn ($g) => (array) ($g['plus_process_name_ids'] ?? [])))
             ->merge($rows->pluck('process_names_id'))
+            ->merge($rows->flatMap($rowPlusIds))
             ->filter()->unique()->values();
         $names = ProcessName::whereIn('id', $nameIds)->pluck('name', 'id');
+        // Combined NDT row → "NDT-1 / NDT-4"
+        $combinedName = function (int $baseId, array $plusIds) use ($names) {
+            $parts = array_merge([$baseId], $plusIds);
+
+            return implode(' / ', array_map(fn ($id) => (string) ($names[(int) $id] ?? ('#' . $id)), $parts));
+        };
 
         // Operation texts for every referenced process id (groups + rows)
         $procIds = collect($groups)->flatMap(fn ($g) => (array) ($g['process_ids'] ?? []))
@@ -1516,12 +1529,12 @@ class WoMeasurementController extends Controller
             ->filter()->unique()->values()->all();
 
         $rowEntry = fn ($r) => [
-            'name'        => (string) ($names[(int) $r->process_names_id] ?? ('#' . $r->process_names_id)),
+            'name'        => $combinedName((int) $r->process_names_id, $rowPlusIds($r)),
             'description' => (string) ($r->description ?? ''),
             'ops'         => $opsOf((array) ($r->processes ?? [])),
         ];
         $groupEntry = fn ($g) => [
-            'name'        => (string) ($names[(int) $g['process_names_id']] ?? ('#' . $g['process_names_id'])),
+            'name'        => $combinedName((int) $g['process_names_id'], (array) ($g['plus_process_name_ids'] ?? [])),
             'description' => (string) ($g['description'] ?? ''),
             'phase'       => $g['phase'] ?? 'main',
             'ops'         => $opsOf((array) ($g['process_ids'] ?? [])),
@@ -1768,10 +1781,57 @@ class WoMeasurementController extends Controller
 
         app(RepairPipeline::class)->run($ctx);
 
-        return array_values(array_filter(
+        return $this->foldConsecutiveNdt(array_values(array_filter(
             $ctx->orderedGroups(),
             fn ($g) => $this->isValidProcessNameId($g['process_names_id'] ?? null)
-        ));
+        )));
+    }
+
+    /**
+     * Fold CONSECUTIVE NDT-x groups into one combined row (NDT-1 / NDT-4) —
+     * the shop performs adjacent NDT together; TdrProcess.plus_process and the
+     * NDT print forms already support a multi-NDT row. Non-adjacent NDT stay
+     * separate (there is work between them).
+     */
+    private function foldConsecutiveNdt(array $groups): array
+    {
+        $nameOf = fn (int $id) => (string) (ProcessName::find($id)?->name ?? '');
+        $isNdt  = fn (int $id) => str_starts_with($nameOf($id), 'NDT-');
+
+        $out = [];
+        foreach ($groups as $g) {
+            $nameId = (int) $g['process_names_id'];
+            $prev   = $out ? count($out) - 1 : null;
+            if ($prev !== null
+                && ($out[$prev]['phase'] ?? 'main') === ($g['phase'] ?? 'main')
+                && $isNdt((int) $out[$prev]['process_names_id'])
+                && $isNdt($nameId)
+                && $nameId !== (int) $out[$prev]['process_names_id']) {
+                $p = &$out[$prev];
+                $p['plus_process_name_ids'] = array_values(array_unique(array_merge(
+                    $p['plus_process_name_ids'] ?? [],
+                    [$nameId],
+                    (array) ($g['plus_process_name_ids'] ?? [])
+                )));
+                $p['process_ids'] = array_values(array_unique(array_merge(
+                    (array) ($p['process_ids'] ?? []), (array) ($g['process_ids'] ?? [])
+                )));
+                $p['rule_process_ids'] = array_values(array_unique(array_merge(
+                    (array) ($p['rule_process_ids'] ?? []), (array) ($g['rule_process_ids'] ?? [])
+                )));
+                $p['phase_rule_process_ids'] = array_values(array_unique(array_merge(
+                    (array) ($p['phase_rule_process_ids'] ?? []), (array) ($g['phase_rule_process_ids'] ?? [])
+                )));
+                $p['description'] = implode('; ', array_unique(array_filter([
+                    (string) ($p['description'] ?? ''), (string) ($g['description'] ?? ''),
+                ])));
+                unset($p);
+                continue;
+            }
+            $out[] = $g;
+        }
+
+        return $out;
     }
 
     private function isValidProcessNameId(mixed $value): bool

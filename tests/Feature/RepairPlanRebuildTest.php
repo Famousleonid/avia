@@ -701,6 +701,49 @@ class RepairPlanRebuildTest extends TestCase
     }
 
     /**
+     * Consecutive NDT-x rows fold into one combined row (NDT-1 / NDT-4) via
+     * plus_process; non-adjacent NDT stay separate.
+     */
+    public function test_consecutive_ndt_rows_fold_into_combined_row(): void
+    {
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder([
+            'unit_id'        => $this->createUnit(['manual_id' => $manual->id])->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+        $ic = $this->createInspectionComponent($manual, 'Rod');
+        $component = $this->createComponent($manual, ['name' => 'Rod']);
+        $this->attachComponentToIc($ic, $component);
+        $param = $this->createParameter($manual, $ic, [
+            'description' => 'Bore', 'orig_dim_min' => 10.0, 'orig_dim_max' => 10.1,
+        ]);
+
+        $ndt1   = $this->makeManualProcess($manual, 'NDT-1', 'part');
+        $ndt4   = $this->makeManualProcess($manual, 'NDT-4', 'part');
+        $silver = $this->makeManualProcess($manual, 'Silver', 'point');
+        $rule = $this->makeRule($param, 'Silver restoration', [$ndt1, $ndt4, $silver]);
+
+        $this->failMeasurement($wo, $param, $rule->id);
+        $tdr = $this->makeRepairTdr($wo, $component);
+
+        $preview = $this->previewProcesses($wo, $ic)->assertOk()->json();
+        $this->assertStringContainsString(' / ', $preview['added'][0]['name'], 'Preview shows the combined NDT name');
+
+        $this->updateProcesses($wo, $ic)->assertOk();
+
+        $rows = $this->planRows($tdr);
+        $this->assertCount(2, $rows, 'NDT-1 and NDT-4 folded → combined NDT + Silver');
+        $ndtRow = $rows->first();
+        $this->assertSame($ndt1->process->process_names_id, (int) $ndtRow->process_names_id);
+        $this->assertSame((string) $ndt4->process->process_names_id, (string) $ndtRow->plus_process);
+        $this->assertEqualsCanonicalizing(
+            [$ndt1->process->id, $ndt4->process->id],
+            array_map('intval', $ndtRow->processes),
+            'Combined row carries both NDT operations'
+        );
+    }
+
+    /**
      * FIX D acceptance: a point whose chosen rule has action=order_new is NOT
      * silently merged into the repair plan — it is surfaced as a warning.
      */
