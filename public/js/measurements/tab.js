@@ -1107,7 +1107,7 @@
                         <input type="number" min="1" class="form-control form-control-sm ms-updprev-order-qty" data-cid="${o.component_id}" value="${o.qty}" style="width:58px;height:22px;font-size:11px;padding:1px 6px">
                     </div>`);
                 } else if (o.status === 'existing') {
-                    h.push(`<div class="text-secondary mb-1" style="font-size:11px">= Already ordered: ${esc(label)} (TDR #${o.tdr_id}${o.auto ? ' · auto' : ''})</div>`);
+                    h.push(`<div class="mb-1" style="font-size:11px;color:#e8a75d;font-weight:600">= Already ordered: ${esc(label)} (TDR #${o.tdr_id}${o.auto ? ' · auto' : ''})</div>`);
                 } else if (o.status === 'obsolete') {
                     h.push(o.locked
                         ? `<div class="text-warning mb-1" style="font-size:11px">${esc(label)} (TDR #${o.tdr_id}) is no longer required by the plan — PO issued, cannot cancel</div>`
