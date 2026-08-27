@@ -1855,9 +1855,25 @@ class WoMeasurementController extends Controller
             ->where('tdr_type', Tdr::TYPE_ORDER_NEW)
             ->get(['id', 'component_id', 'order_component_id', 'qty', 'po_num', 'received', 'source_rule_id', 'source_tdr_id']);
 
+        // Dedup is per IPL POSITION, not per part number: the same P/N lives at
+        // different positions (1-380 rod / 1-400 cylinder) and BOTH must be
+        // ordered. Variants of one position (1-380 / 1-380A) ARE the same order.
+        $baseIpl = fn (?string $ipl) => $ipl ? preg_replace('/[A-Za-z]+$/', '', trim($ipl)) : null;
+        $existingComponentIds = $existing->toBase()
+            ->map(fn ($t) => (int) ($t->order_component_id ?? $t->component_id))->filter()->unique()->values();
+        $iplByComponent = Component::whereIn('id', $existingComponentIds->merge(array_keys($declared)))
+            ->pluck('ipl_num', 'id');
+
         $orders = [];
         foreach ($declared as $cid => $d) {
-            $match = $existing->first(fn ($t) => (int) ($t->order_component_id ?? $t->component_id) === $cid);
+            $declBase = $baseIpl($iplByComponent[$cid] ?? $d['ipl_num']);
+            $match = $existing->first(function ($t) use ($cid, $declBase, $baseIpl, $iplByComponent) {
+                $ecid = (int) ($t->order_component_id ?? $t->component_id);
+                if ($ecid === $cid) return true;
+
+                return $declBase !== null && $declBase !== ''
+                    && $baseIpl($iplByComponent[$ecid] ?? null) === $declBase;
+            });
             $orders[] = [
                 'component_id' => $cid,
                 'ipl_num'      => $d['ipl_num'],

@@ -802,6 +802,48 @@ class RepairPlanRebuildTest extends TestCase
         $this->assertNull(Tdr::find($orderTdr->id));
     }
 
+    /**
+     * Order dedup is per IPL position: a manual order for a VARIANT of the same
+     * position (1-380 vs 1-380A) counts as existing; the same P/N at a DIFFERENT
+     * position (1-400, another parent part) does not block the proposal.
+     */
+    public function test_order_dedup_matches_position_variants_not_part_numbers(): void
+    {
+        $d = $this->makeTwoPointPart();
+        $bearingA = $this->createComponent($d['manual'], ['name' => 'BEARING', 'ipl_num' => 'UIPT-380A', 'part_number' => 'PN-SAME']);
+        $bearingBase = $this->createComponent($d['manual'], ['name' => 'BEARING', 'ipl_num' => 'UIPT-380', 'part_number' => 'PN-SAME']);
+        $bearingOther = $this->createComponent($d['manual'], ['name' => 'BEARING', 'ipl_num' => 'UIPT-400', 'part_number' => 'PN-SAME']);
+        \App\Models\ManualParameterRulePartOrder::create([
+            'repair_rule_id' => $d['ruleA']->id, 'component_id' => $bearingA->id, 'qty' => 1,
+        ]);
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $this->makeRepairTdr($d['wo'], $d['component']);
+
+        // Manual order for the OTHER position (same P/N) must NOT satisfy the rule
+        Tdr::create([
+            'tdr_type' => Tdr::TYPE_ORDER_NEW, 'workorder_id' => $d['wo']->id,
+            'component_id' => $bearingOther->id, 'order_component_id' => $bearingOther->id,
+            'serial_number' => 'NSN', 'description' => 'BEARING',
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id,
+            'qty' => 1, 'use_tdr' => true, 'use_process_forms' => false,
+        ]);
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('proposed', collect($preview['orders'])->firstWhere('component_id', $bearingA->id)['status'],
+            'Same P/N at another position does not block the order');
+
+        // Manual order for the BASE variant of the SAME position → existing
+        Tdr::create([
+            'tdr_type' => Tdr::TYPE_ORDER_NEW, 'workorder_id' => $d['wo']->id,
+            'component_id' => $bearingBase->id, 'order_component_id' => $bearingBase->id,
+            'serial_number' => 'NSN', 'description' => 'BEARING',
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id,
+            'qty' => 1, 'use_tdr' => true, 'use_process_forms' => false,
+        ]);
+        $preview2 = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('existing', collect($preview2['orders'])->firstWhere('component_id', $bearingA->id)['status'],
+            'A variant of the same position counts as already ordered');
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {
