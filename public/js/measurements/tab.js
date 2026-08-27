@@ -1932,8 +1932,11 @@ ${sections}
         d.querySelector('.ms-del-btn').addEventListener('click',async()=>{
             if(!confirm('Delete this measurement?')) return;
             try {
-                await apiFetch('/measurements/'+m.id,{method:'DELETE'});
+                const res = await apiFetch('/measurements/'+m.id,{method:'DELETE'});
                 measurements=measurements.filter(x=>x.id!==m.id);
+                // Deletion lowers the max measurement id — the server reset the
+                // TDR sync point; re-arm the Update button locally too.
+                if (res && res.resync_ic_id) icsSyncedMeas.set(res.resync_ic_id, 0);
                 refreshActive();
             } catch(e){ alert(e.message); }
         });

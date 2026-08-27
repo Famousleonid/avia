@@ -2362,9 +2362,27 @@ class WoMeasurementController extends Controller
 
     public function destroy(WoMeasurement $woMeasurement)
     {
+        // Deleting a measurement can only LOWER the part's max measurement id,
+        // so the "newer measurements exist" check would never re-arm the Update
+        // button. Reset the sync point of the part's Repair TDR(s) instead.
+        $icId = ManualParameter::find($woMeasurement->manual_parameter_id)?->inspection_component_id;
+        $resyncIcId = null;
+        if ($icId) {
+            $componentIds = ManualInspectionComponentVariant::where('inspection_component_id', $icId)
+                ->pluck('component_id');
+            $affected = Tdr::where('workorder_id', $woMeasurement->workorder_id)
+                ->where('tdr_type', Tdr::TYPE_COMPONENT_TDR)
+                ->whereIn('component_id', $componentIds)
+                ->where('last_synced_measurement_id', '>=', $woMeasurement->id)
+                ->update(['last_synced_measurement_id' => null]);
+            if ($affected) {
+                $resyncIcId = (int) $icId;
+            }
+        }
+
         $woMeasurement->delete();
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'resync_ic_id' => $resyncIcId]);
     }
 
     private function computeResult(?float $value, array $limits): ?string

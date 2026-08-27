@@ -1097,6 +1097,29 @@ class RepairPlanRebuildTest extends TestCase
         );
     }
 
+    /**
+     * Deleting a measurement lowers the part's max measurement id, so the
+     * "newer measurements" check can never re-arm Update — the server must
+     * reset the Repair TDR sync point instead.
+     */
+    public function test_deleting_a_measurement_rearms_the_sync_point(): void
+    {
+        $d = $this->makeTwoPointPart();
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+        $this->updateProcesses($d['wo'], $d['ic'])->assertOk();
+
+        $verdict = $this->failMeasurement($d['wo'], $d['paramB'], $d['ruleB']->id);
+        $this->updateProcesses($d['wo'], $d['ic'])->assertOk();
+        $this->assertSame($verdict->id, (int) $tdr->fresh()->last_synced_measurement_id);
+
+        $res = $this->actingAs($this->admin())
+            ->deleteJson(route('measurements.destroy', $verdict->id))
+            ->assertOk()->json();
+        $this->assertSame($d['ic']->id, (int) $res['resync_ic_id']);
+        $this->assertNull($tdr->fresh()->last_synced_measurement_id, 'Sync point reset — Update re-arms');
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {
