@@ -1705,7 +1705,8 @@ class WoMeasurementController extends Controller
         // LATEST FAIL verdict wins. A gate finding recorded later (hole damage
         // after bearing removal, NDT crack) REPLACES the point's earlier route
         // instead of merging both routes into the plan.
-        $chosenByParam = [];
+        $chosenByParam   = [];
+        $lastVerdictRule = [];
         foreach ($allFails as $m) {
             $rId = $m->manual_parameter_repair_rule_id;
             if (!$rId) {
@@ -1720,6 +1721,7 @@ class WoMeasurementController extends Controller
             if ($rId) {
                 $chosenByParam[$m->manual_parameter_id] = (int) $rId; // fails ordered by id → last wins
             }
+            $lastVerdictRule[$m->manual_parameter_id] = $rId ? (int) $rId : null;
         }
         $ruleIds = array_values(array_unique(array_values($chosenByParam)));
 
@@ -1765,6 +1767,9 @@ class WoMeasurementController extends Controller
                 'pt_codes'       => $param->points->pluck('code')->filter()->unique()->values()->implode(', '),
                 'chosen_rule_id' => $chosen,
                 'no_rule'        => $chosen === null,
+                // The LATEST verdict matched no rule while an older route is
+                // still active — silently keeping the old route hides the verdict
+                'unmatched_verdict' => ($lastVerdictRule[$paramId] ?? null) === null && $chosen !== null,
                 'options'        => collect($options)->map(fn ($r) => [
                     'id'            => (int) $r->id,
                     'name'          => (string) ($r->name ?? ''),
@@ -1772,6 +1777,21 @@ class WoMeasurementController extends Controller
                     'process_count' => $r->processes->count(),
                 ])->values()->all(),
             ];
+        }
+
+        $orders = $this->linkedPartOrders($workorder, $tdr, $mainRuleIds, $rulesById);
+        $scrap  = $this->scrapProposal($workorder, $tdr, $warnings, $allFails);
+
+        // Scrap condemns the carrier: its linked orders (the bearing that is
+        // part of the ordered assy) are offered for cancel too.
+        if ($scrap) {
+            foreach ($orders as &$o) {
+                if (!empty($o['auto']) && ($o['status'] ?? '') === 'existing' && !empty($o['tdr_id'])) {
+                    $o['status'] = 'obsolete';
+                    $o['reason'] = 'scrap';
+                }
+            }
+            unset($o);
         }
 
         return [
@@ -1782,8 +1802,8 @@ class WoMeasurementController extends Controller
                 ->map(fn ($v) => (int) $v)->unique()->values()->all(),
             'warnings'      => $warnings,
             'points'        => $points,
-            'orders'        => $this->linkedPartOrders($workorder, $tdr, $mainRuleIds, $rulesById),
-            'scrap'         => $this->scrapProposal($workorder, $tdr, $warnings, $allFails),
+            'orders'        => $orders,
+            'scrap'         => $scrap,
         ];
     }
 
@@ -1799,7 +1819,21 @@ class WoMeasurementController extends Controller
             return null;
         }
 
+        // The shop orders the carrier's ASSY, not the bare part, when the Parts
+        // assy grouping defines one (rod → rod assembly incl. its bearing).
         $carrier = $tdr->component;
+        foreach ($carrier->assemblies as $a) {
+            $assy = Component::where('manual_id', $carrier->manual_id)
+                ->where(function ($q) use ($a) {
+                    $q->where('ipl_num', $a->assy_ipl_num)
+                      ->orWhere('part_number', $a->assy_part_number);
+                })
+                ->first();
+            if ($assy) {
+                $carrier = $assy;
+                break;
+            }
+        }
         $baseIpl = fn (?string $ipl) => $ipl ? preg_replace('/[A-Za-z]+$/', '', trim($ipl)) : null;
         $carrierBase = $baseIpl($carrier->ipl_num);
 
@@ -1814,9 +1848,21 @@ class WoMeasurementController extends Controller
                 return $carrierBase !== null && $carrierBase !== '' && $baseIpl($ipl) === $carrierBase;
             });
 
-        // Code of the scrap verdict: the latest FAIL that chose a scrap rule
+        // Code of the scrap verdict: the latest FAIL that chose a scrap rule.
+        // An NDT-context verdict orders the part as "Failed NDT" (shop code).
         $scrapRuleIds = array_map(fn ($w) => (int) $w['rule_id'], $scrapRules);
         $verdict = $allFails->last(fn ($m) => in_array((int) $m->manual_parameter_repair_rule_id, $scrapRuleIds, true));
+        $verdictCodeId = $verdict?->codes_id !== null ? (int) $verdict->codes_id : null;
+        if ($verdictCodeId !== null && $verdict) {
+            $verdictCtx = ManualParameter::find($verdict->manual_parameter_id)
+                ?->codes->firstWhere('codes_id', $verdictCodeId)?->finding_context;
+            if ($verdictCtx === 'ndt') {
+                $failedNdt = Code::where('name', 'Failed NDT')->first();
+                if ($failedNdt) {
+                    $verdictCodeId = (int) $failedNdt->id;
+                }
+            }
+        }
 
         return [
             'component_id' => (int) $carrier->id,
@@ -1825,7 +1871,7 @@ class WoMeasurementController extends Controller
             'name'         => $carrier->name,
             'rule_names'   => array_values(array_unique(array_map(fn ($w) => $w['rule_name'], $scrapRules))),
             'rule_id'      => $scrapRuleIds[0],
-            'codes_id'     => $verdict?->codes_id !== null ? (int) $verdict->codes_id : $tdr->codes_id,
+            'codes_id'     => $verdictCodeId ?? $tdr->codes_id,
             'status'       => $existing ? 'existing' : 'proposed',
             'tdr_id'       => $existing?->id,
         ];

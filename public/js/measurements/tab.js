@@ -1072,6 +1072,9 @@
         (data.points || []).filter(p => p.no_rule).forEach(p => {
             warn.push(`<div>${esc(p.description || '')} — no matching repair rule: the point contributes no processes.</div>`);
         });
+        (data.points || []).filter(p => p.unmatched_verdict).forEach(p => {
+            warn.push(`<div><b>${esc(p.description || '')}</b> — the LATEST finding matched no rule; the previous route is kept. Add a rule for this finding or remove the record.</div>`);
+        });
         if (warn.length) {
             h.push('<div class="alert alert-warning py-1 px-2 mb-2" style="font-size:11px">' + warn.join('') + '</div>');
         }
@@ -1109,11 +1112,14 @@
                 } else if (o.status === 'existing') {
                     h.push(`<div class="mb-1" style="font-size:11px;color:#e8a75d;font-weight:600">= Already ordered: ${esc(label)} (TDR #${o.tdr_id}${o.auto ? ' · auto' : ''})</div>`);
                 } else if (o.status === 'obsolete') {
+                    const why = o.reason === 'scrap'
+                        ? 'part condemned — included in the ordered assy'
+                        : 'no longer required by the plan';
                     h.push(o.locked
-                        ? `<div class="text-warning mb-1" style="font-size:11px">${esc(label)} (TDR #${o.tdr_id}) is no longer required by the plan — PO issued, cannot cancel</div>`
+                        ? `<div class="text-warning mb-1" style="font-size:11px">${esc(label)} (TDR #${o.tdr_id}) is ${why} — PO issued, cannot cancel</div>`
                         : `<div class="d-flex align-items-center gap-2 mb-1" style="font-size:11px">
-                            <input type="checkbox" class="form-check-input m-0 ms-updprev-cancel" data-tdr="${o.tdr_id}" id="updcanc-${i}">
-                            <label for="updcanc-${i}" class="text-danger" style="cursor:pointer">Cancel order: ${esc(label)} (TDR #${o.tdr_id}) — no longer required by the plan</label>
+                            <input type="checkbox" class="form-check-input m-0 ms-updprev-cancel" data-tdr="${o.tdr_id}" id="updcanc-${i}" ${o.reason === 'scrap' ? 'checked' : ''}>
+                            <label for="updcanc-${i}" class="text-danger" style="cursor:pointer">Cancel order: ${esc(label)} (TDR #${o.tdr_id}) — ${why}</label>
                         </div>`);
                 }
             });

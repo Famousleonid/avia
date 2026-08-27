@@ -1007,9 +1007,13 @@ class RepairPlanRebuildTest extends TestCase
 
         $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
         $this->assertSame('proposed', $preview['scrap']['status']);
-        $this->assertSame($d['component']->id, (int) $preview['scrap']['component_id'], 'Replacement is the CARRIER part');
-        $this->assertSame($crack->id, (int) $preview['scrap']['codes_id']);
-        $this->assertSame('obsolete', collect($preview['orders'])->firstWhere('component_id', $bearing->id)['status']);
+        $this->assertSame($d['component']->id, (int) $preview['scrap']['component_id'], 'No assy defined → replacement is the carrier itself');
+        // NDT-context verdict orders the part as "Failed NDT" (shop code)
+        $failedNdt = Code::firstOrCreate(['name' => 'Failed NDT']);
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame($failedNdt->id, (int) $preview['scrap']['codes_id']);
+        $bearingOrder = collect($preview['orders'])->firstWhere('component_id', $bearing->id);
+        $this->assertSame('obsolete', $bearingOrder['status']);
 
         $res2 = $this->updateProcesses($d['wo'], $d['ic'], [
             'scrap_accept' => true,
@@ -1018,7 +1022,7 @@ class RepairPlanRebuildTest extends TestCase
         $scrapTdr = Tdr::find($res2['scrap_tdr_id']);
         $this->assertSame(Tdr::TYPE_ORDER_NEW, $scrapTdr->tdr_type);
         $this->assertSame($d['component']->id, (int) $scrapTdr->order_component_id);
-        $this->assertSame($crack->id, (int) $scrapTdr->codes_id);
+        $this->assertSame($failedNdt->id, (int) $scrapTdr->codes_id, 'Ordered as Failed NDT');
         $this->assertSame($scrapRule->id, (int) $scrapTdr->source_rule_id);
         $this->assertSame(0, TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start')->count(),
             'Unstarted plan dropped on the condemned part');
