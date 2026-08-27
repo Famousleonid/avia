@@ -118,7 +118,13 @@
                             @endphp
                             <tr>
                                 <td class="p-2">{{ $displayIpl }}</td>
-                                <td class="p-2">{{ $displayName }}</td>
+                                <td class="p-2">{{ $displayName }}
+                                    @if($part->source_tdr_id)
+                                        {{-- §5 linked part order — raised automatically by a repair route --}}
+                                        <span class="badge bg-info text-dark ms-1" style="font-size:9px"
+                                              title="{{ __('Ordered automatically by a repair route of the carrier part') }}">auto · from route</span>
+                                    @endif
+                                </td>
                                 <td class="p-2">{{ $displayPartNumber }}</td>
                                 <td class="p-1 text-center">
                                     @include('admin.tdrs.partials.component-image', [

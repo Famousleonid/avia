@@ -2486,6 +2486,18 @@ class TdrProcessController extends Controller
             app(ProcessSequenceNotifier::class)->notifyReady($nextProcessForNotification, $tdrProcess);
         }
 
+        // §4 gates: the finished row is a gate anchor (is_gate on its rule
+        // process) → the technician must record the verdict and rebuild.
+        $gateReached = false;
+        if ($oldFinish === null && $newFinishForNotification !== null) {
+            $gateRpIds = array_map('intval', (array) ($tdrProcess->rule_process_ids ?? []));
+            if (!empty($gateRpIds)) {
+                $gateReached = \App\Models\ManualParameterRuleProcess::whereIn('id', $gateRpIds)
+                    ->where('is_gate', true)
+                    ->exists();
+            }
+        }
+
         if ($fromPaintIndex) {
             $newStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
             $newFinish = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
@@ -2619,6 +2631,7 @@ class TdrProcessController extends Controller
                 'date_start_user'       => $tdrProcess->dateStartUpdatedBy?->selection_name ?: $tdrProcess->date_start_user,
                 'date_finish_user'      => $tdrProcess->dateFinishUpdatedBy?->selection_name ?: $tdrProcess->date_finish_user,
                 'paint_queue_changed'   => $paintQueueDequeued,
+                'gate_reached'          => $gateReached,
             ], 200);
         }
 

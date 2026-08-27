@@ -104,7 +104,12 @@ NDT-контекстный вердикт даёт код заказа **Failed 
 Ввод вердикта в Inspect — кнопка «Add NDT / in-process finding» (у точек с
 NDT-кодами). Удаление вердикт-замера сбрасывает sync point → Update
 переармируется и возвращает прежний план (полный цикл туда-обратно проверен).
-Отложено: авто-подсказка при закрытии гейт-процесса (`is_gate`) в traveler-флоу.
+**Гейт-подсказка — СДЕЛАНО 28.08**: закрытие строки плана, помеченной гейтом
+(`is_gate` на процессе правила), возвращает `gate_reached` из updateDate —
+UI показывает «Gate process completed — record the verdict (Inspect) and press
+Update Processes» (WO main, через общий ajaxSubmit). NDT-1 в маршрутах рода
+помечен гейт-якорем. **Бейдж «auto · from route»** — в модалке Ordered Parts у
+связанных заказов (source_tdr_id).
 
 **Промежуточный контроль базы — СДЕЛАНО 27.08 (этап 5)**: флаг
 `manual_parameters.in_process` («In-process check» в редакторе параметра) —

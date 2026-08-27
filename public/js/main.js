@@ -1210,6 +1210,12 @@ window.hapticTap = function (pattern = 10) {
                 window.showNotification(okText, 'success', 2000);
             }
 
+            // §4 gates: the finished process is a gate anchor — the verdict
+            // must be recorded on Inspect and the plan rebuilt.
+            if (data?.gate_reached && typeof window.showNotification === 'function') {
+                window.showNotification('Gate process completed — record the verdict (Inspect) and press Update Processes', 'warning', 12000);
+            }
+
             // Machining index: даты через js-ajax — перерисовка таблицы без полного reload (см. machining scripts)
             if (form.closest('#machining-wo-table') && form.querySelector('.machining-date-input-wrap')) {
                 if (typeof window.refreshMachiningTableAfterEdits === 'function') {

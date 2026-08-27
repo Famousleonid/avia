@@ -1152,6 +1152,38 @@ class RepairPlanRebuildTest extends TestCase
         $this->assertSame($scrapRule->id, $point['chosen_rule_id'], 'below_orig resolves the base-metal scrap rule');
     }
 
+    /**
+     * §4: finishing a gate-anchored process row (is_gate on its rule process)
+     * flags gate_reached in the date-update response — the UI prompts the
+     * technician to record the verdict and rebuild.
+     */
+    public function test_finishing_a_gate_process_flags_gate_reached(): void
+    {
+        $d = $this->makeTwoPointPart();
+        // Mark rule A's NDT row as the gate anchor
+        $gateRp = $d['ruleA']->processes()->orderBy('sort_order')->get()
+            ->first(fn ($rp) => $rp->manual_process_id === $d['ndt']->id);
+        $gateRp->update(['is_gate' => true]);
+
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+        $this->updateProcesses($d['wo'], $d['ic'])->assertOk();
+
+        $rows = $this->planRows($tdr);
+        $machRow = $rows[0]; // Machining (not a gate)
+        $ndtRow  = $rows[1]; // NDT (gate)
+
+        $admin = $this->admin();
+        $this->actingAs($admin)->patchJson(route('tdrprocesses.updateDate', $machRow->id), [
+            'date_start' => now()->format('Y-m-d'), 'date_finish' => now()->format('Y-m-d'),
+        ])->assertOk()->assertJson(['gate_reached' => false]);
+
+        $res = $this->actingAs($admin)->patchJson(route('tdrprocesses.updateDate', $ndtRow->id), [
+            'date_start' => now()->format('Y-m-d'), 'date_finish' => now()->format('Y-m-d'),
+        ])->assertOk()->json();
+        $this->assertTrue($res['gate_reached'], 'Finishing the gate row must flag gate_reached');
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {
