@@ -59,6 +59,8 @@ class Tdr extends Model
         'result_status',
         'scrap_reason',
         'replaced_by_tdr_id',
+        'source_rule_id', // §5: rule that auto-raised this Order New (linked part order)
+        'source_tdr_id',  // §5: the carrier part's repair TDR this auto-order belongs to
         'last_synced_measurement_id',
     ];
 

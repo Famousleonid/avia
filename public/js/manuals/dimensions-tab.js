@@ -2852,6 +2852,49 @@ document.addEventListener('DOMContentLoaded', function () {
     // ==========================
     let dimRuleProcesses = [];
     let dimRuleTriggers  = [];
+    let dimRulePartOrders = []; // §5: [{component_id, qty, note, ipl_num, part_number, name}]
+
+    function initPartOrderSelect() {
+        const sel = document.getElementById('dimRulePartOrderSel');
+        if (!sel || sel.options.length > 1) return;
+        (DIM_CFG.manualComponents || []).forEach(function (c) {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = (c.ipl_num || '') + ' · ' + (c.part_number || '') + ' — ' + (c.name || '');
+            sel.appendChild(opt);
+        });
+    }
+
+    function renderRulePartOrders() {
+        const wrap = document.getElementById('dimRulePartOrders');
+        if (!wrap) return;
+        wrap.innerHTML = dimRulePartOrders.map(function (o, i) {
+            const label = [o.ipl_num, o.part_number].filter(Boolean).join(' · ') + (o.name ? ' — ' + o.name : '');
+            return `<div class="dim-rule-process-item">
+                <span class="flex-grow-1" style="font-size:12px">${escHtml(label)} <span class="text-secondary">×${o.qty}</span></span>
+                <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-po-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-x"></i></button>
+            </div>`;
+        }).join('');
+        wrap.querySelectorAll('.dim-rule-po-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dimRulePartOrders.splice(parseInt(btn.dataset.idx), 1);
+                renderRulePartOrders();
+            });
+        });
+    }
+
+    document.getElementById('dimRulePartOrderAddBtn')?.addEventListener('click', function () {
+        const sel = document.getElementById('dimRulePartOrderSel');
+        const id  = parseInt(sel.value, 10);
+        if (!id) return;
+        if (dimRulePartOrders.some(function (o) { return o.component_id === id; })) return;
+        const c = (DIM_CFG.manualComponents || []).find(function (x) { return x.id === id; }) || {};
+        const qty = Math.max(1, parseInt(document.getElementById('dimRulePartOrderQty').value, 10) || 1);
+        dimRulePartOrders.push({ component_id: id, qty: qty, note: null, ipl_num: c.ipl_num, part_number: c.part_number, name: c.name });
+        sel.value = '';
+        document.getElementById('dimRulePartOrderQty').value = '1';
+        renderRulePartOrders();
+    });
 
     // Unique process names of this manual — options for the row-condition select
     function condProcessNameOptions(selectedId) {
@@ -3083,6 +3126,9 @@ document.addEventListener('DOMContentLoaded', function () {
         activeRuleParam  = param;
         dimRuleProcesses = [];
         dimRuleTriggers  = [];
+        dimRulePartOrders = [];
+        initPartOrderSelect();
+        renderRulePartOrders();
         document.getElementById('dimRuleId').value      = '';
         document.getElementById('dimRuleParamId').value = param.id;
         document.getElementById('dimRuleName').value    = '';
@@ -3116,6 +3162,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 max_delta: t.max_delta != null ? +t.max_delta : null,
             };
         });
+        dimRulePartOrders = (rule.part_orders || []).map(function (o) {
+            return { component_id: o.component_id, qty: o.qty || 1, note: o.note || null,
+                     ipl_num: o.ipl_num, part_number: o.part_number, name: o.name };
+        });
+        initPartOrderSelect();
+        renderRulePartOrders();
         document.getElementById('dimRuleId').value      = rule.id;
         document.getElementById('dimRuleParamId').value = param.id;
         document.getElementById('dimRuleName').value    = rule.name || '';
@@ -3207,6 +3259,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }),
             processes:         dimRuleProcesses.map(function (p, i) {
                 return { id: p.rule_process_id || null, manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, is_gate: !!p.is_gate, condition: p.condition || null, sort_order: i };
+            }),
+            part_orders:       dimRulePartOrders.map(function (o) {
+                return { component_id: o.component_id, qty: o.qty, note: o.note };
             }),
         };
 

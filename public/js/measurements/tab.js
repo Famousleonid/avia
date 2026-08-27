@@ -1076,6 +1076,33 @@
             h.push('<div class="alert alert-warning py-1 px-2 mb-2" style="font-size:11px">' + warn.join('') + '</div>');
         }
 
+        // Linked part orders (§5): propose / show existing / offer cancel
+        const orders = data.orders || [];
+        if (orders.length) {
+            h.push('<div class="fw-semibold mb-1">Parts to order</div>');
+            orders.forEach((o, i) => {
+                const label = [o.ipl_num, o.part_number].filter(Boolean).join(' · ') + (o.name ? ' — ' + o.name : '');
+                if (o.status === 'proposed') {
+                    h.push(`<div class="d-flex align-items-center gap-2 mb-1" style="font-size:11px">
+                        <input type="checkbox" class="form-check-input m-0 ms-updprev-order" checked data-cid="${o.component_id}" id="updord-${i}">
+                        <label for="updord-${i}" style="cursor:pointer">Order new: <b>${esc(label)}</b>${(o.rule_names || []).length ? ' <span class="text-secondary">— ' + esc(o.rule_names.join(', ')) + '</span>' : ''}</label>
+                        <span class="text-secondary">×</span>
+                        <input type="number" min="1" class="form-control form-control-sm ms-updprev-order-qty" data-cid="${o.component_id}" value="${o.qty}" style="width:58px;height:22px;font-size:11px;padding:1px 6px">
+                    </div>`);
+                } else if (o.status === 'existing') {
+                    h.push(`<div class="text-secondary mb-1" style="font-size:11px">= Already ordered: ${esc(label)} (TDR #${o.tdr_id}${o.auto ? ' · auto' : ''})</div>`);
+                } else if (o.status === 'obsolete') {
+                    h.push(o.locked
+                        ? `<div class="text-warning mb-1" style="font-size:11px">${esc(label)} (TDR #${o.tdr_id}) is no longer required by the plan — PO issued, cannot cancel</div>`
+                        : `<div class="d-flex align-items-center gap-2 mb-1" style="font-size:11px">
+                            <input type="checkbox" class="form-check-input m-0 ms-updprev-cancel" data-tdr="${o.tdr_id}" id="updcanc-${i}">
+                            <label for="updcanc-${i}" class="text-danger" style="cursor:pointer">Cancel order: ${esc(label)} (TDR #${o.tdr_id}) — no longer required by the plan</label>
+                        </div>`);
+                }
+            });
+            h.push('<div class="mb-2"></div>');
+        }
+
         // Resulting plan as ONE table in execution order; removed rows appended
         // struck-through at the end (they have no position in the new plan).
         const plan = data.plan || [];
@@ -1132,10 +1159,22 @@
         const part = updPrevPart;
         if (!part) return;
         this.disabled = true;
+        const body = document.getElementById('msUpdPrevBody');
+        const orders = [...body.querySelectorAll('.ms-updprev-order')].map(cb => ({
+            component_id: parseInt(cb.dataset.cid, 10),
+            accept: cb.checked,
+            qty: parseInt(body.querySelector(`.ms-updprev-order-qty[data-cid="${cb.dataset.cid}"]`)?.value, 10) || 1,
+        }));
+        const cancelIds = [...body.querySelectorAll('.ms-updprev-cancel:checked')].map(cb => parseInt(cb.dataset.tdr, 10));
         try {
             const res = await apiFetch('/workorders/' + WO_ID + '/update-part-processes', {
                 method: 'POST',
-                body: JSON.stringify({ inspection_component_id: part.id, rule_overrides: updPrevOverrides }),
+                body: JSON.stringify({
+                    inspection_component_id: part.id,
+                    rule_overrides: updPrevOverrides,
+                    orders: orders,
+                    cancel_order_tdr_ids: cancelIds,
+                }),
             });
             getUpdPrevModal().hide();
             // sync point reached — the button goes inactive until newer measurements
@@ -1147,6 +1186,10 @@
                 showNotification('Repair processes updated', 'success');
                 (res.warnings || []).forEach(w => showNotification(
                     (w.param || '') + ': rule requires ' + (w.action === 'order_new' ? 'Order New' : 'EC') + ' — handle separately', 'warning'));
+                (res.orders_created || []).forEach(o => showNotification(
+                    'Ordered: ' + (o.ipl_num || o.part_number || '') + ' — ' + (o.name || '') + ' ×' + o.qty, 'success'));
+                if ((res.orders_cancelled || []).length) showNotification('Cancelled ' + res.orders_cancelled.length + ' linked order(s)', 'warning');
+                (res.order_warnings || []).forEach(w => showNotification(w, 'warning'));
             }
         } catch (e) { alert(e.message); }
         finally { this.disabled = false; }

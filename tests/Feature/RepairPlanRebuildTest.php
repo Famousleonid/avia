@@ -744,9 +744,94 @@ class RepairPlanRebuildTest extends TestCase
     }
 
     /**
-     * FIX D acceptance: a point whose chosen rule has action=order_new is NOT
-     * silently merged into the repair plan — it is surfaced as a warning.
+     * §5 linked part orders: a rule declaring a component to order → preview
+     * proposes it; accepting raises a linked Order New TDR; a repeat rebuild
+     * sees it as existing (no duplicate); the obsolete linked order is offered
+     * for cancel when the declaring route deactivates; revert removes it.
      */
+    public function test_linked_part_order_lifecycle(): void
+    {
+        $d = $this->makeTwoPointPart();
+        $bearing = $this->createComponent($d['manual'], ['name' => 'BEARING, SPHERICAL']);
+        \App\Models\ManualParameterRulePartOrder::create([
+            'repair_rule_id' => $d['ruleA']->id, 'component_id' => $bearing->id, 'qty' => 1,
+        ]);
+
+        $measA = $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+
+        // Preview proposes the order
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $order = collect($preview['orders'])->firstWhere('component_id', $bearing->id);
+        $this->assertSame('proposed', $order['status']);
+
+        // Apply with accept → linked Order New TDR
+        $res = $this->updateProcesses($d['wo'], $d['ic'], [
+            'orders' => [['component_id' => $bearing->id, 'qty' => 2, 'accept' => true]],
+        ])->assertOk()->json();
+        $this->assertCount(1, $res['orders_created']);
+        $orderTdr = Tdr::find($res['orders_created'][0]['tdr_id']);
+        $this->assertSame(Tdr::TYPE_ORDER_NEW, $orderTdr->tdr_type);
+        $this->assertSame($bearing->id, (int) $orderTdr->order_component_id);
+        $this->assertSame(2, (int) $orderTdr->qty);
+        $this->assertSame($d['ruleA']->id, (int) $orderTdr->source_rule_id);
+        $this->assertSame($tdr->id, (int) $orderTdr->source_tdr_id);
+
+        // Repeat: existing, accepting again must NOT duplicate
+        $this->failMeasurement($d['wo'], $d['paramB'], $d['ruleB']->id); // re-arm sync
+        $preview2 = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('existing', collect($preview2['orders'])->firstWhere('component_id', $bearing->id)['status']);
+        $this->updateProcesses($d['wo'], $d['ic'], [
+            'orders' => [['component_id' => $bearing->id, 'accept' => true]],
+        ])->assertOk();
+        $this->assertSame(1, Tdr::where('workorder_id', $d['wo']->id)
+            ->where('tdr_type', Tdr::TYPE_ORDER_NEW)->count());
+
+        // Route deactivates (measurement replaced by PASS) → obsolete, cancel
+        WoMeasurement::whereKey($measA->id)->update(['result' => 'PASS']);
+        $preview3 = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $obsolete = collect($preview3['orders'])->firstWhere('component_id', $bearing->id);
+        $this->assertSame('obsolete', $obsolete['status']);
+        $this->assertFalse($obsolete['locked']);
+        $res3 = $this->updateProcesses($d['wo'], $d['ic'], [
+            'cancel_order_tdr_ids' => [$orderTdr->id],
+        ])->assertOk()->json();
+        $this->assertSame([$orderTdr->id], $res3['orders_cancelled']);
+        $this->assertNull(Tdr::find($orderTdr->id));
+    }
+
+    /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
+    public function test_linked_order_with_po_is_not_cancelled(): void
+    {
+        $d = $this->makeTwoPointPart();
+        $bearing = $this->createComponent($d['manual'], ['name' => 'BEARING']);
+        \App\Models\ManualParameterRulePartOrder::create([
+            'repair_rule_id' => $d['ruleA']->id, 'component_id' => $bearing->id, 'qty' => 1,
+        ]);
+        $measA = $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+
+        $res = $this->updateProcesses($d['wo'], $d['ic'], [
+            'orders' => [['component_id' => $bearing->id, 'accept' => true]],
+        ])->assertOk()->json();
+        $orderTdr = Tdr::find($res['orders_created'][0]['tdr_id']);
+        $orderTdr->update(['po_num' => 'PO-123']);
+
+        WoMeasurement::whereKey($measA->id)->update(['result' => 'PASS']);
+        $res2 = $this->updateProcesses($d['wo'], $d['ic'], [
+            'cancel_order_tdr_ids' => [$orderTdr->id],
+        ])->assertOk()->json();
+        $this->assertSame([], $res2['orders_cancelled']);
+        $this->assertNotEmpty($res2['order_warnings']);
+        $this->assertNotNull(Tdr::find($orderTdr->id), 'PO issued → order TDR is kept');
+
+        // Revert must also keep the locked order (only the repair TDR goes)
+        $this->actingAs($this->admin())
+            ->postJson(route('workorders.revert-part-tdr', $d['wo']->id), [
+                'inspection_component_id' => $d['ic']->id,
+            ])->assertOk();
+        $this->assertNotNull(Tdr::find($orderTdr->id));
+    }
     public function test_order_new_rule_is_warned_and_not_merged(): void
     {
         $d = $this->makeTwoPointPart();

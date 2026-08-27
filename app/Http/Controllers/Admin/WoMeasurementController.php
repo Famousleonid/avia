@@ -1405,6 +1405,12 @@ class WoMeasurementController extends Controller
             'inspection_component_id' => 'required|exists:manual_inspection_components,id',
             'rule_overrides'          => 'nullable|array',
             'rule_overrides.*'        => 'integer|exists:manual_parameter_repair_rules,id',
+            'orders'                  => 'nullable|array',
+            'orders.*.component_id'   => 'required|integer|exists:components,id',
+            'orders.*.qty'            => 'nullable|integer|min:1|max:99',
+            'orders.*.accept'         => 'boolean',
+            'cancel_order_tdr_ids'    => 'nullable|array',
+            'cancel_order_tdr_ids.*'  => 'integer',
         ]);
 
         $icId = (int) $data['inspection_component_id'];
@@ -1432,11 +1438,20 @@ class WoMeasurementController extends Controller
             ->max('id');
         $tdr->update(['last_synced_measurement_id' => $syncId]);
 
+        // §5 linked part orders: raise accepted proposals, cancel confirmed
+        // obsolete linked orders — also when no repair rules matched (the
+        // cancel case is exactly the route-deactivated scenario).
+        [$ordersCreated, $ordersCancelled, $orderWarnings] =
+            $this->applyLinkedPartOrders($workorder, $tdr, $ctx['orders'], $data);
+
         if (empty($ctx['mainRuleIds'])) {
             return response()->json([
-                'ok'       => true,
-                'message'  => 'No repair rules matched — processes cleared',
-                'warnings' => $ctx['warnings'],
+                'ok'               => true,
+                'message'          => 'No repair rules matched — processes cleared',
+                'warnings'         => $ctx['warnings'],
+                'orders_created'   => $ordersCreated,
+                'orders_cancelled' => $ordersCancelled,
+                'order_warnings'   => $orderWarnings,
             ]);
         }
 
@@ -1472,7 +1487,14 @@ class WoMeasurementController extends Controller
             ]);
         }
 
-        return response()->json(['ok' => true, 'tdr_id' => $tdr->id, 'warnings' => $ctx['warnings']]);
+        return response()->json([
+            'ok'               => true,
+            'tdr_id'           => $tdr->id,
+            'warnings'         => $ctx['warnings'],
+            'orders_created'   => $ordersCreated,
+            'orders_cancelled' => $ordersCancelled,
+            'order_warnings'   => $orderWarnings,
+        ]);
     }
 
     /**
@@ -1574,6 +1596,7 @@ class WoMeasurementController extends Controller
             'tdr_id'    => $ctx['tdr']->id,
             'points'    => $ctx['points'],
             'warnings'  => $ctx['warnings'],
+            'orders'    => $ctx['orders'],
             'plan'      => $plan,
             'kept'      => $started->map($rowEntry)->values()->all(),
             'unchanged' => $unchanged,
@@ -1666,7 +1689,8 @@ class WoMeasurementController extends Controller
         // Non-repair rules cannot be merged into the repair plan (order_new / ec
         // have their own flows) — surface them as warnings instead of silently
         // blending their processes in.
-        $rulesById   = ManualParameterRepairRule::whereIn('id', $ruleIds)->get()->keyBy('id');
+        $rulesById   = ManualParameterRepairRule::whereIn('id', $ruleIds)
+            ->with('partOrders.component')->get()->keyBy('id');
         $mainRuleIds = [];
         $warnings    = [];
         foreach ($ruleIds as $rid) {
@@ -1721,7 +1745,153 @@ class WoMeasurementController extends Controller
                 ->map(fn ($v) => (int) $v)->unique()->values()->all(),
             'warnings'      => $warnings,
             'points'        => $points,
+            'orders'        => $this->linkedPartOrders($workorder, $tdr, $mainRuleIds, $rulesById),
         ];
+    }
+
+    /**
+     * §5: raise accepted order proposals as linked Order New TDRs and cancel
+     * confirmed obsolete linked orders (a PO number / receipt locks the TDR).
+     *
+     * @return array{0:array,1:array,2:array} [created, cancelled, warnings]
+     */
+    private function applyLinkedPartOrders(Workorder $workorder, Tdr $tdr, array $ctxOrders, array $data): array
+    {
+        $ordersCreated   = [];
+        $ordersCancelled = [];
+        $orderWarnings   = [];
+
+        $declared = collect($ctxOrders)->keyBy('component_id');
+        foreach ((array) ($data['orders'] ?? []) as $o) {
+            if (empty($o['accept'])) continue;
+            $cid  = (int) $o['component_id'];
+            $decl = $declared[$cid] ?? null;
+            if (!$decl || $decl['status'] !== 'proposed') continue; // unknown / already ordered
+            $component = Component::find($cid);
+            if (!$component) continue;
+            $orderTdr = Tdr::create([
+                'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+                'workorder_id'       => $workorder->id,
+                'component_id'       => $component->id,
+                'order_component_id' => $component->id,
+                'serial_number'      => 'NSN',
+                'description'        => $component->name,
+                'necessaries_id'     => Necessary::firstOrCreate(['name' => 'Order New'])->id,
+                'qty'                => max(1, (int) ($o['qty'] ?? $decl['qty'])),
+                'use_tdr'            => true,
+                'use_process_forms'  => false,
+                'source_rule_id'     => $decl['rule_ids'][0] ?? null,
+                'source_tdr_id'      => $tdr->id,
+            ]);
+            $ordersCreated[] = [
+                'tdr_id'      => $orderTdr->id,
+                'ipl_num'     => $component->ipl_num,
+                'part_number' => $component->part_number,
+                'name'        => $component->name,
+                'qty'         => (int) $orderTdr->qty,
+            ];
+        }
+
+        foreach ((array) ($data['cancel_order_tdr_ids'] ?? []) as $cancelId) {
+            $t = Tdr::where('workorder_id', $workorder->id)
+                ->whereKey((int) $cancelId)
+                ->where('tdr_type', Tdr::TYPE_ORDER_NEW)
+                ->where('source_tdr_id', $tdr->id)
+                ->first();
+            if (!$t) continue;
+            if ($t->po_num !== null || $t->received !== null) {
+                $orderWarnings[] = 'Order TDR #' . $t->id . ' has a PO / receipt — not cancelled';
+                continue;
+            }
+            $t->delete();
+            $ordersCancelled[] = (int) $cancelId;
+        }
+
+        return [$ordersCreated, $ordersCancelled, $orderWarnings];
+    }
+
+    /**
+     * §5 linked part orders: components the ACTIVE routes declare for ordering,
+     * matched against Order New TDRs already on the WO.
+     *   proposed — declared, nothing ordered yet → offer to raise a linked TDR
+     *   existing — an Order New TDR for this component already exists
+     *              (auto=true when it is a linked one, false when manual)
+     *   obsolete — a linked TDR raised by THIS part's plan whose component is
+     *              no longer declared by any active route → offer to cancel
+     *              (locked once a PO number / receipt exists)
+     */
+    private function linkedPartOrders(Workorder $workorder, Tdr $tdr, array $mainRuleIds, $rulesById): array
+    {
+        $declared = [];
+        foreach ($mainRuleIds as $rid) {
+            $rule = $rulesById[$rid] ?? null;
+            foreach ($rule?->partOrders ?? [] as $po) {
+                if (!$po->component) continue;
+                $cid = (int) $po->component_id;
+                $d = $declared[$cid] ?? [
+                    'component_id' => $cid,
+                    'ipl_num'      => $po->component->ipl_num,
+                    'part_number'  => $po->component->part_number,
+                    'name'         => $po->component->name,
+                    'qty'          => 0,
+                    'notes'        => [],
+                    'rule_ids'     => [],
+                    'rule_names'   => [],
+                ];
+                $d['qty'] = max($d['qty'], max(1, (int) $po->qty));
+                if ($po->note) $d['notes'][] = $po->note;
+                $d['rule_ids'][]   = (int) $rid;
+                $d['rule_names'][] = (string) ($rule->name ?? '');
+                $declared[$cid] = $d;
+            }
+        }
+
+        $existing = Tdr::where('workorder_id', $workorder->id)
+            ->where('tdr_type', Tdr::TYPE_ORDER_NEW)
+            ->get(['id', 'component_id', 'order_component_id', 'qty', 'po_num', 'received', 'source_rule_id', 'source_tdr_id']);
+
+        $orders = [];
+        foreach ($declared as $cid => $d) {
+            $match = $existing->first(fn ($t) => (int) ($t->order_component_id ?? $t->component_id) === $cid);
+            $orders[] = [
+                'component_id' => $cid,
+                'ipl_num'      => $d['ipl_num'],
+                'part_number'  => $d['part_number'],
+                'name'         => $d['name'],
+                'qty'          => $d['qty'],
+                'note'         => implode('; ', array_unique($d['notes'])),
+                'rule_names'   => array_values(array_unique($d['rule_names'])),
+                'rule_ids'     => $d['rule_ids'],
+                'status'       => $match ? 'existing' : 'proposed',
+                'tdr_id'       => $match?->id,
+                'auto'         => (bool) $match?->source_tdr_id,
+                'locked'       => false,
+            ];
+        }
+
+        // Linked orders of THIS plan whose component is no longer declared
+        foreach ($existing as $t) {
+            if ((int) $t->source_tdr_id !== (int) $tdr->id) continue;
+            $cid = (int) ($t->order_component_id ?? $t->component_id);
+            if (isset($declared[$cid])) continue;
+            $comp = Component::find($cid);
+            $orders[] = [
+                'component_id' => $cid,
+                'ipl_num'      => $comp?->ipl_num,
+                'part_number'  => $comp?->part_number,
+                'name'         => $comp?->name,
+                'qty'          => (int) $t->qty,
+                'note'         => '',
+                'rule_names'   => [],
+                'rule_ids'     => [],
+                'status'       => 'obsolete',
+                'tdr_id'       => (int) $t->id,
+                'auto'         => true,
+                'locked'       => $t->po_num !== null || $t->received !== null,
+            ];
+        }
+
+        return $orders;
     }
 
     /**
@@ -1915,6 +2085,13 @@ class WoMeasurementController extends Controller
                 'error' => 'Work has already started on this TDR — it cannot be reverted.',
             ], 422);
         }
+
+        // §5: linked auto-orders follow their repair TDR (unless purchasing started)
+        Tdr::where('workorder_id', $workorder->id)
+            ->whereIn('source_tdr_id', $tdrIds)
+            ->whereNull('po_num')
+            ->whereNull('received')
+            ->delete();
 
         TdrProcess::whereIn('tdrs_id', $tdrIds)->delete();
         Tdr::whereIn('id', $tdrIds)->delete();

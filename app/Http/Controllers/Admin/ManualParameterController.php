@@ -334,6 +334,10 @@ class ManualParameterController extends Controller
             'processes.*.condition.type'               => 'nullable|in:has_process,not_has_process',
             'processes.*.condition.process_name_ids'   => 'nullable|array',
             'processes.*.condition.process_name_ids.*' => 'integer|exists:process_names,id',
+            'part_orders'                => 'nullable|array',
+            'part_orders.*.component_id' => 'required|exists:components,id',
+            'part_orders.*.qty'          => 'nullable|integer|min:1|max:99',
+            'part_orders.*.note'         => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
             'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
@@ -353,6 +357,7 @@ class ManualParameterController extends Controller
 
         $this->syncRuleProcesses($rule, $data['processes'] ?? []);
         $this->syncRuleTriggers($rule, $data['triggers']);
+        $this->syncRulePartOrders($rule, $data['part_orders'] ?? []);
 
         return response()->json($this->rulePayload($rule), 201);
     }
@@ -373,6 +378,10 @@ class ManualParameterController extends Controller
             'processes.*.condition.type'               => 'nullable|in:has_process,not_has_process',
             'processes.*.condition.process_name_ids'   => 'nullable|array',
             'processes.*.condition.process_name_ids.*' => 'integer|exists:process_names,id',
+            'part_orders'                => 'nullable|array',
+            'part_orders.*.component_id' => 'required|exists:components,id',
+            'part_orders.*.qty'          => 'nullable|integer|min:1|max:99',
+            'part_orders.*.note'         => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
             'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
@@ -391,6 +400,7 @@ class ManualParameterController extends Controller
 
         $this->syncRuleProcesses($manualParameterRepairRule, $data['processes'] ?? []);
         $this->syncRuleTriggers($manualParameterRepairRule, $data['triggers']);
+        $this->syncRulePartOrders($manualParameterRepairRule, $data['part_orders'] ?? []);
 
         return response()->json($this->rulePayload($manualParameterRepairRule));
     }
@@ -452,6 +462,20 @@ class ManualParameterController extends Controller
         $rule->processes()->whereNotIn('id', $keepIds ?: [0])->delete();
     }
 
+    /** §5 linked part orders: components the route orders when applied. */
+    private function syncRulePartOrders(ManualParameterRepairRule $rule, array $orders): void
+    {
+        $rule->partOrders()->delete();
+        foreach ($orders as $o) {
+            \App\Models\ManualParameterRulePartOrder::create([
+                'repair_rule_id' => $rule->id,
+                'component_id'   => (int) $o['component_id'],
+                'qty'            => max(1, (int) ($o['qty'] ?? 1)),
+                'note'           => $o['note'] ?? null,
+            ]);
+        }
+    }
+
     private function syncRuleTriggers(ManualParameterRepairRule $rule, array $triggers): void
     {
         $rule->triggers()->delete();
@@ -472,7 +496,7 @@ class ManualParameterController extends Controller
 
     private function rulePayload(ManualParameterRepairRule $rule): array
     {
-        $rule->load(['triggers.code', 'processes.manualProcess.process.process_name', 'processes.documents.pages']);
+        $rule->load(['triggers.code', 'processes.manualProcess.process.process_name', 'processes.documents.pages', 'partOrders.component']);
         $data = $rule->toArray();
         // always expose a usable action (fallback from legacy bool if column not yet present)
         $data['action'] = $rule->action ?? ($rule->order_replacement ? 'order_new' : 'repair');
@@ -483,6 +507,14 @@ class ManualParameterController extends Controller
             'code_name' => $t->code?->name,
             'min_delta' => $t->min_delta,
             'max_delta' => $t->max_delta,
+        ])->values()->all();
+        $data['part_orders'] = $rule->partOrders->map(fn($o) => [
+            'component_id' => $o->component_id,
+            'qty'          => $o->qty,
+            'note'         => $o->note,
+            'ipl_num'      => $o->component?->ipl_num,
+            'part_number'  => $o->component?->part_number,
+            'name'         => $o->component?->name,
         ])->values()->all();
         $data['processes'] = $rule->processes->map(function ($rp) {
             $mp    = $rp->manualProcess;

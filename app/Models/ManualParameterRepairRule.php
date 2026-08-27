@@ -38,4 +38,10 @@ class ManualParameterRepairRule extends Model
     {
         return $this->hasMany(ManualParameterRuleProcess::class, 'repair_rule_id')->orderBy('sort_order');
     }
+
+    /** Components this route orders when applied (§5 linked part orders). */
+    public function partOrders(): HasMany
+    {
+        return $this->hasMany(ManualParameterRulePartOrder::class, 'repair_rule_id');
+    }
 }

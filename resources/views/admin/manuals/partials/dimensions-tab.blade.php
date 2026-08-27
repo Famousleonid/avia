@@ -575,6 +575,20 @@
                             <label class="form-label form-label-sm">Notes</label>
                             <textarea class="form-control form-control-sm" id="dimRuleNotes" rows="2" placeholder="Optional notes"></textarea>
                         </div>
+
+                        {{-- §5 linked part orders: components this route orders when applied --}}
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm">Order parts
+                                <span class="text-secondary" style="font-size:10px">— auto Order New when this route is applied</span></label>
+                            <div id="dimRulePartOrders" class="mb-1"></div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <select class="form-select form-select-sm" id="dimRulePartOrderSel" style="max-width:250px">
+                                    <option value=""></option>
+                                </select>
+                                <input type="number" min="1" value="1" class="form-control form-control-sm" id="dimRulePartOrderQty" style="max-width:62px" title="Qty">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="dimRulePartOrderAddBtn">Add</button>
+                            </div>
+                        </div>
                     </div>
 
                     {{-- Right column: Processes --}}
