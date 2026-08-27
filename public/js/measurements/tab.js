@@ -1113,6 +1113,20 @@
             }
         }
 
+        // §4 EC bridge: the verdict asks for an OEM concession
+        if (data.ec) {
+            const e = data.ec;
+            if (e.status === 'proposed') {
+                h.push(`<div class="alert py-1 px-2 mb-2 d-flex align-items-center gap-2" style="font-size:11px;background:rgba(253,126,20,.12);border:1px solid #fd7e14">
+                    <input type="checkbox" class="form-check-input m-0" id="msUpdPrevEc" checked>
+                    <label for="msUpdPrevEc" style="cursor:pointer;color:#fd7e14"><b>EC — submit for concession:</b> ${esc(e.reason || 'EC')}
+                        <span class="text-secondary">— ${esc((e.rule_names || []).join(', '))}. Adds the EC row (tracked on /ec); work after the gate anchor is held.</span></label>
+                </div>`);
+            } else {
+                h.push(`<div class="mb-2" style="font-size:11px;color:#fd7e14">EC already on the plan (row #${e.row_id}) — awaiting concession.</div>`);
+            }
+        }
+
         // Linked part orders (§5): propose / show existing / offer cancel
         const orders = data.orders || [];
         if (orders.length) {
@@ -1248,6 +1262,7 @@
         const cancelIds = [...body.querySelectorAll('.ms-updprev-cancel:checked')].map(cb => parseInt(cb.dataset.tdr, 10));
         const scrapAccept = !!body.querySelector('#msUpdPrevScrap:checked');
         const scrapKeep = parseInt(body.querySelector('#msUpdPrevScrapKeep')?.value, 10) || null;
+        const ecAccept = !!body.querySelector('#msUpdPrevEc:checked');
         try {
             const res = await apiFetch('/workorders/' + WO_ID + '/update-part-processes', {
                 method: 'POST',
@@ -1258,6 +1273,7 @@
                     cancel_order_tdr_ids: cancelIds,
                     scrap_accept: scrapAccept,
                     scrap_keep_through: scrapKeep,
+                    ec_accept: ecAccept,
                 }),
             });
             getUpdPrevModal().hide();
@@ -1275,6 +1291,7 @@
                 if ((res.orders_cancelled || []).length) showNotification('Cancelled ' + res.orders_cancelled.length + ' linked order(s)', 'warning');
                 (res.order_warnings || []).forEach(w => showNotification(w, 'warning'));
                 if (res.scrap_tdr_id) showNotification('Part condemned — replacement ordered (TDR #' + res.scrap_tdr_id + ')', 'warning');
+                if (res.ec_row_id) showNotification('EC raised — tracked on /ec, work after the gate is held', 'warning');
             }
         } catch (e) { alert(e.message); }
         finally { this.disabled = false; }

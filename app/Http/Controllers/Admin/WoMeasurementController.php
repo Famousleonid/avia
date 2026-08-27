@@ -1414,6 +1414,7 @@ class WoMeasurementController extends Controller
             'cancel_order_tdr_ids.*'  => 'integer',
             'scrap_accept'            => 'boolean',
             'scrap_keep_through'      => 'nullable|integer', // TdrProcess id: work completed through this row
+            'ec_accept'               => 'boolean',
         ]);
 
         $icId = (int) $data['inspection_component_id'];
@@ -1495,6 +1496,7 @@ class WoMeasurementController extends Controller
 
             return response()->json([
                 'ok'               => true,
+                'ec_row_id'        => null,
                 'tdr_id'           => $tdr->id,
                 'warnings'         => $ctx['warnings'],
                 'orders_created'   => $ordersCreated,
@@ -1513,6 +1515,7 @@ class WoMeasurementController extends Controller
                 'orders_cancelled' => $ordersCancelled,
                 'order_warnings'   => $orderWarnings,
                 'scrap_tdr_id'     => $scrapTdrId,
+                'ec_row_id'        => $scrapTdrId === null ? $this->applyEcProposal($tdr, $icId, $ctx, $data) : null,
             ]);
         }
 
@@ -1548,6 +1551,9 @@ class WoMeasurementController extends Controller
             ]);
         }
 
+        // §4 EC bridge: raise the EC package after the rebuild (scrap wins)
+        $ecRowId = $scrapTdrId === null ? $this->applyEcProposal($tdr, $icId, $ctx, $data) : null;
+
         return response()->json([
             'ok'               => true,
             'tdr_id'           => $tdr->id,
@@ -1556,6 +1562,7 @@ class WoMeasurementController extends Controller
             'orders_cancelled' => $ordersCancelled,
             'order_warnings'   => $orderWarnings,
             'scrap_tdr_id'     => $scrapTdrId,
+            'ec_row_id'        => $ecRowId,
         ]);
     }
 
@@ -1676,6 +1683,7 @@ class WoMeasurementController extends Controller
             'warnings'  => $ctx['warnings'],
             'orders'    => $ctx['orders'],
             'scrap'     => $ctx['scrap'],
+            'ec'        => $ctx['ec'],
             'scrap_rows'=> $scrapRows,
             'plan'      => $plan,
             'kept'      => $started->map($rowEntry)->values()->all(),
@@ -1849,7 +1857,81 @@ class WoMeasurementController extends Controller
             'points'        => $points,
             'orders'        => $orders,
             'scrap'         => $scrap,
+            'ec'            => $this->ecProposal($tdr, $warnings, $allFails),
         ];
+    }
+
+    /**
+     * §4 EC bridge: an active ec-action rule = the verdict asks for an OEM
+     * concession. The preview offers to raise the EC package (EC row on the
+     * plan, tracked on /ec; work after the gate anchor is held) — the same
+     * semantics gateApply gives the final-measurements gate.
+     */
+    private function ecProposal(Tdr $tdr, array $warnings, $allFails): ?array
+    {
+        $ecRules = array_values(array_filter($warnings, fn ($w) => ($w['action'] ?? '') === 'ec'));
+        if (empty($ecRules)) {
+            return null;
+        }
+
+        $ecNameId = ProcessName::where('name', 'EC')->value('id');
+        $existing = $ecNameId
+            ? TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $ecNameId)->first()
+            : null;
+
+        $ruleIds = array_map(fn ($w) => (int) $w['rule_id'], $ecRules);
+        $verdict = $allFails->last(fn ($m) => in_array((int) $m->manual_parameter_repair_rule_id, $ruleIds, true));
+        $code    = $verdict?->codes_id ? Code::find($verdict->codes_id) : null;
+        $param   = $verdict ? ManualParameter::with('points')->find($verdict->manual_parameter_id) : null;
+        $pt      = $param?->points->pluck('code')->filter()->unique()->implode(', ');
+        $reason  = trim(($pt ? $pt . ' ' : '') . ($param?->description ?? '') . ($code ? ' — ' . $code->name : ''));
+
+        return [
+            'rule_names' => array_values(array_unique(array_map(fn ($w) => (string) $w['rule_name'], $ecRules))),
+            'params'     => array_values(array_unique(array_map(fn ($w) => (string) $w['param'], $ecRules))),
+            'reason'     => $reason !== '' ? 'Concession: ' . $reason : 'EC',
+            'status'     => $existing ? 'existing' : 'proposed',
+            'row_id'     => $existing?->id,
+        ];
+    }
+
+    /**
+     * Raise the EC package when the technician accepted the proposal:
+     * an EC row (tracked on /ec) with the verdict reason, and a hold — unstarted
+     * rows after the gate anchor are dropped (no anchor → no hold, as in gateApply).
+     */
+    private function applyEcProposal(Tdr $tdr, int $icId, array $ctx, array $data): ?int
+    {
+        if (empty($data['ec_accept']) || (($ctx['ec']['status'] ?? null) !== 'proposed')) {
+            return null;
+        }
+        $ecNameId = ProcessName::where('name', 'EC')->value('id');
+        if (!$ecNameId) {
+            return null;
+        }
+
+        $gateSort = $this->gateAnchorSort($icId, $tdr->id);
+        if ($gateSort !== null) {
+            TdrProcess::where('tdrs_id', $tdr->id)
+                ->whereNull('date_start')
+                ->where('sort_order', '>', $gateSort)
+                ->delete();
+        }
+
+        $maxSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
+        $row = TdrProcess::create([
+            'tdrs_id'            => $tdr->id,
+            'process_names_id'   => $ecNameId,
+            'processes'          => [],
+            'rule_process_ids'   => [],
+            'description'        => $ctx['ec']['reason'] ?? 'EC',
+            'sort_order'         => $maxSort + 1,
+            'in_traveler'        => false,
+            'ec'                 => 1,
+            'standalone_ec_only' => false,
+        ]);
+
+        return $row->id;
     }
 
     /**

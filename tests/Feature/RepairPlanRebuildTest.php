@@ -1184,6 +1184,68 @@ class RepairPlanRebuildTest extends TestCase
         $this->assertTrue($res['gate_reached'], 'Finishing the gate row must flag gate_reached');
     }
 
+    /**
+     * §4 EC bridge: an ec-action verdict → preview proposes the EC package;
+     * accepting adds the EC row (ec=1, verdict reason) and holds work after the
+     * gate anchor; a later "EC denied" verdict runs the scrap flow.
+     */
+    public function test_ec_verdict_raises_ec_package_then_denied_scraps(): void
+    {
+        $d = $this->makeTwoPointPart();
+        ProcessName::firstOrCreate(['name' => 'EC'], ['scope' => 'part', 'process_sheet_name' => 'EC', 'form_number' => 'F-EC']);
+        $failedNdt = Code::firstOrCreate(['name' => 'Failed NDT']);
+        $damage = Code::create(['name' => 'Damage ' . uniqid()]);
+        $denied = Code::create(['name' => 'EC denied ' . uniqid()]);
+        foreach ([$damage, $denied] as $code) {
+            ManualParameterCode::create([
+                'manual_parameter_id' => $d['paramA']->id, 'codes_id' => $code->id, 'finding_context' => 'ndt',
+            ]);
+        }
+        $ecRule = ManualParameterRepairRule::create([
+            'manual_parameter_id' => $d['paramA']->id, 'name' => 'Damage — EC', 'action' => 'ec',
+        ]);
+        ManualParameterRuleTrigger::create(['repair_rule_id' => $ecRule->id, 'trigger' => 'finding_ndt', 'codes_id' => $damage->id]);
+        $scrapRule = ManualParameterRepairRule::create([
+            'manual_parameter_id' => $d['paramA']->id, 'name' => 'EC denied — scrap', 'action' => 'order_new',
+        ]);
+        ManualParameterRuleTrigger::create(['repair_rule_id' => $scrapRule->id, 'trigger' => 'finding_ndt', 'codes_id' => $denied->id]);
+
+        // Gate anchor on rule A's NDT row; initial FAIL builds the plan
+        $d['ruleA']->processes()->get()->first(fn ($rp) => $rp->manual_process_id === $d['ndt']->id)
+            ->update(['is_gate' => true]);
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+        $this->updateProcesses($d['wo'], $d['ic'])->assertOk();
+        $this->assertSame(3, $this->planRows($tdr)->count()); // Machining, NDT, Plating
+
+        // Damage verdict → EC proposed; accept → EC row + hold after the anchor
+        $this->failMeasurement($d['wo'], $d['paramA'], $ecRule->id, ['codes_id' => $damage->id, 'actual_value' => null]);
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('proposed', $preview['ec']['status']);
+        $this->assertStringContainsString('Concession', $preview['ec']['reason']);
+
+        $res = $this->updateProcesses($d['wo'], $d['ic'], ['ec_accept' => true])->assertOk()->json();
+        $ecRow = TdrProcess::find($res['ec_row_id']);
+        $this->assertTrue((bool) $ecRow->ec);
+        $this->assertStringContainsString('Concession', $ecRow->description);
+        // Freeze: the unstarted row after the gate anchor (Plating) is held
+        $nameIds = $this->planRows($tdr)->map(fn ($r) => (int) $r->process_names_id)->all();
+        $this->assertNotContains((int) $d['plating']->process->process_names_id, $nameIds, 'Work after the gate anchor is held');
+
+        // Second preview: EC already on the plan — no duplicate
+        $this->failMeasurement($d['wo'], $d['paramB'], $d['ruleB']->id); // re-arm
+        $preview2 = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('existing', $preview2['ec']['status']);
+
+        // EC denied verdict → scrap flow
+        $this->failMeasurement($d['wo'], $d['paramA'], $scrapRule->id, ['codes_id' => $denied->id, 'actual_value' => null]);
+        $preview3 = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('proposed', $preview3['scrap']['status']);
+        $res3 = $this->updateProcesses($d['wo'], $d['ic'], ['scrap_accept' => true])->assertOk()->json();
+        $this->assertNotNull($res3['scrap_tdr_id']);
+        $this->assertSame((int) $failedNdt->id, (int) Tdr::find($res3['scrap_tdr_id'])->codes_id, 'NDT-context verdict orders as Failed NDT');
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {
