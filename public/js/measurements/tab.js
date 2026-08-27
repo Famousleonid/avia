@@ -1796,6 +1796,15 @@ ${sections}
                 w.querySelector('button').addEventListener('click',()=>w.replaceWith(buildForm(param,'final',lastInit.id)));
                 frm.appendChild(w);
             }
+            // §4 gate verdict: a mid-route NDT / in-process finding — recorded as
+            // a NEW verdict on the point (the latest verdict picks the route).
+            const hasNdtCodes = (param.codes || []).some(c => c.finding_context === 'ndt');
+            if (lastInit && hasNdtCodes) {
+                const v = document.createElement('div'); v.className = 'mt-2';
+                v.innerHTML = `<button class="btn btn-outline-danger btn-sm w-100" style="font-size:11px"><i class="bi bi-exclamation-triangle"></i> Add NDT / in-process finding</button>`;
+                v.querySelector('button').addEventListener('click', () => v.replaceWith(buildForm(param, 'initial', null)));
+                frm.appendChild(v);
+            }
         }
     }
 
