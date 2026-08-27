@@ -3285,6 +3285,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+        document.querySelectorAll('.condition-note-slot').forEach(input => {
+            input.addEventListener('input', function () {
+                if (this.value.trim() === '') return;
+
+                const row = this.closest('.unit-inspection-note-row');
+                const checkbox = row?.querySelector('.condition-checkbox');
+                if (checkbox && !checkbox.checked) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        });
 
         if (saveBtn && form) {
             saveBtn.addEventListener('click', function () {

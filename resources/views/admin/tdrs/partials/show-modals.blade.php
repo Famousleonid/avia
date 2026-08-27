@@ -524,22 +524,35 @@
                                         $isChecked = isset($existingInspections[$unit_condition->id]);
                                         $existingNotes = $isChecked ? $existingInspections[$unit_condition->id]['notes'] : '';
                                         $existingInspectionId = $isChecked ? $existingInspections[$unit_condition->id]['id'] : null;
+                                        $isNoteCondition = preg_match('/^note\s+\d+$/i', trim((string) $unit_condition->name));
                                     @endphp
-                                    <tr>
+                                    <tr @class(['unit-inspection-note-row' => $isNoteCondition]) data-condition-id="{{ $unit_condition->id }}">
                                         <td class="text-center align-middle">
                                             <input type="checkbox" class="form-check-input condition-checkbox" name="conditions[{{ $unit_condition->id }}][selected]" value="1" data-condition-id="{{ $unit_condition->id }}" {{ $isChecked ? 'checked' : '' }}>
                                             @if($existingInspectionId)
                                                 <input type="hidden" name="conditions[{{ $unit_condition->id }}][inspection_id]" value="{{ $existingInspectionId }}">
                                             @endif
                                         </td>
-                                        <td class="align-middle">
-                                            <label for="condition_{{ $unit_condition->id }}" style="cursor: pointer; margin: 0;">
-                                                {{ empty($unit_condition->name) ? __('(No name)') : $unit_condition->name }}
-                                            </label>
-                                        </td>
-                                        <td class="align-middle">
-                                            <input type="text" class="form-control form-control-sm condition-notes" name="conditions[{{ $unit_condition->id }}][notes]" id="condition_{{ $unit_condition->id }}" value="{{ $existingNotes }}" placeholder="{{ __('Enter notes...') }}">
-                                        </td>
+                                        @if($isNoteCondition)
+                                            <td class="align-middle" colspan="2">
+                                                <input type="text"
+                                                       class="form-control form-control-sm condition-notes condition-note-slot"
+                                                       name="conditions[{{ $unit_condition->id }}][notes]"
+                                                       id="condition_{{ $unit_condition->id }}"
+                                                       value="{{ $existingNotes }}"
+                                                       placeholder="{{ $unit_condition->name }}"
+                                                       aria-label="{{ __('Editable note') }} {{ $unit_condition->name }}">
+                                            </td>
+                                        @else
+                                            <td class="align-middle">
+                                                <label for="condition_{{ $unit_condition->id }}" style="cursor: pointer; margin: 0;">
+                                                    {{ empty($unit_condition->name) ? __('(No name)') : $unit_condition->name }}
+                                                </label>
+                                            </td>
+                                            <td class="align-middle">
+                                                <input type="text" class="form-control form-control-sm condition-notes" name="conditions[{{ $unit_condition->id }}][notes]" id="condition_{{ $unit_condition->id }}" value="{{ $existingNotes }}" placeholder="{{ __('Enter notes...') }}">
+                                            </td>
+                                        @endif
                                     </tr>
                                 @endif
                             @endforeach
