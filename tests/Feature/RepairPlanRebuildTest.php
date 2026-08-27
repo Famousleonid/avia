@@ -759,6 +759,7 @@ class RepairPlanRebuildTest extends TestCase
 
         $measA = $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
         $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+        $tdr->update(['codes_id' => Code::create(['name' => 'Damage ' . uniqid()])->id]);
 
         // Preview proposes the order
         $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
@@ -776,6 +777,7 @@ class RepairPlanRebuildTest extends TestCase
         $this->assertSame(2, (int) $orderTdr->qty);
         $this->assertSame($d['ruleA']->id, (int) $orderTdr->source_rule_id);
         $this->assertSame($tdr->id, (int) $orderTdr->source_tdr_id);
+        $this->assertSame((int) $tdr->codes_id, (int) $orderTdr->codes_id, 'Order inherits the carrier TDR code — NULL vanishes from Ordered Parts');
 
         // Repeat: existing, accepting again must NOT duplicate
         $this->failMeasurement($d['wo'], $d['paramB'], $d['ruleB']->id); // re-arm sync

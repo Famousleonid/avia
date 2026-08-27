@@ -1776,6 +1776,11 @@ class WoMeasurementController extends Controller
                 'order_component_id' => $component->id,
                 'serial_number'      => 'NSN',
                 'description'        => $component->name,
+                // Inherit the carrier repair TDR's code/condition — an ordered
+                // part without codes_id vanishes from Ordered Parts / PRL
+                // (scopeOrderedParts filters codes_id != missing, NULL fails it).
+                'codes_id'           => $tdr->codes_id,
+                'conditions_id'      => $tdr->conditions_id,
                 'necessaries_id'     => Necessary::firstOrCreate(['name' => 'Order New'])->id,
                 'qty'                => max(1, (int) ($o['qty'] ?? $decl['qty'])),
                 'use_tdr'            => true,
