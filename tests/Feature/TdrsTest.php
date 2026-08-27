@@ -1973,6 +1973,50 @@ class TdrsTest extends TestCase
             ->count());
     }
 
+    public function test_note_unit_conditions_are_rendered_as_editable_note_slots(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $noteCondition = Condition::query()->create([
+            'name' => 'note 98765',
+            'unit' => 1,
+        ]);
+        $standardCondition = Condition::query()->create([
+            'name' => 'STANDARD CONDITION ' . uniqid(),
+            'unit' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.show', ['id' => $workorder->id]));
+
+        $response->assertOk();
+        $response->assertSee('class="unit-inspection-note-row" data-condition-id="' . $noteCondition->id . '"', false);
+        $response->assertSee('class="form-control form-control-sm condition-notes condition-note-slot"', false);
+        $response->assertSee('name="conditions[' . $noteCondition->id . '][notes]"', false);
+        $response->assertSee('placeholder="note 98765"', false);
+        $response->assertSee('name="conditions[' . $standardCondition->id . '][notes]"', false);
+
+        $saveResponse = $this->actingAs($admin)->post(route('tdrs.store.unit-inspections'), [
+            'workorder_id' => $workorder->id,
+            'conditions' => [
+                $noteCondition->id => [
+                    'selected' => true,
+                    'notes' => 'Editable teardown note',
+                ],
+            ],
+        ]);
+
+        $saveResponse->assertOk()->assertJsonPath('success', true);
+        $this->assertDatabaseHas('workorder_unit_inspections', [
+            'workorder_id' => $workorder->id,
+            'condition_id' => $noteCondition->id,
+            'notes' => 'Editable teardown note',
+        ]);
+        $this->assertContains(
+            'Editable teardown note',
+            app(\App\Services\TdrInspectionLinesBuilder::class)->build($workorder->fresh())
+        );
+    }
+
     public function test_legacy_unit_inspection_store_writes_to_workorder_unit_inspections(): void
     {
         $admin = $this->createUserWithRole('Admin');

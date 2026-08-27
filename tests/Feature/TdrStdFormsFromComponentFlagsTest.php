@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\Component;
 use App\Models\Code;
 use App\Models\Necessary;
+use App\Models\ProcessName;
 use App\Models\ProjectSetting;
 use App\Models\StdProcess;
 use App\Models\Tdr;
+use App\Models\TdrProcess;
 use App\Models\WorkorderStdProcessItem;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\BuildsDomainData;
@@ -809,6 +811,64 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertOk();
         $response->assertSee('Cat #1', false);
         $response->assertSeeInOrder(['Cat #1', '7', 'RO', '3'], false);
+    }
+
+    public function test_spec_process_forms_pack_more_than_three_ndt_entries_into_three_rows(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '13-180A',
+            'part_number' => 'PN-MULTI-NDT',
+            'name' => 'Multiple NDT component',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $tdr = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+            'serial_number' => 'SN-MULTI-NDT',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        foreach (['A', 'B', 'C', 'D', 'E'] as $index => $suffix) {
+            $processName = ProcessName::query()->create([
+                'name' => "NDT Regression {$suffix}",
+                'process_sheet_name' => 'NDT',
+                'print_form' => true,
+                'show_in_process_picker' => true,
+            ]);
+            TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id,
+                'process_names_id' => $processName->id,
+                'processes' => [],
+                'repair_order' => "RO-NDT-{$suffix}",
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        foreach (['tdrs.specProcessForm', 'tdrs.specProcessFormEmp'] as $routeName) {
+            $response = $this->actingAs($admin)->get(route($routeName, $workorder->id));
+
+            $response->assertOk();
+            $response->assertSee('data-ndt-row-count="3"', false);
+            $response->assertSee('>1,4</div>', false);
+            $response->assertSee('>2,5</div>', false);
+            $response->assertSee('RO-NDT-A, RO-NDT-D', false);
+            $response->assertSee('RO-NDT-B, RO-NDT-E', false);
+            $response->assertSeeInOrder(['RO-NDT-A, RO-NDT-D', 'RO-NDT-B, RO-NDT-E', 'RO-NDT-C'], false);
+        }
     }
 
     public function test_spec_process_form_uses_one_cat_one_qty_when_unit_part_is_not_in_cat_two(): void

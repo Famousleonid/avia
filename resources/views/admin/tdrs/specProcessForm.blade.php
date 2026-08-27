@@ -456,6 +456,51 @@
         while (count($columnSlots) < $maxColumnsPerPage) {
             $columnSlots[] = ['slot' => 'empty', 'item' => null];
         }
+
+        $ndtRowsBySlot = collect($columnSlots)->map(function ($slotData) use ($ndt_processes) {
+            if ($slotData['slot'] === 'empty') {
+                return collect();
+            }
+
+            $tdr = $slotData['item']->component;
+            $entries = collect($ndt_processes)
+                ->where('tdrs_id', $tdr->id)
+                ->filter(fn ($entry) => $entry['number_line'] !== null)
+                ->values();
+
+            if ($slotData['slot'] !== 'single') {
+                $quarantineNumberLine = $slotData['item']->quarantineNumberLine;
+                if ($quarantineNumberLine === null) {
+                    $entries = collect();
+                } else {
+                    $entries = $entries
+                        ->filter(fn ($entry) => $slotData['slot'] === 'left'
+                            ? $entry['number_line'] <= $quarantineNumberLine
+                            : $entry['number_line'] > $quarantineNumberLine)
+                        ->values();
+                }
+            }
+
+            return collect(range(0, 2))->map(function ($rowIndex) use ($entries) {
+                $rowEntries = $entries->filter(
+                    fn ($entry, $entryIndex) => $entryIndex % 3 === $rowIndex
+                );
+
+                if ($rowEntries->isEmpty()) {
+                    return null;
+                }
+
+                return [
+                    'number_line' => $rowEntries->pluck('number_line')->unique()->implode(','),
+                    'repair_order' => $rowEntries->pluck('repair_order')
+                        ->filter(fn ($value) => trim((string) $value) !== '')
+                        ->unique()
+                        ->implode(', '),
+                ];
+            });
+        });
+        $ndtRowCount = 3;
+        $ndtLabelRowIndex = 1;
     @endphp
     <div class="container-fluid ">
         <div class="row">
@@ -632,40 +677,23 @@
                 </div>
             </div>
         </div>
-        <div class="spec-process-table-body" data-column-count="{{ count($columnSlots) }}">
-        @for($ndtRowIndex = 0; $ndtRowIndex < 3; $ndtRowIndex++)
+        <div class="spec-process-table-body" data-column-count="{{ count($columnSlots) }}" data-ndt-row-count="{{ $ndtRowCount }}">
+        @for($ndtRowIndex = 0; $ndtRowIndex < $ndtRowCount; $ndtRowIndex++)
         <div class="row g-0 fs-7 spec-process-data-row">
-            <div class="col-2 {{ $ndtRowIndex === 0 ? 'border-l-t' : ($ndtRowIndex === 2 ? 'border-l-b' : 'border-l') }} ps-1 spec-process-name-cell">
-                <div class="spec-process-name-inner"><strong>{{ $ndtRowIndex === 1 ? 'N.D.T.' : '' }}</strong></div>
+            <div class="col-2 {{ $ndtRowIndex === 0 ? 'border-l-t' : ($ndtRowIndex === $ndtRowCount - 1 ? 'border-l-b' : 'border-l') }} ps-1 spec-process-name-cell">
+                <div class="spec-process-name-inner"><strong>{{ $ndtRowIndex === $ndtLabelRowIndex ? 'N.D.T.' : '' }}</strong></div>
             </div>
             <div class="col-10">
                 <div class="row g-0">
-                    @foreach($columnSlots as $slotData)
+                    @foreach($columnSlots as $slotIndex => $slotData)
                         @php
-                            $showValue = false;
-                            $ndtEntry = null;
+                            $ndtEntry = $ndtRowsBySlot[$slotIndex][$ndtRowIndex] ?? null;
+                            $showValue = $ndtEntry !== null;
                             $ndtNumberLine = '';
                             $ndtRepairOrder = '';
-                            if ($slotData['slot'] !== 'empty') {
-                                $component = $slotData['item']->component;
-                                $ndtForCurrentTdr = collect($ndt_processes)->where('tdrs_id', $component->id)->values();
-                                $quarantineNumberLine = $slotData['item']->quarantineNumberLine;
-                                $slot = $slotData['slot'];
-
-                                if ($slot === 'single') {
-                                    $ndtEntry = $ndtForCurrentTdr[$ndtRowIndex] ?? null;
-                                    $showValue = $ndtEntry && $ndtEntry['number_line'] !== null;
-                                } elseif ($quarantineNumberLine !== null) {
-                                    $leftNdts = $ndtForCurrentTdr->filter(fn($n) => $n['number_line'] !== null && $n['number_line'] <= $quarantineNumberLine)->values();
-                                    $rightNdts = $ndtForCurrentTdr->filter(fn($n) => $n['number_line'] !== null && $n['number_line'] > $quarantineNumberLine)->values();
-                                    $ndtEntry = $slot === 'left' ? ($leftNdts[$ndtRowIndex] ?? null) : ($rightNdts[$ndtRowIndex] ?? null);
-                                    $showValue = $ndtEntry !== null;
-                                }
-
-                                if ($showValue && $ndtEntry) {
-                                    $ndtNumberLine = (string) $ndtEntry['number_line'];
-                                    $ndtRepairOrder = trim((string) ($ndtEntry['repair_order'] ?? ''));
-                                }
+                            if ($showValue) {
+                                $ndtNumberLine = (string) $ndtEntry['number_line'];
+                                $ndtRepairOrder = trim((string) ($ndtEntry['repair_order'] ?? ''));
                             }
                         @endphp
                         <div class="col {{ $loop->last ? ($ndtRowIndex === 0 ? 'border-all' : 'border-l-b-r') : ($ndtRowIndex === 0 ? 'border-l-t-b' : 'border-l-b') }} text-center spec-process-row-cell" style="{{ $slotData['slot'] === 'empty' ? 'position: relative' : '' }}">

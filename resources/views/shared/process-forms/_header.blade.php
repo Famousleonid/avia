@@ -23,32 +23,32 @@
     </div>
     <div class="row">
         <div class="col-7">
-            <div class="row" style="height: 32px">
+            <div class="row process-header-field-row process-header-component-row">
                 <div class="col-6 pt-2 text-end"><strong>COMPONENT NAME</strong> :</div>
                 <div class="col-6 pt-2 border-b component-name-cell"><strong>
                     @php($headerComponentName = $current_wo->displayDescription() ?? '')
                     <span class="component-name-value" @if(strlen($headerComponentName) > 30) data-long="1" @endif>{{ $headerComponentName }}</span>
                 </strong></div>
             </div>
-            <div class="row" style="height: 32px">
+            <div class="row process-header-field-row">
                 <div class="col-6 pt-2 text-end"><strong>PART NUMBER:</strong></div>
                 <div class="col-6 pt-2 border-b"><strong>{{ $current_wo->unit->part_number }}</strong></div>
             </div>
-            <div class="row" style="height: 32px">
+            <div class="row process-header-field-row">
                 <div class="col-6 pt-2 text-end"><strong>WORK ORDER No:</strong></div>
                 <div class="col-6 pt-2 border-b"><strong>W{{ $current_wo->number }}</strong></div>
             </div>
-            <div class="row" style="height: 32px">
+            <div class="row process-header-field-row">
                 <div class="col-6 pt-2 text-end"><strong>SERIAL No:</strong></div>
                 <div class="col-6 pt-2 border-b"><strong>{{ $current_wo->serial_number }}</strong></div>
             </div>
         </div>
         <div class="col-5">
-            <div class="row" style="height: 32px">
+            <div class="row process-header-field-row">
                 <div class="col-4 pt-2 text-end"><strong>DATE:</strong></div>
                 <div class="col-8 pt-2 border-b"><strong>{{ $formHeaderDate ?? '' }}</strong></div>
             </div>
-            <div class="row" style="height: 32px">
+            <div class="row process-header-field-row">
                 <div class="col-4 pt-2 text-end"><strong>RO No:</strong></div>
                 <div class="col-8 pt-2 border-b process-ro-line">
                     @php($headerRepairOrder = trim((string) ($formHeaderRepairOrder ?? '')))
@@ -57,7 +57,7 @@
                     @endif
                 </div>
             </div>
-            <div class="row" style="height: 32px">
+            <div class="row process-header-field-row">
                 <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
                 <div class="col-8 pt-2 border-b">
                     <strong>{{ $selectedVendor ? $selectedVendor->name : '' }}</strong>

@@ -73,8 +73,17 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
     vertical-align: middle; }
 .description-text-long { font-size: 0.9rem; line-height: 1.1; letter-spacing: -0.3px; display: inline-block; vertical-align: top; }
 .header-page { font-size: var(--process-header-data-font-size, 16px); }
+.header-page .process-header-field-row { min-height: 32px; }
+.header-page .process-header-field-row > [class*="col-"] {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
 .header-page .component-name-value { font-size: var(--component-name-font-size, 16px) !important; }
-.header-page .component-name-value[data-long="1"] { line-height: 1.1; letter-spacing: -0.3px; }
+.header-page .component-name-value[data-long="1"] {
+    display: block;
+    line-height: 1.1;
+    letter-spacing: -0.3px;
+}
 .process-sheet-title-row {
     min-width: 0;
 }
