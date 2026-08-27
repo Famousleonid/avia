@@ -1816,6 +1816,54 @@ class WoMeasurementController extends Controller
     }
 
     /**
+     * Pick the right VARIANT of the ordered position for this WO via the Parts
+     * assy grouping (ComponentAssembly): among the position's variants (same
+     * base IPL, letter suffix stripped) prefer the one whose assy list
+     * intersects the CARRIER part's assy list (which rod → which bearing);
+     * fall back to the WO unit's part number, then to the declared component.
+     * Positions with unfilled assy data keep today's behavior.
+     */
+    private function resolveOrderVariant(Component $declared, Tdr $tdr, Workorder $workorder): Component
+    {
+        $base = preg_replace('/[A-Za-z]+$/', '', trim((string) $declared->ipl_num));
+        if ($base === '' || $base === null) {
+            return $declared;
+        }
+
+        $variants = Component::where('manual_id', $declared->manual_id)
+            ->where('ipl_num', 'like', $base . '%')
+            ->with('assemblies')
+            ->get()
+            ->filter(fn ($c) => preg_replace('/[A-Za-z]+$/', '', trim((string) $c->ipl_num)) === $base)
+            ->values();
+        if ($variants->count() <= 1) {
+            return $declared;
+        }
+
+        $carrierAssyPns = $tdr->component
+            ? $tdr->component->assemblies->map(fn ($a) => trim((string) $a->assy_part_number))->filter()->unique()
+            : collect();
+        if ($carrierAssyPns->isNotEmpty()) {
+            $match = $variants->first(fn ($c) => $c->assemblies
+                ->contains(fn ($a) => $carrierAssyPns->contains(trim((string) $a->assy_part_number))));
+            if ($match) {
+                return $match;
+            }
+        }
+
+        $unitPn = trim((string) ($workorder->unit->part_number ?? ''));
+        if ($unitPn !== '') {
+            $match = $variants->first(fn ($c) => $c->assemblies
+                ->contains(fn ($a) => trim((string) $a->assy_part_number) === $unitPn));
+            if ($match) {
+                return $match;
+            }
+        }
+
+        return $declared;
+    }
+
+    /**
      * §5 linked part orders: components the ACTIVE routes declare for ordering,
      * matched against Order New TDRs already on the WO.
      *   proposed — declared, nothing ordered yet → offer to raise a linked TDR
@@ -1832,12 +1880,15 @@ class WoMeasurementController extends Controller
             $rule = $rulesById[$rid] ?? null;
             foreach ($rule?->partOrders ?? [] as $po) {
                 if (!$po->component) continue;
-                $cid = (int) $po->component_id;
+                // The declaration names A variant of the position; the actual
+                // variant for THIS WO is resolved via the Parts assy grouping.
+                $component = $this->resolveOrderVariant($po->component, $tdr, $workorder);
+                $cid = (int) $component->id;
                 $d = $declared[$cid] ?? [
                     'component_id' => $cid,
-                    'ipl_num'      => $po->component->ipl_num,
-                    'part_number'  => $po->component->part_number,
-                    'name'         => $po->component->name,
+                    'ipl_num'      => $component->ipl_num,
+                    'part_number'  => $component->part_number,
+                    'name'         => $component->name,
                     'qty'          => 0,
                     'notes'        => [],
                     'rule_ids'     => [],

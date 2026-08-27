@@ -844,6 +844,49 @@ class RepairPlanRebuildTest extends TestCase
             'A variant of the same position counts as already ordered');
     }
 
+    /**
+     * The ordered VARIANT is resolved via the Parts assy grouping: among the
+     * position's variants, pick the one whose assy list intersects the carrier
+     * part's assy (which rod → which bearing). Unfilled assy → declared as-is.
+     */
+    public function test_order_variant_resolved_by_assy_grouping(): void
+    {
+        $d = $this->makeTwoPointPart();
+        // Carrier (rod variant) belongs to assy PN-ASSY-B
+        \App\Models\ComponentAssembly::create([
+            'component_id' => $d['component']->id, 'assy_part_number' => 'PN-ASSY-B',
+            'assy_ipl_num' => 'UIPT-370B', 'units_assy' => 1, 'sort_order' => 0,
+        ]);
+        $bearingBase = $this->createComponent($d['manual'], ['name' => 'BEARING', 'ipl_num' => 'UIPT-380', 'part_number' => 'PN-B0']);
+        $bearingVar  = $this->createComponent($d['manual'], ['name' => 'BEARING', 'ipl_num' => 'UIPT-380A', 'part_number' => 'PN-B1']);
+        \App\Models\ComponentAssembly::create([
+            'component_id' => $bearingBase->id, 'assy_part_number' => 'PN-ASSY-A',
+            'assy_ipl_num' => 'UIPT-370', 'units_assy' => 1, 'sort_order' => 0,
+        ]);
+        \App\Models\ComponentAssembly::create([
+            'component_id' => $bearingVar->id, 'assy_part_number' => 'PN-ASSY-B',
+            'assy_ipl_num' => 'UIPT-370B', 'units_assy' => 1, 'sort_order' => 0,
+        ]);
+
+        // The rule declares the BASE variant — the engine must resolve the B-variant
+        \App\Models\ManualParameterRulePartOrder::create([
+            'repair_rule_id' => $d['ruleA']->id, 'component_id' => $bearingBase->id, 'qty' => 1,
+        ]);
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $this->makeRepairTdr($d['wo'], $d['component']);
+
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $order = collect($preview['orders'])->firstWhere('status', 'proposed');
+        $this->assertSame($bearingVar->id, (int) $order['component_id'],
+            'Variant must follow the carrier assy (which rod → which bearing)');
+        $this->assertSame('UIPT-380A', $order['ipl_num']);
+
+        $res = $this->updateProcesses($d['wo'], $d['ic'], [
+            'orders' => [['component_id' => $bearingVar->id, 'accept' => true]],
+        ])->assertOk()->json();
+        $this->assertSame($bearingVar->id, (int) Tdr::find($res['orders_created'][0]['tdr_id'])->order_component_id);
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {
