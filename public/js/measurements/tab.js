@@ -1076,6 +1076,23 @@
             h.push('<div class="alert alert-warning py-1 px-2 mb-2" style="font-size:11px">' + warn.join('') + '</div>');
         }
 
+        // §4 scrap verdict: the carrier part itself is condemned → offer to
+        // order its replacement (and drop the unstarted plan on Apply)
+        if (data.scrap) {
+            const s = data.scrap;
+            const label = [s.ipl_num, s.part_number].filter(Boolean).join(' · ') + (s.name ? ' — ' + s.name : '');
+            if (s.status === 'proposed') {
+                h.push(`<div class="alert alert-danger py-1 px-2 mb-2 d-flex align-items-center gap-2" style="font-size:11px">
+                    <input type="checkbox" class="form-check-input m-0" id="msUpdPrevScrap" checked>
+                    <label for="msUpdPrevScrap" style="cursor:pointer"><b>Scrap — order replacement:</b> ${esc(label)}
+                        <span class="text-secondary">— ${esc((s.rule_names || []).join(', '))}. Unstarted processes will be dropped.</span></label>
+                </div>`);
+            } else {
+                h.push(`<div class="alert alert-danger py-1 px-2 mb-2" style="font-size:11px">
+                    Scrap verdict — replacement already ordered: ${esc(label)} (TDR #${s.tdr_id})</div>`);
+            }
+        }
+
         // Linked part orders (§5): propose / show existing / offer cancel
         const orders = data.orders || [];
         if (orders.length) {
@@ -1166,6 +1183,7 @@
             qty: parseInt(body.querySelector(`.ms-updprev-order-qty[data-cid="${cb.dataset.cid}"]`)?.value, 10) || 1,
         }));
         const cancelIds = [...body.querySelectorAll('.ms-updprev-cancel:checked')].map(cb => parseInt(cb.dataset.tdr, 10));
+        const scrapAccept = !!body.querySelector('#msUpdPrevScrap:checked');
         try {
             const res = await apiFetch('/workorders/' + WO_ID + '/update-part-processes', {
                 method: 'POST',
@@ -1174,6 +1192,7 @@
                     rule_overrides: updPrevOverrides,
                     orders: orders,
                     cancel_order_tdr_ids: cancelIds,
+                    scrap_accept: scrapAccept,
                 }),
             });
             getUpdPrevModal().hide();
@@ -1190,6 +1209,7 @@
                     'Ordered: ' + (o.ipl_num || o.part_number || '') + ' — ' + (o.name || '') + ' ×' + o.qty, 'success'));
                 if ((res.orders_cancelled || []).length) showNotification('Cancelled ' + res.orders_cancelled.length + ' linked order(s)', 'warning');
                 (res.order_warnings || []).forEach(w => showNotification(w, 'warning'));
+                if (res.scrap_tdr_id) showNotification('Part condemned — replacement ordered (TDR #' + res.scrap_tdr_id + ')', 'warning');
             }
         } catch (e) { alert(e.message); }
         finally { this.disabled = false; }

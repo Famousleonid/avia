@@ -969,6 +969,71 @@ class RepairPlanRebuildTest extends TestCase
         $this->assertNotNull(Tdr::find($orderTdr->id), 'Order survives the route switch');
     }
 
+    /**
+     * §4 scrap verdict: an order_new-action rule chosen by the latest verdict
+     * condemns the CARRIER part — the preview proposes ordering ITS replacement;
+     * accepting raises the Order New for the part, drops the unstarted plan and
+     * offers cancelling the now-obsolete linked bearing order. Dedup: a second
+     * apply sees the replacement as existing.
+     */
+    public function test_scrap_verdict_orders_replacement_for_carrier(): void
+    {
+        $d = $this->makeTwoPointPart();
+        $crack = Code::create(['name' => 'Crack ' . uniqid()]);
+        ManualParameterCode::create([
+            'manual_parameter_id' => $d['paramA']->id, 'codes_id' => $crack->id, 'finding_context' => 'ndt',
+        ]);
+        $scrapRule = ManualParameterRepairRule::create([
+            'manual_parameter_id' => $d['paramA']->id, 'name' => 'NDT: Crack — scrap', 'action' => 'order_new',
+        ]);
+        ManualParameterRuleTrigger::create([
+            'repair_rule_id' => $scrapRule->id, 'trigger' => 'finding_ndt', 'codes_id' => $crack->id,
+        ]);
+
+        // Repair route active with a linked bearing order
+        $bearing = $this->createComponent($d['manual'], ['name' => 'BEARING']);
+        \App\Models\ManualParameterRulePartOrder::create([
+            'repair_rule_id' => $d['ruleA']->id, 'component_id' => $bearing->id, 'qty' => 1,
+        ]);
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+        $res = $this->updateProcesses($d['wo'], $d['ic'], [
+            'orders' => [['component_id' => $bearing->id, 'accept' => true]],
+        ])->assertOk()->json();
+        $bearingTdrId = $res['orders_created'][0]['tdr_id'];
+
+        // NDT crack → scrap verdict replaces the route
+        $this->failMeasurement($d['wo'], $d['paramA'], $scrapRule->id, ['codes_id' => $crack->id, 'actual_value' => null]);
+
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('proposed', $preview['scrap']['status']);
+        $this->assertSame($d['component']->id, (int) $preview['scrap']['component_id'], 'Replacement is the CARRIER part');
+        $this->assertSame($crack->id, (int) $preview['scrap']['codes_id']);
+        $this->assertSame('obsolete', collect($preview['orders'])->firstWhere('component_id', $bearing->id)['status']);
+
+        $res2 = $this->updateProcesses($d['wo'], $d['ic'], [
+            'scrap_accept' => true,
+            'cancel_order_tdr_ids' => [$bearingTdrId],
+        ])->assertOk()->json();
+        $scrapTdr = Tdr::find($res2['scrap_tdr_id']);
+        $this->assertSame(Tdr::TYPE_ORDER_NEW, $scrapTdr->tdr_type);
+        $this->assertSame($d['component']->id, (int) $scrapTdr->order_component_id);
+        $this->assertSame($crack->id, (int) $scrapTdr->codes_id);
+        $this->assertSame($scrapRule->id, (int) $scrapTdr->source_rule_id);
+        $this->assertSame(0, TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start')->count(),
+            'Unstarted plan dropped on the condemned part');
+        $this->assertNull(Tdr::find($bearingTdrId), 'Obsolete bearing order cancelled');
+
+        // Second apply: replacement already exists → no duplicate
+        $this->failMeasurement($d['wo'], $d['paramB'], $d['ruleB']->id); // re-arm
+        $preview2 = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('existing', $preview2['scrap']['status']);
+        $res3 = $this->updateProcesses($d['wo'], $d['ic'], ['scrap_accept' => true])->assertOk()->json();
+        $this->assertNull($res3['scrap_tdr_id']);
+        $this->assertSame(1, Tdr::where('workorder_id', $d['wo']->id)
+            ->where('order_component_id', $d['component']->id)->count());
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {

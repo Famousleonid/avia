@@ -1411,6 +1411,7 @@ class WoMeasurementController extends Controller
             'orders.*.accept'         => 'boolean',
             'cancel_order_tdr_ids'    => 'nullable|array',
             'cancel_order_tdr_ids.*'  => 'integer',
+            'scrap_accept'            => 'boolean',
         ]);
 
         $icId = (int) $data['inspection_component_id'];
@@ -1444,6 +1445,32 @@ class WoMeasurementController extends Controller
         [$ordersCreated, $ordersCancelled, $orderWarnings] =
             $this->applyLinkedPartOrders($workorder, $tdr, $ctx['orders'], $data);
 
+        // §4 scrap verdict accepted: order a replacement for the CARRIER part
+        // and drop the not-yet-started plan (the condemned part won't be worked).
+        $scrapTdrId = null;
+        if (!empty($data['scrap_accept'])
+            && ($ctx['scrap']['status'] ?? null) === 'proposed') {
+            $s = $ctx['scrap'];
+            $code = $s['codes_id'] ? Code::find($s['codes_id']) : null;
+            $scrapTdr = Tdr::create([
+                'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+                'workorder_id'       => $workorder->id,
+                'component_id'       => $s['component_id'],
+                'order_component_id' => $s['component_id'],
+                'serial_number'      => $tdr->serial_number ?? 'NSN',
+                'description'        => $s['name'],
+                'codes_id'           => $s['codes_id'],
+                'conditions_id'      => $code ? Condition::where('name', $code->name)->first()?->id : $tdr->conditions_id,
+                'necessaries_id'     => Necessary::firstOrCreate(['name' => 'Order New'])->id,
+                'qty'                => (int) ($tdr->qty ?: 1),
+                'use_tdr'            => true,
+                'use_process_forms'  => false,
+                'source_rule_id'     => $s['rule_id'],
+                'source_tdr_id'      => $tdr->id,
+            ]);
+            $scrapTdrId = $scrapTdr->id;
+        }
+
         if (empty($ctx['mainRuleIds'])) {
             return response()->json([
                 'ok'               => true,
@@ -1452,6 +1479,7 @@ class WoMeasurementController extends Controller
                 'orders_created'   => $ordersCreated,
                 'orders_cancelled' => $ordersCancelled,
                 'order_warnings'   => $orderWarnings,
+                'scrap_tdr_id'     => $scrapTdrId,
             ]);
         }
 
@@ -1487,6 +1515,11 @@ class WoMeasurementController extends Controller
             ]);
         }
 
+        // Condemned part: the freshly rebuilt (not yet started) plan is moot
+        if ($scrapTdrId !== null) {
+            TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start')->delete();
+        }
+
         return response()->json([
             'ok'               => true,
             'tdr_id'           => $tdr->id,
@@ -1494,6 +1527,7 @@ class WoMeasurementController extends Controller
             'orders_created'   => $ordersCreated,
             'orders_cancelled' => $ordersCancelled,
             'order_warnings'   => $orderWarnings,
+            'scrap_tdr_id'     => $scrapTdrId,
         ]);
     }
 
@@ -1597,6 +1631,7 @@ class WoMeasurementController extends Controller
             'points'    => $ctx['points'],
             'warnings'  => $ctx['warnings'],
             'orders'    => $ctx['orders'],
+            'scrap'     => $ctx['scrap'],
             'plan'      => $plan,
             'kept'      => $started->map($rowEntry)->values()->all(),
             'unchanged' => $unchanged,
@@ -1748,6 +1783,51 @@ class WoMeasurementController extends Controller
             'warnings'      => $warnings,
             'points'        => $points,
             'orders'        => $this->linkedPartOrders($workorder, $tdr, $mainRuleIds, $rulesById),
+            'scrap'         => $this->scrapProposal($workorder, $tdr, $warnings, $allFails),
+        ];
+    }
+
+    /**
+     * §4: a scrap verdict (an active order_new-action rule on a point) means the
+     * CARRIER part itself is condemned — propose ordering a replacement for it.
+     * Dedup by IPL position against existing Order New TDRs of the WO.
+     */
+    private function scrapProposal(Workorder $workorder, Tdr $tdr, array $warnings, $allFails): ?array
+    {
+        $scrapRules = array_values(array_filter($warnings, fn ($w) => ($w['action'] ?? '') === 'order_new'));
+        if (empty($scrapRules) || !$tdr->component) {
+            return null;
+        }
+
+        $carrier = $tdr->component;
+        $baseIpl = fn (?string $ipl) => $ipl ? preg_replace('/[A-Za-z]+$/', '', trim($ipl)) : null;
+        $carrierBase = $baseIpl($carrier->ipl_num);
+
+        $existing = Tdr::where('workorder_id', $workorder->id)
+            ->where('tdr_type', Tdr::TYPE_ORDER_NEW)
+            ->get(['id', 'component_id', 'order_component_id'])
+            ->first(function ($t) use ($carrier, $carrierBase, $baseIpl) {
+                $cid = (int) ($t->order_component_id ?? $t->component_id);
+                if ($cid === (int) $carrier->id) return true;
+                $ipl = Component::find($cid)?->ipl_num;
+
+                return $carrierBase !== null && $carrierBase !== '' && $baseIpl($ipl) === $carrierBase;
+            });
+
+        // Code of the scrap verdict: the latest FAIL that chose a scrap rule
+        $scrapRuleIds = array_map(fn ($w) => (int) $w['rule_id'], $scrapRules);
+        $verdict = $allFails->last(fn ($m) => in_array((int) $m->manual_parameter_repair_rule_id, $scrapRuleIds, true));
+
+        return [
+            'component_id' => (int) $carrier->id,
+            'ipl_num'      => $carrier->ipl_num,
+            'part_number'  => $carrier->part_number,
+            'name'         => $carrier->name,
+            'rule_names'   => array_values(array_unique(array_map(fn ($w) => $w['rule_name'], $scrapRules))),
+            'rule_id'      => $scrapRuleIds[0],
+            'codes_id'     => $verdict?->codes_id !== null ? (int) $verdict->codes_id : $tdr->codes_id,
+            'status'       => $existing ? 'existing' : 'proposed',
+            'tdr_id'       => $existing?->id,
         ];
     }
 
