@@ -100,6 +100,7 @@ class WoMeasurementController extends Controller
                 'inspection_component_id' => $p->inspection_component_id,
                 'description'             => $p->description,
                 'is_required'             => $p->is_required,
+                'in_process'              => (bool) $p->in_process,
                 'requires_value'          => $p->requires_value,
                 'qty'                     => $p->qty,
                 'orig_dim_min'            => $p->orig_dim_min,

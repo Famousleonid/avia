@@ -361,7 +361,7 @@
     }
 
     function partStatus(part) {
-        const req=part.params.filter(p=>p.is_required);
+        const req=part.params.filter(p=>p.is_required&&!p.in_process);
         if(!req.length) return 'none'; // no required params → grey
         const sts=req.map(p=>paramStatus(p));
         if(sts.includes('fail')) return 'fail';
@@ -697,11 +697,13 @@
         // Split the entry pane: dimensional points first, finding-only (surface
         // inspection) points grouped below their own collapsible header.
         const params = visibleParams(part);
-        const dims   = params.filter(p => !isFindingOnlyParam(p));
-        const finds  = params.filter(isFindingOnlyParam);
-        if (dims.length && finds.length) accWrap.appendChild(msSection(part, 'dims', 'Dimensions', dims));
+        const dims   = params.filter(p => !p.in_process && !isFindingOnlyParam(p));
+        const finds  = params.filter(p => !p.in_process && isFindingOnlyParam(p));
+        const inproc = params.filter(p => p.in_process);
+        if (dims.length && (finds.length || inproc.length)) accWrap.appendChild(msSection(part, 'dims', 'Dimensions', dims));
         else dims.forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
         if (finds.length) accWrap.appendChild(msSection(part, 'surf', 'Surface inspection', finds));
+        if (inproc.length) accWrap.appendChild(msSection(part, 'inproc', 'In-process checks (mid-route)', inproc));
     }
 
     function isFindingOnlyParam(p) {
@@ -833,8 +835,11 @@
     // button counts (a full panel re-render would close the open accordion row).
     function refreshSectionHdrs(part) {
         accWrap.querySelectorAll('[data-sec-key]').forEach(w => {
-            const isSurf = w.dataset.secKey.split(':').pop() === 'surf';
-            const params = visibleParams(part).filter(p => isSurf === isFindingOnlyParam(p));
+            const sec = w.dataset.secKey.split(':').pop();
+            const isSurf = sec === 'surf';
+            const params = visibleParams(part).filter(p => sec === 'inproc'
+                ? p.in_process
+                : (!p.in_process && isSurf === isFindingOnlyParam(p)));
             const hdr = w.firstElementChild;
             if (!hdr || !params.length) return;
             const dot = hdr.querySelector('.ms-sdot');
@@ -929,7 +934,8 @@
             //   1) ALL initial measurements entered → active (build the processes)
             //   2) after Update Processes → inactive until newer measurements
             //   3) ALL finals of the repaired points entered → active (red) ONLY on EC
-            const allInitial = part.params.length > 0 && part.params.every(p => paramStatus(p) !== 'none');
+            const entryParams = part.params.filter(p => !p.in_process); // in-process checks are measured mid-route
+            const allInitial = entryParams.length > 0 && entryParams.every(p => paramStatus(p) !== 'none');
             const repairParams = part.params.filter(p =>
                 paramMeasurements(p).some(m => m.stage === 'initial' && m.result === 'FAIL'));
             const allFinals = repairParams.length > 0 && repairParams.every(p =>
@@ -978,7 +984,7 @@
             if (this.dataset.reason === 'initials') {
                 const part = partsTree.find(p => p.id === activePartId);
                 const missing = (part?.params || [])
-                    .filter(p => paramStatus(p) === 'none')
+                    .filter(p => !p.in_process && paramStatus(p) === 'none')
                     .map(p => {
                         const pts = [...new Set((p.locations || []).map(l => l.pt.code).filter(Boolean))].join(', ');
                         return '• ' + (pts ? pts + ' · ' : '') + (p.description || '');

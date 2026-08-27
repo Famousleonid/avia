@@ -28,12 +28,14 @@ class ManualParameter extends Model
         'max_repair_depth_a',
         'max_repair_depth_b',
         'inspection',
+        'in_process', // measured mid-route (base metal after strip), not at incoming inspection
         'sort_order',
     ];
 
     protected $casts = [
         'inspection_component_id' => 'integer',
         'is_required'             => 'boolean',
+        'in_process'              => 'boolean',
         'requires_value'          => 'boolean',
         'qty'                     => 'integer',
         'orig_dim_min'            => 'decimal:4',

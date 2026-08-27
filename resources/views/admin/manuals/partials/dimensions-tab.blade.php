@@ -782,6 +782,10 @@
                         <input class="form-check-input" type="checkbox" id="dimSpecRequired" checked>
                         <label class="form-check-label form-label-sm" for="dimSpecRequired">Required</label>
                     </div>
+                    <div class="form-check form-check-inline" title="Measured mid-route (e.g. base metal after chrome strip) — does not block the Update button at incoming inspection">
+                        <input class="form-check-input" type="checkbox" id="dimSpecInProcess">
+                        <label class="form-check-label form-label-sm" for="dimSpecInProcess">In-process check</label>
+                    </div>
                     <div class="form-check mb-0">
                         <input class="form-check-input" type="checkbox" id="dimSpecRequiresValue">
                         <label class="form-check-label form-label-sm" for="dimSpecRequiresValue">Record actual value</label>

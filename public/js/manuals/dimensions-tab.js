@@ -335,6 +335,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Pre-fill from existing parameter
         document.getElementById('dimSpecId').value          = match.id;
         document.getElementById('dimSpecRequired').checked       = !!match.is_required;
+        document.getElementById('dimSpecInProcess').checked       = !!match.in_process;
         document.getElementById('dimSpecRequiresValue').checked  = !!match.requires_value;
         document.getElementById('dimSpecQty').value              = match.qty || 1;
         document.getElementById('dimSpecOrigMin').value      = match.orig_dim_min      || '';
@@ -2459,6 +2460,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecId').value          = '';
         document.getElementById('dimSpecDescription').value = '';
         document.getElementById('dimSpecRequired').checked       = true;
+        document.getElementById('dimSpecInProcess').checked       = false;
         document.getElementById('dimSpecRequiresValue').checked  = false;
         document.getElementById('dimSpecQty').value              = 1;
         document.getElementById('dimSpecOrigMin').value      = '';
@@ -2491,6 +2493,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecDescription').value = param.description || '';
         refreshSpecComponentSelect(param.inspection_component_id || '');
         document.getElementById('dimSpecRequired').checked       = !!param.is_required;
+        document.getElementById('dimSpecInProcess').checked       = !!param.in_process;
         document.getElementById('dimSpecRequiresValue').checked  = !!param.requires_value;
         document.getElementById('dimSpecQty').value              = param.qty || 1;
         document.getElementById('dimSpecOrigMin').value      = param.orig_dim_min       || '';
@@ -3776,6 +3779,7 @@ document.addEventListener('DOMContentLoaded', function () {
             description:             desc || undefined,
             inspection_component_id: $('#dimSpecComponent').val() || null,
             is_required:             document.getElementById('dimSpecRequired').checked,
+            in_process:              document.getElementById('dimSpecInProcess').checked,
             requires_value:          document.getElementById('dimSpecRequiresValue').checked,
             qty:                     parseInt(document.getElementById('dimSpecQty').value) || 1,
             orig_dim_min:            document.getElementById('dimSpecOrigMin').value || null,

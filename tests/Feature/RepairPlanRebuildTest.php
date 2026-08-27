@@ -1120,6 +1120,38 @@ class RepairPlanRebuildTest extends TestCase
         $this->assertNull($tdr->fresh()->last_synced_measurement_id, 'Sync point reset — Update re-arms');
     }
 
+    /**
+     * §5 in-process check (base metal after strip): unmeasured, it does not
+     * affect the rebuild; a mid-route FAIL below its minimum triggers the
+     * scrap flow like any other verdict.
+     */
+    public function test_in_process_check_gates_mid_route(): void
+    {
+        $d = $this->makeTwoPointPart();
+        $base = $this->createParameter($d['manual'], $d['ic'], [
+            'description' => 'Base metal dia (after strip)', 'in_process' => true,
+            'orig_dim_min' => 9.0, 'orig_dim_max' => 9.9, 'sort_order' => 5,
+        ]);
+        $scrapRule = ManualParameterRepairRule::create([
+            'manual_parameter_id' => $base->id, 'name' => 'Base under min — scrap', 'action' => 'order_new',
+        ]);
+        ManualParameterRuleTrigger::create(['repair_rule_id' => $scrapRule->id, 'trigger' => 'below_orig']);
+
+        // Incoming inspection: only point A fails; the unmeasured in-process
+        // check must not affect the rebuild.
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $tdr = $this->makeRepairTdr($d['wo'], $d['component']);
+        $this->updateProcesses($d['wo'], $d['ic'])->assertOk();
+        $this->assertSame(3, $this->planRows($tdr)->count());
+
+        // Mid-route: base measured under the minimum → scrap proposed
+        $this->failMeasurement($d['wo'], $base, null, ['actual_value' => 8.9]);
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('proposed', $preview['scrap']['status']);
+        $point = collect($preview['points'])->firstWhere('param_id', $base->id);
+        $this->assertSame($scrapRule->id, $point['chosen_rule_id'], 'below_orig resolves the base-metal scrap rule');
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {
