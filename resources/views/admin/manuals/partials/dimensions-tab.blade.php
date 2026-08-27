@@ -554,6 +554,7 @@
                                     <optgroup label="Finding">
                                         <option value="finding_measurement">Finding — Measurement</option>
                                         <option value="finding_inspection">Finding — Inspection</option>
+                                        <option value="finding_ndt">Finding — NDT</option>
                                     </optgroup>
                                     <option value="manual">Manual</option>
                                 </select>
@@ -818,6 +819,7 @@
                         <select class="form-select form-select-sm" id="dimSpecCodeContext" style="width:130px" title="Finding context">
                             <option value="inspection">Inspection</option>
                             <option value="measurement">Measurement</option>
+                            <option value="ndt">NDT</option>
                         </select>
                     </div>
                 </div>

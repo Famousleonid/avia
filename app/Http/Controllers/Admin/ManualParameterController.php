@@ -293,7 +293,7 @@ class ManualParameterController extends Controller
     {
         $data = $request->validate([
             'codes_id'        => 'required|exists:codes,id',
-            'finding_context' => 'nullable|in:measurement,inspection',
+            'finding_context' => 'nullable|in:measurement,inspection,ndt',
         ]);
 
         $code = ManualParameterCode::firstOrCreate(
@@ -340,7 +340,7 @@ class ManualParameterController extends Controller
             'part_orders.*.note'         => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
-            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
+            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,finding_ndt,manual',
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
             'triggers.*.min_delta'          => 'nullable|numeric|min:0',
             'triggers.*.max_delta'          => 'nullable|numeric|min:0',
@@ -384,7 +384,7 @@ class ManualParameterController extends Controller
             'part_orders.*.note'         => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
-            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
+            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,finding_ndt,manual',
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
             'triggers.*.min_delta'          => 'nullable|numeric|min:0',
             'triggers.*.max_delta'          => 'nullable|numeric|min:0',
@@ -479,7 +479,7 @@ class ManualParameterController extends Controller
     private function syncRuleTriggers(ManualParameterRepairRule $rule, array $triggers): void
     {
         $rule->triggers()->delete();
-        $findingTypes = ['finding', 'finding_measurement', 'finding_inspection'];
+        $findingTypes = ['finding', 'finding_measurement', 'finding_inspection', 'finding_ndt'];
         $dimTypes     = ['below_orig', 'above_orig', 'below_wear', 'above_wear'];
         foreach ($triggers as $t) {
             $isDim = in_array($t['trigger'], $dimTypes, true);

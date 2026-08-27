@@ -3064,6 +3064,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const TRIGGER_LABELS = {
+        finding_ndt:         'NDT Finding',
         below_orig:          'Below orig min',
         above_orig:          'Above orig max',
         below_wear:          'Below wear min',
@@ -3083,7 +3084,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         wrap.innerHTML = dimRuleTriggers.map(function (t, i) {
             const tl = TRIGGER_LABELS[t.trigger] || t.trigger;
-            const isFindTrigger = t.trigger === 'finding' || t.trigger === 'finding_measurement' || t.trigger === 'finding_inspection';
+            const isFindTrigger = t.trigger === 'finding' || t.trigger === 'finding_measurement' || t.trigger === 'finding_inspection' || t.trigger === 'finding_ndt';
             const cl = t.code_name ? ' · ' + escHtml(t.code_name) : (isFindTrigger ? ' · any defect' : '');
             const band = deltaBandLabel(t);
             return `<div class="dim-rule-process-item">
@@ -3198,7 +3199,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const val      = this.value;
         const codeEl   = document.getElementById('dimRuleTriggerCode');
         const addBtn   = document.getElementById('dimRuleTriggerAddBtn');
-        const isFinding = val === 'finding' || val === 'finding_measurement' || val === 'finding_inspection';
+        const isFinding = val === 'finding' || val === 'finding_measurement' || val === 'finding_inspection' || val === 'finding_ndt';
         const isDim     = DIM_TRIGGER_TYPES.includes(val);
         codeEl.classList.toggle('d-none', !isFinding);
         document.getElementById('dimRuleTriggerMinDelta').classList.toggle('d-none', !isDim);
@@ -3209,7 +3210,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('dimRuleTriggerAddBtn').addEventListener('click', function () {
         const triggerVal = document.getElementById('dimRuleTriggerSel').value;
         if (!triggerVal) return;
-        const isFinding  = triggerVal === 'finding' || triggerVal === 'finding_measurement' || triggerVal === 'finding_inspection';
+        const isFinding  = triggerVal === 'finding' || triggerVal === 'finding_measurement' || triggerVal === 'finding_inspection' || triggerVal === 'finding_ndt';
         const isDim      = DIM_TRIGGER_TYPES.includes(triggerVal);
         const codesIdVal = isFinding ? (document.getElementById('dimRuleTriggerCode').value || null) : null;
         const codeName   = isFinding && codesIdVal

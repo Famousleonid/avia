@@ -2090,7 +2090,9 @@ ${sections}
         return rules.filter(rule => {
             const trigs = rule.triggers || [];
             if (codesId) {
-                if (findingCtx === 'measurement') {
+                if (findingCtx === 'ndt') {
+                    if (trigs.some(t => t.trigger === 'finding_ndt' && (t.codes_id == codesId || t.codes_id == null))) return true;
+                } else if (findingCtx === 'measurement') {
                     if (trigs.some(t => t.trigger === 'finding_measurement' && (t.codes_id == codesId || t.codes_id == null))) return true;
                 } else if (trigs.some(t => (t.trigger === 'finding_inspection' || t.trigger === 'finding') && (t.codes_id == codesId || t.codes_id == null))) {
                     return true;

@@ -887,6 +887,88 @@ class RepairPlanRebuildTest extends TestCase
         $this->assertSame($bearingVar->id, (int) Tdr::find($res['orders_created'][0]['tdr_id'])->order_component_id);
     }
 
+    /**
+     * §4 gate verdict: an NDT finding recorded later REPLACES the point's route
+     * (one active route per place — the latest verdict wins), and the linked
+     * order re-binds to the new rule when both routes declare the component.
+     */
+    public function test_ndt_finding_replaces_route_and_rebinds_order(): void
+    {
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder([
+            'unit_id'        => $this->createUnit(['manual_id' => $manual->id])->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+        $ic = $this->createInspectionComponent($manual, 'Rod');
+        $component = $this->createComponent($manual, ['name' => 'Rod']);
+        $this->attachComponentToIc($ic, $component);
+        $param = $this->createParameter($manual, $ic, [
+            'description' => 'Bore', 'orig_dim_min' => 10.0, 'orig_dim_max' => 10.1,
+        ]);
+        $crack = Code::create(['name' => 'Crack ' . uniqid()]);
+        ManualParameterCode::create([
+            'manual_parameter_id' => $param->id, 'codes_id' => $crack->id, 'finding_context' => 'ndt',
+        ]);
+
+        $silver = $this->makeManualProcess($manual, 'Silver', 'point');
+        $weld   = $this->makeManualProcess($manual, 'Weld', 'point');
+        $silverRule = ManualParameterRepairRule::create([
+            'manual_parameter_id' => $param->id, 'name' => 'Silver restoration', 'action' => 'repair',
+        ]);
+        ManualParameterRuleTrigger::create(['repair_rule_id' => $silverRule->id, 'trigger' => 'above_orig']);
+        ManualParameterRuleProcess::create(['repair_rule_id' => $silverRule->id, 'manual_process_id' => $silver->id, 'sort_order' => 0]);
+        $weldRule = ManualParameterRepairRule::create([
+            'manual_parameter_id' => $param->id, 'name' => 'Weld repair', 'action' => 'repair',
+        ]);
+        ManualParameterRuleTrigger::create(['repair_rule_id' => $weldRule->id, 'trigger' => 'finding_ndt', 'codes_id' => $crack->id]);
+        ManualParameterRuleProcess::create(['repair_rule_id' => $weldRule->id, 'manual_process_id' => $weld->id, 'sort_order' => 0]);
+
+        // Both routes need the bearing — the linked order must survive the switch
+        $bearing = $this->createComponent($manual, ['name' => 'BEARING']);
+        foreach ([$silverRule, $weldRule] as $r) {
+            \App\Models\ManualParameterRulePartOrder::create([
+                'repair_rule_id' => $r->id, 'component_id' => $bearing->id, 'qty' => 1,
+            ]);
+        }
+
+        // Initial dimensional FAIL → Silver route + linked order
+        $this->actingAs($this->admin())
+            ->postJson(route('workorders.measurements.store', $wo->id), [
+                'manual_parameter_id' => $param->id, 'stage' => 'initial', 'actual_value' => 10.105,
+            ])->assertCreated();
+        $tdr = $this->makeRepairTdr($wo, $component);
+        $res = $this->updateProcesses($wo, $ic, [
+            'orders' => [['component_id' => $bearing->id, 'accept' => true]],
+        ])->assertOk()->json();
+        $orderTdr = Tdr::find($res['orders_created'][0]['tdr_id']);
+        $this->assertSame($silverRule->id, (int) $orderTdr->source_rule_id);
+        $this->assertSame(
+            [$silver->process->process_names_id],
+            $this->planRows($tdr)->pluck('process_names_id')->map(fn ($v) => (int) $v)->all()
+        );
+
+        // NDT gate verdict: Crack → route REPLACED by Weld repair
+        $saved = $this->actingAs($this->admin())
+            ->postJson(route('workorders.measurements.store', $wo->id), [
+                'manual_parameter_id' => $param->id, 'stage' => 'initial', 'codes_id' => $crack->id,
+            ])->assertCreated()->json();
+        $this->assertSame($weldRule->id, $saved['manual_parameter_repair_rule_id'], 'finding_ndt resolves the weld route');
+
+        $preview = $this->previewProcesses($wo, $ic)->assertOk()->json();
+        $point = collect($preview['points'])->firstWhere('param_id', $param->id);
+        $this->assertSame($weldRule->id, $point['chosen_rule_id'], 'Latest verdict wins — one active route per place');
+        $this->assertSame('existing', collect($preview['orders'])->firstWhere('component_id', $bearing->id)['status']);
+
+        $this->updateProcesses($wo, $ic)->assertOk();
+        $this->assertSame(
+            [$weld->process->process_names_id],
+            $this->planRows($tdr)->pluck('process_names_id')->map(fn ($v) => (int) $v)->all(),
+            'Weld route replaced silver — not merged with it'
+        );
+        $this->assertSame($weldRule->id, (int) $orderTdr->fresh()->source_rule_id, 'Linked order re-bound to the new rule');
+        $this->assertNotNull(Tdr::find($orderTdr->id), 'Order survives the route switch');
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {

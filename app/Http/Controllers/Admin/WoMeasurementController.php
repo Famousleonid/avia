@@ -1666,7 +1666,10 @@ class WoMeasurementController extends Controller
 
         // Chosen rule per FAIL: persisted/overridden, else auto-resolved
         // (the rule may have been added after the measurement was saved).
-        $ruleIds       = [];
+        // ROUTE REPLACEMENT (§4): a place has ONE active route — the rule of its
+        // LATEST FAIL verdict wins. A gate finding recorded later (hole damage
+        // after bearing removal, NDT crack) REPLACES the point's earlier route
+        // instead of merging both routes into the plan.
         $chosenByParam = [];
         foreach ($allFails as $m) {
             $rId = $m->manual_parameter_repair_rule_id;
@@ -1680,11 +1683,10 @@ class WoMeasurementController extends Controller
                 }
             }
             if ($rId) {
-                $ruleIds[] = (int) $rId;
-                $chosenByParam[$m->manual_parameter_id] = (int) $rId;
+                $chosenByParam[$m->manual_parameter_id] = (int) $rId; // fails ordered by id → last wins
             }
         }
-        $ruleIds = array_values(array_unique($ruleIds));
+        $ruleIds = array_values(array_unique(array_values($chosenByParam)));
 
         // Non-repair rules cannot be merged into the repair plan (order_new / ec
         // have their own flows) — surface them as warnings instead of silently
@@ -1762,6 +1764,18 @@ class WoMeasurementController extends Controller
         $orderWarnings   = [];
 
         $declared = collect($ctxOrders)->keyBy('component_id');
+
+        // Route switched but the new route still declares the component → the
+        // linked order survives and re-binds to the new rule (§4).
+        foreach ($ctxOrders as $co) {
+            if (($co['status'] ?? '') !== 'existing' || empty($co['auto']) || empty($co['rule_ids'])) continue;
+            Tdr::where('workorder_id', $workorder->id)
+                ->whereKey((int) $co['tdr_id'])
+                ->where('source_tdr_id', $tdr->id)
+                ->whereNotIn('source_rule_id', $co['rule_ids'])
+                ->update(['source_rule_id' => $co['rule_ids'][0]]);
+        }
+
         foreach ((array) ($data['orders'] ?? []) as $o) {
             if (empty($o['accept'])) continue;
             $cid  = (int) $o['component_id'];
@@ -1990,7 +2004,12 @@ class WoMeasurementController extends Controller
         return $param->repairRules->filter(function ($rule) use ($codesId, $findingContext, $dimFail, $failTriggers, $v, $limits) {
             $trigs = $rule->triggers;
             if ($codesId) {
-                if ($findingContext === 'measurement') {
+                if ($findingContext === 'ndt') {
+                    if ($trigs->contains(fn ($t) => $t->trigger === 'finding_ndt'
+                        && ($t->codes_id === null || (int) $t->codes_id === $codesId))) {
+                        return true;
+                    }
+                } elseif ($findingContext === 'measurement') {
                     if ($trigs->contains(fn ($t) => $t->trigger === 'finding_measurement'
                         && ($t->codes_id === null || (int) $t->codes_id === $codesId))) {
                         return true;
@@ -2268,7 +2287,19 @@ class WoMeasurementController extends Controller
         $rules = $parameter->repairRules;
 
         if ($codesId) {
-            if ($findingContext === 'measurement') {
+            if ($findingContext === 'ndt') {
+                // Gate verdict from NDT (§4): match finding_ndt triggers
+                foreach ($rules as $rule) {
+                    if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding_ndt' && (int)$t->codes_id === $codesId)) {
+                        return $rule->id;
+                    }
+                }
+                foreach ($rules as $rule) {
+                    if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding_ndt' && $t->codes_id === null)) {
+                        return $rule->id;
+                    }
+                }
+            } elseif ($findingContext === 'measurement') {
                 // Finding came from measurement context → match finding_measurement triggers
                 foreach ($rules as $rule) {
                     if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding_measurement' && (int)$t->codes_id === $codesId)) {
