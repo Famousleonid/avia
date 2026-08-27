@@ -1038,6 +1038,65 @@ class RepairPlanRebuildTest extends TestCase
             ->where('order_component_id', $d['component']->id)->count());
     }
 
+    /**
+     * §4 scrap with "completed through": the shop runs without per-process
+     * dates — on scrap the plan is NOT rebuilt; rows up to the selected point
+     * stay as the record of performed work, rows after it are dropped.
+     * The preview defaults the point to the FIRST NDT row.
+     */
+    public function test_scrap_keeps_completed_rows_through_selected_point(): void
+    {
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder([
+            'unit_id'        => $this->createUnit(['manual_id' => $manual->id])->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+        $ic = $this->createInspectionComponent($manual, 'Rod');
+        $component = $this->createComponent($manual, ['name' => 'Rod']);
+        $this->attachComponentToIc($ic, $component);
+        $param = $this->createParameter($manual, $ic, [
+            'description' => 'Bore', 'orig_dim_min' => 10.0, 'orig_dim_max' => 10.1,
+        ]);
+        $crack = Code::create(['name' => 'Crack ' . uniqid()]);
+        ManualParameterCode::create([
+            'manual_parameter_id' => $param->id, 'codes_id' => $crack->id, 'finding_context' => 'ndt',
+        ]);
+
+        $machining = $this->makeManualProcess($manual, 'Machining', 'point');
+        $ndt       = $this->makeManualProcess($manual, 'NDT-1', 'part');
+        $chrome    = $this->makeManualProcess($manual, 'Chrome', 'point');
+        $repairRule = $this->makeRule($param, 'Chrome route', [$machining, $ndt, $chrome]);
+        $scrapRule = ManualParameterRepairRule::create([
+            'manual_parameter_id' => $param->id, 'name' => 'NDT crack — scrap', 'action' => 'order_new',
+        ]);
+        ManualParameterRuleTrigger::create([
+            'repair_rule_id' => $scrapRule->id, 'trigger' => 'finding_ndt', 'codes_id' => $crack->id,
+        ]);
+
+        $this->failMeasurement($wo, $param, $repairRule->id);
+        $tdr = $this->makeRepairTdr($wo, $component);
+        $this->updateProcesses($wo, $ic)->assertOk();
+        $this->assertSame(3, $this->planRows($tdr)->count());
+
+        // NDT crack verdict → scrap proposed; default keep = the FIRST NDT row
+        $this->failMeasurement($wo, $param, $scrapRule->id, ['codes_id' => $crack->id, 'actual_value' => null]);
+        $preview = $this->previewProcesses($wo, $ic)->assertOk()->json();
+        $ndtRow = collect($preview['scrap_rows'])->first(fn ($r) => str_starts_with($r['name'], 'NDT'));
+        $this->assertSame($ndtRow['id'], $preview['scrap']['default_keep_row_id']);
+
+        $this->updateProcesses($wo, $ic, [
+            'scrap_accept'       => true,
+            'scrap_keep_through' => $ndtRow['id'],
+        ])->assertOk();
+
+        $names = $this->planRows($tdr)->pluck('process_names_id')->map(fn ($v) => (int) $v)->all();
+        $this->assertSame(
+            [$machining->process->process_names_id, $ndt->process->process_names_id],
+            $names,
+            'Rows through the NDT stay as the performed-work record; the tail is dropped; no rebuild'
+        );
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {

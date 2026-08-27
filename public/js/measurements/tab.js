@@ -1081,14 +1081,25 @@
 
         // §4 scrap verdict: the carrier part itself is condemned → offer to
         // order its replacement (and drop the unstarted plan on Apply)
+        const scrapRows = (data.scrap && data.scrap.status === 'proposed') ? (data.scrap_rows || []) : [];
         if (data.scrap) {
             const s = data.scrap;
             const label = [s.ipl_num, s.part_number].filter(Boolean).join(' · ') + (s.name ? ' — ' + s.name : '');
             if (s.status === 'proposed') {
-                h.push(`<div class="alert alert-danger py-1 px-2 mb-2 d-flex align-items-center gap-2" style="font-size:11px">
-                    <input type="checkbox" class="form-check-input m-0" id="msUpdPrevScrap" checked>
-                    <label for="msUpdPrevScrap" style="cursor:pointer"><b>Scrap — order replacement:</b> ${esc(label)}
-                        <span class="text-secondary">— ${esc((s.rule_names || []).join(', '))}. Unstarted processes will be dropped.</span></label>
+                const keepOptions = ['<option value="0">— nothing performed —</option>']
+                    .concat(scrapRows.map(r => `<option value="${r.id}" data-sort="${r.sort_order}" ${r.id === s.default_keep_row_id ? 'selected' : ''}>${esc(r.name)}</option>`))
+                    .join('');
+                h.push(`<div class="alert alert-danger py-1 px-2 mb-2" style="font-size:11px">
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="checkbox" class="form-check-input m-0" id="msUpdPrevScrap" checked>
+                        <label for="msUpdPrevScrap" style="cursor:pointer"><b>Scrap — order replacement:</b> ${esc(label)}
+                            <span class="text-secondary">— ${esc((s.rule_names || []).join(', '))}</span></label>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mt-1" style="padding-left:24px">
+                        <span>Work completed through:</span>
+                        <select id="msUpdPrevScrapKeep" class="form-select form-select-sm" style="max-width:220px;height:24px;font-size:11px;padding:1px 24px 1px 6px">${keepOptions}</select>
+                        <span class="text-secondary">— rows after it will be dropped</span>
+                    </div>
                 </div>`);
             } else {
                 h.push(`<div class="alert alert-danger py-1 px-2 mb-2" style="font-size:11px">
@@ -1126,11 +1137,31 @@
             h.push('<div class="mb-2"></div>');
         }
 
+        // Scrap mode: the plan is NOT rebuilt — show the CURRENT rows and mark
+        // kept/dropped from the "completed through" selection.
+        if (scrapRows.length) {
+            const opsHtmlS = it => (it.ops || []).map(o =>
+                `<div class="text-secondary" style="font-size:10px;line-height:1.35">${esc(o)}</div>`).join('');
+            h.push(`<table class="table table-sm mb-1" style="font-size:11px">
+                <thead><tr class="text-secondary" style="font-size:10px">
+                    <th style="width:24px">#</th><th style="width:26%">Process</th><th>Operation</th><th style="width:64px"></th>
+                </tr></thead><tbody>`);
+            scrapRows.forEach((r, i) => {
+                h.push(`<tr class="ms-scrap-row" data-sort="${r.sort_order}" data-started="${r.started ? 1 : 0}">
+                    <td class="text-secondary">${i + 1}</td>
+                    <td class="ms-scrap-name">${esc(r.name)}</td>
+                    <td>${opsHtmlS(r)}</td>
+                    <td class="text-end ms-scrap-badge"></td>
+                </tr>`);
+            });
+            h.push('</tbody></table>');
+        }
+
         // Resulting plan as ONE table in execution order; removed rows appended
         // struck-through at the end (they have no position in the new plan).
         const plan = data.plan || [];
         const removedRows = data.removed || [];
-        if (plan.length || removedRows.length) {
+        if (!scrapRows.length && (plan.length || removedRows.length)) {
             const badge = st => st === 'added'
                 ? '<span class="badge" style="background:#198754;font-size:9px">new</span>'
                 : st === 'kept'
@@ -1168,6 +1199,26 @@
 
         body.innerHTML = h.join('');
 
+        // Scrap mode: mark kept/dropped rows from the "completed through" select
+        const keepSel = body.querySelector('#msUpdPrevScrapKeep');
+        if (keepSel) {
+            const applyScrapStatuses = () => {
+                const opt = keepSel.selectedOptions[0];
+                const keepSort = opt && opt.value !== '0' ? parseInt(opt.dataset.sort, 10) : -1;
+                body.querySelectorAll('.ms-scrap-row').forEach(tr => {
+                    const kept = tr.dataset.started === '1' || parseInt(tr.dataset.sort, 10) <= keepSort;
+                    tr.style.textDecoration = kept ? '' : 'line-through';
+                    tr.style.opacity = kept ? '' : '.7';
+                    tr.querySelector('.ms-scrap-name').className = 'ms-scrap-name' + (kept ? '' : ' text-danger');
+                    tr.querySelector('.ms-scrap-badge').innerHTML = kept
+                        ? '<span class="badge bg-secondary" style="font-size:9px;opacity:.6">kept</span>'
+                        : '<span class="badge" style="background:#dc3545;font-size:9px">dropped</span>';
+                });
+            };
+            keepSel.addEventListener('change', applyScrapStatuses);
+            applyScrapStatuses();
+        }
+
         // Route change → refetch the preview with the new choice
         body.querySelectorAll('.ms-updprev-rule').forEach(inp => {
             inp.addEventListener('change', () => {
@@ -1190,6 +1241,7 @@
         }));
         const cancelIds = [...body.querySelectorAll('.ms-updprev-cancel:checked')].map(cb => parseInt(cb.dataset.tdr, 10));
         const scrapAccept = !!body.querySelector('#msUpdPrevScrap:checked');
+        const scrapKeep = parseInt(body.querySelector('#msUpdPrevScrapKeep')?.value, 10) || null;
         try {
             const res = await apiFetch('/workorders/' + WO_ID + '/update-part-processes', {
                 method: 'POST',
@@ -1199,6 +1251,7 @@
                     orders: orders,
                     cancel_order_tdr_ids: cancelIds,
                     scrap_accept: scrapAccept,
+                    scrap_keep_through: scrapKeep,
                 }),
             });
             getUpdPrevModal().hide();

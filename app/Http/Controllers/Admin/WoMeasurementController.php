@@ -1412,6 +1412,7 @@ class WoMeasurementController extends Controller
             'cancel_order_tdr_ids'    => 'nullable|array',
             'cancel_order_tdr_ids.*'  => 'integer',
             'scrap_accept'            => 'boolean',
+            'scrap_keep_through'      => 'nullable|integer', // TdrProcess id: work completed through this row
         ]);
 
         $icId = (int) $data['inspection_component_id'];
@@ -1421,15 +1422,24 @@ class WoMeasurementController extends Controller
         }
         $tdr = $ctx['tdr'];
 
-        // Delete only processes that haven't started
-        $startedExists = TdrProcess::where('tdrs_id', $tdr->id)->whereNotNull('date_start')->exists();
-        if ($startedExists) {
-            // Only replace unstarted processes; keep started ones
-            TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start')->delete();
-            $baseSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
-        } else {
-            TdrProcess::where('tdrs_id', $tdr->id)->delete();
-            $baseSort = 0;
+        // Scrap accepted: the plan is NOT rebuilt — the shop often runs without
+        // per-process dates, so the current rows up to the verdict point ARE the
+        // record of performed work. Rows after "completed through" are dropped
+        // below; everything else stays untouched.
+        $scrapAccept = !empty($data['scrap_accept'])
+            && ($ctx['scrap']['status'] ?? null) === 'proposed';
+
+        if (!$scrapAccept) {
+            // Delete only processes that haven't started
+            $startedExists = TdrProcess::where('tdrs_id', $tdr->id)->whereNotNull('date_start')->exists();
+            if ($startedExists) {
+                // Only replace unstarted processes; keep started ones
+                TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start')->delete();
+                $baseSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
+            } else {
+                TdrProcess::where('tdrs_id', $tdr->id)->delete();
+                $baseSort = 0;
+            }
         }
 
         // Mark the sync point: the Update button stays inactive until newer
@@ -1445,11 +1455,9 @@ class WoMeasurementController extends Controller
         [$ordersCreated, $ordersCancelled, $orderWarnings] =
             $this->applyLinkedPartOrders($workorder, $tdr, $ctx['orders'], $data);
 
-        // §4 scrap verdict accepted: order a replacement for the CARRIER part
-        // and drop the not-yet-started plan (the condemned part won't be worked).
+        // §4 scrap verdict accepted: order a replacement for the CARRIER part.
         $scrapTdrId = null;
-        if (!empty($data['scrap_accept'])
-            && ($ctx['scrap']['status'] ?? null) === 'proposed') {
+        if ($scrapAccept) {
             $s = $ctx['scrap'];
             $code = $s['codes_id'] ? Code::find($s['codes_id']) : null;
             $scrapTdr = Tdr::create([
@@ -1469,6 +1477,30 @@ class WoMeasurementController extends Controller
                 'source_tdr_id'      => $tdr->id,
             ]);
             $scrapTdrId = $scrapTdr->id;
+        }
+
+        // Condemned part: keep the record of performed work (rows up to the
+        // "completed through" point — the shop runs without per-process dates),
+        // drop everything after it, and skip the rebuild entirely.
+        if ($scrapAccept) {
+            $keep = TdrProcess::where('tdrs_id', $tdr->id)
+                ->whereKey((int) ($data['scrap_keep_through'] ?? 0))
+                ->first();
+            $q = TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start');
+            if ($keep) {
+                $q->where('sort_order', '>', $keep->sort_order);
+            }
+            $q->delete();
+
+            return response()->json([
+                'ok'               => true,
+                'tdr_id'           => $tdr->id,
+                'warnings'         => $ctx['warnings'],
+                'orders_created'   => $ordersCreated,
+                'orders_cancelled' => $ordersCancelled,
+                'order_warnings'   => $orderWarnings,
+                'scrap_tdr_id'     => $scrapTdrId,
+            ]);
         }
 
         if (empty($ctx['mainRuleIds'])) {
@@ -1513,11 +1545,6 @@ class WoMeasurementController extends Controller
                 'sort_order'             => $sort,
                 'in_traveler'            => false,
             ]);
-        }
-
-        // Condemned part: the freshly rebuilt (not yet started) plan is moot
-        if ($scrapTdrId !== null) {
-            TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start')->delete();
         }
 
         return response()->json([
@@ -1626,12 +1653,29 @@ class WoMeasurementController extends Controller
             if (!isset($consumed[$i])) $removed[] = $rowEntry($row);
         }
 
+        // Scrap proposed: the technician confirms how far the work physically
+        // went (the shop runs without per-process dates) — send the CURRENT rows
+        // and default "completed through" to the last NDT row.
+        $scrapRows = null;
+        if (($ctx['scrap']['status'] ?? null) === 'proposed') {
+            $scrapRows = $rows->map(fn ($r) => $rowEntry($r) + [
+                'id'         => (int) $r->id,
+                'sort_order' => (int) $r->sort_order,
+                'started'    => $r->date_start !== null,
+            ])->values()->all();
+            // Default: the FIRST NDT row — the crack is usually found at the
+            // first NDT after strip/machining; work before it is done.
+            $defaultKeep = collect($scrapRows)->first(fn ($e) => str_starts_with($e['name'], 'NDT'));
+            $ctx['scrap']['default_keep_row_id'] = $defaultKeep['id'] ?? null;
+        }
+
         return response()->json([
             'tdr_id'    => $ctx['tdr']->id,
             'points'    => $ctx['points'],
             'warnings'  => $ctx['warnings'],
             'orders'    => $ctx['orders'],
             'scrap'     => $ctx['scrap'],
+            'scrap_rows'=> $scrapRows,
             'plan'      => $plan,
             'kept'      => $started->map($rowEntry)->values()->all(),
             'unchanged' => $unchanged,
