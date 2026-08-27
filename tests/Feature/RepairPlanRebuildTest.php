@@ -1228,22 +1228,39 @@ class RepairPlanRebuildTest extends TestCase
         $ecRow = TdrProcess::find($res['ec_row_id']);
         $this->assertTrue((bool) $ecRow->ec);
         $this->assertStringContainsString('Concession', $ecRow->description);
-        // Freeze: the unstarted row after the gate anchor (Plating) is held
+        // No rebuild on EC accept: performed rows stay, the tail after the gate
+        // anchor (Plating) is held, EC slots in BEFORE the anchor NDT row.
         $nameIds = $this->planRows($tdr)->map(fn ($r) => (int) $r->process_names_id)->all();
+        $this->assertContains((int) $d['machining']->process->process_names_id, $nameIds, 'Performed work stays');
         $this->assertNotContains((int) $d['plating']->process->process_names_id, $nameIds, 'Work after the gate anchor is held');
+        $ndtRow = $this->planRows($tdr)->first(fn ($r) => (int) $r->process_names_id === (int) $d['ndt']->process->process_names_id);
+        $this->assertNotNull($ndtRow, 'Gate NDT row survives the EC accept');
+        $this->assertLessThan($ndtRow->sort_order, $ecRow->fresh()->sort_order, 'EC slots in before the gate anchor');
 
         // Second preview: EC already on the plan — no duplicate
         $this->failMeasurement($d['wo'], $d['paramB'], $d['ruleB']->id); // re-arm
         $preview2 = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
         $this->assertSame('existing', $preview2['ec']['status']);
 
-        // EC denied verdict → scrap flow
-        $this->failMeasurement($d['wo'], $d['paramA'], $scrapRule->id, ['codes_id' => $denied->id, 'actual_value' => null]);
+        // EC denied verdict → scrap flow; default keep-through = the EC row
+        $deniedVerdict = $this->failMeasurement($d['wo'], $d['paramA'], $scrapRule->id, ['codes_id' => $denied->id, 'actual_value' => null]);
         $preview3 = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
         $this->assertSame('proposed', $preview3['scrap']['status']);
-        $res3 = $this->updateProcesses($d['wo'], $d['ic'], ['scrap_accept' => true])->assertOk()->json();
+        $this->assertSame((int) $ecRow->id, (int) $preview3['scrap']['default_keep_row_id'], 'Scrap after EC defaults to keep through the EC row');
+        $res3 = $this->updateProcesses($d['wo'], $d['ic'], ['scrap_accept' => true, 'scrap_keep_through' => $ecRow->id])->assertOk()->json();
         $this->assertNotNull($res3['scrap_tdr_id']);
         $this->assertSame((int) $failedNdt->id, (int) Tdr::find($res3['scrap_tdr_id'])->codes_id, 'NDT-context verdict orders as Failed NDT');
+
+        // WO notes carry the condemnation record: what was scrapped and why
+        $notes = (string) $d['wo']->fresh()->notes;
+        $this->assertStringContainsString('Scrap — ', $notes);
+        $this->assertStringContainsString($d['component']->part_number ?? '', $notes);
+        $this->assertStringContainsString('Failed NDT (' . $denied->name . ')', $notes);
+
+        // Scrap cancelled (denied verdict deleted, plan re-applied) → note removed
+        $deniedVerdict->delete();
+        $this->updateProcesses($d['wo'], $d['ic'], ['ec_accept' => false])->assertOk();
+        $this->assertStringNotContainsString('Scrap — ', (string) $d['wo']->fresh()->notes);
     }
 
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */

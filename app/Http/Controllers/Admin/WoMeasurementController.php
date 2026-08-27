@@ -1430,8 +1430,27 @@ class WoMeasurementController extends Controller
         // below; everything else stays untouched.
         $scrapAccept = !empty($data['scrap_accept'])
             && ($ctx['scrap']['status'] ?? null) === 'proposed';
+        // EC accepted works the same way: the current rows are the record of
+        // performed work — no wipe, no rebuild; applyEcProposal holds the tail.
+        $ecAccept = !$scrapAccept && !empty($data['ec_accept'])
+            && ($ctx['ec']['status'] ?? null) === 'proposed';
 
-        if (!$scrapAccept) {
+        // Scrap cancelled (verdict deleted, plan re-applied): drop this part's
+        // condemnation line from the WO notes. The prefix mirrors the note
+        // builder in the scrap block below, so only this part's line matches.
+        if (!$scrapAccept && $workorder->notes && $tdr->component) {
+            $prefix = 'Scrap — ' . $tdr->component->name
+                . ' P/N ' . $tdr->component->part_number
+                . ' S/N ' . ($tdr->serial_number ?: 'NSN');
+            $lines = preg_split('/\r?\n/', $workorder->notes);
+            $kept  = array_filter($lines, fn ($l) => !str_starts_with(trim($l), $prefix));
+            if (count($kept) !== count($lines)) {
+                $workorder->notes = trim(implode("\n", $kept));
+                $workorder->save();
+            }
+        }
+
+        if (!$scrapAccept && !$ecAccept) {
             // Delete only processes that haven't started
             $startedExists = TdrProcess::where('tdrs_id', $tdr->id)->whereNotNull('date_start')->exists();
             if ($startedExists) {
@@ -1479,6 +1498,20 @@ class WoMeasurementController extends Controller
                 'source_tdr_id'      => $tdr->id,
             ]);
             $scrapTdrId = $scrapTdr->id;
+
+            // WO-level record of the condemnation: what was scrapped and why.
+            // Appended, never overwritten — several scrapped parts = a line each.
+            $scrapped = $tdr->component;
+            $why = $code?->name;
+            if (!empty($s['verdict_code']) && $s['verdict_code'] !== $why) {
+                $why = $why ? $why . ' (' . $s['verdict_code'] . ')' : $s['verdict_code'];
+            }
+            $note = 'Scrap — ' . ($scrapped?->name ?? $s['name'])
+                . ' P/N ' . ($scrapped?->part_number ?? $s['part_number'])
+                . ' S/N ' . ($tdr->serial_number ?: 'NSN')
+                . ($why ? ' — ' . $why : '');
+            $workorder->notes = trim(($workorder->notes ? $workorder->notes . "\n" : '') . $note);
+            $workorder->save();
         }
 
         // Condemned part: keep the record of performed work (rows up to the
@@ -1506,6 +1539,22 @@ class WoMeasurementController extends Controller
             ]);
         }
 
+        // §4 EC bridge: like scrap, the concession keeps the current rows as the
+        // record of performed work (no rebuild); applyEcProposal inserts the EC
+        // row before the gate anchor and holds the unstarted tail after it.
+        if ($ecAccept) {
+            return response()->json([
+                'ok'               => true,
+                'tdr_id'           => $tdr->id,
+                'warnings'         => $ctx['warnings'],
+                'orders_created'   => $ordersCreated,
+                'orders_cancelled' => $ordersCancelled,
+                'order_warnings'   => $orderWarnings,
+                'scrap_tdr_id'     => null,
+                'ec_row_id'        => $this->applyEcProposal($tdr, $icId, $ctx, $data),
+            ]);
+        }
+
         if (empty($ctx['mainRuleIds'])) {
             return response()->json([
                 'ok'               => true,
@@ -1515,7 +1564,7 @@ class WoMeasurementController extends Controller
                 'orders_cancelled' => $ordersCancelled,
                 'order_warnings'   => $orderWarnings,
                 'scrap_tdr_id'     => $scrapTdrId,
-                'ec_row_id'        => $scrapTdrId === null ? $this->applyEcProposal($tdr, $icId, $ctx, $data) : null,
+                'ec_row_id'        => null,
             ]);
         }
 
@@ -1551,9 +1600,6 @@ class WoMeasurementController extends Controller
             ]);
         }
 
-        // §4 EC bridge: raise the EC package after the rebuild (scrap wins)
-        $ecRowId = $scrapTdrId === null ? $this->applyEcProposal($tdr, $icId, $ctx, $data) : null;
-
         return response()->json([
             'ok'               => true,
             'tdr_id'           => $tdr->id,
@@ -1562,7 +1608,7 @@ class WoMeasurementController extends Controller
             'orders_cancelled' => $ordersCancelled,
             'order_warnings'   => $orderWarnings,
             'scrap_tdr_id'     => $scrapTdrId,
-            'ec_row_id'        => $ecRowId,
+            'ec_row_id'        => null,
         ]);
     }
 
@@ -1670,10 +1716,13 @@ class WoMeasurementController extends Controller
                 'id'         => (int) $r->id,
                 'sort_order' => (int) $r->sort_order,
                 'started'    => $r->date_start !== null,
+                'ec'         => (bool) $r->ec,
             ])->values()->all();
-            // Default: the FIRST NDT row — the crack is usually found at the
-            // first NDT after strip/machining; work before it is done.
-            $defaultKeep = collect($scrapRows)->first(fn ($e) => str_starts_with($e['name'], 'NDT'));
+            // Default: the EC row when the scrap follows a denied concession —
+            // NDT after it was never performed. Otherwise the FIRST NDT row:
+            // the crack is usually found at the first NDT after strip/machining.
+            $defaultKeep = collect($scrapRows)->first(fn ($e) => !empty($e['ec']))
+                ?? collect($scrapRows)->first(fn ($e) => str_starts_with($e['name'], 'NDT'));
             $ctx['scrap']['default_keep_row_id'] = $defaultKeep['id'] ?? null;
         }
 
@@ -1918,14 +1967,23 @@ class WoMeasurementController extends Controller
                 ->delete();
         }
 
-        $maxSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
+        // The concession precedes the gate inspection: EC slots in BEFORE the
+        // anchor row (NDT waits for the OEM answer), at the end only without one.
+        if ($gateSort !== null) {
+            TdrProcess::where('tdrs_id', $tdr->id)
+                ->where('sort_order', '>=', $gateSort)
+                ->increment('sort_order');
+            $ecSort = $gateSort;
+        } else {
+            $ecSort = (TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0) + 1;
+        }
         $row = TdrProcess::create([
             'tdrs_id'            => $tdr->id,
             'process_names_id'   => $ecNameId,
             'processes'          => [],
             'rule_process_ids'   => [],
             'description'        => $ctx['ec']['reason'] ?? 'EC',
-            'sort_order'         => $maxSort + 1,
+            'sort_order'         => $ecSort,
             'in_traveler'        => false,
             'ec'                 => 1,
             'standalone_ec_only' => false,
@@ -1980,6 +2038,7 @@ class WoMeasurementController extends Controller
         $scrapRuleIds = array_map(fn ($w) => (int) $w['rule_id'], $scrapRules);
         $verdict = $allFails->last(fn ($m) => in_array((int) $m->manual_parameter_repair_rule_id, $scrapRuleIds, true));
         $verdictCodeId = $verdict?->codes_id !== null ? (int) $verdict->codes_id : null;
+        $verdictCodeName = $verdictCodeId !== null ? Code::find($verdictCodeId)?->name : null;
         if ($verdictCodeId !== null && $verdict) {
             $verdictCtx = ManualParameter::find($verdict->manual_parameter_id)
                 ?->codes->firstWhere('codes_id', $verdictCodeId)?->finding_context;
@@ -1999,6 +2058,7 @@ class WoMeasurementController extends Controller
             'rule_names'   => array_values(array_unique(array_map(fn ($w) => $w['rule_name'], $scrapRules))),
             'rule_id'      => $scrapRuleIds[0],
             'codes_id'     => $verdictCodeId ?? $tdr->codes_id,
+            'verdict_code' => $verdictCodeName,
             'status'       => $existing ? 'existing' : 'proposed',
             'tdr_id'       => $existing?->id,
         ];
