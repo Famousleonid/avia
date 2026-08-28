@@ -2414,7 +2414,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     html += `</div>`;
                 }
 
-                html += `<button class="btn btn-outline-secondary dim-btn-xs mt-1 dim-add-rule-btn" data-param-id="${param.id}" style="width:100%">+ Add rule</button>
+                html += `<div class="d-flex gap-1 mt-1">
+                    <button class="btn btn-outline-secondary dim-btn-xs dim-add-rule-btn" data-param-id="${param.id}" style="flex:1">+ Add rule</button>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dim-btn-xs dropdown-toggle" data-bs-toggle="dropdown" title="Standard rule packages">Std</button>
+                        <ul class="dropdown-menu dropdown-menu-end" style="font-size:12px">
+                            <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="ndt_scrap">NDT failed — scrap <span class="text-secondary">(Crack · Order new)</span></a></li>
+                            <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="ec_package">EC package <span class="text-secondary">(Damage → EC, EC denied → scrap)</span></a></li>
+                            <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="final_ec">Final out of tolerance — EC</a></li>
+                        </ul>
+                    </div>
+                </div>
                 </div>`;
             });
 
@@ -2437,6 +2447,28 @@ document.addEventListener('DOMContentLoaded', function () {
                     const pid = parseInt(btn.dataset.paramId);
                     const param = parameters.find(function (p) { return p.id === pid; });
                     if (param) openAddRuleModal(param);
+                });
+            });
+
+            // Standard rule packages: one click wires code + rule(s), idempotent
+            card.querySelectorAll('.dim-std-rule').forEach(function (a) {
+                a.addEventListener('click', async function (e) {
+                    e.preventDefault();
+                    const pid = parseInt(a.dataset.paramId);
+                    try {
+                        const res = await apiFetch('/parameters/' + pid + '/standard-rules', {
+                            method: 'POST',
+                            body: JSON.stringify({ package: a.dataset.package }),
+                        });
+                        const idx = parameters.findIndex(function (p) { return p.id === pid; });
+                        if (idx !== -1 && res.parameter) parameters[idx] = res.parameter;
+                        if (activePoint) renderSpecsPanel(activePoint);
+                        pdwTreeRefreshAfterRule();
+                        if (typeof showNotification === 'function') {
+                            (res.created || []).forEach(function (n) { showNotification('Added: ' + n, 'success'); });
+                            (res.skipped || []).forEach(function (n) { showNotification('Already set up: ' + n, 'info'); });
+                        }
+                    } catch (err) { alert(err.message); }
                 });
             });
 

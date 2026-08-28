@@ -1302,6 +1302,41 @@ class RepairPlanRebuildTest extends TestCase
         $this->assertStringContainsString('final 9.9 out of limits', $preview['ec']['reason']);
     }
 
+    /** Standard rule packages: one click wires code+rule bundles, idempotent. */
+    public function test_standard_rule_packages_are_idempotent(): void
+    {
+        $d = $this->makeTwoPointPart();
+        $param = $d['paramA'];
+
+        $res = $this->actingAs($this->admin())
+            ->postJson(route('parameters.standard-rules', $param->id), ['package' => 'ec_package'])
+            ->assertCreated()->json();
+        $this->assertCount(2, $res['created']);
+        $this->assertEmpty($res['skipped']);
+
+        $param->refresh()->load('repairRules.triggers', 'codes.code');
+        $ecRule = $param->repairRules->firstWhere('name', 'Damage — EC (concession)');
+        $this->assertSame('ec', $ecRule->action);
+        $this->assertSame('finding_ndt', $ecRule->triggers->first()->trigger);
+        $deniedRule = $param->repairRules->firstWhere('name', 'EC denied — scrap');
+        $this->assertSame('order_new', $deniedRule->action);
+        $this->assertTrue($param->codes->contains(fn ($c) => $c->finding_context === 'ndt' && $c->code?->name === 'Damage'));
+
+        // Second click: nothing duplicated
+        $res2 = $this->actingAs($this->admin())
+            ->postJson(route('parameters.standard-rules', $param->id), ['package' => 'ec_package'])
+            ->assertCreated()->json();
+        $this->assertEmpty($res2['created']);
+        $this->assertCount(2, $res2['skipped']);
+        $this->assertCount(3, $param->fresh()->repairRules, 'ruleA + 2 package rules, no dups');
+
+        // final_ec package on the same param
+        $res3 = $this->actingAs($this->admin())
+            ->postJson(route('parameters.standard-rules', $param->id), ['package' => 'final_ec'])
+            ->assertCreated()->json();
+        $this->assertSame(['Repair out of tolerance — EC (concession)'], $res3['created']);
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {

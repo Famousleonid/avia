@@ -444,6 +444,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     // --- Parameter Repair Rules ---
     Route::post('/parameters/{manualParameter}/rules', [ManualParameterController::class, 'storeRule'])->name('parameters.rules.store');
+    Route::post('/parameters/{manualParameter}/standard-rules', [ManualParameterController::class, 'standardRules'])->name('parameters.standard-rules');
     Route::patch('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'updateRule'])->name('parameter-rules.update');
     Route::delete('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'destroyRule'])->name('parameter-rules.destroy');
 

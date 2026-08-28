@@ -479,6 +479,76 @@ class ManualParameterController extends Controller
         }
     }
 
+    /**
+     * Standard rule packages — one click wires the common NDT / EC bundles
+     * (code binding + rule) onto a point's parameter. Idempotent: an existing
+     * rule with the same trigger signature is skipped, never duplicated.
+     */
+    public function standardRules(Request $request, ManualParameter $manualParameter)
+    {
+        $data = $request->validate([
+            'package' => 'required|in:ndt_scrap,ec_package,final_ec',
+        ]);
+
+        $manualParameter->load('repairRules.triggers', 'codes');
+        $created = [];
+        $skipped = [];
+
+        $ensureNdtCode = function (string $name) use ($manualParameter) {
+            $code = \App\Models\Code::firstOrCreate(['name' => $name]);
+            ManualParameterCode::firstOrCreate(
+                ['manual_parameter_id' => $manualParameter->id, 'codes_id' => $code->id],
+                ['finding_context' => 'ndt']
+            );
+
+            return $code;
+        };
+        $hasNdtRule = fn (int $codesId) => $manualParameter->repairRules->contains(
+            fn ($r) => $r->triggers->contains(fn ($t) => $t->trigger === 'finding_ndt' && (int) $t->codes_id === $codesId)
+        );
+        $makeRule = function (string $name, string $action, array $trigger) use ($manualParameter, &$created) {
+            $rule = ManualParameterRepairRule::create([
+                'manual_parameter_id' => $manualParameter->id,
+                'name'                => $name,
+                'action'              => $action,
+            ]);
+            ManualParameterRuleTrigger::create(['repair_rule_id' => $rule->id] + $trigger);
+            $created[] = $name;
+        };
+
+        switch ($data['package']) {
+            case 'ndt_scrap':
+                $crack = $ensureNdtCode('Crack');
+                $hasNdtRule($crack->id)
+                    ? $skipped[] = 'NDT: Crack — scrap'
+                    : $makeRule('NDT: Crack — scrap', 'order_new', ['trigger' => 'finding_ndt', 'codes_id' => $crack->id]);
+                break;
+            case 'ec_package':
+                $damage = $ensureNdtCode('Damage');
+                $hasNdtRule($damage->id)
+                    ? $skipped[] = 'Damage — EC (concession)'
+                    : $makeRule('Damage — EC (concession)', 'ec', ['trigger' => 'finding_ndt', 'codes_id' => $damage->id]);
+                $denied = $ensureNdtCode('EC denied');
+                $hasNdtRule($denied->id)
+                    ? $skipped[] = 'EC denied — scrap'
+                    : $makeRule('EC denied — scrap', 'order_new', ['trigger' => 'finding_ndt', 'codes_id' => $denied->id]);
+                break;
+            case 'final_ec':
+                $manualParameter->repairRules->contains(
+                    fn ($r) => $r->triggers->contains(fn ($t) => $t->trigger === 'final_fail')
+                )
+                    ? $skipped[] = 'Repair out of tolerance — EC (concession)'
+                    : $makeRule('Repair out of tolerance — EC (concession)', 'ec', ['trigger' => 'final_fail']);
+                break;
+        }
+
+        return response()->json([
+            'parameter' => $this->parameterPayload($manualParameter->fresh()),
+            'created'   => $created,
+            'skipped'   => $skipped,
+        ], 201);
+    }
+
     private function syncRuleTriggers(ManualParameterRepairRule $rule, array $triggers): void
     {
         $rule->triggers()->delete();

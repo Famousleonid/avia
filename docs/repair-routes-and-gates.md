@@ -152,6 +152,16 @@ orig/wear. Опция «Final out of limits» в группе «Final (after rep
 21 (ID). Первый случай («нет ремонта в CMM») — как раньше: EC-правило с
 finding-триггером на параметре поверхности.
 
+**Пакеты стандартных правил — СДЕЛАНО 28.08**: кнопка «Std» рядом с «+ Add
+rule» у параметра в панели точки; POST /parameters/{id}/standard-rules,
+package ∈ ndt_scrap («NDT: Crack — scrap»: код Crack ndt + правило order_new/
+finding_ndt), ec_package («Damage — EC (concession)» + «EC denied — scrap»:
+оба кода ndt + правила), final_ec («Repair out of tolerance — EC (concession)»
+с триггером final_fail). Идемпотентно: правило с той же триггер-сигнатурой
+(finding_ndt с тем же кодом / final_fail) пропускается, привязка кода —
+firstOrCreate. Ответ несёт свежий parameterPayload — фронт заменяет параметр
+и перерисовывает панель.
+
 **WO notes при scrap — СДЕЛАНО 28.08**: при подтверждении списания в
 `workorders.notes` дописывается строка «Scrap — {name} P/N {pn} S/N {sn} —
 {код} ({код вердикта})», напр. «Scrap — Rod P/N 190-70956-301 S/N 754 —
