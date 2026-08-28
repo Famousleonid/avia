@@ -1,0 +1,417 @@
+<title>Точки и правила CMM</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --paper: #f6f8f9;
+  --card: #ffffff;
+  --ink: #1e2a35;
+  --muted: #5a6b78;
+  --line: #d7e0e5;
+  --accent: #0d9488;
+  --accent-ink: #0b7268;
+  --chip-bg: #e5f3f1;
+  --warn: #b45309;
+  --warn-bg: #fdf3e3;
+  --shot-frame: #22303d;
+  --kbd-bg: #eef2f4;
+}
+:root:not([data-theme="light"]) { }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #131c25;
+    --card: #1a2530;
+    --ink: #dbe6ee;
+    --muted: #8fa3b3;
+    --line: #2c3b48;
+    --accent: #2dd4bf;
+    --accent-ink: #5eead4;
+    --chip-bg: #16302f;
+    --warn: #e8a75d;
+    --warn-bg: #2d2417;
+    --shot-frame: #0c1319;
+    --kbd-bg: #223140;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #131c25;
+  --card: #1a2530;
+  --ink: #dbe6ee;
+  --muted: #8fa3b3;
+  --line: #2c3b48;
+  --accent: #2dd4bf;
+  --accent-ink: #5eead4;
+  --chip-bg: #16302f;
+  --warn: #e8a75d;
+  --warn-bg: #2d2417;
+  --shot-frame: #0c1319;
+  --kbd-bg: #223140;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
+  font-size: 15.5px;
+  line-height: 1.65;
+}
+.wrap { max-width: 1060px; margin: 0 auto; padding: 40px 28px 80px; }
+header.doc { border-bottom: 2px solid var(--accent); padding-bottom: 22px; margin-bottom: 8px; }
+.eyebrow {
+  font-family: 'IBM Plex Mono', Consolas, monospace;
+  font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--accent-ink); margin-bottom: 10px;
+}
+h1 {
+  font-family: Rubik, 'IBM Plex Sans', sans-serif;
+  font-size: clamp(28px, 4vw, 40px); font-weight: 700;
+  margin: 0 0 10px; line-height: 1.15; text-wrap: balance;
+}
+.lede { color: var(--muted); max-width: 68ch; margin: 0; }
+.lede b { color: var(--ink); font-weight: 600; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 34px; }
+nav.toc a {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;
+  color: var(--accent-ink); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 4px;
+  padding: 5px 11px; background: var(--card);
+}
+nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--accent); outline: none; }
+section.step { margin: 0 0 52px; }
+.step-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+.step-no {
+  font-family: Rubik, sans-serif; font-weight: 700; font-size: 15px;
+  color: var(--accent); border: 2px solid var(--accent); border-radius: 50%;
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  flex: none; transform: translateY(4px);
+}
+h2 {
+  font-family: Rubik, sans-serif; font-weight: 600;
+  font-size: 23px; margin: 0; text-wrap: balance;
+}
+h3 { font-family: Rubik, sans-serif; font-weight: 600; font-size: 16.5px; margin: 22px 0 6px; }
+.where {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;
+  color: var(--muted); margin: 2px 0 14px 46px;
+}
+.where b { color: var(--accent-ink); font-weight: 500; }
+section.step > p, section.step > ul, section.step > ol, section.step > h3, section.step > .note { margin-left: 46px; }
+section.step p { max-width: 72ch; margin-top: 0; margin-bottom: 12px; }
+section.step ul, section.step ol { padding-left: 20px; max-width: 70ch; margin-top: 0; margin-bottom: 14px; }
+section.step li { margin-bottom: 7px; }
+section.step li::marker { color: var(--accent); }
+.ui {
+  font-family: 'IBM Plex Mono', monospace; font-size: .86em;
+  background: var(--kbd-bg); border: 1px solid var(--line);
+  border-radius: 4px; padding: 1px 6px; white-space: nowrap;
+}
+.chip-point, .chip-part, .chip-if {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500;
+  border-radius: 3px; padding: 1px 6px; border: 1px solid;
+}
+.chip-point { color: #c2712c; border-color: #c2712c; }
+.chip-part  { color: #2e9e6b; border-color: #2e9e6b; }
+.chip-if    { color: var(--accent-ink); border-color: var(--accent-ink); }
+figure.shot { margin: 20px 0 8px; }
+figure.shot img {
+  display: block; width: 100%; height: auto;
+  border: 1px solid var(--shot-frame); border-radius: 6px;
+}
+figure.shot figcaption {
+  font-size: 13px; color: var(--muted); margin-top: 8px; max-width: 80ch;
+}
+figure.shot figcaption b { color: var(--ink); font-weight: 600; }
+.note {
+  background: var(--warn-bg); border-left: 3px solid var(--warn);
+  border-radius: 0 6px 6px 0; padding: 10px 16px; max-width: 76ch;
+  font-size: 14px; margin-bottom: 14px;
+}
+.note b { color: var(--warn); }
+table.plan {
+  border-collapse: collapse; margin: 10px 0 6px 46px;
+  font-size: 14px; min-width: 420px;
+}
+.table-scroll { overflow-x: auto; }
+table.plan th, table.plan td { border: 1px solid var(--line); padding: 7px 12px; text-align: left; }
+table.plan th {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+  background: var(--card);
+}
+table.plan td:first-child { font-variant-numeric: tabular-nums; color: var(--muted); }
+table.plan td b { font-weight: 600; }
+.ops { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); }
+footer.doc {
+  border-top: 1px solid var(--line); margin-top: 40px; padding-top: 14px;
+  font-size: 12.5px; color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+@media (prefers-reduced-motion: no-preference) {
+  nav.toc a { transition: border-color .15s ease; }
+}
+@media (max-width: 720px) {
+  section.step > p, section.step > ul, section.step > ol, section.step > h3, section.step > .note, .where, table.plan { margin-left: 0; }
+}
+</style>
+
+<div class="wrap">
+<header class="doc">
+  <div class="eyebrow">Aviatechnik · CMM 32-31-02 · Rod</div>
+  <h1>Точки и правила CMM</h1>
+  <p class="lede">Как завести <b>точку измерения</b> на фигуре, добавить к ней <b>параметр</b> (замер или инспекцию)
+  и настроить <b>правила ремонта</b> — с порогами по превышению и условными процессами.
+  Все экраны сняты на реальном мануале 32-31-02 (Rod, Retraction Actuator MLG).</p>
+</header>
+
+<nav class="toc">
+  <a href="#s1">1 · Точка на фигуре</a>
+  <a href="#s2">2 · Панель точки</a>
+  <a href="#s3">3 · Параметр</a>
+  <a href="#s4">4 · Правило и пороги</a>
+  <a href="#s5">5 · Условия «if»</a>
+  <a href="#s6">6 · Проверка в WO</a>
+  <a href="#s7">7 · Заказ деталей</a>
+  <a href="#s8">8 · NDT-вердикт и scrap</a>
+  <a href="#s9">9 · In-process контроль</a>
+  <a href="#s10">10 · EC-концессия</a>
+</nav>
+
+<section class="step" id="s1">
+  <div class="step-head"><span class="step-no">1</span><h2>Добавить точку на фигуру</h2></div>
+  <p class="where"><b>Manuals → 32-31-02 → вкладка Dimensions</b> → фигура в списке Figures</p>
+  <ul>
+    <li><span class="ui">Add Point</span> — обычная точка замера: клик по кнопке, затем по месту на фигуре. Код точки присваивается следующим по порядку.</li>
+    <li><span class="ui">Add Callout</span> — точка с выноской: маркер-точка на детали + рамка с номером в стороне. Удобно для мелких мест — именно так поставлена точка 7 (Anti-rotation Key).</li>
+    <li><span class="ui">Add Area</span> / <span class="ui">Add Circle</span> / <span class="ui">Add Line</span> / <span class="ui">Add Label</span> — зоны и пометки без замера; <span class="ui">View</span> — стрелка «вид».</li>
+    <li>Точку можно перетаскивать мышью; <span class="ui">Find point…</span> находит точку по коду; <span class="ui">Edit Point</span> в панели справа — код, описание, галочка F&amp;C.</li>
+  </ul>
+  <div class="note"><b>F&amp;C.</b> Галочка «Fits &amp; Clearances» на точке нужна только посадочным парам (точки 5 и 6) —
+  они попадают в F&amp;C-поток и документ. Инспекционным точкам вроде keys она не нужна.</div>
+  <figure class="shot"><img src="{{S1}}" alt="Вкладка Dimensions: фигура Rod с точками 5, 6 и 7, тулбар Add Point / Add Callout">
+  <figcaption><b>Вкладка Dimensions.</b> Слева — детали и фигуры, в центре — фигура с точками (5, 6 — посадочные, 7 — callout на Anti-rotation Key), сверху — тулбар добавления.</figcaption></figure>
+</section>
+
+<section class="step" id="s2">
+  <div class="step-head"><span class="step-no">2</span><h2>Панель точки</h2></div>
+  <p class="where">клик по точке на фигуре → панель справа</p>
+  <p>В панели видно всё, что привязано к точке: деталь (ROD), параметры с кодами дефектов и их правила.
+  Отсюда же всё и заводится:</p>
+  <ul>
+    <li><span class="ui">+ Add Parameter</span> (внизу) или <span class="ui">+ Param</span> у детали — добавить параметр к точке;</li>
+    <li><span class="ui">+ Add rule</span> под параметром — добавить правило ремонта;</li>
+    <li>карандаш у параметра / правила — редактирование;</li>
+    <li><span class="ui">Copy setup from point…</span> — скопировать полную настройку с другой точки (параметры, коды, правила) — для одинаковых мест.</li>
+  </ul>
+  <figure class="shot"><img src="{{S2}}" alt="Панель точки 7: параметр Anti-rotation keys с кодом Damage и правилом Keys rechrome">
+  <figcaption><b>Точка 7 выбрана.</b> Параметр «Anti-rotation keys» (req = обязательный), код дефекта Damage,
+  правило «Keys rechrome» (Repair · 7 proc.) с триггером Insp. Finding · Damage.</figcaption></figure>
+</section>
+
+<section class="step" id="s3">
+  <div class="step-head"><span class="step-no">3</span><h2>Параметр: замер или инспекция</h2></div>
+  <p class="where">панель точки → <b>+ Add Parameter</b></p>
+  <ul>
+    <li><b>Part</b> — деталь, к которой относится замер (по ней собирается план ремонта и TDR).</li>
+    <li><b>Description</b> — что меряем: OD, ID, состояние поверхности.</li>
+    <li><b>Required</b> — точка обязательна: без initial-записи по всем обязательным параметрам кнопка Update в WO не активируется. <b>Record actual value</b> — требовать числовое значение.</li>
+    <li><b>Defect Codes</b> — какие дефекты здесь можно найти, с контекстом:
+      <span class="ui">Inspection</span> — дефект видят при осмотре (Damage, Corroded);
+      <span class="ui">Measurement</span> — дефект следует из замера (Worn).</li>
+    <li><b>Dimensional limits</b> — Orig Min/Max из мануала. <b>Wear</b> — если пусто, используются оригинальные
+    (так и работает: wear-лимиты есть не у всех). <b>Repair limits / Repair Steps</b> — размер после ремонта и ступени oversize.</li>
+    <li>Для чисто инспекционной точки (keys) лимиты оставляют пустыми — точка принимает только finding или «чисто».</li>
+    <li><b>In-process check</b> — точка меряется по ходу маршрута (например, база после снятия хрома), а не на входной инспекции: не блокирует кнопку Update и живёт отдельной секцией в панели (см. шаг 9).</li>
+  </ul>
+  <figure class="shot"><img src="{{S3}}" alt="Модалка Add Parameter: Required, In-process check, Defect Codes, лимиты Orig/Wear/Repair">
+  <figcaption><b>Add Parameter.</b> Деталь, описание, коды дефектов с контекстом (Inspection / Measurement / NDT) и три уровня лимитов; чекбокс «In-process check» — для промежуточных контролей.</figcaption></figure>
+</section>
+
+<section class="step" id="s4">
+  <div class="step-head"><span class="step-no">4</span><h2>Правило: маршрут ремонта и пороги</h2></div>
+  <p class="where">панель точки → <b>+ Add rule</b> (или карандаш у правила)</p>
+  <p>Правило = один маршрут ремонта этого места: <b>когда</b> он включается (Triggers) и <b>что</b> делается (Processes, по порядку технологии).</p>
+  <h3>Action</h3>
+  <ul>
+    <li><span class="ui">Repair</span> — маршрут попадает в план ремонта; <span class="ui">Order new</span> — деталь заказывается; <span class="ui">EC</span> — концессия.</li>
+  </ul>
+  <h3>Triggers — когда правило срабатывает</h3>
+  <ul>
+    <li><b>Размерные</b>: Above / Below orig (или wear) — замер вне лимита. У размерного триггера есть <b>порог превышения Δ</b>:
+      поле <span class="ui">over &gt; Δ</span> и <span class="ui">up to ≤ Δ</span>. Так разводятся маршруты одного места:
+      Silver restoration — <b>Δ ≤ 0.010</b> (в толщину слоя серебра), Machining + chrome — <b>Δ &gt; 0.010</b>.
+      Ровно на пороге выбирается нижняя полоса (Silver).</li>
+    <li><b>Finding</b> — Inspection / Measurement / <b>NDT</b> с кодом дефекта: техник выбрал дефект при замере → правило включилось. NDT-контекст — для вердиктов после контроля (шаг 8).</li>
+    <li><b>Final out of limits</b> — FAIL финального замера (после ремонта не попали ни в repair-лимиты, ни в oversize-ступень). Обычно на EC-правиле (шаг 10).</li>
+  </ul>
+  <div class="note"><b>Как выбирается маршрут в WO:</b> ввели только цифру — по размеру и полосе Δ;
+  выбрали дефект — по finding-триггеру. Если точке подходит несколько правил сразу — превью Update покажет выбор (радио).</div>
+  <h3>Processes — что делается</h3>
+  <ul>
+    <li>Порядок строк = порядок технологии; перетаскивание за <span class="ui">⠿</span>.</li>
+    <li>Чип <span class="chip-point">point</span> / <span class="chip-part">part</span> — охват процесса: строка на каждое место или одна на деталь
+      (part-строки с <b>одинаковой операцией</b> сливаются между маршрутами: один NDT, одна ванна). Клик по чипу переключает.</li>
+    <li>Поле notes — заметка в план и печать (например «fig. 6039»); ⚓ — якорь EC-гейта.</li>
+  </ul>
+  <figure class="shot"><img src="{{S4}}" alt="Модалка Edit Rule: триггеры с порогом Δ > 0.01 и finding Damage/Corroded, процессы маршрута">
+  <figcaption><b>Правило «Machining + chrome in hole»</b> (точка 6): триггеры — Above orig max · Δ &gt; 0.01,
+  Finding Damage и Corroded; маршрут — Machining → NDT-1 → Chrome plating → NDT-4 → Paint.
+  Справа в панели видно оба правила точки с их полосами Δ.</figcaption></figure>
+</section>
+
+<section class="step" id="s5">
+  <div class="step-head"><span class="step-no">5</span><h2>Условия на процессе — кнопка «if»</h2></div>
+  <p class="where">модалка правила → кнопка <span class="chip-if">if</span> на строке процесса</p>
+  <p>Строка маршрута может включаться в план по условию — в зависимости от того, что ещё есть в собранном плане детали. Клик по кнопке циклом:</p>
+  <ul>
+    <li><span class="chip-if">if</span> — всегда (по умолчанию);</li>
+    <li><span class="chip-if">if+</span> — только если в плане <b>есть</b> выбранный процесс;</li>
+    <li><span class="chip-if">if−</span> — только если выбранного процесса в плане <b>нет</b>.</li>
+  </ul>
+  <p>Рядом появляется выбор процесса-условия. Пример использования: NDT-4 в silver-маршруте до серебра,
+  когда хром не перекладывается (<span class="chip-if">if−</span> Chrome plating), и общий NDT-4 после серебра,
+  когда хром-маршрут в плане (<span class="chip-if">if+</span> Chrome plating).</p>
+  <div class="note"><b>Роду условия не понадобились:</b> нужный порядок (NDT-4 после хрома, до серебра) получился
+  из последовательностей самих маршрутов. Условия — инструмент на случаи, когда порядок должен меняться от состава плана.</div>
+  <figure class="shot"><img src="{{S5}}" alt="Строка процесса с условием if+ и селектором процесса-условия">
+  <figcaption><b>Условие на строке.</b> У NDT-1 включён режим <span class="chip-if">if+</span> — появился селектор процесса-условия.
+  Кликами по чипу условие переключается: всегда → есть в плане → нет в плане.</figcaption></figure>
+</section>
+
+<section class="step" id="s6">
+  <div class="step-head"><span class="step-no">6</span><h2>Проверка в Workorder</h2></div>
+  <p class="where">WO → <b>TDR → Inspect</b> на строке детали → замеры → <b>Update Processes</b></p>
+  <ul>
+    <li>Внесите initial по всем обязательным точкам детали (инспекционные — finding или «чисто»).</li>
+    <li><span class="ui">Update Processes</span> открывает превью: таблица будущего плана по порядку, с операциями и статусами
+      (new / started / = / removed) и выбором маршрута, если подходят несколько правил. <span class="ui">Apply changes</span> — применить.</li>
+    <li>План собирается сам: механика (Machining) — первой (in-house, деталь уезжает к вендору один раз),
+      part-строки с одинаковой операцией сливаются, идущие подряд NDT объединяются в одну строку.</li>
+  </ul>
+  <p>Текущий план wo107903 после Apply (замеры: ID Worn 2.3760 → Silver, остальное чисто):</p>
+  <div class="table-scroll"><table class="plan">
+    <thead><tr><th>#</th><th>Process</th><th>Operation</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>NDT-1 / NDT-4</b></td><td class="ops">magnaflux ASTM E1444 + penetrant ASTM E1417 — одна строка, одна форма</td></tr>
+      <tr><td>2</td><td>Silver plating</td><td class="ops">AMS-2410, 0.003–0.005 in, bake 8h @ 190°C</td></tr>
+      <tr><td>3</td><td>Paint</td><td class="ops">MIL-PRF-85285 Class H</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="step" id="s7">
+  <div class="step-head"><span class="step-no">7</span><h2>Заказ деталей из маршрута</h2></div>
+  <p class="where">модалка правила → блок <b>Order parts</b></p>
+  <p>Маршрут может требовать заказ деталей: у рода оба маршрута замены bearing декларируют
+  «BEARING, SPHERICAL ×1». При применении маршрута превью Update предложит заказ,
+  Apply поднимет связанный Order New TDR (виден в Ordered Parts и PRL, код/condition — от ремонтного TDR).</p>
+  <ul>
+    <li><b>Дедуп по позиции IPL</b>: варианты одной позиции (1-380 / 1-380A) — один заказ; тот же P/N на другой позиции (1-400 у цилиндра) — отдельный.</li>
+    <li><b>Вариант позиции</b> выбирается по assy-группировке Parts: какой род — такой bearing (заполните assy у вариантов).</li>
+    <li>Уже заказанное (вручную или авто) показывается жёлтой строкой «Already ordered» — дубль не создаётся.</li>
+    <li>Заказ, который плану больше не нужен, предлагается к отмене галкой; PO-номер или приёмка блокируют отмену.</li>
+  </ul>
+  <figure class="shot"><img src="{{N3}}" alt="Правило с блоком Order parts: bearing 1-380A ×1">
+  <figcaption><b>Правило с заказом.</b> Блок Order parts внизу слева: bearing 1-380A ×1 — «auto Order New when this route is applied».
+  Справа в панели точки видны все три её маршрута.</figcaption></figure>
+  <figure class="shot"><img src="{{N1}}" alt="Превью Update: таблица плана и жёлтая строка Already ordered">
+  <figcaption><b>Превью Update.</b> Итоговый план по порядку с операциями и статусами; сверху секция Parts to order —
+  жёлтым «Already ordered: 1-380A … (TDR # · auto)».</figcaption></figure>
+</section>
+
+<section class="step" id="s8">
+  <div class="step-head"><span class="step-no">8</span><h2>NDT-вердикт и scrap</h2></div>
+  <p class="where">Inspect → точка → <b>Add NDT / in-process finding</b> → Update</p>
+  <p>Вердикт по ходу ремонта (NDT после стрипа/расточки, инспекция отверстия после снятия bearing)
+  вводится красной кнопкой на точке: без значения, только код дефекта (контекст NDT — например Crack).
+  <b>Маршрут места определяет последний вердикт</b>: NDT-crack, введённый после размерного FAIL,
+  заместит прежний маршрут — превью покажет смену. Ошиблись — удалите запись крестиком, Update вернёт прежний план.</p>
+  <ul>
+    <li>Правило с триггером «Finding — NDT» и действием Repair — ремонтный маршрут (weld …), процессы вольются в план.</li>
+    <li>Действие <b>Order new</b> = scrap: деталь-носитель списывается. Превью предложит заказ <b>сборки</b>
+      (Rod Assy — по assy-привязке рода) с кодом <b>Failed NDT</b>, а связанные заказы (bearing) — к отмене:
+      он входит в заказываемую сборку.</li>
+    <li><b>Work completed through</b> — до какого процесса работа физически дошла (по умолчанию — первая NDT-строка,
+      а если списание идёт после отказа EC — строка EC, см. шаг 10): строки до точки остаются записью выполненного
+      для сопроводиловки, хвост удаляется. Строки с датами не удаляются никогда.</li>
+    <li>При подтверждении списания в <b>notes воркордера</b> дописывается запись
+      «Scrap — Rod P/N … S/N … — Failed NDT» — что списали и почему; несколько деталей — по строке на каждую.
+      Отменили списание (удалили вердикт, Apply вернул план) — строка этой детали удаляется сама.</li>
+  </ul>
+  <figure class="shot"><img src="{{N4}}" alt="Панель Inspect: кнопка Add NDT / in-process finding и секции точек">
+  <figcaption><b>Ввод вердикта.</b> Развёрнутая точка OD: обычный «Add Final measurement» и красная
+  «Add NDT / in-process finding». Ниже — секции Surface inspection и In-process checks.</figcaption></figure>
+  <figure class="shot"><img src="{{N2}}" alt="Превью scrap: заказ Rod Assy, отмена bearing, kept/dropped строки">
+  <figcaption><b>Scrap в превью.</b> Красный блок «Scrap — order replacement: Rod Assy» с селектором
+  «Work completed through: NDT-1»; отмена bearing-заказа (part condemned); таблица kept / dropped.</figcaption></figure>
+</section>
+
+<section class="step" id="s9">
+  <div class="step-head"><span class="step-no">9</span><h2>In-process контроль (база после strip)</h2></div>
+  <p class="where">параметр с галкой <b>In-process check</b></p>
+  <p>Контроль, который выполняется посреди маршрута — например замер базового металла после снятия хрома
+  (минимум = максимально допустимая толщина будущего хрома). Такая точка:</p>
+  <ul>
+    <li>не требуется для активации Update на входной инспекции и не влияет на индикатор готовности детали;</li>
+    <li>в панели Inspect живёт секцией «In-process checks (mid-route)»;</li>
+    <li>правила на ней обычные: «ниже минимума» → scrap (заказ сборки, шаг 8) или EC/ремонт — как в CMM.</li>
+  </ul>
+  <p>У рода заведён параметр «Base metal dia (after strip)» на точке 5 — <b>лимиты-заглушки, уточните по CMM</b>.</p>
+</section>
+
+<section class="step" id="s10">
+  <div class="step-head"><span class="step-no">10</span><h2>EC-концессия: подача, отказ, продолжение</h2></div>
+  <p class="where">правило с действием <b>EC</b> → вердикт → Update → оранжевый блок <b>EC — submit for concession</b></p>
+  <p>EC возникает в двух случаях: <b>damage / corrosion на поверхности, где в CMM нет ремонта</b>
+  (референс-кейс рода: после chrome strip нашли damage базового металла), и <b>после ремонта вышли
+  из мин/макс размеров</b> (финальный замер не попал ни в repair-лимиты, ни в oversize-ступень).
+  Дефект уходит в OEM на концессию, работа встаёт до ответа.</p>
+  <h3>Настройка (один раз, в мануале)</h3>
+  <div class="note"><b>Быстрый способ — кнопка <span class="ui">Std</span></b> рядом с «+ Add rule» у параметра:
+  готовые пакеты «NDT failed — scrap (Crack)», «EC package (Damage → EC, EC denied → scrap)» и
+  «Final out of tolerance — EC». Один клик создаёт код на параметре + правило со стандартными именами;
+  повторный клик ничего не дублирует. Дальше правило можно открыть и подправить (код, триггеры).</div>
+  <ul>
+    <li><b>Нет ремонта в CMM</b>: правило <b>«Base damage — EC (concession)»</b> на параметре поверхности:
+      действие <span class="ui">EC</span>, триггер Finding — NDT · Damage (или Corroded).</li>
+    <li><b>Не попали в размер после ремонта</b>: правило <b>«Repair out of tolerance — EC (concession)»</b>:
+      действие <span class="ui">EC</span>, триггер <span class="ui">Final out of limits</span> (группа
+      «Final (after repair)») — срабатывает на FAIL финального замера. Финал, принятый oversize-ступенью
+      или repair-лимитами, триггер не включает. У рода заведено на OD (т. 5) и ID (т. 6).</li>
+    <li>Код <b>«EC denied»</b> (контекст NDT) на точках 5 / 6 / базы + правила <b>«EC denied — scrap»</b>
+      (действие Order new, триггер Finding — NDT · EC denied) — для ввода отказа OEM.</li>
+  </ul>
+  <h3>Подача концессии</h3>
+  <ul>
+    <li>Техник вводит вердикт <b>Damage</b> по точке базы (красная кнопка «Add NDT / in-process finding») —
+      или просто сохраняет финальный замер, вышедший из лимитов (триггер Final сработает сам).</li>
+    <li><span class="ui">Update Processes</span> → оранжевый блок «EC — submit for concession: Concession: {точка} {описание} — {код}»,
+      галка включена по умолчанию. Пока галка включена, таблица показывает план «как будет»: выполненные строки
+      на месте, строка EC на своей позиции, хвост помечен held; снимите галку — увидите обычный дифф пересборки.</li>
+    <li><span class="ui">Apply</span>: план <b>не пересобирается</b> — выполненные строки остаются записью работы.
+      В план <b>перед NDT</b> (гейт-якорем) вставляется строка <b>EC</b> с причиной, а незапущенный хвост после якоря
+      удаляется — работа держится до ответа OEM. Юнит появляется на странице <span class="ui">/ec</span>.</li>
+  </ul>
+  <div class="table-scroll"><table class="plan">
+    <thead><tr><th>#</th><th>Process</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Chrome stripping</td><td class="ops">выполнено — остаётся записью</td></tr>
+      <tr><td>2</td><td><b>EC</b></td><td class="ops">Concession: 5 Base metal dia (after strip) — Damage</td></tr>
+      <tr><td>3</td><td>NDT-1</td><td class="ops">ждёт ответа OEM</td></tr>
+    </tbody>
+  </table></div>
+  <p>Повторный Update дубль не создаёт — блок покажет «EC already on the plan».</p>
+  <h3>Ответ OEM</h3>
+  <ul>
+    <li><b>Отказ</b> — вердикт с кодом <b>EC denied</b> по той же точке → Update → scrap-флоу шага 8
+      (Rod Assy · Failed NDT · отмена bearing). «Work completed through» по умолчанию встаёт на строку <b>EC</b> —
+      NDT после неё не выполнялся и уходит в dropped, а запись об EC остаётся в истории.
+      В notes воркордера — строка «Scrap — … — Failed NDT (EC denied)».</li>
+    <li><b>Согласие</b> — отдельного кода нет: техник продолжает маршрут (закрывает/удаляет EC-строку,
+      Update возвращает удержанный хвост).</li>
+    <li><b>Ошиблись</b> — удалите вердикт крестиком: Update переармируется и вернёт прежний план;
+      notes-запись о списании снимется автоматически.</li>
+  </ul>
+</section>
+
+<footer class="doc">Инструкция построена на живых данных мануала 32-31-02 и wo107903 · 27–28.08.2026 · подробности механики — docs/repair-routes-and-gates.md</footer>
+</div>
