@@ -1177,11 +1177,49 @@
             h.push('</tbody></table>');
         }
 
+        // EC mode: with the EC checkbox ON the plan is NOT rebuilt — show the
+        // CURRENT rows with the EC insert point and the held tail instead of
+        // the rebuild diff (which would misleadingly strike performed work).
+        const ecRows = (data.ec && data.ec.status === 'proposed') ? (data.ec_rows || []) : [];
+        if (!scrapRows.length && ecRows.length) {
+            const opsHtmlE = it => (it.ops || []).map(o =>
+                `<div class="text-secondary" style="font-size:10px;line-height:1.35">${esc(o)}</div>`).join('');
+            const ecRowHtml = n => `<tr>
+                <td class="text-secondary">${n}</td>
+                <td style="color:#fd7e14;font-weight:600">EC<div class="text-secondary fw-normal" style="font-size:10px">${esc(data.ec.reason || '')}</div></td>
+                <td></td>
+                <td class="text-end"><span class="badge" style="background:#fd7e14;font-size:9px">new</span></td>
+            </tr>`;
+            h.push(`<div id="msUpdPrevEcPlan" class="d-none"><table class="table table-sm mb-1" style="font-size:11px">
+                <thead><tr class="text-secondary" style="font-size:10px">
+                    <th style="width:24px">#</th><th style="width:26%">Process</th><th>Operation</th><th style="width:52px"></th>
+                </tr></thead><tbody>`);
+            let n = 1;
+            const hasAnchor = ecRows.some(r => r.ec_insert_before);
+            ecRows.forEach(r => {
+                if (r.ec_insert_before) h.push(ecRowHtml(n++));
+                const held = r.status === 'held';
+                h.push(`<tr ${held ? 'style="text-decoration:line-through;opacity:.7"' : ''}>
+                    <td class="text-secondary">${held ? '' : n++}</td>
+                    <td ${held ? 'class="text-danger"' : ''}>${esc(r.name)}${r.description ? '<div class="text-secondary fw-normal" style="font-size:10px">' + esc(r.description) + '</div>' : ''}</td>
+                    <td>${opsHtmlE(r)}</td>
+                    <td class="text-end">${held
+                        ? '<span class="badge" style="background:#fd7e14;font-size:9px">held</span>'
+                        : '<span class="badge bg-secondary" style="font-size:9px;opacity:.45">=</span>'}</td>
+                </tr>`);
+            });
+            if (!hasAnchor) h.push(ecRowHtml(n++));
+            h.push(`</tbody></table>
+                <div class="text-secondary mb-2" style="font-size:10px">EC accepted — the plan is NOT rebuilt: performed rows stay, the EC row is added, held rows wait for the OEM answer.</div>
+            </div>`);
+        }
+
         // Resulting plan as ONE table in execution order; removed rows appended
         // struck-through at the end (they have no position in the new plan).
         const plan = data.plan || [];
         const removedRows = data.removed || [];
         if (!scrapRows.length && (plan.length || removedRows.length)) {
+            h.push('<div id="msUpdPrevDiffPlan">');
             const badge = st => st === 'added'
                 ? '<span class="badge" style="background:#198754;font-size:9px">new</span>'
                 : st === 'kept'
@@ -1210,7 +1248,7 @@
                     <td class="text-end"><span class="badge" style="background:#dc3545;font-size:9px">removed</span></td>
                 </tr>`);
             });
-            h.push('</tbody></table>');
+            h.push('</tbody></table></div>');
         }
 
         if (!(data.added || []).length && !removedRows.length && !warn.length) {
@@ -1237,6 +1275,19 @@
             };
             keepSel.addEventListener('change', applyScrapStatuses);
             applyScrapStatuses();
+        }
+
+        // EC mode toggle: checkbox ON → current-plan-with-EC table, OFF → diff
+        const ecCb = body.querySelector('#msUpdPrevEc');
+        const ecPlanEl = body.querySelector('#msUpdPrevEcPlan');
+        if (ecCb && ecPlanEl) {
+            const diffPlanEl = body.querySelector('#msUpdPrevDiffPlan');
+            const applyEcMode = () => {
+                ecPlanEl.classList.toggle('d-none', !ecCb.checked);
+                if (diffPlanEl) diffPlanEl.classList.toggle('d-none', ecCb.checked);
+            };
+            ecCb.addEventListener('change', applyEcMode);
+            applyEcMode();
         }
 
         // Route change → refetch the preview with the new choice

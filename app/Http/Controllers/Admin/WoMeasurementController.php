@@ -1729,6 +1729,20 @@ class WoMeasurementController extends Controller
             $ctx['scrap']['default_keep_row_id'] = $defaultKeep['id'] ?? null;
         }
 
+        // EC proposed: with the EC checkbox ON the plan is NOT rebuilt — the
+        // frontend swaps the diff table for the CURRENT rows with the EC insert
+        // point (before the gate anchor) and the held tail after it.
+        $ecRows = null;
+        if (($ctx['ec']['status'] ?? null) === 'proposed') {
+            $anchor = $this->gateAnchorSort($icId, $ctx['tdr']->id);
+            $ecRows = $rows->map(fn ($r) => $rowEntry($r) + [
+                'id'               => (int) $r->id,
+                'sort_order'       => (int) $r->sort_order,
+                'status'           => ($anchor !== null && $r->date_start === null && (int) $r->sort_order > $anchor) ? 'held' : 'kept',
+                'ec_insert_before' => $anchor !== null && (int) $r->sort_order === $anchor,
+            ])->values()->all();
+        }
+
         return response()->json([
             'tdr_id'    => $ctx['tdr']->id,
             'points'    => $ctx['points'],
@@ -1736,6 +1750,7 @@ class WoMeasurementController extends Controller
             'orders'    => $ctx['orders'],
             'scrap'     => $ctx['scrap'],
             'ec'        => $ctx['ec'],
+            'ec_rows'   => $ecRows,
             'scrap_rows'=> $scrapRows,
             'plan'      => $plan,
             'kept'      => $started->map($rowEntry)->values()->all(),

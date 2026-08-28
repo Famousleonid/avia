@@ -1223,6 +1223,11 @@ class RepairPlanRebuildTest extends TestCase
         $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
         $this->assertSame('proposed', $preview['ec']['status']);
         $this->assertStringContainsString('Concession', $preview['ec']['reason']);
+        // EC-mode plan for the preview: insert point before the gate NDT row,
+        // the unstarted tail after it marked held
+        $ecRows = collect($preview['ec_rows']);
+        $this->assertTrue((bool) $ecRows->firstWhere('ec_insert_before', true), 'EC insert point present');
+        $this->assertSame('held', $ecRows->last()['status'], 'Tail after the anchor marked held');
 
         $res = $this->updateProcesses($d['wo'], $d['ic'], ['ec_accept' => true])->assertOk()->json();
         $ecRow = TdrProcess::find($res['ec_row_id']);
