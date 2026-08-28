@@ -2415,9 +2415,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 html += `<div class="d-flex gap-1 mt-1">
-                    <button class="btn btn-outline-secondary dim-btn-xs dim-add-rule-btn" data-param-id="${param.id}" style="flex:1">+ Add rule</button>
+                    <button class="btn btn-outline-warning dim-btn-xs dim-add-rule-btn" data-param-id="${param.id}" style="flex:1">+ Add rule</button>
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary dim-btn-xs dropdown-toggle" data-bs-toggle="dropdown" title="Standard rule packages">Std</button>
+                        <button class="btn btn-outline-warning dim-btn-xs dropdown-toggle" data-bs-toggle="dropdown" title="Standard rule packages" style="min-width:88px">Std</button>
                         <ul class="dropdown-menu dropdown-menu-end" style="font-size:12px">
                             <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="ndt_scrap">NDT failed — scrap <span class="text-secondary">(Crack · Order new)</span></a></li>
                             <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="ec_package">EC package <span class="text-secondary">(Damage → EC, EC denied → scrap)</span></a></li>
