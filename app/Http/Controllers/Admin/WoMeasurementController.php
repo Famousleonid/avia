@@ -389,7 +389,10 @@ class WoMeasurementController extends Controller
             $data['codes_id'] ?? null,
             $useWear,
             $findingContext,
-            ($data['actual_value'] ?? null) !== null ? (float) $data['actual_value'] : null
+            ($data['actual_value'] ?? null) !== null ? (float) $data['actual_value'] : null,
+            // final_fail must NOT fire when a repair step/limit accepted the
+            // value (storedResult PASS despite an orig-limits FAIL).
+            ($data['stage'] === 'final' && $storedResult === 'FAIL') ? 'final' : null
         );
 
         $measurement = WoMeasurement::create($data);
@@ -1816,7 +1819,8 @@ class WoMeasurementController extends Controller
                 if ($param) {
                     $rId = $this->resolveRepairRule(
                         $param, $m->result, $m->codes_id, $useWear, null,
-                        $m->actual_value !== null ? (float) $m->actual_value : null
+                        $m->actual_value !== null ? (float) $m->actual_value : null,
+                        $m->stage
                     );
                 }
             }
@@ -1933,7 +1937,12 @@ class WoMeasurementController extends Controller
         $code    = $verdict?->codes_id ? Code::find($verdict->codes_id) : null;
         $param   = $verdict ? ManualParameter::with('points')->find($verdict->manual_parameter_id) : null;
         $pt      = $param?->points->pluck('code')->filter()->unique()->implode(', ');
-        $reason  = trim(($pt ? $pt . ' ' : '') . ($param?->description ?? '') . ($code ? ' — ' . $code->name : ''));
+        $why     = $code?->name;
+        if (!$why && $verdict && $verdict->stage === 'final' && $verdict->actual_value !== null) {
+            // final_fail verdict: the reason is the after-repair size itself
+            $why = 'final ' . $this->fmtDim((float) $verdict->actual_value) . ' out of limits';
+        }
+        $reason  = trim(($pt ? $pt . ' ' : '') . ($param?->description ?? '') . ($why ? ' — ' . $why : ''));
 
         return [
             'rule_names' => array_values(array_unique(array_map(fn ($w) => (string) $w['rule_name'], $ecRules))),
@@ -2314,8 +2323,13 @@ class WoMeasurementController extends Controller
         $srcWear = ($limits['source'] ?? null) === 'wear';
         $failTriggers = $srcWear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
 
-        return $param->repairRules->filter(function ($rule) use ($codesId, $findingContext, $dimFail, $failTriggers, $v, $limits) {
+        $finalFail = $m->stage === 'final' && $m->result === 'FAIL';
+
+        return $param->repairRules->filter(function ($rule) use ($codesId, $findingContext, $dimFail, $failTriggers, $v, $limits, $finalFail) {
             $trigs = $rule->triggers;
+            if ($finalFail && $trigs->contains(fn ($t) => $t->trigger === 'final_fail')) {
+                return true;
+            }
             if ($codesId) {
                 if ($findingContext === 'ndt') {
                     if ($trigs->contains(fn ($t) => $t->trigger === 'finding_ndt'
@@ -2613,7 +2627,7 @@ class WoMeasurementController extends Controller
         return $limits['min'] !== null ? (float) $limits['min'] - $value : null;
     }
 
-    private function resolveRepairRule(ManualParameter $parameter, ?string $result, ?int $codesId, bool $useWear, ?string $findingContext = null, ?float $value = null): ?int
+    private function resolveRepairRule(ManualParameter $parameter, ?string $result, ?int $codesId, bool $useWear, ?string $findingContext = null, ?float $value = null, ?string $stage = null): ?int
     {
         $rules = $parameter->repairRules;
 
@@ -2658,6 +2672,19 @@ class WoMeasurementController extends Controller
                     if ($rule->triggers->contains(fn($t) => in_array($t->trigger, ['finding_inspection', 'finding']) && $t->codes_id === null)) {
                         return $rule->id;
                     }
+                }
+            }
+        }
+
+        // FAILed final (after-repair) measurement: the stored result is judged
+        // against repair limits/steps, which dimensional triggers never see —
+        // final_fail fires on the fact itself ("repair out of tolerance").
+        // A matched finding code above wins; on the final stage this beats
+        // orig/wear routing, which was designed for the incoming inspection.
+        if ($result === 'FAIL' && $stage === 'final') {
+            foreach ($rules as $rule) {
+                if ($rule->triggers->contains(fn ($t) => $t->trigger === 'final_fail')) {
+                    return $rule->id;
                 }
             }
         }

@@ -2201,8 +2201,13 @@ ${sections}
             return ex > (t.min_delta ?? 0) && (t.max_delta == null || ex <= t.max_delta);
         };
 
+        // Final (after-repair) FAIL: the stored result already accounts for
+        // repair steps/limits, so the fact itself fires final_fail rules.
+        const finalFail = m.stage === 'final' && m.result === 'FAIL';
+
         return rules.filter(rule => {
             const trigs = rule.triggers || [];
+            if (finalFail && trigs.some(t => t.trigger === 'final_fail')) return true;
             if (codesId) {
                 if (findingCtx === 'ndt') {
                     if (trigs.some(t => t.trigger === 'finding_ndt' && (t.codes_id == codesId || t.codes_id == null))) return true;

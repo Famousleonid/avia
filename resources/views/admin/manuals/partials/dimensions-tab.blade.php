@@ -556,6 +556,9 @@
                                         <option value="finding_inspection">Finding — Inspection</option>
                                         <option value="finding_ndt">Finding — NDT</option>
                                     </optgroup>
+                                    <optgroup label="Final (after repair)">
+                                        <option value="final_fail">Final out of limits</option>
+                                    </optgroup>
                                     <option value="manual">Manual</option>
                                 </select>
                                 <select class="form-select form-select-sm d-none" id="dimRuleTriggerCode" style="max-width:180px">

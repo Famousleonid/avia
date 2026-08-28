@@ -1263,6 +1263,40 @@ class RepairPlanRebuildTest extends TestCase
         $this->assertStringNotContainsString('Scrap — ', (string) $d['wo']->fresh()->notes);
     }
 
+    /**
+     * final_fail trigger: a FAILed final (after-repair) measurement fires the
+     * "Repair out of tolerance — EC" rule; a final accepted by a repair step
+     * does NOT (stored result PASS never reaches the fails set).
+     */
+    public function test_final_out_of_limits_triggers_ec_rule(): void
+    {
+        $d = $this->makeTwoPointPart();
+        ProcessName::firstOrCreate(['name' => 'EC'], ['scope' => 'part', 'process_sheet_name' => 'EC', 'form_number' => 'F-EC']);
+        $ecRule = ManualParameterRepairRule::create([
+            'manual_parameter_id' => $d['paramA']->id, 'name' => 'Repair out of tolerance — EC', 'action' => 'ec',
+        ]);
+        ManualParameterRuleTrigger::create(['repair_rule_id' => $ecRule->id, 'trigger' => 'final_fail']);
+
+        // Initial FAIL routes to ruleA (dimensional), plan is built
+        $this->failMeasurement($d['wo'], $d['paramA'], $d['ruleA']->id);
+        $this->makeRepairTdr($d['wo'], $d['component']);
+        $this->updateProcesses($d['wo'], $d['ic'])->assertOk();
+
+        // Final out of limits (paramA orig 10.0–10.1, no repair limits/steps)
+        $res = $this->actingAs($this->admin())
+            ->postJson(route('workorders.measurements.store', $d['wo']->id), [
+                'manual_parameter_id' => $d['paramA']->id,
+                'stage'               => 'final',
+                'actual_value'        => 9.9,
+            ])->assertCreated()->json();
+        $this->assertSame('FAIL', $res['result']);
+        $this->assertSame($ecRule->id, (int) $res['manual_parameter_repair_rule_id'], 'final_fail beats dimensional routing on the final stage');
+
+        $preview = $this->previewProcesses($d['wo'], $d['ic'])->assertOk()->json();
+        $this->assertSame('proposed', $preview['ec']['status']);
+        $this->assertStringContainsString('final 9.9 out of limits', $preview['ec']['reason']);
+    }
+
     /** A linked order with a PO number is locked: cancel refuses, revert keeps it. */
     public function test_linked_order_with_po_is_not_cancelled(): void
     {

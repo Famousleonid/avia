@@ -3068,6 +3068,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const TRIGGER_LABELS = {
         finding_ndt:         'NDT Finding',
+        final_fail:          'Final out of limits',
         below_orig:          'Below orig min',
         above_orig:          'Above orig max',
         below_wear:          'Below wear min',

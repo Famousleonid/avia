@@ -20,7 +20,7 @@ class ManualParameterController extends Controller
         $this->middleware('auth');
     }
 
-    // ── Parameters ────────────────────────────────────────────────
+    // â”€â”€ Parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function index(Manual $manual)
     {
@@ -136,12 +136,12 @@ class ManualParameterController extends Controller
         $used = \App\Models\WoMeasurement::where('manual_parameter_id', $manualParameter->id)->count();
         if ($used > 0) {
             return response()->json([
-                'message' => 'Cannot delete "' . $manualParameter->description . '" — '
+                'message' => 'Cannot delete "' . $manualParameter->description . '" â€” '
                     . $used . ' workorder measurement(s) reference it. Remove those measurements first.',
             ], 409);
         }
 
-        // A deleted parameter often leaves its measurement points orphaned — they
+        // A deleted parameter often leaves its measurement points orphaned â€” they
         // linger as ghost marks on the WO Measurements figure. Drop the ones no
         // other parameter uses (a point shared with another parameter survives).
         $pointIds = $manualParameter->points()->pluck('manual_dimension_points.id');
@@ -160,7 +160,7 @@ class ManualParameterController extends Controller
      * Deep-copy the full setup of one dimension point onto another: every
      * parameter with its defect codes, repair rules (triggers + processes,
      * incl. the gate anchor), oversize repair steps and repair-surface
-     * settings. Used for identical bushings on different lugs — configure
+     * settings. Used for identical bushings on different lugs â€” configure
      * one position, copy to the other. Copies are independent parameters.
      */
     public function copyPointSetup(Request $request, ManualDimensionPoint $manualDimensionPoint, ManualDimensionPoint $sourcePoint)
@@ -279,7 +279,7 @@ class ManualParameterController extends Controller
         if ($manualParameter->points()->count() === 0) {
             $used = \App\Models\WoMeasurement::where('manual_parameter_id', $manualParameter->id)->count();
             if ($used > 0) {
-                // keep the orphaned parameter — measurements reference it
+                // keep the orphaned parameter â€” measurements reference it
                 return response()->json(['ok' => true, 'deleted' => false,
                     'message' => 'Parameter kept: ' . $used . ' workorder measurement(s) reference it.']);
             }
@@ -290,7 +290,7 @@ class ManualParameterController extends Controller
         return response()->json(['ok' => true, 'deleted' => false]);
     }
 
-    // ── Codes ─────────────────────────────────────────────────────
+    // â”€â”€ Codes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function storeCode(Request $request, ManualParameter $manualParameter)
     {
@@ -319,7 +319,7 @@ class ManualParameterController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    // ── Repair Rules ──────────────────────────────────────────────
+    // â”€â”€ Repair Rules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function storeRule(Request $request, ManualParameter $manualParameter)
     {
@@ -343,7 +343,7 @@ class ManualParameterController extends Controller
             'part_orders.*.note'         => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
-            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,finding_ndt,manual',
+            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,finding_ndt,final_fail,manual',
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
             'triggers.*.min_delta'          => 'nullable|numeric|min:0',
             'triggers.*.max_delta'          => 'nullable|numeric|min:0',
@@ -387,7 +387,7 @@ class ManualParameterController extends Controller
             'part_orders.*.note'         => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
-            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,finding_ndt,manual',
+            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,finding_ndt,final_fail,manual',
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
             'triggers.*.min_delta'          => 'nullable|numeric|min:0',
             'triggers.*.max_delta'          => 'nullable|numeric|min:0',
@@ -415,7 +415,7 @@ class ManualParameterController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Rule outcome: prefer explicit `action`, fall back to the legacy order_replacement bool. */
     private function resolveAction(array $data): string
@@ -429,8 +429,8 @@ class ManualParameterController extends Controller
     private function syncRuleProcesses(ManualParameterRepairRule $rule, array $processes): void
     {
         // Upsert (NOT delete-all+recreate): keep existing rule-process ids so their
-        // attached documents survive a rule edit (adding a description, reordering…).
-        // Only ONE gate anchor per rule — keep the first flagged process.
+        // attached documents survive a rule edit (adding a description, reorderingâ€¦).
+        // Only ONE gate anchor per rule â€” keep the first flagged process.
         $gateSeen = false;
         $keepIds = [];
         foreach ($processes as $i => $p) {
@@ -438,7 +438,7 @@ class ManualParameterController extends Controller
             if ($isGate) {
                 $gateSeen = true;
             }
-            // Sanitize the optional row condition (§8b): known type + int name ids
+            // Sanitize the optional row condition (Â§8b): known type + int name ids
             $condition = null;
             if (!empty($p['condition']['type']) && !empty($p['condition']['process_name_ids'])) {
                 $condition = [
@@ -465,7 +465,7 @@ class ManualParameterController extends Controller
         $rule->processes()->whereNotIn('id', $keepIds ?: [0])->delete();
     }
 
-    /** §5 linked part orders: components the route orders when applied. */
+    /** Â§5 linked part orders: components the route orders when applied. */
     private function syncRulePartOrders(ManualParameterRepairRule $rule, array $orders): void
     {
         $rule->partOrders()->delete();
@@ -522,7 +522,7 @@ class ManualParameterController extends Controller
         $data['processes'] = $rule->processes->map(function ($rp) {
             $mp    = $rp->manualProcess;
             $pn    = $mp?->process?->process_name;
-            $label = trim(($pn?->name ?? '') . ' — ' . ($mp?->process?->process ?? ''));
+            $label = trim(($pn?->name ?? '') . ' â€” ' . ($mp?->process?->process ?? ''));
             // has_drawing = at least one document with at least one page that has an image
             $hasDrawing = $rp->documents->contains(fn($d) =>
                 $d->pages->contains(fn($p) => !empty($p->image_path)));
