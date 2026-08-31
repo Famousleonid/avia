@@ -17,6 +17,7 @@ use App\Services\Ai\Tools\SearchMyWorkordersByOpenProcessTool;
 use App\Services\Ai\Tools\SearchActivityLogsTool;
 use App\Services\Ai\Tools\SearchWorkordersByOpenProcessTool;
 use App\Services\Ai\Tools\SearchWorkordersTool;
+use App\Services\Ai\Tools\WorkorderStatisticsTool;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -35,6 +36,7 @@ class AiAgentService
         protected ListManualRevisionChecksDueTool $listManualRevisionChecksDueTool,
         protected CountWorkorderImagesTool $countWorkorderImagesTool,
         protected LookupSerialNumberTool $lookupSerialNumberTool,
+        protected WorkorderStatisticsTool $workorderStatisticsTool,
     ) {
     }
 
@@ -128,6 +130,7 @@ class AiAgentService
                 $this->searchActivityLogsTool->schema(),
                 $this->lookupManualEditPermissionsTool->schema(),
                 $this->listManualRevisionChecksDueTool->schema(),
+                $this->workorderStatisticsTool->schema(),
             ]);
         }
 
@@ -163,6 +166,7 @@ class AiAgentService
                 '- searchActivityLogs: System Admin-only thorough read-only audit search. Find who created, changed, or deleted records and when; combine WO, CMM manual number, P/N, actor, event, log category, area, free text, and date range. It searches the full matching log history, including TDR Add Part, manual Parts, ordinary Parts/TDR references, and Bushing before/after snapshots.',
                 '- lookupManualEditPermissions: which CMM manuals a user may edit, who may edit a manual, manuals with responsible users, and manual number ↔ LIB mapping; read-only.',
                 '- listManualRevisionChecksDue: show CMM manuals whose revision check is overdue or due within X days; read-only.',
+                '- getWorkorderStatistics: System Admin-only workorder counts by technician/customer/instruction and top-X longest or shortest calendar time from Open Date to Submitted for Final Inspection; read-only.',
             ]);
         }
 
@@ -182,6 +186,8 @@ class AiAgentService
 - If the user wants a list of workorders matching text, use searchWorkorders (all WO fields + related customer/unit/instruction/user). Format each line as: `[WO <number>](open_url) — description…` (link text = WO number only). Optionally add a second markdown link to open the Workorder table with search pre-filled if origin is in context (`…/workorders?q=…`). Missing photos does not affect workorder status or whether it is closed.
 - If the user asks who/when created, added, changed, removed, or deleted something, asks for an audit trail/history/logs, or combines audit criteria such as WO + CMM + P/N + person + date, use searchActivityLogs. Pass every supplied criterion because filters are combined with AND; search the full matching history before answering. For a TDR Add Part search, use `workorder_number`, `area: components`, and `event: created`; add P/N when supplied. For manual/CMM Parts, use `manual_number`, `area: components`, and normally `event: created`. Use exact P/N matching unless a partial search is explicitly requested. For current WO/CMM, use its human number from context. Report actor, date/time, event, WO/CMM number, P/N, and changed fields when present; never expose internal ids. If no match exists, say so plainly and do not guess.
 - If the user asks which manuals/CMMs need revision checks soon, are due, overdue, or asks for top 10/15/20 manuals with less than X days before revision check, use listManualRevisionChecksDue. Format each result as `[<manual_number>](manual_url) — <title>, rev <last_revision_number if present>, last check <last_checked_at or never>, due <next_due_at>, <days_until_due> days`.
+- If the user asks how many workorders a named technician has with a named customer, how many are Overhaul/Repair/other instruction types, asks for active/completed counts, or asks for workorder performance statistics, use getWorkorderStatistics with `mode: summary`. Pass `status: active` for active WO and `status: completed` for completed WO. Technician + customer + instruction filters are an intersection. When the user asks about technicians as a group or a top-X technician ranking, pass `shop_roles_only: true`: in this workshop both Technician and Team Leader roles carry technician workorders. Report the total and instruction breakdown; do not guess from ordinary search results.
+- If the user asks for top X workorders by time from Open Date until submission for Final Inspection, use getWorkorderStatistics with `mode: turnaround`, pass X as `limit`, and choose `ranking: longest` unless the user explicitly asks for shortest/fastest. Explain that the metric is calendar days to the latest non-ignored Submitted for Final Inspection date because the workflow stores no time of day.
 - For `lookupManualEditPermissions` about the manual on screen: use the **CMM number** from context (e.g. 32-21-09) as `manual_number`; in the answer, speak only in terms of that CMM number — never `manual_id`.
 PROMPT;
     }
@@ -294,6 +300,7 @@ PROMPT;
             'listManualRevisionChecksDue' => $this->listManualRevisionChecksDueTool->run($user, $arguments),
             'countWorkorderImages' => $this->countWorkorderImagesTool->run($user, $arguments),
             'lookupSerialNumber' => $this->lookupSerialNumberTool->run($user, $arguments),
+            'getWorkorderStatistics' => $this->workorderStatisticsTool->run($user, $arguments),
             default => [
                 'ok' => false,
                 'message' => "Unknown tool: {$toolName}",
@@ -725,7 +732,7 @@ Your goals:
 What you can actually do in THIS app (strict — if the user asks «what can you do» / «что ты умеешь», list ONLY this; do not add features from imagination or generic chatbot abilities):
 {$roleCapabilities}
 
-Do NOT claim you can: upload or delete files or photos, send email or notifications, edit workorders/tasks in bulk, change statuses or approve by yourself, export PDF/Excel, run reports, replace procedures, access data you cannot fetch with tools, or any other feature not listed above.
+Do NOT claim you can: upload or delete files or photos, send email or notifications, edit workorders/tasks in bulk, change statuses or approve by yourself, export PDF/Excel, run reports other than the listed workorder statistics, replace procedures, access data you cannot fetch with tools, or any other feature not listed above.
 
 Communication style (strict):
 - Never mention or write internal workorder database IDs to the user — only WO number (номер воркордера) and human-readable facts.

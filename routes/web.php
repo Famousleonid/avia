@@ -72,8 +72,11 @@ use App\Http\Controllers\General\MediaController;
 use App\Http\Controllers\General\NotificationController;
 use App\Http\Controllers\Mobile\MobileComponentController;
 use App\Http\Controllers\Mobile\MobileController;
+use App\Http\Controllers\Mobile\MobileLogCardController;
+use App\Http\Controllers\Mobile\ShippingDraftRecognitionController;
 use App\Http\Controllers\Mobile\MobileProcessController;
 use App\Http\Controllers\Mobile\MobileTaskController;
+use App\Http\Controllers\Api\Mobile\MobileApiController;
 use App\Http\Controllers\PrintMarkController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\RequiredPasswordChangeController;
@@ -189,6 +192,8 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     Route::get('/draft', [MobileController::class, 'createDraft'])->name('draft');
     Route::post('/workorders/draft', [MobileController::class, 'storeDraft'])->name('draft.store');
     Route::post('/draft/units/pending', [MobileController::class, 'storePendingDraftUnit'])->name('draft.units.pending.store');
+    Route::post('/draft/nameplate/recognize', [ShippingDraftRecognitionController::class, 'recognize'])
+        ->name('draft.nameplate.recognize');
 
     // --- tasks ---
     Route::get('/tasks/{workorder}', [MobileTaskController::class, 'tasks'])->name('tasks');
@@ -209,6 +214,22 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
 
     // --- process ---
     Route::get('/process/{workorder}', [MobileProcessController::class, 'process'])->name('process');
+
+    // --- Log Card (web mobile; shared persistence with the mobile API) ---
+    Route::middleware('mobile.log-card.role')->group(function () {
+        Route::get('/log-card/{workorder}', [MobileLogCardController::class, 'index'])->name('log-card');
+        Route::get('/log-card/{workorderId}/data', [MobileApiController::class, 'logCard'])->name('log-card.data');
+        Route::get('/log-card/{workorderId}/template', [MobileApiController::class, 'logCardTemplate'])->name('log-card.template');
+        Route::post('/log-card/{workorderId}/data', [MobileApiController::class, 'storeLogCard'])->name('log-card.store');
+        Route::put('/log-card/{workorderId}/data', [MobileApiController::class, 'updateLogCard'])->name('log-card.update');
+        Route::patch('/log-card/data/{logCard}/rows/{row}', [MobileApiController::class, 'updateLogCardRow'])
+            ->whereNumber('row')->name('log-card.rows.update');
+        Route::patch('/log-card/data/{logCard}/rows/{row}/variant', [MobileApiController::class, 'updateLogCardRowVariant'])
+            ->whereNumber('row')->name('log-card.rows.variant.update');
+        Route::patch('/log-card/data/{logCard}/rows/{row}/assembly', [MobileApiController::class, 'updateLogCardRowAssembly'])
+            ->whereNumber('row')->name('log-card.rows.assembly.update');
+        Route::post('/log-card/{workorder}/photo', [MobileLogCardController::class, 'storePhoto'])->name('log-card.photo.store');
+    });
 
     // --- materials (оставляем в MobileController, либо позже вынесем в MobileMaterialController) ---
     Route::get('/materials', [MobileController::class, 'materials'])->name('materials');

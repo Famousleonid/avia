@@ -160,7 +160,8 @@
 @section('content')
     <div id="photoPage"
          class="photos-page p-2"
-         data-workorder-id="{{ $workorder->id }}">
+         data-workorder-id="{{ $workorder->id }}"
+         data-workorder-number="{{ $workorder->number }}">
         <div class="card photos-shell border-secondary shadow-lg">
             <div class="card-header photos-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2">
                 <div class="d-flex align-items-center gap-2">

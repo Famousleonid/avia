@@ -1015,6 +1015,7 @@ class MobileController extends Controller
 
     public function createDraft()
     {
+        abort_unless(Auth::user()?->roleIs(['Shipping', 'Manager', 'Admin']), 403);
 
         $draftNumber = Workorder::nextDraftNumber();
         $defaultOpenDate = preg_replace_callback(
@@ -1032,6 +1033,8 @@ class MobileController extends Controller
 
     public function storeDraft(\Illuminate\Http\Request $request)
     {
+        abort_unless($request->user()?->roleIs(['Shipping', 'Manager', 'Admin']), 403);
+
         $data = $request->validate([
             'unit_id'        => ['required','integer','exists:units,id'],
             'customer_id'    => ['required','integer'],
@@ -1051,7 +1054,10 @@ class MobileController extends Controller
             'storage_column' => ['nullable','integer','min:0','max:999'],
             'arrival_box_status' => ['nullable','in:ok,easy,medium,hard,replace'],
             'arrival_box_notes' => ['nullable','string','max:1000'],
+            'as_received_photo' => ['nullable','file','image','mimes:jpg,jpeg,png,webp','max:15360'],
         ]);
+
+        unset($data['as_received_photo']);
 
         // чекбоксы → bool
         foreach (['external_damage','received_disassembly','disassembly_upon_arrival','nameplate_missing','extra_parts'] as $k) {
@@ -1083,6 +1089,15 @@ class MobileController extends Controller
         // createDraft сам присвоит number и is_draft=true
         $wo = Workorder::createDraft($data);
 
+        if ($request->hasFile('as_received_photo')) {
+            $photo = $this->imageOrientationNormalizer->normalize($request->file('as_received_photo'));
+            $filename = 'wo_'.$wo->number.'_as_received_'.now()->format('Ymd_His').'_'.Str::random(4).'.'.$photo->getClientOriginalExtension();
+            $wo->addMedia($photo)
+                ->usingFileName($filename)
+                ->withCustomProperties(['source' => 'mobile_shipping_draft'])
+                ->toMediaCollection('received');
+        }
+
         app(WorkorderNotifyService::class)->draftCreated(
             $wo,
             (int) auth()->id(),
@@ -1094,6 +1109,8 @@ class MobileController extends Controller
 
     public function storePendingDraftUnit(Request $request): JsonResponse
     {
+        abort_unless($request->user()?->roleIs(['Shipping', 'Manager', 'Admin']), 403);
+
         $data = $request->validate([
             'part_number' => ['required', 'string', 'max:255'],
             'name' => ['nullable', 'string', 'max:255'],

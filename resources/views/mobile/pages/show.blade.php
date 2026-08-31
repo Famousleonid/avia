@@ -243,10 +243,6 @@
 
         </div>
 
-        <hr class="border-secondary opacity-50 my-1">
-
-        {{-------------------------------------------------------------------------------------------}}
-
         @php
             $canUpdateStorage = auth()->check() && auth()->user()->roleIs(['Shipping', 'Manager', 'Admin']);
             $canUpdateArrivalBox = $canUpdateStorage;
@@ -262,7 +258,12 @@
             $arrivalBoxLabel = $arrivalBoxLabels[$arrivalBoxStatus] ?? '';
         @endphp
 
-        <div class="rounded-3 border border-info m-1 p-2">
+        @if($canUpdateStorage)
+        <hr class="border-secondary opacity-50 my-1">
+
+        {{-------------------------------------------------------------------------------------------}}
+
+        <div id="mobileShippingIntake_{{ $workorder->id }}" class="rounded-3 border border-info m-1 p-2">
             <div class="d-flex align-items-start justify-content-between gap-2">
                 <div>
                     <div id="storageView_{{ $workorder->id }}" class="d-flex align-items-center">
@@ -394,6 +395,7 @@
             </div>
             @endif
         </div>
+        @endif
 
 
 

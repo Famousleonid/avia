@@ -83,6 +83,24 @@
             min-height: 42px;
             text-transform: uppercase;
         }
+
+        .draft-nameplate-panel {
+            border: 1px solid #495057;
+            background: #15191d;
+            border-radius: .65rem;
+        }
+
+        .draft-nameplate-preview {
+            width: 64px;
+            height: 64px;
+            object-fit: cover;
+            border: 1px solid #6c757d;
+            border-radius: .5rem;
+        }
+
+        .draft-nameplate-results {
+            border-top: 1px solid #495057;
+        }
     </style>
 @endsection
 
@@ -100,7 +118,11 @@
             <div class="card-body pt-0 mt-0">
 
 
-                <form method="POST" action="{{ route('mobile.draft.store') }}" id="draftForm">
+                <form method="POST"
+                      action="{{ route('mobile.draft.store') }}"
+                      id="draftForm"
+                      enctype="multipart/form-data"
+                      data-nameplate-recognition-url="{{ route('mobile.draft.nameplate.recognize') }}">
                     @csrf
 
                     <div class="row g-2 mb-2">
@@ -122,6 +144,51 @@
                         </div>
                     </div>
 
+                    <section class="draft-nameplate-panel p-2 mb-2" aria-labelledby="draftNameplateTitle">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <div class="min-w-0">
+                                <div id="draftNameplateTitle" class="small fw-semibold text-info">As Received nameplate</div>
+                                <div class="small text-white-50">The photo will be saved in As received with the Draft.</div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-info text-nowrap" data-draft-nameplate-camera>
+                                <i class="bi bi-camera me-1"></i>Photo + read
+                            </button>
+                        </div>
+
+                        <input id="draftNameplatePhoto"
+                               type="file"
+                               name="as_received_photo"
+                               accept="image/*"
+                               capture="environment"
+                               class="d-none">
+
+                        <div id="draftNameplatePhotoState" class="d-none align-items-center gap-2 mt-2">
+                            <img id="draftNameplatePreview" class="draft-nameplate-preview" alt="As Received nameplate preview">
+                            <div class="min-w-0 flex-fill">
+                                <div id="draftNameplateFileName" class="small text-truncate"></div>
+                                <div id="draftNameplateStatus" class="small text-white-50" aria-live="polite"></div>
+                            </div>
+                        </div>
+
+                        <div id="draftNameplateResults" class="draft-nameplate-results d-none mt-2 pt-2">
+                            <div class="row g-2">
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small text-white-50 mb-1" for="draftRecognizedPn">Recognized P/N</label>
+                                    <select id="draftRecognizedPn" class="form-select form-select-sm bg-black text-light border-secondary"></select>
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small text-white-50 mb-1" for="draftRecognizedSn">Recognized S/N</label>
+                                    <select id="draftRecognizedSn" class="form-select form-select-sm bg-black text-light border-secondary"></select>
+                                </div>
+                                <div class="col-12">
+                                    <button type="button" class="btn btn-sm btn-info w-100" data-apply-draft-nameplate>
+                                        Apply selected numbers to Draft
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
                     {{-- Unit with Select2 + Add button --}}
                     <div class="mb-2">
                         <label class="form-label small text-white-50 mb-1 d-flex justify-content-between align-items-center">
@@ -137,7 +204,9 @@
                                 required>
                             <option value="" selected disabled>— Select Unit —</option>
                             @foreach($units as $u)
-                                <option value="{{ $u->id }}" data-name="{{ $u->name ?? '' }}">
+                                <option value="{{ $u->id }}"
+                                        data-name="{{ $u->name ?? '' }}"
+                                        data-part-number="{{ $u->part_number }}">
                                     {{ $u->part_number }}@if($u->manual) ({{ $u->manual->number }})@endif
                                 </option>
                             @endforeach
@@ -160,7 +229,7 @@
 
                     <div class="mb-2">
                         <label class="form-label small text-white-50 mb-1">Serial number</label>
-                        <input name="serial_number"
+                        <input name="serial_number" id="draftSerialNumber"
                                class="form-control bg-black text-light border-secondary @error('serial_number') is-invalid @enderror"
                                value="{{ old('serial_number') }}" placeholder="s/n">
                         @error('serial_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -468,6 +537,17 @@
 
                 if (!pn) { window.showNotification('Part Number is required'); return; }
 
+                if (typeof window.confirmDialog !== 'function') {
+                    window.notifyError('Confirmation dialog is unavailable. Pending Unit was not created.');
+                    return;
+                }
+
+                if (!await window.confirmDialog({
+                    title: 'Create Pending Unit',
+                    message: `Create a Pending Unit with P/N ${pn}?`,
+                    okText: 'Create',
+                })) return;
+
                 try {
                     if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
 
@@ -515,4 +595,5 @@
 
         });
     </script>
+    <script src="{{ asset('js/mobile-shipping-draft.js') }}?v={{ filemtime(public_path('js/mobile-shipping-draft.js')) }}"></script>
 @endsection

@@ -1133,6 +1133,19 @@ class MobileApiTest extends TestCase
         $this->assertSame('ORIGINAL', $rows[0]['serial_number']);
     }
 
+    public function test_mobile_api_log_card_is_forbidden_for_shipping_paint_and_machining(): void
+    {
+        $workorder = $this->createWorkorder();
+
+        foreach (['Shipping', 'Paint', 'Machining'] as $role) {
+            $user = $this->createUserWithRole($role);
+
+            $this->withMobileToken($user)
+                ->getJson(route('api.mobile.workorders.log-card.show', $workorder->id))
+                ->assertForbidden();
+        }
+    }
+
     public function test_mobile_api_materials_can_be_searched_and_updated(): void
     {
         $user = $this->createUserWithRole('Technician');

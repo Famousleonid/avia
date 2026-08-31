@@ -4,7 +4,7 @@
     $isActive = fn($route) => request()->routeIs($route);
     $currentWorkorderId = $workorder->id ?? null;
 
-    $onShowPage = request()->routeIs('mobile.show','mobile.tasks', 'mobile.components','mobile.process'); // страница одного воркордера
+    $onShowPage = request()->routeIs('mobile.show', 'mobile.tasks', 'mobile.components', 'mobile.process', 'mobile.log-card'); // страница одного воркордера
     $isPaintUser = auth()->check() && auth()->user()->roleIs('Paint');
     $isPaintRoute = request()->routeIs('mobile.paint');
     $isMachiningUser = auth()->check() && auth()->user()->roleIs('Machining');
@@ -342,20 +342,22 @@
             <span class="menu-label">Parts</span>
         </a>
 
-        <div class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-decoration-none mobile-menu-disabled"
-             aria-disabled="true">
+        @endnotrole
+
+        @notroles('Shipping|Paint|Machining')
+        <a href="{{ route('mobile.log-card', $currentWorkorderId) }}" data-spinner
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
             <div class="menu-top-icon-slot">
-            <div class="menu-icon-wrapper">
-                <i class="bi bi-activity"></i>
+            <div class="menu-icon-wrapper {{ $isActive('mobile.log-card') ? 'active' : '' }}">
+                <i class="bi bi-card-checklist"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
             </div>
             </div>
-            <span class="menu-label">Process</span>
-        </div>
-
-        @endnotrole
+            <span class="menu-label text-nowrap">Log Card</span>
+        </a>
+        @endnotroles
 
     @else
 

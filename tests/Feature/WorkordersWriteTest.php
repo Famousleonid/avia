@@ -933,28 +933,39 @@ class WorkordersWriteTest extends TestCase
         $this->assertSame($originalTechnik->id, $workorder->fresh()->user_id);
     }
 
-    public function test_mobile_storage_update_is_limited_to_shipping_manager_and_admin(): void
+    /**
+     * @dataProvider mobileStorageAndArrivalBoxRoles
+     */
+    public function test_mobile_storage_update_is_allowed_for_shipping_manager_and_admin(string $role): void
     {
         $workorder = $this->createWorkorder([
             'storage_rack' => null,
             'storage_level' => null,
             'storage_column' => null,
         ]);
+        $user = $this->createUserWithRole($role, [
+            'email' => strtolower($role) . '.storage.' . uniqid() . '@example.test',
+        ]);
 
-        foreach (['Shipping', 'Manager', 'Admin'] as $role) {
-            $user = $this->createUserWithRole($role, [
-                'email' => strtolower($role) . '.storage.' . uniqid() . '@example.test',
-            ]);
+        $this->actingAs($user)
+            ->patchJson(route('mobile.workorders.storage.update', $workorder), [
+                'storage_rack' => 11,
+                'storage_level' => 2,
+                'storage_column' => 3,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
 
-            $this->actingAs($user)
-                ->patchJson(route('mobile.workorders.storage.update', $workorder), [
-                    'storage_rack' => 11,
-                    'storage_level' => 2,
-                    'storage_column' => 3,
-                ])
-                ->assertOk()
-                ->assertJsonPath('success', true);
-        }
+        $this->assertSame(11, (int) $workorder->fresh()->storage_rack);
+    }
+
+    public function test_mobile_storage_update_is_forbidden_for_technician(): void
+    {
+        $workorder = $this->createWorkorder([
+            'storage_rack' => 11,
+            'storage_level' => 2,
+            'storage_column' => 3,
+        ]);
 
         $technician = $this->createUserWithRole('Technician');
 
@@ -969,7 +980,10 @@ class WorkordersWriteTest extends TestCase
         $this->assertSame(11, (int) $workorder->fresh()->storage_rack);
     }
 
-    public function test_mobile_arrival_box_update_is_limited_to_shipping_manager_and_admin(): void
+    /**
+     * @dataProvider mobileStorageAndArrivalBoxRoles
+     */
+    public function test_mobile_arrival_box_update_is_allowed_for_shipping_manager_and_admin(string $role): void
     {
         $workorder = $this->createWorkorder([
             'arrival_box_status' => null,
@@ -977,31 +991,36 @@ class WorkordersWriteTest extends TestCase
             'arrival_box_recorded_by' => null,
             'arrival_box_recorded_at' => null,
         ]);
+        $user = $this->createUserWithRole($role, [
+            'email' => strtolower($role) . '.arrival.box.' . uniqid() . '@example.test',
+        ]);
 
-        foreach (['Shipping', 'Manager', 'Admin'] as $role) {
-            $user = $this->createUserWithRole($role, [
-                'email' => strtolower($role) . '.arrival.box.' . uniqid() . '@example.test',
-            ]);
-
-            $this->actingAs($user)
-                ->patchJson(route('mobile.workorders.arrival-box.update', $workorder), [
-                    'arrival_box_status' => 'medium',
-                    'arrival_box_notes' => 'Middle rail cracked',
-                ])
-                ->assertOk()
-                ->assertJsonPath('success', true)
-                ->assertJsonPath('arrival_box.status', 'medium')
-                ->assertJsonPath('arrival_box.status_label', 'Medium repair')
-                ->assertJsonPath('arrival_box.notes', 'Middle rail cracked');
-
-            $this->assertDatabaseHas('workorders', [
-                'id' => $workorder->id,
+        $this->actingAs($user)
+            ->patchJson(route('mobile.workorders.arrival-box.update', $workorder), [
                 'arrival_box_status' => 'medium',
                 'arrival_box_notes' => 'Middle rail cracked',
-                'arrival_box_recorded_by' => $user->id,
-            ]);
-            $this->assertNotNull($workorder->fresh()->arrival_box_recorded_at);
-        }
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('arrival_box.status', 'medium')
+            ->assertJsonPath('arrival_box.status_label', 'Medium repair')
+            ->assertJsonPath('arrival_box.notes', 'Middle rail cracked');
+
+        $this->assertDatabaseHas('workorders', [
+            'id' => $workorder->id,
+            'arrival_box_status' => 'medium',
+            'arrival_box_notes' => 'Middle rail cracked',
+            'arrival_box_recorded_by' => $user->id,
+        ]);
+        $this->assertNotNull($workorder->fresh()->arrival_box_recorded_at);
+    }
+
+    public function test_mobile_arrival_box_update_is_forbidden_for_technician(): void
+    {
+        $workorder = $this->createWorkorder([
+            'arrival_box_status' => 'medium',
+            'arrival_box_notes' => 'Middle rail cracked',
+        ]);
 
         $technician = $this->createUserWithRole('Technician');
 
@@ -1015,29 +1034,49 @@ class WorkordersWriteTest extends TestCase
         $this->assertSame('medium', $workorder->fresh()->arrival_box_status);
     }
 
-    public function test_mobile_arrival_box_block_is_visible_only_to_shipping_manager_and_admin(): void
+    /**
+     * @dataProvider mobileStorageAndArrivalBoxRoles
+     */
+    public function test_mobile_storage_and_arrival_box_block_is_visible_to_shipping_manager_and_admin(string $role): void
     {
         $workorder = $this->createWorkorder([
             'arrival_box_status' => 'medium',
             'arrival_box_notes' => 'Middle rail cracked',
         ]);
+        $user = $this->createUserWithRole($role, [
+            'email' => strtolower($role) . '.arrival.box.visible.' . uniqid() . '@example.test',
+        ]);
 
-        foreach (['Shipping', 'Manager', 'Admin'] as $role) {
-            $user = $this->createUserWithRole($role, [
-                'email' => strtolower($role) . '.arrival.box.visible.' . uniqid() . '@example.test',
-            ]);
+        $this->actingAs($user)
+            ->get(route('mobile.show', $workorder))
+            ->assertOk()
+            ->assertSee('id="mobileShippingIntake_' . $workorder->id . '"', false)
+            ->assertSee('id="storageView_' . $workorder->id . '"', false)
+            ->assertSee('id="arrivalBoxStatusText_' . $workorder->id . '"', false);
+    }
 
-            $this->actingAs($user)
-                ->get(route('mobile.show', $workorder))
-                ->assertOk()
-                ->assertSee('id="arrivalBoxStatusText_' . $workorder->id . '"', false);
-        }
+    public static function mobileStorageAndArrivalBoxRoles(): array
+    {
+        return [
+            'Shipping' => ['Shipping'],
+            'Manager' => ['Manager'],
+            'Admin' => ['Admin'],
+        ];
+    }
 
+    public function test_mobile_storage_and_arrival_box_block_is_hidden_from_technician(): void
+    {
+        $workorder = $this->createWorkorder([
+            'arrival_box_status' => 'medium',
+            'arrival_box_notes' => 'Middle rail cracked',
+        ]);
         $technician = $this->createUserWithRole('Technician');
 
         $this->actingAs($technician)
             ->get(route('mobile.show', $workorder))
             ->assertOk()
+            ->assertDontSee('id="mobileShippingIntake_' . $workorder->id . '"', false)
+            ->assertDontSee('id="storageView_' . $workorder->id . '"', false)
             ->assertDontSee('id="arrivalBoxStatusText_' . $workorder->id . '"', false);
     }
 

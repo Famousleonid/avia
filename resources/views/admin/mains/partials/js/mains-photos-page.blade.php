@@ -6,6 +6,7 @@
         const contentEl = document.getElementById('photoPageContent');
         const scrollerEl = document.querySelector('.photo-page-body');
         const workorderId = pageEl?.dataset.workorderId || window.currentWorkorderId;
+        const workorderNumber = pageEl?.dataset.workorderNumber || workorderId;
 
         const urls = {
             list: @json(route('workorders.photos', ['id' => '__WO_ID__'])),
@@ -48,6 +49,110 @@
 
         function escapeAttr(value) {
             return escapeHtml(value).replaceAll('`', '&#096;');
+        }
+
+        const photoPrintButtonTemplate = `
+            <button type="button"
+                    data-fancybox-print
+                    class="fancybox-button fancybox-button--print"
+                    title="Print"
+                    aria-label="Print">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M5 1a2 2 0 0 0-2 2v2h10V3a2 2 0 0 0-2-2H5zm7 4H4V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2z"/>
+                    <path d="M3 6a3 3 0 0 0-3 3v2a2 2 0 0 0 2 2h1v2h10v-2h1a2 2 0 0 0 2-2V9a3 3 0 0 0-3-3H3zm10 8H4v-4h8v4h1zm1-2h-1V9H3v3H2a1 1 0 0 1-1-1V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2a1 1 0 0 1-1 1z"/>
+                </svg>
+            </button>`;
+
+        function openPhotoPrintDialog(source) {
+            let photoUrl;
+
+            try {
+                const parsedUrl = new URL(String(source || ''), window.location.href);
+                if (!['http:', 'https:', 'blob:', 'data:'].includes(parsedUrl.protocol)) {
+                    throw new Error('Unsupported photo URL');
+                }
+                photoUrl = parsedUrl.href;
+            } catch (error) {
+                console.error('Invalid photo URL for print', error);
+                notify('Unable to print this photo', 'error');
+                return;
+            }
+
+            const printWindow = window.open('', '_blank', 'width=1200,height=900');
+            if (!printWindow) {
+                notify('Allow pop-ups to print this photo', 'error');
+                return;
+            }
+
+            printWindow.opener = null;
+            const printDocument = printWindow.document;
+            printDocument.open();
+            printDocument.write('<!doctype html><html><head><meta charset="utf-8"><title></title></head><body></body></html>');
+            printDocument.close();
+            printDocument.title = `WO ${workorderNumber} photo`;
+
+            const style = printDocument.createElement('style');
+            style.textContent = `
+                @page { margin: 10mm; }
+                html, body { width: 100%; min-height: 100%; margin: 0; background: #fff; }
+                body { display: flex; align-items: center; justify-content: center; }
+                img { display: block; max-width: 100%; max-height: calc(100vh - 20mm); object-fit: contain; image-orientation: from-image; }
+            `;
+            printDocument.head.appendChild(style);
+
+            const image = printDocument.createElement('img');
+            image.alt = `WO ${workorderNumber} photo`;
+            printDocument.body.appendChild(image);
+
+            let printStarted = false;
+            const startPrint = () => {
+                if (printStarted) return;
+                printStarted = true;
+                window.setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                }, 100);
+            };
+
+            image.addEventListener('load', startPrint, {once: true});
+            image.addEventListener('error', () => {
+                notify('Photo could not be loaded for printing', 'error');
+                printWindow.close();
+            }, {once: true});
+            printWindow.addEventListener('afterprint', () => printWindow.close(), {once: true});
+            image.src = photoUrl;
+
+            if (image.complete && image.naturalWidth > 0) {
+                startPrint();
+            }
+        }
+
+        function bindPhotoFancybox() {
+            if (!contentEl || !window.jQuery?.fn?.fancybox) return;
+
+            const $ = window.jQuery;
+            $(contentEl).find('[data-fancybox]').fancybox({
+                buttons: ['zoom', 'slideShow', 'thumbs', 'print', 'close'],
+                btnTpl: {
+                    print: photoPrintButtonTemplate
+                }
+            });
+
+            $(document)
+                .off('click.photo-page-print', '[data-fancybox-print]')
+                .on('click.photo-page-print', '[data-fancybox-print]', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const instance = $.fancybox.getInstance();
+                    const current = instance?.current;
+                    if (!current || current.type !== 'image' || !current.src) {
+                        notify('Only photos can be printed here', 'error');
+                        return;
+                    }
+
+                    openPhotoPrintDialog(current.src);
+                });
         }
 
         function setDownloadAllState(state) {
@@ -182,6 +287,7 @@
                 contentEl.innerHTML = html;
                 bindRenderedButtons();
                 bindDnD();
+                bindPhotoFancybox();
             } catch (e) {
                 console.error('Load photo error', e, data);
                 contentEl.innerHTML = '<div class="col-12 text-danger">Failed to load photos</div>';
