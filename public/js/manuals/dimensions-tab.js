@@ -2417,8 +2417,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 html += `<div class="d-flex gap-1 mt-1">
                     <button class="btn btn-outline-warning dim-btn-xs dim-add-rule-btn" data-param-id="${param.id}" style="flex:1">+ Add rule</button>
                     <div class="dropdown">
-                        <button class="btn btn-outline-warning dim-btn-xs dropdown-toggle" data-bs-toggle="dropdown" title="Standard rule packages" style="min-width:88px">Std</button>
-                        <ul class="dropdown-menu dropdown-menu-end" style="font-size:12px">
+                        <button type="button" class="btn btn-outline-warning dim-btn-xs dropdown-toggle dim-std-toggle" title="Standard rule packages" style="min-width:88px">Std</button>
+                        <ul class="dropdown-menu dropdown-menu-end dim-std-menu" style="font-size:12px">
                             <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="ndt_scrap">NDT failed — scrap <span class="text-secondary">(Crack · Order new)</span></a></li>
                             <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="ec_package">EC package <span class="text-secondary">(Damage → EC, EC denied → scrap)</span></a></li>
                             <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="final_ec">Final out of tolerance — EC</a></li>
@@ -2450,10 +2450,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
 
+            // Std menu: own toggler — bootstrap's data-api click doesn't reach
+            // the dynamically rendered button on some pages (handlers up the
+            // panel stop propagation). Plain .show toggle needs no Popper:
+            // bootstrap CSS positions the static menu, dropdown-menu-end aligns right.
+            card.querySelectorAll('.dim-std-toggle').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const menu = btn.parentElement.querySelector('.dim-std-menu');
+                    const wasOpen = menu.classList.contains('show');
+                    document.querySelectorAll('.dim-std-menu.show').forEach(function (m) { m.classList.remove('show'); });
+                    if (!wasOpen) menu.classList.add('show');
+                });
+            });
+            if (!window.__dimStdMenuCloser) {
+                window.__dimStdMenuCloser = true;
+                document.addEventListener('click', function (e) {
+                    if (e.target.closest && e.target.closest('.dim-std-toggle')) return;
+                    document.querySelectorAll('.dim-std-menu.show').forEach(function (m) { m.classList.remove('show'); });
+                });
+            }
+
             // Standard rule packages: one click wires code + rule(s), idempotent
             card.querySelectorAll('.dim-std-rule').forEach(function (a) {
                 a.addEventListener('click', async function (e) {
                     e.preventDefault();
+                    const menu = a.closest('.dim-std-menu');
+                    if (menu) menu.classList.remove('show');
                     const pid = parseInt(a.dataset.paramId);
                     try {
                         const res = await apiFetch('/parameters/' + pid + '/standard-rules', {
