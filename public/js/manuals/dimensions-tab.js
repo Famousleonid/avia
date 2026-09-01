@@ -2418,7 +2418,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <button class="btn btn-outline-warning dim-btn-xs dim-add-rule-btn" data-param-id="${param.id}" style="flex:1">+ Add rule</button>
                     <div class="dropdown">
                         <button type="button" class="btn btn-outline-warning dim-btn-xs dropdown-toggle dim-std-toggle" title="Standard rule packages" style="min-width:88px">Std</button>
-                        <ul class="dropdown-menu dropdown-menu-end dim-std-menu" style="font-size:12px">
+                        <ul class="dropdown-menu dim-std-menu" style="font-size:12px;right:0;left:auto;top:100%">
                             <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="ndt_scrap">NDT failed — scrap <span class="text-secondary">(Crack · Order new)</span></a></li>
                             <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="ec_package">EC package <span class="text-secondary">(Damage → EC, EC denied → scrap)</span></a></li>
                             <li><a class="dropdown-item dim-std-rule" href="#" data-param-id="${param.id}" data-package="final_ec">Final out of tolerance — EC</a></li>
@@ -2461,7 +2461,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     const menu = btn.parentElement.querySelector('.dim-std-menu');
                     const wasOpen = menu.classList.contains('show');
                     document.querySelectorAll('.dim-std-menu.show').forEach(function (m) { m.classList.remove('show'); });
-                    if (!wasOpen) menu.classList.add('show');
+                    if (!wasOpen) {
+                        menu.classList.add('show');
+                        // The panel card is overflow:hidden — flip the menu up
+                        // when it would be clipped below the card's bottom edge.
+                        const cardEl = btn.closest('.dim-comp-card');
+                        if (cardEl) {
+                            const rBtn = btn.getBoundingClientRect();
+                            const rCard = cardEl.getBoundingClientRect();
+                            const flip = rBtn.bottom + menu.offsetHeight > rCard.bottom
+                                && rBtn.top - menu.offsetHeight > rCard.top;
+                            menu.style.top = flip ? 'auto' : '100%';
+                            menu.style.bottom = flip ? '100%' : 'auto';
+                        }
+                    }
                 });
             });
             if (!window.__dimStdMenuCloser) {
