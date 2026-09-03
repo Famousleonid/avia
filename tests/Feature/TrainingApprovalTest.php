@@ -275,6 +275,43 @@ class TrainingApprovalTest extends TestCase
         ]))->assertOk();
     }
 
+    public function test_training_actions_are_written_to_activity_log(): void
+    {
+        $training = $this->makeTraining();
+
+        // Создание пишется в лог (activity log, log_name=training)
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'training',
+            'subject_type' => Training::class,
+            'subject_id' => $training->id,
+            'event' => 'created',
+        ]);
+
+        // Изменение даты — updated-лог с автором
+        $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
+        $this->actingAs($admin)
+            ->putJson(route('trainings.update', ['training' => $training->id]), ['date_training' => '2026-08-14'])
+            ->assertOk();
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'training',
+            'subject_id' => $training->id,
+            'event' => 'updated',
+            'causer_id' => $admin->id,
+        ]);
+
+        // Массовое удаление юнита — deleted-лог на каждую запись (не bulk-query)
+        $this->actingAs($admin)->postJson(route('trainings.deleteAll'), [
+            'user_id' => $training->user_id,
+            'manual_id' => $training->manuals_id,
+        ])->assertOk();
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'training',
+            'subject_id' => $training->id,
+            'event' => 'deleted',
+            'causer_id' => $admin->id,
+        ]);
+    }
+
     public function test_approve_unit_approves_all_pair_records_and_blocks_delete_all(): void
     {
         $training = $this->makeTraining();

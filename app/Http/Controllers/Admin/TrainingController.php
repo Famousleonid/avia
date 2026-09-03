@@ -585,14 +585,16 @@ class TrainingController extends Controller
             'matrix_row_id' => 'nullable|required_without:manual_id|integer|exists:training_matrix_rows,id',
         ]);
 
-        $count = Training::where('user_id', $data['user_id'])
+        // Поштучно, а не bulk-update: события модели пишут activity log
+        $pending = Training::where('user_id', $data['user_id'])
             ->when(isset($data['matrix_row_id']),
                 fn ($q) => $q->where('matrix_row_id', $data['matrix_row_id']),
                 fn ($q) => $q->where('manuals_id', $data['manual_id'])->whereNull('matrix_row_id'))
             ->whereNull('approved_by')
-            ->update(['approved_by' => auth()->id(), 'approved_at' => now()]);
+            ->get();
+        $pending->each(fn ($t) => $t->update(['approved_by' => auth()->id(), 'approved_at' => now()]));
 
-        return response()->json(['success' => true, 'approved' => $count]);
+        return response()->json(['success' => true, 'approved' => $pending->count()]);
     }
 
     /**
@@ -783,13 +785,15 @@ class TrainingController extends Controller
         }
 
         try {
-            $deleted = Training::where('user_id', $targetUserId)
+            // Поштучно, а не bulk-delete: события модели пишут activity log
+            $records = Training::where('user_id', $targetUserId)
                 ->where('manuals_id', $request->manual_id)
-                ->delete();
+                ->get();
+            $records->each->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => "Deleted {$deleted} training records"
+                'message' => "Deleted {$records->count()} training records"
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -1005,7 +1009,8 @@ class TrainingController extends Controller
             ], 422);
         }
 
-        Training::whereIn('id', $legacy->pluck('id'))->delete();
+        // Поштучно, а не bulk-delete: события модели пишут activity log
+        $legacy->each->delete();
 
         return response()->json(['success' => true]);
     }

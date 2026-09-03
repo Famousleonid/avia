@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Training extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
     protected $fillable = [
         'user_id', 'manuals_id', 'matrix_row_id',
         'date_training', 'form_type', 'is_legacy',
@@ -15,6 +17,15 @@ class Training extends Model
     ];
 
     protected $casts = ['is_legacy' => 'boolean', 'approved_at' => 'datetime'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('training')
+            ->logOnly($this->fillable)
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     public function isApproved(): bool
     {

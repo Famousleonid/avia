@@ -221,7 +221,7 @@ class SearchActivityLogsTool
                     ],
                     'area' => [
                         'type' => 'string',
-                        'enum' => ['all', 'parts', 'bushings', 'workorders', 'components', 'processes', 'manuals', 'users'],
+                        'enum' => ['all', 'parts', 'bushings', 'workorders', 'components', 'processes', 'manuals', 'users', 'trainings'],
                         'description' => 'Human audit area. Use parts for TDR/parts plus bushing and component references.',
                     ],
                     'text' => [
@@ -259,7 +259,7 @@ class SearchActivityLogsTool
         }
 
         $area = strtolower(trim((string) ($args['area'] ?? 'all')));
-        if (! in_array($area, ['all', 'parts', 'bushings', 'workorders', 'components', 'processes', 'manuals', 'users'], true)) {
+        if (! in_array($area, ['all', 'parts', 'bushings', 'workorders', 'components', 'processes', 'manuals', 'users', 'trainings'], true)) {
             $area = 'all';
         }
 
@@ -468,6 +468,7 @@ class SearchActivityLogsTool
                 'processes' => $query->whereIn('log_name', ['tdr_process', 'workorder_std_process', 'process']),
                 'manuals' => $query->whereIn('log_name', ['manual', 'component', 'std_process']),
                 'users' => $query->where('log_name', 'user'),
+                'trainings' => $query->where('log_name', 'training'),
                 default => null,
             };
         });
