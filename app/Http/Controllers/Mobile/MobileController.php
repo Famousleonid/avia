@@ -23,7 +23,8 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
 use App\Services\MachiningListingRowsBuilder;
-use App\Services\Media\ImageOrientationNormalizer;
+use App\Services\Media\MobileLandscapePhotoProcessor;
+use App\Services\Media\WorkorderPhotoStorageService;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\WorkorderNotifyService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -39,8 +40,10 @@ use Illuminate\Validation\ValidationException;
 
 class MobileController extends Controller
 {
-    public function __construct(private ImageOrientationNormalizer $imageOrientationNormalizer)
-    {
+    public function __construct(
+        private MobileLandscapePhotoProcessor $landscapePhotoProcessor,
+        private WorkorderPhotoStorageService $photoStorage,
+    ) {
     }
 
     public function index()
@@ -119,6 +122,8 @@ class MobileController extends Controller
             'photo' => ['required', 'image', 'max:10240'],
         ]);
 
+        $photo = $this->landscapePhotoProcessor->prepare($request->file('photo'), 'photo');
+
         $paint = Paint::query()->create([
             'user_id' => $user->id,
             'part_number' => $validated['part_number'],
@@ -130,7 +135,7 @@ class MobileController extends Controller
                 : null,
         ]);
 
-        $paint->addMedia($this->imageOrientationNormalizer->normalize($request->file('photo')))
+        $paint->addMedia($photo)
             ->toMediaCollection('lost');
 
         return redirect()->route('mobile.paint', ['tab' => 'lost'])->with('success', 'Lost part added');
@@ -369,12 +374,9 @@ class MobileController extends Controller
         ]);
 
         $category = 'Machining';
-        foreach ($request->file('photos', []) as $photo) {
-            $photo = $this->imageOrientationNormalizer->normalize($photo);
-            $filename = 'wo_' . $wo->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.' . $photo->getClientOriginalExtension();
-            $wo->addMedia($photo)
-                ->usingFileName($filename)
-                ->toMediaCollection($category);
+        $photos = $this->landscapePhotoProcessor->prepareMany($request->file('photos', []), 'photos');
+        foreach ($photos as $photo) {
+            $this->photoStorage->store($wo, $photo, $category);
         }
 
         return response()->json([
@@ -1057,6 +1059,9 @@ class MobileController extends Controller
             'as_received_photo' => ['nullable','file','image','mimes:jpg,jpeg,png,webp','max:15360'],
         ]);
 
+        $asReceivedPhoto = $request->hasFile('as_received_photo')
+            ? $this->landscapePhotoProcessor->prepare($request->file('as_received_photo'), 'as_received_photo')
+            : null;
         unset($data['as_received_photo']);
 
         // чекбоксы → bool
@@ -1089,13 +1094,10 @@ class MobileController extends Controller
         // createDraft сам присвоит number и is_draft=true
         $wo = Workorder::createDraft($data);
 
-        if ($request->hasFile('as_received_photo')) {
-            $photo = $this->imageOrientationNormalizer->normalize($request->file('as_received_photo'));
-            $filename = 'wo_'.$wo->number.'_as_received_'.now()->format('Ymd_His').'_'.Str::random(4).'.'.$photo->getClientOriginalExtension();
-            $wo->addMedia($photo)
-                ->usingFileName($filename)
-                ->withCustomProperties(['source' => 'mobile_shipping_draft'])
-                ->toMediaCollection('received');
+        if ($asReceivedPhoto !== null) {
+            $this->photoStorage->store($wo, $asReceivedPhoto, 'received', [
+                'source' => 'mobile_shipping_draft',
+            ]);
         }
 
         app(WorkorderNotifyService::class)->draftCreated(

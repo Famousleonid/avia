@@ -43,6 +43,8 @@ class WoBushingSortingTest extends TestCase
             ]);
         }
 
+        $machining = $this->attachProcessToManual($manualId, 'Machining', 'Machining create option');
+
         $response = $this->actingAs($admin)->get(route('wo_bushings.partial', $workorder->id));
 
         $response->assertOk();
@@ -58,6 +60,14 @@ class WoBushingSortingTest extends TestCase
         $response->assertDontSee('WO Qty', false);
         $response->assertSee('group_bushings[GRP-A][items]', false);
         $response->assertDontSee('[components][]', false);
+        $response->assertSee('data-bushing-add-process', false);
+        $response->assertSee(route('processes.create', ['manual_id' => $manualId, 'context' => 'bushing']), false);
+        $response->assertSee('data-process-name-ids="'.$machining->process_names_id.'"', false);
+        $response->assertSee('window.addBushingProcessOption', false);
+        $response->assertSee('data-bushing-part-label', false);
+        $response->assertSee('--bushing-col-bushing-width', false);
+        $response->assertSee("delay: { show: 500, hide: 0 }", false);
+        $response->assertSee('label.scrollWidth <= label.clientWidth + 1', false);
     }
 
     public function test_update_can_save_selected_bushing_without_processes_for_prl(): void
@@ -333,6 +343,44 @@ class WoBushingSortingTest extends TestCase
         $response->assertDontSee('NDT-7', false);
     }
 
+    public function test_add_process_from_bushing_form_limits_process_name_picker_to_bushing_columns(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $allowedNames = [
+            'Machining',
+            'Stress Relief',
+            'NDT-1',
+            'NDT-4',
+            'Passivation',
+            'Cad plate',
+            'Anodizing',
+            'Xylan coating',
+        ];
+
+        foreach (array_merge($allowedNames, ['Bake (Stress relief)', 'Paint']) as $name) {
+            ProcessName::query()->updateOrCreate(
+                ['name' => $name],
+                [
+                    'process_sheet_name' => $name,
+                    'form_number' => $name,
+                    'print_form' => true,
+                    'show_in_process_picker' => true,
+                ]
+            );
+        }
+
+        $bushingForm = $this->actingAs($admin)->get(route('processes.create', [
+            'manual_id' => $workorder->unit->manual_id,
+            'context' => 'bushing',
+        ]));
+
+        $bushingForm->assertOk();
+        $bushingForm->assertSeeInOrder($allowedNames, false);
+        $bushingForm->assertDontSee('>Bake (Stress relief)</option>', false);
+        $bushingForm->assertDontSee('>Paint</option>', false);
+    }
+
     public function test_bushing_processes_allow_machining_without_ndt_and_reset_spinner_on_validation_error(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -358,6 +406,14 @@ class WoBushingSortingTest extends TestCase
 
         $editForm->assertOk();
         $editForm->assertSee('Machining only', false);
+        $editForm->assertSee('data-bushing-add-process', false);
+        $editForm->assertSee(route('processes.create', ['manual_id' => $manualId, 'context' => 'bushing']), false);
+        $editForm->assertSee('data-process-name-ids="'.$machining->process_names_id.'"', false);
+        $editForm->assertSee('window.addBushingProcessOption', false);
+        $editForm->assertSee('data-bushing-part-label', false);
+        $editForm->assertSee('--bushing-col-bushing-width', false);
+        $editForm->assertSee("delay: { show: 500, hide: 0 }", false);
+        $editForm->assertSee('label.scrollWidth <= label.clientWidth + 1', false);
         $editForm->assertSee("typeof window.safeHideSpinner === 'function'", false);
         $editForm->assertSee("form.addEventListener('invalid'", false);
         $editForm->assertSee('Please enter Qty for selected bushings.', false);

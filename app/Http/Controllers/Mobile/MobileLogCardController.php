@@ -5,19 +5,20 @@ namespace App\Http\Controllers\Mobile;
 use App\Http\Controllers\Controller;
 use App\Models\Workorder;
 use App\Services\Ai\NameplateRecognitionService;
-use App\Services\Media\ImageOrientationNormalizer;
+use App\Services\Media\MobileLandscapePhotoProcessor;
+use App\Services\Media\WorkorderPhotoStorageService;
 use App\Services\MobileReviewAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Throwable;
 
 class MobileLogCardController extends Controller
 {
     public function __construct(
-        private readonly ImageOrientationNormalizer $imageOrientationNormalizer,
+        private readonly MobileLandscapePhotoProcessor $landscapePhotoProcessor,
         private readonly NameplateRecognitionService $recognitionService,
+        private readonly WorkorderPhotoStorageService $photoStorage,
     ) {
     }
 
@@ -45,7 +46,7 @@ class MobileLogCardController extends Controller
             'recognize' => ['nullable', 'boolean'],
         ]);
 
-        $photo = $this->imageOrientationNormalizer->normalize($request->file('photo'));
+        $photo = $this->landscapePhotoProcessor->prepare($request->file('photo'), 'photo');
         $recognition = null;
         $recognitionError = null;
         $shouldRecognize = ! array_key_exists('recognize', $data) || (bool) $data['recognize'];
@@ -68,18 +69,18 @@ class MobileLogCardController extends Controller
                 ]);
                 $recognitionError = 'Avi could not read the nameplate. Enter the numbers manually or retake the photo. The photo will be saved only after Confirm.';
             } finally {
-                $this->discardNormalizedTemporaryFile($request->file('photo'), $photo);
+                $this->landscapePhotoProcessor->discardTemporaryFile($request->file('photo'), $photo);
             }
         } else {
-            $extension = strtolower((string) ($photo->getClientOriginalExtension() ?: 'jpg'));
-            $filename = 'wo_'.$workorder->number.'_log_card_'.now()->format('Ymd_His').'_'.Str::random(4).'.'.$extension;
-            $media = $workorder->addMedia($photo)
-                ->usingFileName($filename)
-                ->withCustomProperties(array_filter([
+            $media = $this->photoStorage->store(
+                $workorder,
+                $photo,
+                'logs',
+                array_filter([
                     'source' => 'mobile_log_card',
                     'log_card_row_index' => $data['row_index'] ?? null,
-                ], static fn ($value) => $value !== null))
-                ->toMediaCollection('logs');
+                ], static fn ($value) => $value !== null)
+            );
         }
 
         $workorder->load('media');
@@ -97,19 +98,6 @@ class MobileLogCardController extends Controller
             'photo_count' => $workorder->getMedia('logs')->count(),
             'pending_confirmation' => $shouldRecognize,
         ]);
-    }
-
-    private function discardNormalizedTemporaryFile(\Illuminate\Http\UploadedFile $original, \Illuminate\Http\UploadedFile $normalized): void
-    {
-        if ($original->getPathname() === $normalized->getPathname()) {
-            return;
-        }
-
-        $normalizedPath = $normalized->getPathname();
-        $temporaryRoot = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
-        if (str_starts_with($normalizedPath, $temporaryRoot) && is_file($normalizedPath)) {
-            @unlink($normalizedPath);
-        }
     }
 
     /** @return list<array{id: int, big_url: string, thumb_url: string, alt: string}> */

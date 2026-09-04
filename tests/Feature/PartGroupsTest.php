@@ -76,6 +76,35 @@ class PartGroupsTest extends TestCase
             ->assertDontSee('New ASSY / KIT P/N');
     }
 
+    public function test_new_group_name_defaults_to_assy_part_number_or_default(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $assy = $this->createPartGroupComponent($manual->id, '1-10', 'ASSY-100');
+        $member = $this->createPartGroupComponent($manual->id, '1-20', 'MEMBER-100');
+
+        $assyResponse = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+            'name' => 'Default',
+            'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl'],
+            'component_ids' => [$assy->id, $member->id],
+            'default_component_id' => $assy->id,
+            'member_qty' => [$assy->id => 1, $member->id => 1],
+        ]);
+
+        $assyResponse->assertOk()->assertJsonPath('group.name', 'ASSY-100');
+
+        $alternativeResponse = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+            'name' => null,
+            'type' => ManualPartGroup::TYPE_ALTERNATIVE,
+            'applies_to' => ['prl'],
+            'component_ids' => [$assy->id, $member->id],
+            'default_component_id' => $assy->id,
+        ]);
+
+        $alternativeResponse->assertOk()->assertJsonPath('group.name', 'Default');
+    }
+
     public function test_bundle_selection_covers_quantities_only_in_enabled_forms(): void
     {
         [$admin, $workorder, $member, $group, $option] = $this->bundleFixture(['prl', 'ndt'], 2);
@@ -336,6 +365,194 @@ class PartGroupsTest extends TestCase
         $this->assertSame(PHP_INT_MAX, $coverage[$largerOversize->id]['covered_qty']);
         $this->assertStringContainsString($original->part_number, $coverage[$largerOversize->id]['reason']);
         $this->assertStringContainsString($oversizeOption->part_number, $coverage[$largerOversize->id]['reason']);
+    }
+
+    public function test_assy_rejects_an_individual_member_of_a_bushing_group(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $assy = $this->createPartGroupComponent($manual->id, '1-10', 'ASSY-100');
+        $original = $this->createPartGroupComponent($manual->id, '1-20', 'BUSH-STD');
+        $oversize = $this->createPartGroupComponent($manual->id, '1-21', 'BUSH-OS');
+        $original->update(['is_bush' => true, 'bush_ipl_num' => '1-20']);
+        $oversize->update(['is_bush' => true, 'bush_ipl_num' => '1-20']);
+
+        $bushingGroup = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id,
+            'code' => 'MPG-'.uniqid(),
+            'name' => 'Bushing 1-20',
+            'behavior' => ManualPartGroup::BEHAVIOR_CHOOSE_ONE,
+            'type' => ManualPartGroup::TYPE_OVERSIZE,
+            'applies_to' => ['prl'],
+        ]);
+        $bushingGroup->options()->create([
+            'component_id' => $original->id,
+            'part_number' => $original->part_number,
+            'ipl_num' => $original->ipl_num,
+            'option_kind' => 'original',
+            'is_default' => true,
+        ]);
+        $bushingGroup->options()->create([
+            'component_id' => $oversize->id,
+            'part_number' => $oversize->part_number,
+            'ipl_num' => $oversize->ipl_num,
+            'option_kind' => 'oversize',
+        ]);
+
+        $response = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+            'name' => 'ASSY-100',
+            'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl'],
+            'component_ids' => [$assy->id, $original->id],
+            'default_component_id' => $assy->id,
+            'member_qty' => [$assy->id => 1, $original->id => 1],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['component_ids'])
+            ->assertJsonPath('errors.component_ids.0', 'Add the complete Bushing Original/Oversize group.');
+        $this->assertDatabaseMissing('manual_part_groups', [
+            'manual_id' => $manual->id,
+            'name' => 'ASSY-100',
+            'type' => ManualPartGroup::TYPE_ASSY,
+        ]);
+    }
+
+    public function test_assy_can_include_an_assy_and_a_complete_bushing_group_recursively(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $mainPart = $this->createPartGroupComponent($manual->id, '1-10', 'MAIN-ASSY');
+        $subAssyPart = $this->createPartGroupComponent($manual->id, '1-20', 'SUB-ASSY');
+        $original = $this->createPartGroupComponent($manual->id, '1-30', 'BUSH-STD');
+        $oversize = $this->createPartGroupComponent($manual->id, '1-31', 'BUSH-OS');
+        $original->update(['is_bush' => true, 'bush_ipl_num' => '1-30', 'units_assy' => 3]);
+        $oversize->update(['is_bush' => true, 'bush_ipl_num' => '1-30', 'units_assy' => 3]);
+
+        $subAssy = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'Sub ASSY',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE, 'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl', 'ndt'],
+        ]);
+        $subAssyOption = $subAssy->options()->create([
+            'component_id' => $subAssyPart->id, 'part_number' => $subAssyPart->part_number,
+            'ipl_num' => $subAssyPart->ipl_num, 'option_kind' => 'assy', 'is_default' => true,
+        ]);
+        $subAssyOption->coverages()->create([
+            'component_id' => $subAssyPart->id, 'qty' => 2, 'applies_to' => ['prl', 'ndt'],
+        ]);
+
+        $bushingGroup = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'Bushing 1-30',
+            'behavior' => ManualPartGroup::BEHAVIOR_CHOOSE_ONE, 'type' => ManualPartGroup::TYPE_OVERSIZE,
+            'applies_to' => ['prl', 'ndt'],
+        ]);
+        $originalOption = $bushingGroup->options()->create([
+            'component_id' => $original->id, 'part_number' => $original->part_number,
+            'ipl_num' => $original->ipl_num, 'option_kind' => 'original', 'is_default' => true,
+        ]);
+        $bushingGroup->options()->create([
+            'component_id' => $oversize->id, 'part_number' => $oversize->part_number,
+            'ipl_num' => $oversize->ipl_num, 'option_kind' => 'oversize',
+        ]);
+
+        $response = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+            'name' => 'Main nested ASSY',
+            'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl', 'ndt'],
+            'component_ids' => [$mainPart->id],
+            'default_component_id' => $mainPart->id,
+            'included_group_option_ids' => [$subAssyOption->id, $originalOption->id],
+            'included_group_qty' => [$subAssyOption->id => 2, $originalOption->id => 3],
+        ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $mainGroupId = (int) $response->json('group.id');
+        $mainOptionId = (int) $response->json('group.options.0.id');
+        $this->assertDatabaseHas('manual_part_group_coverages', [
+            'manual_part_group_option_id' => $mainOptionId,
+            'covered_manual_part_group_option_id' => $subAssyOption->id,
+            'qty' => 2,
+        ]);
+        $this->assertDatabaseHas('manual_part_group_coverages', [
+            'manual_part_group_option_id' => $mainOptionId,
+            'covered_manual_part_group_option_id' => $originalOption->id,
+            'qty' => 3,
+        ]);
+
+        WorkorderPartGroupSelection::query()->create([
+            'workorder_id' => $workorder->id,
+            'manual_part_group_id' => $mainGroupId,
+            'manual_part_group_option_id' => $mainOptionId,
+            'qty' => 2,
+            'selected_by_user_id' => $admin->id,
+        ]);
+
+        $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($workorder, 'ndt');
+
+        $this->assertSame(2, $coverage[$mainPart->id]['covered_qty']);
+        $this->assertSame(8, $coverage[$subAssyPart->id]['covered_qty']);
+        $this->assertSame(6, $coverage[$original->id]['covered_qty']);
+        $this->assertSame(6, $coverage[$oversize->id]['covered_qty']);
+        $this->assertSame('Included in ASSY MAIN-ASSY', $coverage[$oversize->id]['reason']);
+
+        $this->actingAs($admin)
+            ->get(route('manuals.show', $manual))
+            ->assertOk()
+            ->assertViewHas('partGroupsByComponent', function ($groupsByComponent) use ($oversize, $mainGroupId): bool {
+                return collect($groupsByComponent->get($oversize->id, []))
+                    ->contains(fn (ManualPartGroup $group): bool => (int) $group->id === $mainGroupId);
+            });
+    }
+
+    public function test_assy_group_rejects_an_indirect_nesting_cycle(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $partA = $this->createPartGroupComponent($manual->id, '2-10', 'ASSY-A');
+        $partB = $this->createPartGroupComponent($manual->id, '2-20', 'ASSY-B');
+
+        $groupA = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'ASSY A',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE, 'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl'],
+        ]);
+        $optionA = $groupA->options()->create([
+            'component_id' => $partA->id, 'part_number' => $partA->part_number,
+            'ipl_num' => $partA->ipl_num, 'option_kind' => 'assy', 'is_default' => true,
+        ]);
+        $optionA->coverages()->create(['component_id' => $partA->id, 'qty' => 1, 'applies_to' => ['prl']]);
+
+        $groupB = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'MPG-'.uniqid(), 'name' => 'ASSY B',
+            'behavior' => ManualPartGroup::BEHAVIOR_BUNDLE, 'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl'],
+        ]);
+        $optionB = $groupB->options()->create([
+            'component_id' => $partB->id, 'part_number' => $partB->part_number,
+            'ipl_num' => $partB->ipl_num, 'option_kind' => 'assy', 'is_default' => true,
+        ]);
+        $optionB->coverages()->createMany([
+            ['component_id' => $partB->id, 'qty' => 1, 'applies_to' => ['prl']],
+            ['covered_manual_part_group_option_id' => $optionA->id, 'qty' => 1, 'applies_to' => ['prl']],
+        ]);
+
+        $this->actingAs($admin)->putJson(
+            route('manuals.part-groups.update', ['manual' => $manual, 'partGroup' => $groupA]),
+            [
+                'name' => 'ASSY A',
+                'type' => ManualPartGroup::TYPE_ASSY,
+                'applies_to' => ['prl'],
+                'component_ids' => [$partA->id],
+                'default_component_id' => $partA->id,
+                'included_group_option_ids' => [$optionB->id],
+                'included_group_qty' => [$optionB->id => 1],
+            ]
+        )->assertUnprocessable()
+            ->assertJsonValidationErrors('included_group_option_ids');
     }
 
     public function test_kit_can_include_complete_assy_and_expands_its_composition(): void

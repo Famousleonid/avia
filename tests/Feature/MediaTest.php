@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Component;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -45,6 +46,89 @@ class MediaTest extends TestCase
             ->where('model_id', $workorder->id)
             ->where('collection_name', 'photos')
             ->count());
+    }
+
+    public function test_workorder_photo_names_use_short_date_and_persistent_folder_sequence(): void
+    {
+        File::cleanDirectory(base_path('codex-test-runtime/disks/public'));
+        Bus::fake();
+        $this->travelTo(Carbon::parse('2026-09-01 08:19:11'));
+
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 107884,
+        ]);
+
+        // A legacy file makes the first new folder sequence start at 002.
+        $workorder
+            ->addMedia($this->makeUploadedImage('legacy.jpg'))
+            ->usingFileName('wo_107884_20260901_0819_old.jpg')
+            ->toMediaCollection('repair');
+
+        $this->actingAs($admin)->post(route('workorders.media.upload', $workorder), [
+            'group' => 'repair',
+            'files' => [
+                $this->makeUploadedImage('one.jpg'),
+                $this->makeUploadedImage('two.png'),
+            ],
+        ])->assertOk();
+
+        $repairMedia = Media::query()
+            ->where('model_type', $workorder->getMorphClass())
+            ->where('model_id', $workorder->id)
+            ->where('collection_name', 'repair')
+            ->orderBy('id')
+            ->get();
+
+        $this->assertSame([
+            'wo_107884_20260901_0819_old.jpg',
+            'wo_107884_260901_002.jpg',
+            'wo_107884_260901_003.png',
+        ], $repairMedia->pluck('file_name')->all());
+
+        // Deleting a photo must not make its sequence number reusable.
+        $repairMedia->last()->delete();
+
+        $this->actingAs($admin)->post(route('workorders.media.upload', $workorder), [
+            'group' => 'repair',
+            'files' => [$this->makeUploadedImage('replacement.jpg')],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('media', [
+            'model_id' => $workorder->id,
+            'collection_name' => 'repair',
+            'file_name' => 'wo_107884_260901_004.jpg',
+        ]);
+
+        // Each archive folder has its own persistent sequence.
+        $this->actingAs($admin)->post(route('workorders.media.upload', $workorder), [
+            'group' => 'photos',
+            'files' => [$this->makeUploadedImage('unit.jpg')],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('media', [
+            'model_id' => $workorder->id,
+            'collection_name' => 'photos',
+            'file_name' => 'wo_107884_260901_001.jpg',
+        ]);
+
+        $photoToMove = Media::query()
+            ->where('model_id', $workorder->id)
+            ->where('collection_name', 'photos')
+            ->firstOrFail();
+
+        $this->actingAs($admin)->patch(route('workorders.media.move', $photoToMove), [
+            'workorder_id' => $workorder->id,
+            'to' => 'repair',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('media', [
+            'model_id' => $workorder->id,
+            'collection_name' => 'repair',
+            'file_name' => 'wo_107884_260901_005.jpg',
+        ]);
+        $this->assertDatabaseMissing('media', ['id' => $photoToMove->id]);
     }
 
     public function test_media_upload_validation_rejects_non_image_payload(): void

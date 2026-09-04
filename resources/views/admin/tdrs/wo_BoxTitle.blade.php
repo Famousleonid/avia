@@ -248,6 +248,8 @@
         }
 
         .wo-box-title-card > .row {
+            margin-left: 0;
+            margin-right: 0;
             position: relative;
             z-index: 1;
         }

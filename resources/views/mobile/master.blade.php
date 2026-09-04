@@ -62,24 +62,41 @@
             overflow-y: auto; /* прокрутку ТОЛЬКО для контента, если он не помещается */
             min-height: 0; /* правильная работы flex-grow */
         }
+
+        .mobile-landscape-warning {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            z-index: 20050;
+            display: none;
+            width: min(calc(100vw - 32px), 520px);
+            transform: translate(-50%, -50%);
+            padding: 20px 18px;
+            border: 3px solid #fff;
+            border-radius: 14px;
+            background: #dc2626;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, .65);
+            color: #fff;
+            font-size: clamp(1.3rem, 6vw, 2rem);
+            font-weight: 800;
+            line-height: 1.2;
+            text-align: center;
+            text-transform: uppercase;
+            pointer-events: none;
+        }
+
+        .mobile-landscape-warning.is-visible {
+            display: block;
+        }
     </style>
 
 </head>
-<body class="fade-page {{ !empty($userGuideEmbed) ? 'user-guide-embed' : '' }}">
+<body class="fade-page">
 <div class="app-container">
 
     <div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
         <span class="visually-hidden">Loading...</span>
     </div>
-
-    @if(!empty($userGuideEmbed))
-        <script>
-            document.addEventListener('wheel', (event) => event.preventDefault(), {
-                capture: true,
-                passive: false,
-            });
-        </script>
-    @endif
 
     <div class="app-header">
         @include('components.mobile-menu', ['position'   => 'top','workorder'  => $workorder ?? null,])
@@ -89,8 +106,16 @@
         @yield('content')
     </main>
 
-    <div style="height: 10px;"></div>
+    <div class="app-footer-spacer" style="height: 10px;"></div>
 
+</div>
+
+<div id="mobileLandscapeWarning"
+     class="mobile-landscape-warning"
+     role="alert"
+     aria-live="assertive"
+     aria-hidden="true">
+    TURN YOUR PHONE HORIZONTALLY!
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -100,6 +125,7 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 @include('components.session-heartbeat-config')
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
+<script src="{{ asset('js/mobile-landscape-photo.js') }}?v={{ filemtime(public_path('js/mobile-landscape-photo.js')) }}"></script>
 <script src="{{ asset('js/password-policy.js') }}?v={{ filemtime(public_path('js/password-policy.js')) }}"></script>
 @include('components.temporary-password-reminder')
 

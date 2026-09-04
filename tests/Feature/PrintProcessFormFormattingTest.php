@@ -74,4 +74,24 @@ class PrintProcessFormFormattingTest extends TestCase
         $this->assertStringContainsString("Remove Chrome Plating &lt;test&gt;<br />\nBake as per MIL-STD-1501", $html);
         $this->assertStringNotContainsString('Remove Chrome Plating <test>', $html);
     }
+
+    public function test_box_title_rows_do_not_extend_outside_the_watermark_card(): void
+    {
+        $html = view('admin.tdrs.wo_BoxTitle', [
+            'current_wo' => (new Workorder())->forceFill([
+                'number' => 107884,
+                'unit_id' => 1,
+                'customer_id' => 1,
+                'user_id' => 1,
+            ]),
+            'units' => collect([(object) ['id' => 1, 'part_number' => '47200-29']]),
+            'customers' => collect([(object) ['id' => 1, 'name' => 'AirStart Inc.']]),
+            'users' => collect([(object) ['id' => 1, 'selection_name' => 'Test Technician']]),
+        ])->render();
+
+        $this->assertStringContainsString('.wo-box-title-card > .row {', $html);
+        $this->assertStringContainsString('margin-left: 0;', $html);
+        $this->assertStringContainsString('margin-right: 0;', $html);
+        $this->assertStringContainsString('overflow: hidden;', $html);
+    }
 }

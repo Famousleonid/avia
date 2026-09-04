@@ -24,7 +24,10 @@ class MobileShippingDraftRecognitionTest extends TestCase
             ->assertOk()
             ->assertSee('As Received nameplate')
             ->assertSee('name="as_received_photo"', false)
+            ->assertSee('id="mobileLandscapeWarning"', false)
+            ->assertSee('TURN YOUR PHONE HORIZONTALLY!')
             ->assertSee(route('mobile.draft.nameplate.recognize'), false)
+            ->assertSee('mobile-landscape-photo.js', false)
             ->assertSee('mobile-shipping-draft.js', false);
     }
 
@@ -91,6 +94,29 @@ class MobileShippingDraftRecognitionTest extends TestCase
         $this->assertSame(
             'mobile_shipping_draft',
             $draft->getFirstMedia('received')?->getCustomProperty('source')
+        );
+    }
+
+    public function test_portrait_nameplate_is_rejected_before_draft_is_created(): void
+    {
+        $shipper = $this->createUserWithRole('Shipping');
+        $customer = $this->createCustomer();
+        $unit = $this->createUnit(['part_number' => 'SHIP-PORTRAIT']);
+        Instruction::query()->firstOrCreate(['id' => 6], ['name' => 'Mobile Draft']);
+        $draftCount = Workorder::query()->withoutGlobalScope('exclude_drafts')->where('is_draft', true)->count();
+
+        $this->actingAs($shipper)
+            ->post(route('mobile.draft.store'), [
+                'unit_id' => $unit->id,
+                'customer_id' => $customer->id,
+                'open_at' => format_project_date(now()),
+                'as_received_photo' => UploadedFile::fake()->image('portrait.png', 80, 120),
+            ])
+            ->assertSessionHasErrors(['as_received_photo']);
+
+        $this->assertSame(
+            $draftCount,
+            Workorder::query()->withoutGlobalScope('exclude_drafts')->where('is_draft', true)->count()
         );
     }
 

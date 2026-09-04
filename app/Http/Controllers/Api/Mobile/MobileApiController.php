@@ -39,6 +39,9 @@ use App\Services\Auth\UserPasswordService;
 use App\Services\MachiningListingRowsBuilder;
 use App\Services\LogCardTdrAccessService;
 use App\Services\ManualIplBranchRuleResolver;
+use App\Services\ManualPartGroupCompositionResolver;
+use App\Services\Media\MobileLandscapePhotoProcessor;
+use App\Services\Media\WorkorderPhotoStorageService;
 use App\Services\MobileReviewAccess;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\WorkorderNotifyService;
@@ -184,7 +187,9 @@ class MobileApiController extends Controller
             ->with('assemblies')
             ->whereIn('manual_id', $manualIds)
             ->where('log_card', 1)
-            ->get(['id', 'name', 'part_number', 'ipl_num', 'manual_id', 'units_assy', 'assy_part_number', 'assy_ipl_num'])
+            ->get(['id', 'name', 'part_number', 'ipl_num', 'manual_id', 'units_assy', 'assy_part_number', 'assy_ipl_num']);
+        $groupComponents = app(\App\Services\WorkorderPartScopeResolver::class)
+            ->filterComponents($groupComponents, $workorder)
             ->groupBy(fn (Component $c) => $c->manual_id . '|' . $this->mobileLogCardGroupKey((string) $c->ipl_num));
 
         $payloadRows = collect($rows)->values()->map(function ($row, $index) use (
@@ -292,6 +297,8 @@ class MobileApiController extends Controller
                 || ! $workorder->unit
                 || $resolver->allowsComponentForUnit($workorder->unit, (string) $c->ipl_num, $manualId))
             ->values();
+        $components = app(\App\Services\WorkorderPartScopeResolver::class)
+            ->filterComponents($components, $workorder);
 
         $missingCode = Code::missing();
         $orderNew = Necessary::query()->where('name', 'Order New')->first();
@@ -640,16 +647,20 @@ class MobileApiController extends Controller
         $primaryManualId = (int) ($workorder->unit->manual_id ?? 0);
         $usedManualIds = $workorder->usedManualIds();
         $resolver = app(ManualIplBranchRuleResolver::class);
-        $assyGroupsById = ManualPartGroup::query()
+        $compositionGroups = ManualPartGroup::query()
             ->with(['options.coverages'])
-            ->whereIn('id', collect($inputRows)
-                ->pluck('manual_part_group_id')
-                ->map(fn ($id): int => (int) $id)
-                ->filter()
-                ->unique()
-                ->all())
-            ->get()
+            ->whereIn('manual_id', $usedManualIds)
+            ->get();
+        $submittedPartGroupIds = collect($inputRows)
+            ->pluck('manual_part_group_id')
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique();
+        $assyGroupsById = $compositionGroups
+            ->whereIn('id', $submittedPartGroupIds)
             ->keyBy('id');
+        $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
+            ->componentIdsByGroup($compositionGroups);
         $canonicalRows = [];
 
         foreach ($inputRows as $inputRow) {
@@ -692,12 +703,7 @@ class MobileApiController extends Controller
                     422,
                     'Invalid ASSY group selection for this Log Card.'
                 );
-                $memberIds = $partGroupOption->coverages
-                    ->pluck('component_id')
-                    ->push($partGroupOption->component_id)
-                    ->map(fn ($id): int => (int) $id)
-                    ->filter()
-                    ->unique();
+                $memberIds = collect($componentIdsByGroup[$partGroupId] ?? []);
                 abort_unless($memberIds->contains((int) $component->id), 422, 'Component does not belong to this ASSY group.');
                 abort_unless(
                     $partGroupChoice === 'assy'
@@ -729,11 +735,22 @@ class MobileApiController extends Controller
             if ($partGroupId > 0) {
                 $row['manual_part_group_id'] = (string) $partGroupId;
                 $row['manual_part_group_choice'] = $partGroupChoice;
+                $row['part_number'] = (string) ($component->part_number ?? '');
+                $row['name'] = (string) ($component->name ?? '');
+                $row['component_assembly_id'] = '';
                 if ($partGroupChoice === 'assy') {
                     $row['manual_part_group_option_id'] = (string) $partGroupOption->id;
-                    $row['component_assembly_id'] = '';
-                    $row['assy_part_number'] = (string) ($partGroupOption->part_number ?? '');
-                    $row['assy_ipl_num'] = (string) ($partGroupOption->ipl_num ?? '');
+                    $isActualAssyPart = (int) ($partGroupOption->component_id ?? 0) === (int) $component->id
+                        && strcasecmp(
+                            trim((string) ($partGroupOption->part_number ?? '')),
+                            trim((string) ($component->part_number ?? ''))
+                        ) === 0;
+                    $row['assy_part_number'] = $isActualAssyPart ? '' : (string) ($partGroupOption->part_number ?? '');
+                    $row['assy_ipl_num'] = $isActualAssyPart ? '' : (string) ($partGroupOption->ipl_num ?? '');
+                } else {
+                    $isActualAssyPart = (int) ($partGroupOption->component_id ?? 0) === (int) $component->id;
+                    $row['assy_part_number'] = $isActualAssyPart ? '' : (string) ($partGroupOption->part_number ?? '');
+                    $row['assy_ipl_num'] = $isActualAssyPart ? '' : (string) ($partGroupOption->ipl_num ?? '');
                 }
             } else {
                 $assembly = $component->assemblies->first();
@@ -789,25 +806,28 @@ class MobileApiController extends Controller
         $componentsById = $components->keyBy(fn (Component $component): int => (int) $component->id);
         $assignedComponentIds = collect();
 
-        $groups = ManualPartGroup::query()
+        $allGroups = ManualPartGroup::query()
             ->where('manual_id', $manualId)
-            ->where('type', ManualPartGroup::TYPE_ASSY)
             ->with(['options.coverages', 'options.component'])
             ->orderBy('id')
-            ->get()
+            ->get();
+        $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
+            ->componentIdsByGroup($allGroups);
+
+        $groups = $allGroups
+            ->where('type', ManualPartGroup::TYPE_ASSY)
             ->map(function (ManualPartGroup $group) use (
                 $componentsById,
                 $assignedComponentIds,
-                $componentPayload
+                $componentPayload,
+                $componentIdsByGroup
             ): ?array {
                 $option = $group->options->first();
                 if (! $option) {
                     return null;
                 }
 
-                $memberIds = $option->coverages
-                    ->pluck('component_id')
-                    ->push($option->component_id)
+                $memberIds = collect($componentIdsByGroup[(int) $group->id] ?? [])
                     ->map(fn ($id): int => (int) $id)
                     ->filter(fn (int $id): bool => $id > 0
                         && $componentsById->has($id)
@@ -815,37 +835,32 @@ class MobileApiController extends Controller
                         && ! $assignedComponentIds->contains($id))
                     ->unique()
                     ->values();
-                $choices = $memberIds->map(function (int $componentId) use ($componentsById, $componentPayload, $group): array {
+                $assyComponentId = (int) ($option->component_id ?? 0);
+                $assyPartNumber = trim((string) ($option->part_number ?? ''));
+                $assyIplNumber = trim((string) ($option->ipl_num ?? ''));
+                $choices = $memberIds->map(function (int $componentId) use (
+                    $componentsById,
+                    $componentPayload,
+                    $group,
+                    $option,
+                    $assyComponentId,
+                    $assyPartNumber,
+                    $assyIplNumber
+                ): array {
                     $component = $componentsById->get($componentId);
+                    $isAssyPart = $componentId === $assyComponentId;
 
                     return array_merge($componentPayload($component), [
-                        'choice_kind' => 'component',
+                        'choice_kind' => $isAssyPart ? 'assy' : 'component',
                         'manual_part_group_id' => (int) $group->id,
-                        'manual_part_group_option_id' => null,
-                        'assy_part_number' => '',
-                        'assy_ipl_num' => '',
+                        'manual_part_group_option_id' => $isAssyPart ? (int) $option->id : null,
+                        'assy_part_number' => $isAssyPart ? '' : $assyPartNumber,
+                        'assy_ipl_num' => $isAssyPart ? '' : $assyIplNumber,
+                        'is_assy_part' => $isAssyPart,
                     ]);
                 })->values();
 
-                $baseComponentId = (int) ($option->component_id ?? 0);
-                $baseComponent = $componentsById->get($baseComponentId);
-                $assyPartNumber = trim((string) ($option->part_number ?? ''));
-                if ($baseComponent
-                    && $memberIds->contains($baseComponentId)
-                    && $assyPartNumber !== ''
-                    && strcasecmp($assyPartNumber, trim((string) $baseComponent->part_number)) !== 0) {
-                    $choices->push(array_merge($componentPayload($baseComponent), [
-                        'choice_kind' => 'assy',
-                        'manual_part_group_id' => (int) $group->id,
-                        'manual_part_group_option_id' => (int) $option->id,
-                        'part_number' => $assyPartNumber,
-                        'ipl_num' => (string) ($option->ipl_num ?? ''),
-                        'assy_part_number' => $assyPartNumber,
-                        'assy_ipl_num' => (string) ($option->ipl_num ?? ''),
-                    ]));
-                }
-
-                if ($choices->count() < 2) {
+                if ($choices->isEmpty()) {
                     return null;
                 }
 
@@ -980,6 +995,9 @@ class MobileApiController extends Controller
                 'compress_on_client' => false,
                 'queue_on_client' => true,
                 'delete_local_after_success' => true,
+                'landscape_only' => true,
+                'required_orientation' => 'landscape',
+                'orientation_message' => MobileLandscapePhotoProcessor::VALIDATION_MESSAGE,
             ],
             'navigation' => $this->navigationPayload($user),
             'screens' => $this->screenCatalogPayload($user),
@@ -1175,15 +1193,10 @@ class MobileApiController extends Controller
         ]);
 
         $category = $data['category'] ?? 'photos';
-        // Optional context slug (e.g. the IPL number a Log Card shot belongs
-        // to) — slotted into the same standard name format.
-        $label = preg_replace('/[^A-Za-z0-9_-]+/', '-', trim((string) ($data['label'] ?? '')));
-        $label = $label !== '' ? '_' . $label : '';
-        foreach ($request->file('photos', []) as $photo) {
-            $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_His') . $label . '_' . Str::random(4) . '.' . $photo->getClientOriginalExtension();
-            $workorder->addMedia($photo)
-                ->usingFileName($filename)
-                ->toMediaCollection($category);
+        $photos = app(MobileLandscapePhotoProcessor::class)
+            ->prepareMany($request->file('photos', []), 'photos');
+        foreach ($photos as $photo) {
+            app(WorkorderPhotoStorageService::class)->store($workorder, $photo, $category);
         }
 
         $workorder->load('media');
@@ -1450,13 +1463,13 @@ class MobileApiController extends Controller
             'attached_components' => $attachedComponents,
             'components' => $attachedComponents,
             'manual_components' => $manualId
-                ? Component::query()
+                ? app(\App\Services\WorkorderPartScopeResolver::class)->filterComponents(Component::query()
                     ->where('manual_id', $manualId)
                     ->with('media')
                     ->orderBy('ipl_num')
                     ->orderBy('part_number')
                     ->orderBy('name')
-                    ->get()
+                    ->get(), $workorder)
                     ->map(fn (Component $component) => $this->componentPayload($component))
                     ->values()
                 : [],
@@ -1539,6 +1552,10 @@ class MobileApiController extends Controller
             'photo' => ['nullable', 'image', 'max:102400'],
         ]);
 
+        $photo = $request->hasFile('photo')
+            ? app(MobileLandscapePhotoProcessor::class)->prepare($request->file('photo'), 'photo')
+            : null;
+
         $component = Component::query()->create([
             'manual_id' => $manualId,
             'ipl_num' => $data['ipl_num'],
@@ -1550,8 +1567,8 @@ class MobileApiController extends Controller
             'bush_ipl_num' => $request->boolean('is_bush') ? ($data['bush_ipl_num'] ?? null) : null,
         ]);
 
-        if ($request->hasFile('photo')) {
-            $component->addMediaFromRequest('photo')->toMediaCollection('components');
+        if ($photo !== null) {
+            $component->addMedia($photo)->toMediaCollection('components');
         }
 
         $component->load('media');
@@ -1597,8 +1614,9 @@ class MobileApiController extends Controller
             'photo' => ['required', 'image', 'max:102400'],
         ]);
 
+        $photo = app(MobileLandscapePhotoProcessor::class)->prepare($request->file('photo'), 'photo');
         $component->clearMediaCollection('components');
-        $component->addMediaFromRequest('photo')->toMediaCollection('components');
+        $component->addMedia($photo)->toMediaCollection('components');
         $component->load('media');
 
         return $this->ok(['component' => $this->componentPayload($component)]);
@@ -1824,6 +1842,8 @@ class MobileApiController extends Controller
             'photo' => ['required', 'image', 'max:10240'],
         ]);
 
+        $photo = app(MobileLandscapePhotoProcessor::class)->prepare($request->file('photo'), 'photo');
+
         $paint = Paint::query()->create([
             'user_id' => $user->id,
             'part_number' => trim($validated['part_number']),
@@ -1831,7 +1851,7 @@ class MobileApiController extends Controller
             'comment' => trim((string) ($validated['comment'] ?? '')) ?: null,
         ]);
 
-        $paint->addMediaFromRequest('photo')->toMediaCollection('lost');
+        $paint->addMedia($photo)->toMediaCollection('lost');
         $paint->load(['user:id,name,selection_name_order', 'media']);
 
         return $this->ok([
@@ -2023,11 +2043,10 @@ class MobileApiController extends Controller
             'photos.*' => ['file', 'image', 'max:15360'],
         ]);
 
-        foreach ($request->file('photos', []) as $photo) {
-            $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.' . $photo->getClientOriginalExtension();
-            $workorder->addMedia($photo)
-                ->usingFileName($filename)
-                ->toMediaCollection('Machining');
+        $photos = app(MobileLandscapePhotoProcessor::class)
+            ->prepareMany($request->file('photos', []), 'photos');
+        foreach ($photos as $photo) {
+            app(WorkorderPhotoStorageService::class)->store($workorder, $photo, 'Machining');
         }
 
         return $this->ok([
@@ -2251,7 +2270,10 @@ class MobileApiController extends Controller
             ->where('component_id', $component->id)
             ->exists();
 
-        if (! $isFromWorkorderManual && ! $isAlreadyAttached) {
+        $isInWorkScope = app(\App\Services\WorkorderPartScopeResolver::class)
+            ->allowsComponent($workorder, (int) $component->id);
+
+        if ((! $isFromWorkorderManual || ! $isInWorkScope) && ! $isAlreadyAttached) {
             throw ValidationException::withMessages([
                 'component_id' => ['The selected component is not available for this workorder.'],
             ]);

@@ -78,8 +78,38 @@ Do not write directly into avia TDR / STD / Bush tables from bridge.
 Keep raw_payload for audit.
 Use source_hash to detect actual changes.
 Keep apply_status / apply_message / applied target fields for parser.
+Keep `applied_targets` value snapshots so a later REF remap can release the
+previous target without overwriting manual edits.
 Do not delete staged rows.
 ```
+
+### REF remap safety
+
+One Quantum source row is identified by its stable `source_uid` (normally
+`rod:<ROD_AUTO_KEY>`). If a changed payload makes that same source row resolve
+to another AVIA process, the parser must treat it as a target move:
+
+```text
+validate the saved old-target snapshot
+-> clear only the unchanged Quantum-managed values on old target(s)
+-> fill the new target(s)
+-> save the new target list and value snapshots
+```
+
+The release and new apply run in one database transaction. If an old target no
+longer matches its saved snapshot, the parser preserves both the row and the
+last successful target metadata, marks the source row `unresolved`, and
+requires manual review. This prevents a later REF correction from erasing
+human edits.
+
+Legacy `applied` rows without `applied_targets` are revisited by the scheduled
+parser. When their legacy `applied_target_table` / `applied_target_id` still
+match the current resolved target, the parser records a baseline snapshot. If
+the target already differs and no safety snapshot exists, automatic cleanup is
+blocked.
+
+Do not deduplicate or release by `RO_NUMBER` alone. One RO can legitimately
+contain several RO_DETAIL source rows mapped to different processes.
 
 ### Meaning of `applied`
 

@@ -178,6 +178,226 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame('Quantum', $target->date_finish_user);
     }
 
+    public function test_changed_detail_part_ref_releases_previous_quantum_target_before_applying_new_target(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Remap Vendor']);
+        $cadName = ProcessName::query()->create([
+            'name' => 'Cad plate remap',
+            'code' => 'CP-REMAP',
+            'process_sheet_name' => 'CADMIUM PLATING',
+            'form_number' => '014',
+        ]);
+        $chromeName = ProcessName::query()->create([
+            'name' => 'Chrome plating remap',
+            'code' => 'CHP-REMAP',
+            'process_sheet_name' => 'CHROME PLATING',
+            'form_number' => '015',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '52141-REMAP',
+            'name' => 'Quantum remap component',
+            'ipl_num' => '3-10',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'REMAP-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $cadTarget = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $cadName->id,
+            'sort_order' => 1,
+        ]);
+        $chromeTarget = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $chromeName->id,
+            'sort_order' => 2,
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R-REMAP',
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'serial_number' => $tdr->serial_number,
+            'class' => 'DETAIL_PART',
+            'bom_ref' => $cadName->code,
+        ]);
+
+        $firstStats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $firstStats['applied']);
+        $line->refresh();
+        $this->assertSame($cadTarget->id, $line->applied_target_id);
+        $this->assertSame($cadTarget->id, data_get($line->applied_targets, '0.id'));
+
+        $line->forceFill([
+            'bom_ref' => $chromeName->code,
+            'source_hash' => hash('sha256', 'changed-to-chrome'),
+        ])->save();
+
+        $secondStats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $secondStats['applied']);
+        $line->refresh();
+        $cadTarget->refresh();
+        $chromeTarget->refresh();
+
+        $this->assertNull($cadTarget->repair_order);
+        $this->assertNull($cadTarget->vendor_id);
+        $this->assertNull($cadTarget->date_start);
+        $this->assertNull($cadTarget->date_finish);
+        $this->assertNull($cadTarget->date_start_user);
+        $this->assertNull($cadTarget->date_finish_user);
+        $this->assertSame('R-REMAP', $chromeTarget->repair_order);
+        $this->assertSame($vendor->id, $chromeTarget->vendor_id);
+        $this->assertSame('Quantum', $chromeTarget->date_start_user);
+        $this->assertSame('Quantum', $chromeTarget->date_finish_user);
+        $this->assertSame($chromeTarget->id, $line->applied_target_id);
+        $this->assertSame($chromeTarget->id, data_get($line->applied_targets, '0.id'));
+        $this->assertStringContainsString("moved from tdr_processes:{$cadTarget->id}", (string) $line->apply_message);
+    }
+
+    public function test_changed_ref_does_not_clear_a_previous_target_edited_after_quantum_apply(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Remap Conflict Vendor']);
+        $firstName = ProcessName::query()->create([
+            'name' => 'First remap conflict process',
+            'code' => 'FIRST-REMAP-CONFLICT',
+            'process_sheet_name' => 'FIRST',
+            'form_number' => 'FIRST',
+        ]);
+        $secondName = ProcessName::query()->create([
+            'name' => 'Second remap conflict process',
+            'code' => 'SECOND-REMAP-CONFLICT',
+            'process_sheet_name' => 'SECOND',
+            'form_number' => 'SECOND',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'REMAP-CONFLICT-PN',
+            'name' => 'Quantum remap conflict component',
+            'ipl_num' => '3-11',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'REMAP-CONFLICT-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $firstTarget = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstName->id,
+            'sort_order' => 1,
+        ]);
+        $secondTarget = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondName->id,
+            'sort_order' => 2,
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R-REMAP-CONFLICT',
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'serial_number' => $tdr->serial_number,
+            'class' => 'DETAIL_PART',
+            'bom_ref' => $firstName->code,
+        ]);
+
+        app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $firstTarget->forceFill([
+            'date_start' => '2026-06-02',
+            'date_start_user' => 'Manual User',
+        ])->save();
+        $line->forceFill([
+            'bom_ref' => $secondName->code,
+            'source_hash' => hash('sha256', 'changed-with-manual-conflict'),
+        ])->save();
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['unresolved']);
+        $line->refresh();
+        $firstTarget->refresh();
+        $secondTarget->refresh();
+
+        $this->assertSame('unresolved', $line->apply_status);
+        $this->assertSame($firstTarget->id, $line->applied_target_id);
+        $this->assertSame($firstTarget->id, data_get($line->applied_targets, '0.id'));
+        $this->assertStringContainsString('edited after the previous apply', (string) $line->apply_message);
+        $this->assertSame('R-REMAP-CONFLICT', $firstTarget->repair_order);
+        $this->assertSame('2026-06-02', $firstTarget->date_start?->format('Y-m-d'));
+        $this->assertSame('Manual User', $firstTarget->date_start_user);
+        $this->assertNull($secondTarget->repair_order);
+        $this->assertNull($secondTarget->date_start);
+    }
+
+    public function test_applied_legacy_line_without_target_snapshot_is_backfilled_on_next_apply_run(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Snapshot Backfill Vendor']);
+        $processName = ProcessName::query()->create([
+            'name' => 'Snapshot backfill process',
+            'code' => 'SNAPSHOT-BACKFILL',
+            'process_sheet_name' => 'SNAPSHOT',
+            'form_number' => 'SNAPSHOT',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'SNAPSHOT-BACKFILL-PN',
+            'name' => 'Snapshot backfill component',
+            'ipl_num' => '3-12',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'SNAPSHOT-BACKFILL-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $target = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R-SNAPSHOT-BACKFILL',
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'serial_number' => $tdr->serial_number,
+            'class' => 'DETAIL_PART',
+            'bom_ref' => $processName->code,
+        ]);
+
+        app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $line->refresh()->forceFill(['applied_targets' => null])->save();
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['scanned']);
+        $this->assertSame(1, $stats['unchanged']);
+        $line->refresh();
+        $this->assertSame($target->id, data_get($line->applied_targets, '0.id'));
+        $this->assertSame('tdr_processes', data_get($line->applied_targets, '0.table'));
+        $this->assertSame('R-SNAPSHOT-BACKFILL', data_get($line->applied_targets, '0.values.repair_order'));
+    }
+
     public function test_detail_part_same_ro_and_pn_targets_separate_tdrs_by_quantum_serial_number(): void
     {
         $workorder = $this->createWorkorder();

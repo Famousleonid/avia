@@ -375,7 +375,6 @@ class QualityAssuranceController extends Controller
         $workorder->loadMissing(['unit.manuals']);
         $manualId = $workorder->unit->manual_id;
         $manuals = Manual::where('id', $manualId)->with('builder')->get();
-        $components = Component::where('manual_id', $manualId)->get();
         $log_card = LogCard::where('workorder_id', $workorder->id)->first();
         $componentData = $this->decodeLogCardRows($log_card?->component_data);
         $componentDataOut = $this->decodeLogCardRows($log_card?->component_data_out);
@@ -383,6 +382,14 @@ class QualityAssuranceController extends Controller
         if ($componentDataOut === [] && $componentData !== []) {
             $componentDataOut = $componentData;
         }
+
+        $componentIds = collect($componentData)
+            ->merge($componentDataOut)
+            ->filter(fn ($row): bool => is_array($row) && ! empty($row['component_id']))
+            ->map(fn (array $row): int => (int) $row['component_id'])
+            ->unique()
+            ->values();
+        $components = Component::whereIn('id', $componentIds)->get();
 
         return view('admin.quality.forms.logCardDoubleForm', [
             'current_wo' => $workorder,

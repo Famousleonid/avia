@@ -10,12 +10,13 @@ use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\Tdr;
 use App\Models\Workorder;
-use App\Services\Media\ImageOrientationNormalizer;
+use App\Services\Media\MobileLandscapePhotoProcessor;
+use App\Services\WorkorderPartScopeResolver;
 use Illuminate\Http\Request;
 
 class MobileComponentController extends Controller
 {
-    public function __construct(private ImageOrientationNormalizer $imageOrientationNormalizer)
+    public function __construct(private MobileLandscapePhotoProcessor $landscapePhotoProcessor)
     {
     }
 
@@ -66,12 +67,12 @@ class MobileComponentController extends Controller
         });
 
         $manualComponents = $manualId
-            ? Component::query()
+            ? app(WorkorderPartScopeResolver::class)->filterComponents(Component::query()
                 ->where('manual_id', $manualId)
                 ->orderBy('ipl_num')
                 ->orderBy('part_number')
                 ->orderBy('name')
-                ->get()
+                ->get(), $workorder)
             : collect();
 
         return view('mobile.pages.components', compact('workorder', 'components', 'manualComponents','manualId',
@@ -98,6 +99,10 @@ class MobileComponentController extends Controller
             return redirect()->back()->withErrors(['manual' => 'Manual not found for selected workorder.']);
         }
 
+        $photo = $request->hasFile('photo')
+            ? $this->landscapePhotoProcessor->prepare($request->file('photo'), 'photo')
+            : null;
+
 
         $component = new Component();
         $component->manual_id = $manualId;
@@ -110,8 +115,8 @@ class MobileComponentController extends Controller
 
         $component->save();
 
-        if ($request->hasFile('photo')) {
-            $component->addMedia($this->imageOrientationNormalizer->normalize($request->file('photo')))
+        if ($photo !== null) {
+            $component->addMedia($photo)
                 ->toMediaCollection('components');
         }
 
@@ -140,6 +145,10 @@ class MobileComponentController extends Controller
             return response()->json(['ok' => false, 'message' => 'Manual not found for selected workorder.'], 422);
         }
 
+        $photo = $request->hasFile('photo')
+            ? $this->landscapePhotoProcessor->prepare($request->file('photo'), 'photo')
+            : null;
+
         $isBush = $request->boolean('is_bush');
         $logCard = $request->boolean('log_card');
         $bushIpl = $isBush ? ($validated['bush_ipl_num'] ?? null) : null;
@@ -155,8 +164,8 @@ class MobileComponentController extends Controller
             'bush_ipl_num' => $bushIpl,
         ]);
 
-        if ($request->hasFile('photo')) {
-            $component->addMedia($this->imageOrientationNormalizer->normalize($request->file('photo')))
+        if ($photo !== null) {
+            $component->addMedia($photo)
                 ->toMediaCollection('components');
         }
 
@@ -189,6 +198,13 @@ class MobileComponentController extends Controller
         $workorderId = (int) $validated['workorder_id'];
         $componentId = (int) $validated['component_id'];
         $codeId      = (int) $validated['code_id'];
+
+        $workorder = Workorder::findOrFail($workorderId);
+        abort_unless(
+            app(WorkorderPartScopeResolver::class)->allowsComponent($workorder, $componentId),
+            422,
+            'Selected part is outside this workorder Work Scope.'
+        );
 
         $code = Code::find($codeId);
         $isMissing = $code && stripos((string)$code->name, 'missing') !== false;
@@ -262,10 +278,11 @@ class MobileComponentController extends Controller
         ]);
 
         if ($request->hasFile('photo')) {
+            $photo = $this->landscapePhotoProcessor->prepare($request->file('photo'), 'photo');
             // Удаляем старое фото (как аватар - одно фото)
             $component->clearMediaCollection('components');
             // Добавляем новое
-            $component->addMedia($this->imageOrientationNormalizer->normalize($request->file('photo')))
+            $component->addMedia($photo)
                 ->toMediaCollection('components');
         }
 

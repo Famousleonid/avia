@@ -6,7 +6,8 @@
         .bushing-edit-card { background: var(--bs-body-bg); border: 1px solid rgba(125, 140, 155, .35); }
         .bushing-edit-table-wrap { width: 100%; max-height: calc(88vh - 170px); overflow-y: auto; overflow-x: auto; }
         .bushing-itemized-table {
-            --bushing-fixed-cols-width: 708px;
+            --bushing-col-bushing-width: 280px;
+            --bushing-fixed-cols-width: calc(var(--bushing-col-bushing-width) + 428px);
             --bushing-ndt-col-width: 96px;
             --bushing-line-height: 28px;
             width: 100%;
@@ -14,7 +15,7 @@
             max-width: none;
             table-layout: fixed;
         }
-        .bushing-itemized-table col.bushing-col-bushing { width: 280px; }
+        .bushing-itemized-table col.bushing-col-bushing { width: var(--bushing-col-bushing-width); }
         .bushing-itemized-table col.bushing-col-part-qty { width: 74px; }
         .bushing-itemized-table col.bushing-col-select { width: 92px; }
         .bushing-itemized-table col.bushing-col-no-order { width: 104px; }
@@ -33,7 +34,17 @@
         }
         .bushing-line-list { display: flex; flex-direction: column; gap: .45rem; }
         .bushing-line-list > div { min-height: var(--bushing-line-height); display: flex; align-items: center; }
-        .bushing-part-cell { white-space: normal; line-height: 1.25; }
+        .bushing-part-cell { min-width: 0; white-space: normal; line-height: 1.25; }
+        .bushing-part-cell .bushing-line-list > div { min-width: 0; width: 100%; }
+        .bushing-part-label {
+            display: block;
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .bushing-select-cell { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; }
         .bushing-select-ipl { color: var(--bs-body-color); font-size: .8rem; }
         .bushing-qty-input {
@@ -55,12 +66,30 @@
         .bushing-process-line.is-hidden .bushing-process-control { display: none; }
         .bushing-readonly-qty { color: var(--bs-secondary-color); }
         .bushing-edit-actions { gap: .5rem; }
+        .bushing-process-toolbar { min-height: 34px; }
         .bushing-edit-shell[data-embedded="1"] .bushing-edit-card {
             background: transparent;
             border: 0;
         }
+        .bushing-edit-shell[data-embedded="1"],
+        .bushing-edit-shell[data-embedded="1"] .bushing-edit-card,
+        .bushing-edit-shell[data-embedded="1"] #bushings-form,
+        .bushing-edit-shell[data-embedded="1"] .card-body {
+            height: 100%;
+            min-height: 0;
+        }
+        .bushing-edit-shell[data-embedded="1"] #bushings-form,
+        .bushing-edit-shell[data-embedded="1"] .card-body {
+            display: flex;
+            flex-direction: column;
+        }
+        .bushing-edit-shell[data-embedded="1"] .bushing-process-toolbar {
+            flex: 0 0 auto;
+        }
         .bushing-edit-shell[data-embedded="1"] .bushing-edit-table-wrap {
-            max-height: calc(90vh - 92px);
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
         }
     </style>
 
@@ -108,6 +137,14 @@
 
             @if($bushings->flatten()->count() > 0)
                 <div class="card-body {{ $embedded ? 'p-0' : 'p-2' }}">
+                    <div class="bushing-process-toolbar d-flex justify-content-end align-items-center px-1 py-1">
+                        <button type="button"
+                                class="btn btn-outline-info btn-sm"
+                                data-bushing-add-process
+                                data-add-processes-url="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'context' => 'bushing']) }}">
+                            <i class="fas fa-plus"></i> {{ __('Add Process') }}
+                        </button>
+                    </div>
                     <div class="table-responsive bushing-edit-table-wrap">
                         <table class="table table-sm table-hover align-middle table-bordered bg-gradient dir-table bushing-edit-table bushing-itemized-table mb-0">
                             <colgroup>
@@ -157,7 +194,11 @@
                                         <td class="bushing-part-cell">
                                             <div class="bushing-line-list">
                                                 @foreach($bushingGroup as $bushing)
-                                                    <div><strong>{{ $bushing->ipl_num }}</strong> - {{ $bushing->part_number }}</div>
+                                                    <div>
+                                                        <span class="bushing-part-label" data-bushing-part-label>
+                                                            <strong>{{ $bushing->ipl_num }}</strong> - {{ $bushing->part_number }}
+                                                        </span>
+                                                    </div>
                                                 @endforeach
                                             </div>
                                             <div class="small text-info mt-1 bushing-group-qty-summary" aria-live="polite">
@@ -260,7 +301,8 @@
                                                         <div class="bushing-process-line" data-component-id="{{ $bushing->id }}">
                                                             <select name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][{{ $field }}]"
                                                                     class="form-select form-select-sm bushing-process-control"
-                                                                    data-process-field="{{ $field }}">
+                                                                    data-process-field="{{ $field }}"
+                                                                    data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField[$field] ?? []) }}">
                                                                 <option value="">...</option>
                                                                 @foreach($column['options'] as $process)
                                                                     <option value="{{ $process->id }}" {{ ($rowProcesses[$field] ?? null) == $process->id ? 'selected' : '' }}>
@@ -285,7 +327,8 @@
                                                     <div class="bushing-process-line" data-component-id="{{ $bushing->id }}">
                                                         <select name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][ndt]"
                                                                 class="form-select form-select-sm bushing-process-control bushing-ndt-select"
-                                                                data-process-field="ndt">
+                                                                data-process-field="ndt"
+                                                                data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField['ndt'] ?? []) }}">
                                                             <option value="">...</option>
                                                             @foreach($ndtProcesses as $process)
                                                                 <option value="{{ $process->id }}" {{ (int) $selectedNdt === (int) $process->id ? 'selected' : '' }}>
@@ -309,7 +352,8 @@
                                                         <div class="bushing-process-line" data-component-id="{{ $bushing->id }}">
                                                             <select name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][{{ $field }}]"
                                                                     class="form-select form-select-sm bushing-process-control"
-                                                                    data-process-field="{{ $field }}">
+                                                                    data-process-field="{{ $field }}"
+                                                                    data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField[$field] ?? []) }}">
                                                                 <option value="">...</option>
                                                                 @foreach($column['options'] as $process)
                                                                     <option value="{{ $process->id }}" {{ ($rowProcesses[$field] ?? null) == $process->id ? 'selected' : '' }}>
@@ -345,6 +389,76 @@
             var form = root.querySelector ? root.querySelector('#bushings-form') : document.getElementById('bushings-form');
             if (!form || form.dataset.initialized === '1') return;
             form.dataset.initialized = '1';
+
+            function fitBushingColumnToContent() {
+                var table = form.querySelector('.bushing-itemized-table');
+                var labels = Array.prototype.slice.call(form.querySelectorAll('[data-bushing-part-label]'));
+                if (!table || !labels.length) return;
+
+                var canvas = document.createElement('canvas');
+                var context = canvas.getContext('2d');
+                var widestText = 0;
+                labels.forEach(function(label) {
+                    var style = window.getComputedStyle(label);
+                    context.font = [style.fontStyle, '600', style.fontSize, style.fontFamily].join(' ');
+                    widestText = Math.max(widestText, context.measureText(label.textContent.trim()).width);
+                });
+
+                var columnWidth = Math.max(96, Math.min(280, Math.ceil(widestText + 14)));
+                table.style.setProperty('--bushing-col-bushing-width', columnWidth + 'px');
+
+                window.requestAnimationFrame(function() {
+                    labels.forEach(function(label) {
+                        var previousTooltip = bootstrap.Tooltip.getInstance(label);
+                        if (previousTooltip) previousTooltip.dispose();
+                        label.removeAttribute('title');
+                        label.removeAttribute('data-bs-original-title');
+
+                        if (label.scrollWidth <= label.clientWidth + 1) return;
+
+                        label.setAttribute('title', label.textContent.trim());
+                        new bootstrap.Tooltip(label, {
+                            container: 'body',
+                            delay: { show: 500, hide: 0 },
+                            trigger: 'hover'
+                        });
+                    });
+                });
+            }
+
+            fitBushingColumnToContent();
+
+            var addProcessButton = formRoot?.querySelector('[data-bushing-add-process]');
+            if (addProcessButton) {
+                addProcessButton.addEventListener('click', function() {
+                    var url = addProcessButton.getAttribute('data-add-processes-url');
+                    if (!url) return;
+
+                    if (document.getElementById('addProcessesModal')) {
+                        window.postMessage({ type: 'openAddProcessesModal', url: url }, '*');
+                    } else if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'openAddProcessesModal', url: url }, '*');
+                    } else {
+                        window.open(url, '_blank', 'noopener');
+                    }
+                });
+            }
+
+            window.addBushingProcessOption = function(process, processName) {
+                if (!form.isConnected || !process || !process.id || !process.process_names_id) return;
+
+                var processId = String(process.id);
+                var processNameId = String(process.process_names_id);
+                form.querySelectorAll('.bushing-process-control[data-process-name-ids]').forEach(function(select) {
+                    var allowedIds = (select.dataset.processNameIds || '').split(',').filter(Boolean);
+                    if (allowedIds.indexOf(processNameId) === -1 || select.querySelector('option[value="' + processId + '"]')) return;
+
+                    var label = select.dataset.processField === 'ndt'
+                        ? (processName || process.process || ('#' + processId))
+                        : (process.process || processName || ('#' + processId));
+                    select.add(new Option(label, processId));
+                });
+            };
 
             function notify(message, type) {
                 if (window.tdrShowNotify) window.tdrShowNotify(message, type || 'warning');

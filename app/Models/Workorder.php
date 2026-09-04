@@ -19,7 +19,7 @@ class Workorder extends Model implements HasMedia
 {
     use InteractsWithMedia, LogsActivity, SoftDeletes, HasMediaHelpers;
 
-    protected $fillable = ['number', 'draft_number', 'user_id', 'unit_id', 'not_used_manual_ids', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
+    protected $fillable = ['number', 'draft_number', 'user_id', 'unit_id', 'scope_type', 'scope_component_id', 'scope_part_group_option_id', 'not_used_manual_ids', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
         'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'wo_estimate_date', 'customer_id', 'approve_at', 'description',
         'serial_number', 'place', 'paint_queue_order', 'machining_queue_order', 'amdt', 'rm_report', 'certificate_data', 'customer_po','wo_terms','wo_estimate_amount','shipping_freight_forwarder','shipping_awb_no','shipping_shipment_at','shipping_notes','modified','is_draft','storage_rack','storage_level','storage_column',
         'arrival_box_status','arrival_box_notes','arrival_box_recorded_by','arrival_box_recorded_at','torque_values','sales_invoice_amount','sales_invoice_date',];
@@ -98,6 +98,16 @@ class Workorder extends Model implements HasMedia
     public function unit()
     {
         return $this->belongsTo(\App\Models\Unit::class, 'unit_id', 'id')->withTrashed();
+    }
+
+    public function scopeComponent()
+    {
+        return $this->belongsTo(Component::class, 'scope_component_id')->withTrashed();
+    }
+
+    public function scopePartGroupOption()
+    {
+        return $this->belongsTo(ManualPartGroupOption::class, 'scope_part_group_option_id')->withTrashed();
     }
 
     /**
@@ -240,6 +250,9 @@ class Workorder extends Model implements HasMedia
             ->logOnly([
                 'number',
                 'unit_id',
+                'scope_type',
+                'scope_component_id',
+                'scope_part_group_option_id',
                 'not_used_manual_ids',
                 'customer_id',
                 'instruction_id',
@@ -383,6 +396,15 @@ class Workorder extends Model implements HasMedia
 
         static::creating(function (self $workorder): void {
             $workorder->not_used_manual_ids ??= [];
+
+            if ($workorder->scope_type === null && $workorder->unit_id) {
+                $unit = $workorder->relationLoaded('unit')
+                    ? $workorder->unit
+                    : Unit::query()->find($workorder->unit_id);
+                if ($unit) {
+                    $workorder->forceFill($unit->workorderScopeSnapshot());
+                }
+            }
         });
 
         static::updating(function (self $workorder): void {
@@ -391,6 +413,10 @@ class Workorder extends Model implements HasMedia
             }
 
             $workorder->not_used_manual_ids = [];
+            $unit = Unit::query()->find($workorder->unit_id);
+            if ($unit) {
+                $workorder->forceFill($unit->workorderScopeSnapshot());
+            }
         });
     }
 

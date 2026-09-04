@@ -17,6 +17,17 @@ use App\Services\ProcessAccessGuard;
 
 class ProcessController extends Controller
 {
+    private const BUSHING_PROCESS_NAMES = [
+        'Machining',
+        'Stress Relief',
+        'NDT-1',
+        'NDT-4',
+        'Passivation',
+        'Cad plate',
+        'Anodizing',
+        'Xylan coating',
+    ];
+
     /**
      * Show the form for creating a new resource.
      *
@@ -41,10 +52,20 @@ class ProcessController extends Controller
         if (! $decision->allowed) {
             return $this->denyDecision($request, $decision, route('manuals.index'));
         }
-        $processNames = ProcessName::forPicker()->orderBy('name')->get();
+        $bushingContext = $request->query('context') === 'bushing';
+        if ($bushingContext) {
+            $processNameOrder = array_flip(self::BUSHING_PROCESS_NAMES);
+            $processNames = ProcessName::forPicker()
+                ->whereIn('name', self::BUSHING_PROCESS_NAMES)
+                ->get()
+                ->sortBy(fn (ProcessName $processName): int => $processNameOrder[$processName->name] ?? PHP_INT_MAX)
+                ->values();
+        } else {
+            $processNames = ProcessName::forPicker()->orderBy('name')->get();
+        }
         $processes = Process::all();
 
-        return view('admin.processes.create', compact('manual','processNames','processes'));
+        return view('admin.processes.create', compact('manual','processNames','processes','bushingContext'));
     }
 
     /**

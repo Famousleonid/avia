@@ -93,6 +93,8 @@ class MobileApiTest extends TestCase
             ->assertJsonPath('data.photo_upload.compress_on_client', false)
             ->assertJsonPath('data.photo_upload.queue_on_client', true)
             ->assertJsonPath('data.photo_upload.delete_local_after_success', true)
+            ->assertJsonPath('data.photo_upload.landscape_only', true)
+            ->assertJsonPath('data.photo_upload.required_orientation', 'landscape')
             ->assertJsonPath('data.display_date_format', 'dd/mmm/yyyy')
             ->assertJsonPath('data.navigation.top_menu_modes.paint.0.key', 'wo')
             ->assertJsonPath('data.navigation.top_menu_modes.paint.1.key', 'lost')
@@ -101,6 +103,23 @@ class MobileApiTest extends TestCase
             ->assertJsonPath('data.screens.draft_create.visible_flags.1', 'nameplate_missing')
             ->assertJsonPath('data.screens.draft_create.pending_unit_quick_fields.0', 'part_number')
             ->assertJsonPath('data.screens.workorder_parts.component_edit_fields.5', 'log_card');
+    }
+
+    public function test_mobile_api_rejects_portrait_workorder_photo(): void
+    {
+        $user = $this->createUserWithRole('Manager');
+        $workorder = $this->createWorkorder(['user_id' => $user->id]);
+
+        $this->withMobileToken($user)
+            ->post(route('api.mobile.workorders.media.store', $workorder->id), [
+                'category' => 'repair',
+                'photos' => [UploadedFile::fake()->image('portrait.jpg', 80, 120)],
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonValidationErrors(['photos.0']);
+
+        $this->assertCount(0, $workorder->fresh()->getMedia('repair'));
     }
 
     public function test_mobile_api_public_app_config_returns_launch_and_login_metadata(): void
@@ -152,7 +171,7 @@ class MobileApiTest extends TestCase
                 'part_number' => 'LOST-PN',
                 'serial_number' => 'LOST-SN',
                 'comment' => 'Lost part from mobile API',
-                'photo' => UploadedFile::fake()->image('lost.png'),
+                'photo' => UploadedFile::fake()->image('lost.png', 120, 80),
             ], ['Accept' => 'application/json']);
 
         $createResponse->assertCreated()
@@ -869,9 +888,17 @@ class MobileApiTest extends TestCase
         $user = $this->createUserWithRole('Technician');
         $workorder = $this->createWorkorder(['user_id' => $user->id]);
         $manualId = (int) $workorder->unit->manual_id;
+        $assy = Component::query()->create([
+            'manual_id' => $manualId,
+            'name' => 'Mobile complete ASSY',
+            'part_number' => 'M-ASSY-COMPLETE',
+            'ipl_num' => '8-10A',
+            'units_assy' => 1,
+            'log_card' => true,
+        ]);
         $base = Component::query()->create([
             'manual_id' => $manualId,
-            'name' => 'Mobile ASSY base',
+            'name' => 'Mobile ASSY base metal',
             'part_number' => 'M-ASSY-BASE',
             'ipl_num' => '8-10',
             'units_assy' => 1,
@@ -894,13 +921,14 @@ class MobileApiTest extends TestCase
             'applies_to' => ManualPartGroup::validScopes(),
         ]);
         $option = $group->options()->create([
-            'component_id' => $base->id,
+            'component_id' => $assy->id,
             'part_number' => 'M-ASSY-COMPLETE',
             'ipl_num' => '8-10A',
             'option_kind' => 'assy',
             'is_default' => true,
         ]);
         $option->coverages()->createMany([
+            ['component_id' => $assy->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
             ['component_id' => $base->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
             ['component_id' => $member->id, 'qty' => 1, 'applies_to' => ManualPartGroup::validScopes()],
         ]);
@@ -919,8 +947,7 @@ class MobileApiTest extends TestCase
                 'rows' => [[
                     'component_id' => $base->id,
                     'manual_part_group_id' => $group->id,
-                    'manual_part_group_option_id' => $option->id,
-                    'manual_part_group_choice' => 'assy',
+                    'manual_part_group_choice' => 'component',
                     'ipl_group' => 'assy_group_'.$group->id,
                 ]],
             ])
@@ -930,8 +957,9 @@ class MobileApiTest extends TestCase
             ->where('workorder_id', $workorder->id)
             ->firstOrFail()
             ->component_data, true);
+        $this->assertSame('M-ASSY-BASE', $rows[1]['part_number']);
         $this->assertSame('M-ASSY-COMPLETE', $rows[1]['assy_part_number']);
-        $this->assertSame((string) $option->id, $rows[1]['manual_part_group_option_id']);
+        $this->assertArrayNotHasKey('manual_part_group_option_id', $rows[1]);
     }
 
     public function test_mobile_api_log_card_can_be_created_viewed_and_fully_updated_like_desktop(): void

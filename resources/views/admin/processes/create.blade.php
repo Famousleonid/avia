@@ -250,7 +250,9 @@
                             if (data.success) {
                                 (window.top || window.parent).postMessage({
                                     type: 'addProcessesSuccess',
-                                    message: data.message || '{{ __("Process added successfully.") }}'
+                                    message: data.message || '{{ __("Process added successfully.") }}',
+                                    process: data.process || null,
+                                    processName: processNameSelect?.options[processNameSelect.selectedIndex]?.text || ''
                                 }, '*');
                             } else {
                                 window.notifyError(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');

@@ -35,6 +35,7 @@ use App\Models\Workorder;
 use App\Services\LogCardTdrAccessService;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\TdrInspectionLinesBuilder;
+use App\Services\WorkorderPartScopeResolver;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\BushingPrlGrouping;
 use App\Support\KitPrlGrouping;
@@ -138,6 +139,12 @@ class TdrController extends Controller
             $component = $components->get($componentId);
             if (! $component || ! in_array((int) $component->manual_id, $usedManualIds, true)) {
                 $errors[$field] = __('Selected part does not belong to a manual assigned to this workorder.');
+                continue;
+            }
+
+            if ($field === 'component_id'
+                && ! app(WorkorderPartScopeResolver::class)->allowsComponent($workorder, $componentId)) {
+                $errors[$field] = __('Selected part is outside this workorder Work Scope.');
             }
         }
 
@@ -1824,13 +1831,18 @@ class TdrController extends Controller
             Component::query()
                 ->whereIn('manual_id', $current_wo->usedManualIds())
                 ->where('kit', true)
-                ->where(function ($query): void {
-                    $query->where('is_bush', false)->orWhereNull('is_bush');
-                })
                 ->get(),
             $current_wo
         );
-        $kitPrlCount = $this->countKitPrlGroups($kitComponents->where('kit', true));
+        if ($current_wo->scope_type === Unit::SCOPE_COMPONENT) {
+            $kitComponents = collect();
+        }
+        $kitPrlCount = $this->countKitPrlGroups(
+            $kitComponents->reject(fn (Component $component): bool => (bool) $component->is_bush)
+        ) + $kitComponents
+            ->filter(fn (Component $component): bool => (bool) $component->is_bush)
+            ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component))
+            ->count();
         $stdFormCounts = [
             'ndt' => $this->countStdFormQty($current_wo, StdProcess::STD_NDT),
             'cad' => $this->countStdFormQty($current_wo, StdProcess::STD_CAD),
@@ -1916,7 +1928,8 @@ class TdrController extends Controller
                 'orderComponentAssembly' => function($query) { $query->select('id', 'component_id', 'assy_part_number', 'assy_ipl_num'); }
             ])
             ->get();
-        $prlPartsCount = (int) $prl_parts->sum('qty');
+        $prlPartsCount = $this->countPrlQtyAfterKitSupply($prl_parts, $kitComponents)
+            + $bushingPrlCount;
 
         $planes = Plane::all();
         $builders = Builder::all();
@@ -2729,6 +2742,42 @@ class TdrController extends Controller
             ->count();
     }
 
+    private function countPrlQtyAfterKitSupply($prlParts, $kitComponents): int
+    {
+        $kitSupply = collect($kitComponents)
+            ->groupBy(function (Component $component): string {
+                $partNumber = $this->normalizePrlPartNumber($component->part_number);
+
+                return $partNumber !== ''
+                    ? 'part-number|' . $partNumber
+                    : 'component|' . (int) $component->id;
+            })
+            ->map(fn ($components): int => $components->sum(
+                fn (Component $component): int => max(1, (int) ($component->units_assy ?? 1))
+            ))
+            ->all();
+
+        return collect($prlParts)->sum(function (Tdr $tdr) use (&$kitSupply): int {
+            $component = $tdr->orderComponent ?? $tdr->component;
+            $partNumber = $tdr->orderComponentAssembly?->assy_part_number
+                ?: ($component?->part_number ?? '');
+            $normalizedPartNumber = $this->normalizePrlPartNumber($partNumber);
+            $identity = $normalizedPartNumber !== ''
+                ? 'part-number|' . $normalizedPartNumber
+                : 'component|' . (int) ($component?->id ?? 0);
+            $requiredQty = max(1, (int) ($tdr->qty ?? 1));
+            $coveredQty = min($requiredQty, (int) ($kitSupply[$identity] ?? 0));
+            $kitSupply[$identity] = max(0, (int) ($kitSupply[$identity] ?? 0) - $coveredQty);
+
+            return $requiredQty - $coveredQty;
+        });
+    }
+
+    private function normalizePrlPartNumber(?string $partNumber): string
+    {
+        return (string) preg_replace('/\s+/', '', mb_strtoupper(trim((string) $partNumber)));
+    }
+
     private function countSpecProcessFormColumns(Workorder $workorder): int
     {
         $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
@@ -2827,6 +2876,8 @@ class TdrController extends Controller
     private function filterComponentsForUnit($components, Workorder $workorder)
     {
         $resolver = app(ManualIplBranchRuleResolver::class);
+        $components = app(WorkorderPartScopeResolver::class)
+            ->filterComponents(collect($components), $workorder);
         $manualId = (int) ($workorder->unit->manual_id ?? 0);
         $unitEff = (string) ($workorder->unit->eff_code ?? '');
 

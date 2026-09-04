@@ -100,6 +100,10 @@
             width: 30%;
         }
 
+        .camera-cell-group {
+            display: none;
+        }
+
         .table-body-scrollable .table-bordered {
             border-top: none;
         }
@@ -137,6 +141,39 @@
 
         .arrival-box-form textarea {
             resize: vertical;
+        }
+
+        @media (orientation: landscape) and (max-height: 600px) {
+            .app-container {
+                height: 100dvh;
+            }
+
+            .app-header,
+            #block-info,
+            .mobile-workorder-intake,
+            .app-footer-spacer {
+                display: none !important;
+            }
+
+            .app-content {
+                overflow: hidden;
+            }
+
+            .page-root {
+                height: 100dvh;
+            }
+
+            .table-body-scrollable {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+
+            .camera-cell-shared {
+                display: none;
+            }
+
+            .camera-cell-group {
+                display: table-cell;
+            }
         }
 
     </style>
@@ -259,11 +296,11 @@
         @endphp
 
         @if($canUpdateStorage)
-        <hr class="border-secondary opacity-50 my-1">
+        <hr class="mobile-workorder-intake border-secondary opacity-50 my-1">
 
         {{-------------------------------------------------------------------------------------------}}
 
-        <div id="mobileShippingIntake_{{ $workorder->id }}" class="rounded-3 border border-info m-1 p-2">
+        <div id="mobileShippingIntake_{{ $workorder->id }}" class="mobile-workorder-intake rounded-3 border border-info m-1 p-2">
             <div class="d-flex align-items-start justify-content-between gap-2">
                 <div>
                     <div id="storageView_{{ $workorder->id }}" class="d-flex align-items-center">
@@ -458,7 +495,7 @@
 
                             {{-- Правая колонка: одна камера на все строки --}}
                             @if($loop->first)
-                                <td class="text-center col-camera" rowspan="{{ count($categories) }}">
+                                <td class="text-center col-camera camera-cell-shared" rowspan="{{ count($categories) }}">
                                     <a href="#"
                                        class="text-info js-camera-btn"
                                        data-workorder-id="{{ $workorder->id }}"
@@ -467,6 +504,18 @@
                                     </a>
                                 </td>
                             @endif
+
+                            {{-- В landscape у каждой группы своя камера --}}
+                            <td class="text-center col-camera camera-cell-group">
+                                <a href="#"
+                                   class="text-info js-camera-btn"
+                                   data-photo-category="{{ $type }}"
+                                   data-workorder-id="{{ $workorder->id }}"
+                                   data-workorder-number="{{ $workorder->number }}"
+                                   aria-label="Take photo for {{ $label }}">
+                                    <i class="bi bi-camera" style="font-size: 1.5rem;"></i>
+                                </a>
+                            </td>
                         </tr>
                     @endforeach
 
@@ -488,14 +537,6 @@
 
 @section('scripts')
     <script>
-
-        @if(($userGuideMobileFocus ?? null) === 'photos')
-        window.addEventListener('load', () => {
-            window.requestAnimationFrame(() => {
-                document.getElementById('mobilePhotos')?.scrollIntoView({ block: 'start' });
-            });
-        });
-        @endif
 
         document.addEventListener('DOMContentLoaded', () => {
             const el = document.querySelector('.table-body-scrollable');
@@ -578,6 +619,15 @@
                 const cameraBtn = target.closest('.js-camera-btn');
                 if (cameraBtn) {
                     event.preventDefault();
+
+                    const requestedCategory = cameraBtn.dataset.photoCategory;
+                    if (requestedCategory) {
+                        currentPhotoCategory = requestedCategory;
+                        document.querySelectorAll('.category-label').forEach(label => {
+                            label.classList.toggle('active', label.dataset.category === requestedCategory);
+                        });
+                    }
+
                     currentWorkorderId = cameraBtn.dataset.workorderId;
                     currentWorkorderNumber = cameraBtn.dataset.workorderNumber;
                     openCamera();

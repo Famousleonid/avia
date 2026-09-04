@@ -188,11 +188,13 @@
                                                         data-manual-number="{{ $unit->manual?->number ?? '' }}"
                                                         data-manual-title="{{ $unit->manual?->title ?? '' }}"
                                                         data-manual-lib="{{ $unit->manual?->lib ?? '' }}"
+                                                        data-scope-label="{{ $unit->work_scope_display ?? 'Complete Unit' }}"
                                                         {{ (string) old('unit_id') === (string) $unit->id ? 'selected' : '' }}>
                                                         {{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@endif
                                                     </option>
                                                 @endforeach
                                             </select>
+                                            <div id="workScopeHint" class="form-text text-info mt-1"></div>
                                             @if($canUpdateWorkorderManuals)
                                                 <button type="button"
                                                         class="btn btn-sm btn-outline-info mt-2"
@@ -497,8 +499,16 @@
                 const selectedOption = this.options[this.selectedIndex];
                 const unitName = selectedOption.getAttribute('data-name');
                 descriptionInput.value = unitName || '';
+                const scopeHint = document.getElementById('workScopeHint');
+                if (scopeHint) {
+                    scopeHint.textContent = 'Work scope: ' + (selectedOption.getAttribute('data-scope-label') || 'Complete Unit');
+                }
                 resetDraftDuplicateDecision();
             });
+
+            if (unitSelect.value) {
+                unitSelect.dispatchEvent(new Event('change'));
+            }
 
             serialInput?.addEventListener('input', resetDraftDuplicateDecision);
 

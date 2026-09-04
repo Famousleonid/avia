@@ -305,11 +305,30 @@
             display: block;
             width: 100%;
             padding: 4px 6px;
-            border: 0;
+            border: 1px solid rgba(25, 135, 84, .8);
             border-radius: 4px;
+            background: transparent;
+            color: inherit;
             line-height: 1.05;
             white-space: normal;
             cursor: pointer;
+            transition: background-color .15s ease, border-color .15s ease;
+        }
+
+        #manualPartsTable .manual-part-group-badge:hover,
+        #manualPartsTable .manual-part-group-badge:focus-visible {
+            border-color: var(--bs-success);
+            background: rgba(25, 135, 84, .1);
+        }
+
+        #manual-part-group-list .part-group-list-item.is-selected {
+            border-color: rgba(25, 135, 84, .9);
+            box-shadow: inset 3px 0 0 var(--bs-success);
+            background: rgba(25, 135, 84, .1);
+        }
+
+        #manual-part-group-list .part-group-list-item.is-selected strong {
+            color: var(--bs-success-text-emphasis);
         }
 
         #manualPartsTable .manual-part-group-badge-name {
@@ -686,11 +705,11 @@
         }
 
         .manual-unit-editor-wrap {
-            min-width: 920px;
+            min-width: 1380px;
         }
         .manual-unit-editor-row {
             display: grid;
-            grid-template-columns: 26px minmax(140px, 1.05fr) minmax(110px, .7fr) minmax(100px, .7fr) minmax(100px, .7fr) minmax(100px, .7fr) 56px;
+            grid-template-columns: 26px minmax(140px, .9fr) minmax(105px, .55fr) minmax(135px, .7fr) minmax(260px, 1.5fr) minmax(105px, .6fr) minmax(90px, .55fr) minmax(90px, .55fr) 56px;
             gap: .5rem;
             align-items: center;
         }
@@ -700,6 +719,19 @@
         }
         .manual-unit-editor-row + .manual-unit-editor-row {
             margin-top: .5rem;
+        }
+        .manual-unit-editor-row .select2-container {
+            min-width: 0;
+            width: 100% !important;
+        }
+        #editUnitModal .manual-unit-scope-dropdown {
+            box-sizing: border-box;
+            max-width: calc(100vw - 24px);
+        }
+        #editUnitModal .manual-unit-scope-dropdown .select2-results__option {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .manual-unit-editor-head {
             color: #9aa4ad;
@@ -1103,6 +1135,7 @@
                                 <th class="text-center bg-gradient" scope="col">#</th>
                                 <th class="text-center bg-gradient" scope="col">Components PN</th>
                                 <th class="text-center bg-gradient" scope="col">EFF Code</th>
+                                <th class="text-center bg-gradient" scope="col">Work Scope</th>
                                 <th class="text-center bg-gradient" scope="col">IPL Rule</th>
                             </tr>
                             </thead>
@@ -1118,6 +1151,7 @@
                                     {{$u->part_number}}
                                 </td>
                                 <td class="align-content-center"> {{$u->eff_code}}</td>
+                                <td class="align-content-center manual-unit-scope-cell">{{ $u->work_scope_display ?: 'Complete Unit' }}</td>
                                 <td class="align-content-center manual-unit-rule-cell">{{ $u->ipl_branch_rule_display ?: '-' }}</td>
                             </tr>
                             @endforeach
@@ -2001,6 +2035,8 @@
 	                                <div>{{ __('Ver.') }}</div>
 	                                <div>{{ __('Part Number') }}</div>
 	                                <div>{{ __('EFF Code') }}</div>
+	                                <div>{{ __('Work Scope') }}</div>
+	                                <div>{{ __('Linked Part / ASSY') }}</div>
 	                                <div>{{ __('Match Unit') }}</div>
 	                                <div>{{ __('Use IPL') }}</div>
 	                                <div>{{ __('Hide IPL') }}</div>
@@ -3546,6 +3582,19 @@
 
             // ---- Edit Unit / Update Components modal (bulk edit: load units, populate partNumbersList, Add PN, Update) ----
             var editUnitModal = document.getElementById('editUnitModal');
+            var unitScopeComponents = [];
+            var unitScopeGroupOptions = [];
+
+            function destroyUnitScopeTargetSearches(container) {
+                if (!container || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) return;
+
+                window.jQuery(container)
+                    .find('.manual-unit-scope-target.select2-hidden-accessible')
+                    .each(function () {
+                        window.jQuery(this).select2('destroy');
+                    });
+            }
+
             document.addEventListener('click', function (event) {
                 const button = event.target.closest('.btn-update-components');
                 if (!button) return;
@@ -3564,6 +3613,7 @@
                 document.getElementById('cmmImage').src                  = manualImage || '';
 
                 const partNumbersList = document.getElementById('partNumbersList');
+                destroyUnitScopeTargetSearches(partNumbersList);
                 partNumbersList.innerHTML = '';
 
                 const unitsUrl = '{{ route("units.show", $cmm->id) }}';
@@ -3571,6 +3621,8 @@
 	                fetch(unitsUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
 	                    .then(function (r) { return r.json(); })
 	                    .then(function (data) {
+                            unitScopeComponents = Array.isArray(data.scope_components) ? data.scope_components : [];
+                            unitScopeGroupOptions = Array.isArray(data.scope_group_options) ? data.scope_group_options : [];
                             var defaultIncludeInput = document.getElementById('defaultIncludePrefix');
                             var defaultExcludeInput = document.getElementById('defaultExcludePrefix');
                             if (defaultIncludeInput) {
@@ -3582,7 +3634,17 @@
 
 	                        if (data.units && data.units.length > 0) {
 	                            data.units.forEach(function (unit) {
-	                                addPartNumberRow(unit.part_number, unit.verified, unit.eff_code || '', unit.unit_match_value || '', unit.include_prefix || '', unit.exclude_prefix || '');
+	                                addPartNumberRow(
+                                        unit.part_number,
+                                        unit.verified,
+                                        unit.eff_code || '',
+                                        unit.unit_match_value || '',
+                                        unit.include_prefix || '',
+                                        unit.exclude_prefix || '',
+                                        unit.default_scope_type || 'full_unit',
+                                        unit.default_scope_component_id || '',
+                                        unit.default_scope_part_group_option_id || ''
+                                    );
 	                            });
                         } else {
                             var noUnitsItem = document.createElement('div');
@@ -3596,11 +3658,11 @@
 
             document.addEventListener('click', function (e) {
                 if (e.target.id === 'addUnitButton' || e.target.closest('#addUnitButton')) {
-                    addPartNumberRow('', true, '', '', '', '');
+                    addPartNumberRow('', true, '', '', '', '', 'full_unit', '', '');
                 }
             });
 
-            function addPartNumberRow(partNumber, verified, effCode, unitMatchValue, includePrefix, excludePrefix) {
+            function addPartNumberRow(partNumber, verified, effCode, unitMatchValue, includePrefix, excludePrefix, scopeType, scopeComponentId, scopeOptionId) {
                 var partNumbersList = document.getElementById('partNumbersList');
                 if (!partNumbersList) return;
 
@@ -3630,6 +3692,131 @@
                 effCodeInput.value = effCode || '';
                 effCodeInput.placeholder = 'EFF Code';
 
+                var scopeTypeSelect = document.createElement('select');
+                scopeTypeSelect.className = 'form-select manual-unit-scope-type';
+                [
+                    ['full_unit', 'Complete Unit'],
+                    ['component', 'Manual Part'],
+                    ['part_group_option', 'ASSY / KIT option']
+                ].forEach(function (entry) {
+                    var option = document.createElement('option');
+                    option.value = entry[0];
+                    option.textContent = entry[1];
+                    scopeTypeSelect.appendChild(option);
+                });
+                scopeTypeSelect.value = scopeType || 'full_unit';
+
+                var scopeTargetSelect = document.createElement('select');
+                scopeTargetSelect.className = 'form-select manual-unit-scope-target';
+
+                function destroyScopeTargetSearch() {
+                    if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) return;
+
+                    var $scopeTarget = window.jQuery(scopeTargetSelect);
+                    $scopeTarget.off('.manualUnitScope');
+                    if ($scopeTarget.hasClass('select2-hidden-accessible')) {
+                        $scopeTarget.select2('destroy');
+                    }
+                }
+
+                function fitScopeTargetDropdown() {
+                    window.requestAnimationFrame(function () {
+                        var select2Container = scopeTargetSelect.nextElementSibling;
+                        var dropdowns = editUnitModal.querySelectorAll('.select2-dropdown');
+                        var dropdown = Array.from(dropdowns).find(function (item) {
+                            return item.getClientRects().length > 0;
+                        });
+                        if (!select2Container || !dropdown) return;
+
+                        dropdown.classList.add('manual-unit-scope-dropdown');
+
+                        var selectionWidth = select2Container.getBoundingClientRect().width;
+                        var maxViewportWidth = Math.max(0, window.innerWidth - 24);
+                        var context = document.createElement('canvas').getContext('2d');
+                        var computedStyle = window.getComputedStyle(select2Container);
+                        var widestLabel = 0;
+
+                        if (context) {
+                            context.font = computedStyle.font;
+                            Array.from(scopeTargetSelect.options).forEach(function (option) {
+                                widestLabel = Math.max(widestLabel, context.measureText(option.textContent || '').width);
+                            });
+                        }
+
+                        var desiredWidth = Math.max(selectionWidth, Math.ceil(widestLabel + 56));
+                        dropdown.style.width = Math.min(desiredWidth, maxViewportWidth) + 'px';
+                        dropdown.style.maxWidth = maxViewportWidth + 'px';
+
+                        function clampDropdownToViewport() {
+                            dropdown.style.transform = '';
+
+                            var dropdownRect = dropdown.getBoundingClientRect();
+                            var shift = 0;
+                            if (dropdownRect.right > window.innerWidth - 12) {
+                                shift = window.innerWidth - 12 - dropdownRect.right;
+                            }
+                            if (dropdownRect.left + shift < 12) {
+                                shift += 12 - (dropdownRect.left + shift);
+                            }
+                            if (shift) {
+                                dropdown.style.transform = 'translateX(' + shift + 'px)';
+                            }
+                        }
+
+                        clampDropdownToViewport();
+                        window.requestAnimationFrame(clampDropdownToViewport);
+                    });
+                }
+
+                function enhanceScopeTargetSearch() {
+                    if (!scopeTargetSelect.isConnected || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) return;
+
+                    var selectedType = scopeTypeSelect.value;
+                    var $scopeTarget = window.jQuery(scopeTargetSelect);
+                    $scopeTarget.select2({
+                        theme: 'bootstrap-5',
+                        width: '100%',
+                        dropdownParent: window.jQuery(editUnitModal),
+                        minimumResultsForSearch: 0,
+                        placeholder: selectedType === 'full_unit' ? 'Entire CMM' : 'Search P/N, IPL or name…',
+                        allowClear: selectedType !== 'full_unit'
+                    });
+                    $scopeTarget.on('select2:open.manualUnitScope', fitScopeTargetDropdown);
+                }
+
+                function renderScopeTargets() {
+                    destroyScopeTargetSearch();
+
+                    var selectedType = scopeTypeSelect.value;
+                    var selectedValue = selectedType === 'component' ? String(scopeComponentId || '') : String(scopeOptionId || '');
+                    scopeTargetSelect.innerHTML = '';
+
+                    var emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = selectedType === 'full_unit' ? 'Entire CMM' : 'Select…';
+                    scopeTargetSelect.appendChild(emptyOption);
+
+                    var source = selectedType === 'component'
+                        ? unitScopeComponents
+                        : (selectedType === 'part_group_option' ? unitScopeGroupOptions : []);
+                    source.forEach(function (item) {
+                        var option = document.createElement('option');
+                        option.value = String(item.id || '');
+                        option.textContent = item.label || '';
+                        scopeTargetSelect.appendChild(option);
+                    });
+                    scopeTargetSelect.value = selectedValue;
+                    scopeTargetSelect.disabled = selectedType === 'full_unit';
+                    enhanceScopeTargetSearch();
+                }
+
+                scopeTypeSelect.addEventListener('change', function () {
+                    scopeComponentId = '';
+                    scopeOptionId = '';
+                    renderScopeTargets();
+                });
+                renderScopeTargets();
+
 	                var unitMatchInput = document.createElement('input');
 	                unitMatchInput.type = 'text';
 	                unitMatchInput.className = 'form-control';
@@ -3651,16 +3838,22 @@
                 var deleteButton = document.createElement('button');
                 deleteButton.className = 'btn btn-danger btn-sm ms-1';
                 deleteButton.innerText = 'Del';
-                deleteButton.onclick = function () { listItem.remove(); };
+                deleteButton.onclick = function () {
+                    destroyScopeTargetSearch();
+                    listItem.remove();
+                };
 
                 listItem.appendChild(checkbox);
                 listItem.appendChild(pnInput);
                 listItem.appendChild(effCodeInput);
+                listItem.appendChild(scopeTypeSelect);
+                listItem.appendChild(scopeTargetSelect);
                 listItem.appendChild(unitMatchInput);
                 listItem.appendChild(includePrefixInput);
                 listItem.appendChild(excludePrefixInput);
                 listItem.appendChild(deleteButton);
                 partNumbersList.appendChild(listItem);
+                enhanceScopeTargetSearch();
 
             }
 
@@ -3672,16 +3865,32 @@
 	                var partNumbers = Array.from(listItems).map(function (listItem) {
 	                    var inputs = listItem.querySelectorAll('.form-control');
 	                    var checkbox = listItem.querySelector('.form-check-input');
+	                    var scopeTypeSelect = listItem.querySelector('.manual-unit-scope-type');
+	                    var scopeTargetSelect = listItem.querySelector('.manual-unit-scope-target');
+	                    var scopeType = scopeTypeSelect ? scopeTypeSelect.value : 'full_unit';
+	                    var scopeTargetId = scopeTargetSelect ? scopeTargetSelect.value : '';
 	                    var partNumberPayload = {
                         part_number: inputs[0] ? inputs[0].value : '',
                         eff_code: inputs[1] ? inputs[1].value : '',
                         unit_match_value: inputs[2] ? inputs[2].value : '',
                         include_prefix: inputs[3] ? inputs[3].value : '',
                         exclude_prefix: inputs[4] ? inputs[4].value : '',
+	                        default_scope_type: scopeType,
+	                        default_scope_component_id: scopeType === 'component' ? scopeTargetId : null,
+	                        default_scope_part_group_option_id: scopeType === 'part_group_option' ? scopeTargetId : null,
 	                        verified: !!(checkbox && checkbox.checked)
 	                    };
                         return partNumberPayload;
-	                });
+                    });
+
+                    var incompleteScope = partNumbers.some(function (unit) {
+                        return (unit.default_scope_type === 'component' && !unit.default_scope_component_id)
+                            || (unit.default_scope_type === 'part_group_option' && !unit.default_scope_part_group_option_id);
+                    });
+                    if (incompleteScope) {
+                        showNotification('Select a linked Part / ASSY for every non-unit Work Scope.', 'error');
+                        return;
+                    }
                     var defaultIncludeInput = document.getElementById('defaultIncludePrefix');
                     var defaultExcludeInput = document.getElementById('defaultExcludePrefix');
                     var defaultRule = {
@@ -3740,6 +3949,7 @@
                                             tr.innerHTML = '<td class="align-content-center">' + (idx + 1) + '</td>' +
                                                 '<td class="align-content-center' + (unit.verified ? '' : ' text-danger fw-bold') + '">' + (unit.part_number || '') + '</td>' +
                                                 '<td class="align-content-center">' + (unit.eff_code || '') + '</td>' +
+                                                '<td class="align-content-center manual-unit-scope-cell">' + (unit.scope_display || 'Complete Unit') + '</td>' +
                                                 '<td class="align-content-center manual-unit-rule-cell">' + (unit.ipl_branch_rule_display || '-') + '</td>';
                                             tbody.appendChild(tr);
                                         });

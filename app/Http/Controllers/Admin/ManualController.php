@@ -282,11 +282,15 @@ class ManualController extends Controller
         $scopes = Scope::all();
 
 //Components CMM
-        $units = Unit::where('manual_id', $cmm->id)->get();
+        $units = Unit::where('manual_id', $cmm->id)
+            ->with(['defaultScopeComponent', 'defaultScopePartGroupOption.group'])
+            ->get();
         $branchRuleResolver = app(ManualIplBranchRuleResolver::class);
-        $units->each(function (Unit $unit) use ($branchRuleResolver, $cmm): void {
+        $scopeResolver = app(\App\Services\WorkorderPartScopeResolver::class);
+        $units->each(function (Unit $unit) use ($branchRuleResolver, $scopeResolver, $cmm): void {
             $rule = $branchRuleResolver->resolveRuleForUnit($unit, (int) $cmm->id);
             $unit->setAttribute('ipl_branch_rule_display', $rule?->displayLabel() ?? '');
+            $unit->setAttribute('work_scope_display', $scopeResolver->displayLabelForUnit($unit));
         });
 
 // Parts (sorted by IPL Number in natural order: 1-10, 1-20, 1-20A, 1-30, ...)
@@ -454,17 +458,45 @@ class ManualController extends Controller
             ->get();
 
         $partGroupsByComponent = collect();
-        foreach ($partGroups as $partGroup) {
-            $componentIds = $partGroup->options
-                ->flatMap(fn ($option) => collect([$option->component_id])
-                    ->merge($option->coverages->pluck('component_id'))
-                    ->merge($option->coverages
-                        ->pluck('coveredOption')
-                        ->filter()
-                        ->flatMap(fn ($coveredOption) => $coveredOption->coverages->pluck('component_id'))))
-                ->filter(fn ($componentId): bool => (int) $componentId > 0)
+        $partGroupsById = $partGroups->keyBy('id');
+        $optionToGroupId = $partGroups
+            ->flatMap(fn (ManualPartGroup $group) => $group->options)
+            ->mapWithKeys(fn ($option): array => [(int) $option->id => (int) $option->manual_part_group_id]);
+        $componentIdsMemo = [];
+        $componentIdsForGroup = function (int $groupId, array $visited = []) use (&$componentIdsForGroup, &$componentIdsMemo, $partGroupsById, $optionToGroupId) {
+            if (isset($visited[$groupId])) {
+                return collect();
+            }
+            if (isset($componentIdsMemo[$groupId])) {
+                return $componentIdsMemo[$groupId];
+            }
+
+            $group = $partGroupsById->get($groupId);
+            if (! $group) {
+                return collect();
+            }
+
+            $visited[$groupId] = true;
+            $componentIds = $group->options->flatMap(function ($option) use (&$componentIdsForGroup, $optionToGroupId, $visited) {
+                $ids = collect([$option->component_id])->merge($option->coverages->pluck('component_id'));
+                foreach ($option->coverages as $coverage) {
+                    $nestedGroupId = (int) ($optionToGroupId->get((int) $coverage->covered_manual_part_group_option_id) ?? 0);
+                    if ($nestedGroupId > 0) {
+                        $ids = $ids->merge($componentIdsForGroup($nestedGroupId, $visited));
+                    }
+                }
+
+                return $ids;
+            })->filter(fn ($componentId): bool => (int) $componentId > 0)
                 ->map(fn ($componentId): int => (int) $componentId)
-                ->unique();
+                ->unique()
+                ->values();
+
+            return $componentIdsMemo[$groupId] = $componentIds;
+        };
+
+        foreach ($partGroups as $partGroup) {
+            $componentIds = $componentIdsForGroup((int) $partGroup->id);
 
             foreach ($componentIds as $componentId) {
                 $partGroupsByComponent->put(

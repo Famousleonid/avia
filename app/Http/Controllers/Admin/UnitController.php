@@ -5,8 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ManualIplBranchRule;
 use App\Models\Manual;
+use App\Models\Component;
+use App\Models\ManualPartGroup;
+use App\Models\ManualPartGroupOption;
 use App\Models\Unit;
 use App\Services\ManualIplBranchRuleResolver;
+use App\Services\WorkorderPartScopeResolver;
 use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,10 +50,14 @@ class UnitController extends Controller
                     'eff_code'    => 'nullable|string|max:255',
                     'name'        => 'nullable|string|max:255',
                     'description' => 'nullable|string|max:255',
+                    'default_scope_type' => ['nullable', Rule::in(Unit::validScopeTypes())],
+                    'default_scope_component_id' => ['nullable', 'integer', 'exists:components,id'],
+                    'default_scope_part_group_option_id' => ['nullable', 'integer', 'exists:manual_part_group_options,id'],
                 ], [
                     'part_number.unique' => 'Part number already exists in this CMM.',
                 ]);
 
+                $scope = $this->normalizedScopePayload($data, (int) $data['manual_id']);
                 $unit = Unit::create([
                     'manual_id'   => $data['manual_id'],
                     'part_number' => $data['part_number'],
@@ -57,7 +65,7 @@ class UnitController extends Controller
                     'name'        => $data['name'] ?? null,
                     'description' => $data['description'] ?? null,
                     'verified'    => true,
-                ]);
+                ] + $scope);
 
                 // Отдаём то, что ожидает фронт при добавлении опции в селект
                 return response()->json([
@@ -133,6 +141,8 @@ class UnitController extends Controller
                 ->values()
                 ->all(),
             'default_rule' => $this->defaultRulePayload($defaultRule),
+            'scope_components' => $this->scopeComponentOptions((int) $manualId),
+            'scope_group_options' => $this->scopePartGroupOptions((int) $manualId),
         ]);
     }
 
@@ -153,21 +163,28 @@ class UnitController extends Controller
                 return response()->json(['success' => false, 'error' => 'Invalid part_numbers format'], 400);
             }
 
+            $rulesPayload = $this->collectManualBranchRulesPayload(
+                $partNumbersPayload,
+                $request->input('default_rule')
+            );
+            $partNumbersPayload = array_map(function (array $unit) use ($manualId): array {
+                $unit['_normalized_scope'] = $this->normalizedScopePayload($unit, (int) $manualId);
+
+                return $unit;
+            }, $partNumbersPayload);
+
+            // Validate the complete payload before changing existing rows.
             Unit::where('manual_id', $manualId)
                 ->whereNotIn('part_number', $newPartNumbersArray)
                 ->delete();
 
             // С учётом soft deletes: иначе при повторном добавлении ранее удалённого PN insert бьёт unique (manual_id, part_number).
-            $rulesPayload = $this->collectManualBranchRulesPayload(
-                $partNumbersPayload,
-                $request->input('default_rule')
-            );
 
             foreach ($partNumbersPayload as $unit) {
                 $attributes = [
                     'name'     => $unit['name'] ?? null,
                     'verified' => (bool) ($unit['verified'] ?? false),
-                ];
+                ] + $unit['_normalized_scope'];
 
                 if (array_key_exists('eff_code', $unit)) {
                     $attributes['eff_code'] = $unit['eff_code'] !== null && (string) $unit['eff_code'] !== ''
@@ -244,6 +261,9 @@ class UnitController extends Controller
             'name'        => 'nullable|string|max:255',
             'verified'    => 'required|boolean',
             'eff_code'    => 'sometimes|nullable|string|max:255',
+            'default_scope_type' => ['sometimes', Rule::in(Unit::validScopeTypes())],
+            'default_scope_component_id' => ['nullable', 'integer', 'exists:components,id'],
+            'default_scope_part_group_option_id' => ['nullable', 'integer', 'exists:manual_part_group_options,id'],
         ], [
             'part_number.unique' => 'Part number already exists in this CMM (manual).',
         ]);
@@ -256,7 +276,10 @@ class UnitController extends Controller
 
         $manualId = (int) $unit->manual_id;
 
-        $unit->update($data);
+        $scope = $request->has('default_scope_type')
+            ? $this->normalizedScopePayload($request->all(), $manualId)
+            : [];
+        $unit->update(array_merge($data, $scope));
         app(WorkorderStdProcessItemsService::class)->invalidateForManual($manualId);
 
         return response()->json([
@@ -266,6 +289,9 @@ class UnitController extends Controller
             'name' => $unit->name,
             'verified' => $unit->verified,
             'eff_code' => $unit->eff_code,
+            'default_scope_type' => $unit->default_scope_type,
+            'default_scope_component_id' => $unit->default_scope_component_id,
+            'default_scope_part_group_option_id' => $unit->default_scope_part_group_option_id,
         ]);
     }
 
@@ -291,6 +317,9 @@ class UnitController extends Controller
         $updates = [
             'manual_id' => $manual->id,
             'verified' => true,
+            'default_scope_type' => Unit::SCOPE_FULL_UNIT,
+            'default_scope_component_id' => null,
+            'default_scope_part_group_option_id' => null,
         ];
 
         $manualTitle = trim((string) $manual->title);
@@ -312,6 +341,9 @@ class UnitController extends Controller
             'manual_title' => optional($unit->manual)->title,
             'manual_number' => optional($unit->manual)->number,
             'verified' => (bool) $unit->verified,
+            'default_scope_type' => $unit->default_scope_type,
+            'default_scope_component_id' => $unit->default_scope_component_id,
+            'default_scope_part_group_option_id' => $unit->default_scope_part_group_option_id,
         ]);
     }
 
@@ -422,7 +454,118 @@ class UnitController extends Controller
             'include_prefix' => $exactRule?->include_prefix ?? '',
             'exclude_prefix' => $exactRule?->exclude_prefix ?? '',
             'ipl_branch_rule_display' => $effectiveRule?->displayLabel() ?? '',
+            'default_scope_type' => $unit->default_scope_type ?: Unit::SCOPE_FULL_UNIT,
+            'default_scope_component_id' => $unit->default_scope_component_id ? (int) $unit->default_scope_component_id : null,
+            'default_scope_part_group_option_id' => $unit->default_scope_part_group_option_id ? (int) $unit->default_scope_part_group_option_id : null,
+            'scope_display' => app(WorkorderPartScopeResolver::class)->displayLabelForUnit($unit),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{default_scope_type:string,default_scope_component_id:?int,default_scope_part_group_option_id:?int}
+     */
+    private function normalizedScopePayload(array $payload, int $manualId): array
+    {
+        $type = trim((string) ($payload['default_scope_type'] ?? ''));
+        if ($type === '') {
+            $type = Unit::SCOPE_FULL_UNIT;
+        }
+        if (! in_array($type, Unit::validScopeTypes(), true)) {
+            throw ValidationException::withMessages([
+                'default_scope_type' => ['Invalid Work Scope type.'],
+            ]);
+        }
+
+        $componentId = (int) ($payload['default_scope_component_id'] ?? 0);
+        $optionId = (int) ($payload['default_scope_part_group_option_id'] ?? 0);
+
+        if ($type === Unit::SCOPE_COMPONENT) {
+            $valid = $componentId > 0 && Component::query()
+                ->whereKey($componentId)
+                ->where('manual_id', $manualId)
+                ->exists();
+            if (! $valid) {
+                throw ValidationException::withMessages([
+                    'default_scope_component_id' => ['Select a Part from this CMM for the Work Scope.'],
+                ]);
+            }
+
+            return [
+                'default_scope_type' => $type,
+                'default_scope_component_id' => $componentId,
+                'default_scope_part_group_option_id' => null,
+            ];
+        }
+
+        if ($type === Unit::SCOPE_PART_GROUP_OPTION) {
+            $valid = $optionId > 0 && ManualPartGroupOption::query()
+                ->whereKey($optionId)
+                ->whereHas('group', fn ($query) => $query
+                    ->where('manual_id', $manualId)
+                    ->whereIn('type', [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_KIT]))
+                ->exists();
+            if (! $valid) {
+                throw ValidationException::withMessages([
+                    'default_scope_part_group_option_id' => ['Select an ASSY or KIT option from this CMM for the Work Scope.'],
+                ]);
+            }
+
+            return [
+                'default_scope_type' => $type,
+                'default_scope_component_id' => null,
+                'default_scope_part_group_option_id' => $optionId,
+            ];
+        }
+
+        return [
+            'default_scope_type' => Unit::SCOPE_FULL_UNIT,
+            'default_scope_component_id' => null,
+            'default_scope_part_group_option_id' => null,
+        ];
+    }
+
+    /** @return array<int, array{id:int,label:string}> */
+    private function scopeComponentOptions(int $manualId): array
+    {
+        return Component::query()
+            ->where('manual_id', $manualId)
+            ->orderBy('ipl_num')
+            ->orderBy('part_number')
+            ->get(['id', 'ipl_num', 'part_number', 'name'])
+            ->map(fn (Component $component): array => [
+                'id' => (int) $component->id,
+                'label' => trim(implode(' · ', array_filter([
+                    (string) $component->part_number,
+                    $component->ipl_num ? 'IPL '.$component->ipl_num : null,
+                    (string) $component->name,
+                ]))),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** @return array<int, array{id:int,label:string}> */
+    private function scopePartGroupOptions(int $manualId): array
+    {
+        return ManualPartGroupOption::query()
+            ->whereHas('group', fn ($query) => $query
+                ->where('manual_id', $manualId)
+                ->whereIn('type', [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_KIT]))
+            ->with('group:id,type,name')
+            ->orderBy('part_number')
+            ->get(['id', 'manual_part_group_id', 'part_number', 'ipl_num', 'label'])
+            ->map(fn (ManualPartGroupOption $option): array => [
+                'id' => (int) $option->id,
+                'label' => trim(implode(' · ', array_filter([
+                    strtoupper((string) $option->group?->type),
+                    (string) $option->part_number,
+                    $option->ipl_num ? 'IPL '.$option->ipl_num : null,
+                    (string) ($option->label ?: $option->group?->name),
+                ]))),
+            ])
+            ->values()
+            ->all();
     }
 
     private function defaultRulePayload(?ManualIplBranchRule $rule): array

@@ -141,15 +141,16 @@
                                                     $selectedUnitDeleted = $selectedUnit && method_exists($selectedUnit, 'trashed') && $selectedUnit->trashed();
                                                 @endphp
                                                 @if($selectedUnit)
-                                                    <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $selectedUnit->name) }}" data-part-number="{{ old('part_number', $selectedUnit->part_number) }}" data-manual-id="{{ $selectedUnit->manual_id ?? '' }}" data-verified="{{ $selectedUnit->verified ? 1 : 0 }}">{{ old('part_number', $selectedUnit->part_number) }}@if($selectedUnit->manual) ({{ $selectedUnit->manual->number }})@else (Manual pending)@endif @if($selectedUnitDeleted) - Deleted unit @endif</option>
+                                                    <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $selectedUnit->name) }}" data-part-number="{{ old('part_number', $selectedUnit->part_number) }}" data-manual-id="{{ $selectedUnit->manual_id ?? '' }}" data-verified="{{ $selectedUnit->verified ? 1 : 0 }}" data-scope-label="{{ $workorderScopeDisplay }}">{{ old('part_number', $selectedUnit->part_number) }}@if($selectedUnit->manual) ({{ $selectedUnit->manual->number }})@else (Manual pending)@endif @if($selectedUnitDeleted) - Deleted unit @endif</option>
                                                 @else
                                                     <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="" data-part-number="" data-manual-id="" data-verified="0">Missing unit #{{ old('unit_id', $current_wo->unit_id) }}</option>
                                                 @endif
                                                 @foreach ($units as $unit)
                                                     @continue((int) $unit->id === (int) old('unit_id', $current_wo->unit_id))
-                                                    <option value="{{$unit->id}}" data-name="{{ $unit->name }}" data-part-number="{{ $unit->part_number }}" data-manual-id="{{ $unit->manual_id ?? '' }}" data-verified="{{ $unit->verified ? 1 : 0 }}">{{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@else (Manual pending)@endif</option>
+                                                    <option value="{{$unit->id}}" data-name="{{ $unit->name }}" data-part-number="{{ $unit->part_number }}" data-manual-id="{{ $unit->manual_id ?? '' }}" data-verified="{{ $unit->verified ? 1 : 0 }}" data-scope-label="{{ $unit->work_scope_display ?? 'Complete Unit' }}">{{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@else (Manual pending)@endif</option>
                                                 @endforeach
                                             </select>
+                                            <div id="workScopeHint" class="form-text text-info mt-1">Work scope: {{ $workorderScopeDisplay }}</div>
                                             @if($canUpdateWorkorderManuals)
                                                 <button type="button"
                                                         class="btn btn-sm btn-outline-info mt-2"
@@ -412,6 +413,10 @@
                 const selectedOption = this.options[this.selectedIndex];
                 const unitName = selectedOption.getAttribute('data-name');
                 workorderDescriptionInput.value = unitName || '';
+                const scopeHint = document.getElementById('workScopeHint');
+                if (scopeHint) {
+                    scopeHint.textContent = 'Work scope: ' + (selectedOption.getAttribute('data-scope-label') || 'Complete Unit');
+                }
             };
 
             function syncUnitNameFromSelectedCmm() {

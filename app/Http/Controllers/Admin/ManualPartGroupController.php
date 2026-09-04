@@ -60,14 +60,15 @@ class ManualPartGroupController extends Controller
     {
         $this->authorizeManualUpdate($request, $manual);
         $this->ensureGroupBelongsToManual($partGroup, $manual);
-        $data = $this->validatedData($request, $manual);
+        $data = $this->validatedData($request, $manual, $partGroup);
 
         DB::transaction(function () use ($partGroup, $data): void {
             $oldBehavior = $partGroup->behavior;
             $oldType = $partGroup->type;
             $newBehavior = ManualPartGroup::behaviorForType($data['type']);
 
-            if ($oldType === ManualPartGroup::TYPE_ASSY && $data['type'] !== ManualPartGroup::TYPE_ASSY) {
+            if (in_array($oldType, [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_OVERSIZE], true)
+                && ! in_array($data['type'], [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_OVERSIZE], true)) {
                 $this->removeIncomingOptionCoverages($partGroup->options()->pluck('id')->all());
             }
 
@@ -116,10 +117,10 @@ class ManualPartGroupController extends Controller
         return response()->json(['success' => true, 'message' => 'Part group deleted.']);
     }
 
-    private function validatedData(Request $request, Manual $manual): array
+    private function validatedData(Request $request, Manual $manual, ?ManualPartGroup $partGroup = null): array
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
             'type' => ['required', Rule::in(ManualPartGroup::validTypes())],
             'applies_to' => ['required', 'array', 'min:1'],
             'applies_to.*' => [Rule::in(ManualPartGroup::validScopes())],
@@ -172,30 +173,65 @@ class ManualPartGroupController extends Controller
 
             $data['order_part_number'] = $assyPartNumber;
             $data['order_ipl_num'] = trim((string) ($assyPart?->ipl_num ?? '')) ?: null;
+            if (trim((string) ($data['name'] ?? '')) === ''
+                || strcasecmp(trim((string) $data['name']), 'Default') === 0) {
+                $data['name'] = $assyPartNumber;
+            }
         }
+        $data['name'] = trim((string) ($data['name'] ?? '')) ?: 'Default';
         if ($data['type'] === ManualPartGroup::TYPE_KIT && trim((string) ($data['order_part_number'] ?? '')) === '') {
             throw ValidationException::withMessages(['order_part_number' => 'New KIT P/N is required.']);
         }
         if ($data['type'] === ManualPartGroup::TYPE_ASSY && $componentIds->isEmpty()) {
             throw ValidationException::withMessages(['component_ids' => 'ASSY must contain the original part and any included parts.']);
         }
-        if ($data['type'] !== ManualPartGroup::TYPE_KIT && $includedOptionIds->isNotEmpty()) {
-            throw ValidationException::withMessages(['included_group_option_ids' => 'Only a KIT can include an ASSY group.']);
+        if ($data['type'] === ManualPartGroup::TYPE_ASSY && $componentIds->isNotEmpty()) {
+            $individualBushingIds = ManualPartGroupOption::query()
+                ->whereIn('component_id', $componentIds)
+                ->whereHas('group', fn ($group) => $group
+                    ->where('manual_id', $manual->id)
+                    ->where('type', ManualPartGroup::TYPE_OVERSIZE))
+                ->pluck('component_id')
+                ->filter()
+                ->unique();
+
+            if ($individualBushingIds->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'component_ids' => 'Add the complete Bushing Original/Oversize group.',
+                ]);
+            }
+        }
+        if (! in_array($data['type'], [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_KIT], true)
+            && $includedOptionIds->isNotEmpty()) {
+            throw ValidationException::withMessages(['included_group_option_ids' => 'Only an ASSY or KIT can include another group.']);
         }
         if ($data['type'] === ManualPartGroup::TYPE_KIT && $componentIds->isEmpty() && $includedOptionIds->isEmpty()) {
             throw ValidationException::withMessages(['component_ids' => 'KIT must contain at least one part or ASSY.']);
         }
 
         if ($includedOptionIds->isNotEmpty()) {
-            $validAssyOptions = ManualPartGroupOption::query()
+            $allowedNestedTypes = $data['type'] === ManualPartGroup::TYPE_ASSY
+                ? [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_OVERSIZE]
+                : [ManualPartGroup::TYPE_ASSY];
+            $includedOptions = ManualPartGroupOption::query()
                 ->whereIn('id', $includedOptionIds)
                 ->whereHas('group', fn ($group) => $group
                     ->where('manual_id', $manual->id)
-                    ->where('type', ManualPartGroup::TYPE_ASSY))
-                ->count();
-            if ($validAssyOptions !== $includedOptionIds->count()) {
-                throw ValidationException::withMessages(['included_group_option_ids' => 'Every included ASSY must belong to this manual.']);
+                    ->whereIn('type', $allowedNestedTypes))
+                ->with('group:id,manual_id,type,name')
+                ->get();
+            if ($includedOptions->count() !== $includedOptionIds->count()) {
+                throw ValidationException::withMessages([
+                    'included_group_option_ids' => $data['type'] === ManualPartGroup::TYPE_ASSY
+                        ? 'An ASSY may include only ASSY and Bushing Original/Oversize groups from this manual.'
+                        : 'A KIT may include only ASSY groups from this manual.',
+                ]);
             }
+            if ($includedOptions->pluck('manual_part_group_id')->unique()->count() !== $includedOptions->count()) {
+                throw ValidationException::withMessages(['included_group_option_ids' => 'Select each included group only once.']);
+            }
+
+            $this->assertNoNestedGroupCycle($manual, $partGroup, $includedOptions->pluck('manual_part_group_id')->map(fn ($id): int => (int) $id)->all());
         }
 
         if ($data['type'] === ManualPartGroup::TYPE_OVERSIZE) {
@@ -316,6 +352,72 @@ class ManualPartGroupController extends Controller
             ->delete();
         $this->removeIncomingOptionCoverages($removedOptionIds->all());
         $group->options()->whereIn('id', $removedOptionIds)->delete();
+    }
+
+    /**
+     * Reject direct and indirect nesting cycles such as ASSY A -> ASSY B -> ASSY A.
+     *
+     * @param  array<int, int>  $includedGroupIds
+     */
+    private function assertNoNestedGroupCycle(Manual $manual, ?ManualPartGroup $parentGroup, array $includedGroupIds): void
+    {
+        if (! $parentGroup || ! $parentGroup->exists || $includedGroupIds === []) {
+            return;
+        }
+
+        $parentGroupId = (int) $parentGroup->id;
+        if (in_array($parentGroupId, $includedGroupIds, true)) {
+            throw ValidationException::withMessages(['included_group_option_ids' => 'A group cannot include itself.']);
+        }
+
+        $optionToGroup = ManualPartGroupOption::query()
+            ->whereHas('group', fn ($group) => $group->where('manual_id', $manual->id))
+            ->pluck('manual_part_group_id', 'id')
+            ->map(fn ($groupId): int => (int) $groupId);
+        $graph = [];
+
+        ManualPartGroupCoverage::query()
+            ->whereIn('manual_part_group_option_id', $optionToGroup->keys()->all())
+            ->whereNotNull('covered_manual_part_group_option_id')
+            ->get(['manual_part_group_option_id', 'covered_manual_part_group_option_id'])
+            ->each(function (ManualPartGroupCoverage $coverage) use (&$graph, $optionToGroup): void {
+                $fromGroupId = (int) ($optionToGroup->get((int) $coverage->manual_part_group_option_id) ?? 0);
+                $toGroupId = (int) ($optionToGroup->get((int) $coverage->covered_manual_part_group_option_id) ?? 0);
+                if ($fromGroupId > 0 && $toGroupId > 0) {
+                    $graph[$fromGroupId][$toGroupId] = true;
+                }
+            });
+
+        // The submitted composition replaces the parent's current nested links.
+        $graph[$parentGroupId] = array_fill_keys($includedGroupIds, true);
+
+        foreach ($includedGroupIds as $includedGroupId) {
+            if ($this->groupPathReaches((int) $includedGroupId, $parentGroupId, $graph, [])) {
+                throw ValidationException::withMessages([
+                    'included_group_option_ids' => 'This selection creates a circular ASSY composition.',
+                ]);
+            }
+        }
+    }
+
+    /** @param array<int, array<int, bool>> $graph @param array<int, bool> $visited */
+    private function groupPathReaches(int $fromGroupId, int $targetGroupId, array $graph, array $visited): bool
+    {
+        if ($fromGroupId === $targetGroupId) {
+            return true;
+        }
+        if (isset($visited[$fromGroupId])) {
+            return false;
+        }
+
+        $visited[$fromGroupId] = true;
+        foreach (array_keys($graph[$fromGroupId] ?? []) as $nextGroupId) {
+            if ($this->groupPathReaches((int) $nextGroupId, $targetGroupId, $graph, $visited)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function removeIncomingOptionCoverages(array $optionIds): void

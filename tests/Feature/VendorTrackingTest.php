@@ -654,6 +654,11 @@ class VendorTrackingTest extends TestCase
             'applied_source_hash' => $sourceHash,
             'applied_target_table' => 'tdr_processes',
             'applied_target_id' => 2773,
+            'applied_targets' => [[
+                'table' => 'tdr_processes',
+                'id' => 2773,
+                'values' => ['repair_order' => 'R-REAPPLY-' . $suffix],
+            ]],
             'applied_at' => now(),
             'last_seen_at' => now(),
         ]);
@@ -682,6 +687,7 @@ class VendorTrackingTest extends TestCase
         $this->assertNull($line->applied_source_hash);
         $this->assertNull($line->applied_target_table);
         $this->assertNull($line->applied_target_id);
+        $this->assertSame(2773, data_get($line->applied_targets, '0.id'));
         $this->assertNull($line->applied_at);
         $this->assertStringContainsString('Reapply requested by', (string) $line->apply_message);
         $this->assertDatabaseHas('activity_log', [

@@ -70,7 +70,14 @@ class QuantumRoBufferApplyService
                     ->orWhere('apply_status', self::STATUS_PENDING)
                     ->orWhereIn('apply_status', [self::STATUS_UNRESOLVED, self::STATUS_ERROR])
                     ->orWhereColumn('applied_source_hash', '<>', 'source_hash')
-                    ->orWhereNull('applied_source_hash');
+                    ->orWhereNull('applied_source_hash')
+                    ->orWhere(function ($withoutTargetSnapshot): void {
+                        $withoutTargetSnapshot
+                            ->where('apply_status', self::STATUS_APPLIED)
+                            ->whereNotNull('applied_target_table')
+                            ->whereNotNull('applied_target_id')
+                            ->whereNull('applied_targets');
+                    });
             })
             ->orderBy('source_last_modified')
             ->orderBy('id')
@@ -141,6 +148,35 @@ class QuantumRoBufferApplyService
         $models = collect($target['models'] ?? [$target['model']])->values();
         $model = $models->first();
         $table = $model->getTable();
+
+        $release = $this->releasePreviousTargets($line, $models, $dryRun);
+        if ($release['status'] !== 'ok') {
+            $this->markLine($line, self::STATUS_UNRESOLVED, $release['message'], null, null, $dryRun);
+
+            return ['status' => 'unresolved'];
+        }
+
+        if ($this->isLegacySnapshotBackfill($line)) {
+            $baselineConflict = $this->legacySnapshotConflict($models, $line, $vendor);
+            if ($baselineConflict !== null) {
+                $this->markLine($line, self::STATUS_UNRESOLVED, $baselineConflict, null, null, $dryRun);
+
+                return ['status' => 'unresolved'];
+            }
+
+            $this->markLine(
+                $line,
+                self::STATUS_APPLIED,
+                "Recorded Quantum target safety snapshot for {$table}:{$model->getKey()}",
+                $table,
+                (int) $model->getKey(),
+                $dryRun,
+                $this->targetSnapshots($models)
+            );
+
+            return ['status' => 'unchanged'];
+        }
+
         $before = $models->mapWithKeys(fn (Model $targetModel): array => [
             (int) $targetModel->getKey() => $targetModel->getAttributes(),
         ]);
@@ -153,15 +189,27 @@ class QuantumRoBufferApplyService
             }
         }
 
-        $changed = $models->contains(fn (Model $targetModel): bool => $targetModel->isDirty()
-            || ($before->get((int) $targetModel->getKey()) ?? []) != $targetModel->getAttributes());
+        $changed = $release['released'] !== []
+            || $models->contains(fn (Model $targetModel): bool => $targetModel->isDirty()
+                || ($before->get((int) $targetModel->getKey()) ?? []) != $targetModel->getAttributes());
         $targetLabel = "{$table}:{$model->getKey()}";
         if ($models->count() > 1) {
             $targetLabel .= ' (' . $models->count() . ' traveler rows)';
         }
+        if ($release['released'] !== []) {
+            $targetLabel .= '; moved from ' . implode(', ', $release['released']);
+        }
         $message = ($changed ? 'Applied' : 'Already current') . " to {$targetLabel}";
 
-        $this->markLine($line, self::STATUS_APPLIED, $message, $table, (int) $model->getKey(), $dryRun);
+        $this->markLine(
+            $line,
+            self::STATUS_APPLIED,
+            $message,
+            $table,
+            (int) $model->getKey(),
+            $dryRun,
+            $this->targetSnapshots($models)
+        );
 
         return ['status' => $changed ? 'applied' : 'unchanged'];
     }
@@ -732,6 +780,230 @@ class QuantumRoBufferApplyService
         }
     }
 
+    private function isLegacySnapshotBackfill(QuantumRoLine $line): bool
+    {
+        return ($line->applied_targets ?? []) === []
+            && trim((string) $line->apply_status) === self::STATUS_APPLIED
+            && trim((string) $line->applied_source_hash) !== ''
+            && hash_equals((string) $line->applied_source_hash, (string) $line->source_hash);
+    }
+
+    /** @param  Collection<int, Model>  $targets */
+    private function legacySnapshotConflict(
+        Collection $targets,
+        QuantumRoLine $line,
+        Vendor $vendor
+    ): ?string {
+        foreach ($targets as $target) {
+            $expected = $this->expectedQuantumValues($target, $line, $vendor);
+            $changedFields = collect($expected)
+                ->filter(fn (mixed $value, string $column): bool => ! $this->snapshotValueMatches(
+                    $column,
+                    $target->getAttributes()[$column] ?? null,
+                    $value
+                ))
+                ->keys()
+                ->values()
+                ->all();
+
+            if ($changedFields !== []) {
+                $label = $this->targetKey($target->getTable(), (int) $target->getKey());
+
+                return "Cannot record a safety snapshot for legacy Quantum target {$label}: current values differ from source (" . implode(', ', $changedFields) . '); manual review required';
+            }
+        }
+
+        return null;
+    }
+
+    private function expectedQuantumValues(Model $target, QuantumRoLine $line, Vendor $vendor): array
+    {
+        $startDate = $line->out_date ? Carbon::parse($line->out_date)->toDateString() : null;
+        $finishDate = $line->returned_date ? Carbon::parse($line->returned_date)->toDateString() : null;
+        $expected = [
+            'repair_order' => $line->ro_number,
+            'vendor_id' => $vendor->id,
+            'date_start' => $startDate,
+            'date_finish' => $finishDate,
+            'date_start_user_id' => null,
+            'date_start_user' => $startDate ? self::DATE_USER_NAME : null,
+            'date_finish_user_id' => null,
+            'date_finish_user' => $finishDate ? self::DATE_USER_NAME : null,
+        ];
+
+        return collect($expected)
+            ->filter(fn (mixed $value, string $column): bool => $this->hasColumn($target, $column))
+            ->all();
+    }
+
+    /**
+     * Release values written by this Quantum source row when a changed REF now
+     * resolves to another AVIA target. The saved snapshot prevents removal of
+     * values that somebody edited manually after the previous apply.
+     *
+     * @param  Collection<int, Model>  $currentTargets
+     * @return array{status: 'ok'|'conflict', message: string, released: list<string>}
+     */
+    private function releasePreviousTargets(QuantumRoLine $line, Collection $currentTargets, bool $dryRun): array
+    {
+        $currentKeys = $currentTargets
+            ->mapWithKeys(fn (Model $target): array => [
+                $this->targetKey($target->getTable(), (int) $target->getKey()) => true,
+            ]);
+        $previousTargets = collect($line->applied_targets ?? [])->values();
+
+        if ($previousTargets->isEmpty()) {
+            $legacyTable = trim((string) $line->applied_target_table);
+            $legacyId = (int) $line->applied_target_id;
+
+            if ($legacyTable === '' || $legacyId <= 0) {
+                return ['status' => 'ok', 'message' => '', 'released' => []];
+            }
+
+            if ($currentKeys->has($this->targetKey($legacyTable, $legacyId))) {
+                return ['status' => 'ok', 'message' => '', 'released' => []];
+            }
+
+            return [
+                'status' => 'conflict',
+                'message' => "Quantum target changed for {$line->source_uid}, but the previous {$legacyTable}:{$legacyId} has no safety snapshot; manual review required",
+                'released' => [],
+            ];
+        }
+
+        $toRelease = [];
+
+        foreach ($previousTargets as $snapshot) {
+            $table = trim((string) ($snapshot['table'] ?? ''));
+            $id = (int) ($snapshot['id'] ?? 0);
+            if ($table === '' || $id <= 0 || $currentKeys->has($this->targetKey($table, $id))) {
+                continue;
+            }
+
+            if (! in_array($table, ['tdr_processes', 'workorder_std_processes', 'wo_bushing_batches'], true)) {
+                return [
+                    'status' => 'conflict',
+                    'message' => "Quantum target changed for {$line->source_uid}, but the previous target table [{$table}] is unsupported; manual review required",
+                    'released' => [],
+                ];
+            }
+
+            $target = $this->findAppliedTarget($table, $id);
+            if (! $target) {
+                continue;
+            }
+
+            $values = is_array($snapshot['values'] ?? null) ? $snapshot['values'] : [];
+            if ($values === []) {
+                return [
+                    'status' => 'conflict',
+                    'message' => "Quantum target changed for {$line->source_uid}, but {$table}:{$id} has no value snapshot; manual review required",
+                    'released' => [],
+                ];
+            }
+
+            $changedFields = collect($values)
+                ->filter(fn (mixed $expected, string $column): bool => ! $this->snapshotValueMatches(
+                    $column,
+                    $target->getAttributes()[$column] ?? null,
+                    $expected
+                ))
+                ->keys()
+                ->values()
+                ->all();
+
+            if ($changedFields !== []) {
+                return [
+                    'status' => 'conflict',
+                    'message' => "Quantum target changed for {$line->source_uid}, but {$table}:{$id} was edited after the previous apply (" . implode(', ', $changedFields) . '); manual review required',
+                    'released' => [],
+                ];
+            }
+
+            $toRelease[] = ['model' => $target, 'values' => $values];
+        }
+
+        $released = [];
+        foreach ($toRelease as $item) {
+            /** @var Model $target */
+            $target = $item['model'];
+            foreach (array_keys($item['values']) as $column) {
+                $target->setAttribute($column, null);
+            }
+
+            if (! $dryRun && $target->isDirty()) {
+                $target->save();
+            }
+
+            $released[] = $this->targetKey($target->getTable(), (int) $target->getKey());
+        }
+
+        return ['status' => 'ok', 'message' => '', 'released' => $released];
+    }
+
+    private function findAppliedTarget(string $table, int $id): ?Model
+    {
+        $modelClass = match ($table) {
+            'tdr_processes' => TdrProcess::class,
+            'workorder_std_processes' => WorkorderStdProcess::class,
+            'wo_bushing_batches' => WoBushingBatch::class,
+            default => null,
+        };
+
+        return $modelClass ? $modelClass::query()->lockForUpdate()->find($id) : null;
+    }
+
+    /** @param  Collection<int, Model>  $targets */
+    private function targetSnapshots(Collection $targets): array
+    {
+        return $targets
+            ->map(fn (Model $target): array => [
+                'table' => $target->getTable(),
+                'id' => (int) $target->getKey(),
+                'values' => collect($this->quantumManagedColumns())
+                    ->filter(fn (string $column): bool => $this->hasColumn($target, $column))
+                    ->mapWithKeys(fn (string $column): array => [
+                        $column => $target->getAttributes()[$column] ?? null,
+                    ])
+                    ->all(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** @return list<string> */
+    private function quantumManagedColumns(): array
+    {
+        return [
+            'repair_order',
+            'vendor_id',
+            'date_start',
+            'date_finish',
+            'date_start_user_id',
+            'date_start_user',
+            'date_finish_user_id',
+            'date_finish_user',
+        ];
+    }
+
+    private function snapshotValueMatches(string $column, mixed $actual, mixed $expected): bool
+    {
+        if ($actual === null || $expected === null) {
+            return $actual === null && $expected === null;
+        }
+
+        if (in_array($column, ['date_start', 'date_finish'], true)) {
+            return Carbon::parse($actual)->toDateString() === Carbon::parse($expected)->toDateString();
+        }
+
+        return (string) $actual === (string) $expected;
+    }
+
+    private function targetKey(string $table, int $id): string
+    {
+        return "{$table}:{$id}";
+    }
+
     private function setColumnIfExists(Model $model, string $column, mixed $value): void
     {
         if ($this->hasColumn($model, $column)) {
@@ -767,20 +1039,29 @@ class QuantumRoBufferApplyService
         string $message,
         ?string $targetTable,
         ?int $targetId,
-        bool $dryRun
+        bool $dryRun,
+        ?array $appliedTargets = null
     ): void {
         if ($dryRun) {
             return;
         }
 
-        $line->forceFill([
+        $attributes = [
             'apply_status' => $status,
             'apply_message' => mb_substr($message, 0, 5000),
-            'applied_target_table' => $targetTable,
-            'applied_target_id' => $targetId,
             'applied_source_hash' => $line->source_hash,
             'applied_at' => now(),
-        ])->save();
+        ];
+
+        // Keep the last successful target on unresolved/error states. Without
+        // it a later valid REF cannot safely release the previously filled row.
+        if ($targetTable !== null && $targetId !== null) {
+            $attributes['applied_target_table'] = $targetTable;
+            $attributes['applied_target_id'] = $targetId;
+            $attributes['applied_targets'] = $appliedTargets ?? [];
+        }
+
+        $line->forceFill($attributes)->save();
     }
 
     private function isDetailPartPn(QuantumRoLine $line): bool

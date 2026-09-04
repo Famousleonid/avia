@@ -2025,6 +2025,78 @@ class QualityAssuranceTest extends TestCase
         $this->assertSame('#d3f9d8', $rows[0]['qa_cell_colors']['description']);
     }
 
+    public function test_qa_log_card_loads_components_from_all_saved_manuals_and_omits_non_component_rows(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $additionalManual = $this->createManual();
+        $primaryManual = $this->createManual([
+            'additional_manual_ids' => [$additionalManual->id],
+        ]);
+        $unit = $this->createUnit([
+            'manual_id' => $primaryManual->id,
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+        ]);
+        $additionalComponent = $this->createComponent($additionalManual, [
+            'name' => 'Additional Manual Component',
+            'part_number' => 'ADD-PN-1',
+            'assy_part_number' => 'ADD-ASSY-1',
+        ]);
+
+        LogCard::create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                [
+                    'row_type' => 'manual',
+                    'manual_id' => $primaryManual->id,
+                    'manual_number' => 'PRIMARY MANUAL SEPARATOR',
+                ],
+                [],
+                [
+                    'manual_id' => $additionalManual->id,
+                    'component_id' => $additionalComponent->id,
+                    'serial_number' => 'ADD-SN-1',
+                    'assy_part_number' => 'ADD-ASSY-1',
+                ],
+                [
+                    'row_type' => 'manual',
+                    'manual_id' => $additionalManual->id,
+                    'manual_number' => 'ADDITIONAL MANUAL SEPARATOR',
+                ],
+            ]),
+        ]);
+
+        $response = $this->actingAs($manager)->get(route('quality.forms.log_card', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('Additional Manual Component');
+        $response->assertSee('ADD-PN-1');
+        $response->assertSee('(ADD-ASSY-1)');
+        $response->assertSee('ADD-SN-1');
+        $response->assertDontSee('PRIMARY MANUAL SEPARATOR');
+        $response->assertDontSee('ADDITIONAL MANUAL SEPARATOR');
+
+        $html = $response->getContent();
+        $this->assertDoesNotMatchRegularExpression('/data-section="primary"\s+data-row="[013]"/', $html);
+        $this->assertMatchesRegularExpression('/data-section="primary"\s+data-row="2"/', $html);
+
+        $this->actingAs($manager)->postJson(route('quality.forms.log_card.update', $workorder), [
+            'side' => 'left',
+            'section' => 'primary',
+            'row' => 2,
+            'field' => 'description',
+            'value' => 'Edited Additional Component',
+        ])->assertOk();
+
+        $savedRows = json_decode(LogCard::where('workorder_id', $workorder->id)->first()->component_data, true);
+        $this->assertSame('manual', $savedRows[0]['row_type']);
+        $this->assertSame([], $savedRows[1]);
+        $this->assertSame('Edited Additional Component', $savedRows[2]['name']);
+    }
+
     public function test_right_log_card_header_part_number_is_saved_in_json(): void
     {
         $manager = $this->createUserWithRole('Manager', [

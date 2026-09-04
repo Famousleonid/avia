@@ -205,13 +205,17 @@ class WorkordersWriteTest extends TestCase
             'part_number' => '52141-1',
         ]);
 
-        Component::query()->create([
+        $headPart = Component::query()->create([
             'manual_id' => $manual->id,
             'ipl_num' => '3-10',
             'part_number' => '52141-1',
             'name' => 'PIN, Torque Arm',
             'units_assy' => 4,
             'ndt_list' => true,
+        ]);
+        $unit->update([
+            'default_scope_type' => Unit::SCOPE_COMPONENT,
+            'default_scope_component_id' => $headPart->id,
         ]);
         Component::query()->create([
             'manual_id' => $manual->id,

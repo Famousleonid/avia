@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Mobile;
 
 use App\Http\Controllers\Controller;
 use App\Services\Ai\NameplateRecognitionService;
-use App\Services\Media\ImageOrientationNormalizer;
+use App\Services\Media\MobileLandscapePhotoProcessor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -13,7 +13,7 @@ use Throwable;
 class ShippingDraftRecognitionController extends Controller
 {
     public function __construct(
-        private readonly ImageOrientationNormalizer $imageOrientationNormalizer,
+        private readonly MobileLandscapePhotoProcessor $landscapePhotoProcessor,
         private readonly NameplateRecognitionService $recognitionService,
     ) {
     }
@@ -26,7 +26,7 @@ class ShippingDraftRecognitionController extends Controller
             'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:15360'],
         ]);
 
-        $photo = $this->imageOrientationNormalizer->normalize($request->file('photo'));
+        $photo = $this->landscapePhotoProcessor->prepare($request->file('photo'), 'photo');
 
         try {
             $recognition = $this->recognitionService->recognize(
@@ -43,6 +43,8 @@ class ShippingDraftRecognitionController extends Controller
                 'success' => false,
                 'message' => 'Avi could not read the nameplate. The photo can still be saved with the Draft.',
             ], 503);
+        } finally {
+            $this->landscapePhotoProcessor->discardTemporaryFile($request->file('photo'), $photo);
         }
 
         return response()->json([

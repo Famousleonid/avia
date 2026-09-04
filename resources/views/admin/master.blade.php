@@ -139,28 +139,17 @@
 
 </head>
 
-<body class="p-0 m-0 g-0 {{ !empty($userProjectBackgroundUrl) ? 'has-user-project-background' : '' }} {{ !empty($userGuideEmbed) ? 'user-guide-embed' : '' }}">
+<body class="p-0 m-0 g-0 {{ !empty($userProjectBackgroundUrl) ? 'has-user-project-background' : '' }}">
 
 <div id="spinner-load" class="spinner-border text-warning spinner-win d-none" role="status">
     <span class="visually-hidden">Loading...</span>
 </div>
 
-@if(!empty($userGuideEmbed))
-    <script>
-        document.addEventListener('wheel', (event) => event.preventDefault(), {
-            capture: true,
-            passive: false,
-        });
-    </script>
-@endif
-
 <div class="container-fluid p-0">
     <div class="row g-0 page-layout">
-        @if(empty($userGuideEmbed))
-            <div id="sidebarColumn" class="bg-body p-0 col-auto">
-                @include('components.sidebar')
-            </div>
-        @endif
+        <div id="sidebarColumn" class="bg-body p-0 col-auto">
+            @include('components.sidebar')
+        </div>
         <div class="content col bg-body pt-0">
             <div class="content-inner px-0">
                 @include('components.status')
@@ -366,9 +355,7 @@
 
 @yield('scripts')
 
-@if(empty($userGuideEmbed))
-    @include('partials.notifications-settings-modal')
-@endif
+@include('partials.notifications-settings-modal')
 
 <script>
     // Подавляем ошибки MetaMask и другие некритичные ошибки

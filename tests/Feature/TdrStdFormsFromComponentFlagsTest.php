@@ -91,7 +91,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertSame(4, $paint[0]['qty']);
     }
 
-    public function test_overhaul_unit_that_is_a_manual_part_restricts_every_std_list_to_one_received_part(): void
+    public function test_legacy_overhaul_unit_that_is_a_manual_part_restricts_every_std_list_to_one_received_part(): void
     {
         $primaryManual = $this->createManual();
         $additionalManual = $this->createManual();
@@ -105,6 +105,8 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'unit_id' => $unit->id,
             'instruction_id' => $this->createOverhaulInstruction()->id,
         ]);
+        // Workorders created before explicit scope snapshots keep the old P/N inference.
+        $workorder->update(['scope_type' => null]);
 
         Component::query()->create([
             'manual_id' => $primaryManual->id,
@@ -190,7 +192,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertSame([1, 2], array_column($rows, 'qty'));
     }
 
-    public function test_existing_full_snapshot_self_heals_when_workorder_becomes_unit_part_overhaul(): void
+    public function test_legacy_existing_full_snapshot_self_heals_when_workorder_becomes_unit_part_overhaul(): void
     {
         $manual = $this->createManual();
         $unit = $this->createUnit([
@@ -201,6 +203,8 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'unit_id' => $unit->id,
             'instruction_id' => $this->createInstruction(['name' => 'Repair ' . uniqid()])->id,
         ]);
+        // Workorders created before explicit scope snapshots keep the old P/N inference.
+        $workorder->update(['scope_type' => null]);
 
         Component::query()->create([
             'manual_id' => $manual->id,

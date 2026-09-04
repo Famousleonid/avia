@@ -32,6 +32,7 @@ use App\Services\ManualIplBranchRuleResolver;
 use App\Services\TdrInspectionLinesBuilder;
 use App\Services\WorkorderStdProcessItemsService;
 use App\Services\WorkorderStdListProcessesService;
+use App\Services\WorkorderPartScopeResolver;
 use App\Support\BushingPrlGrouping;
 use App\Support\KitPrlGrouping;
 use App\Support\LogCardDestructionCertificate;
@@ -72,21 +73,23 @@ class TdrPrintFormController extends Controller
 
         // PRL includes regular Order New rows and every Missing row. Missing rows
         // created by the part-number workflow may only have component_id populated.
-        $ordersParts = Tdr::query()
-            ->prlParts($current_wo->id, $necessary->id, $code?->id)
-            ->with([
-                'codes',
-                'component' => function($query) {
-                    $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
-                        ->with('manual:id,number');
-                },
-                'orderComponent' => function($query) {
-                    $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
-                        ->with('manual:id,number');
-                },
-                'orderComponentAssembly',
-            ])
-            ->get();
+        $ordersParts = $necessary
+            ? Tdr::query()
+                ->prlParts($current_wo->id, $necessary->id, $code?->id)
+                ->with([
+                    'codes',
+                    'component' => function($query) {
+                        $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
+                            ->with('manual:id,number');
+                    },
+                    'orderComponent' => function($query) {
+                        $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
+                            ->with('manual:id,number');
+                    },
+                    'orderComponentAssembly',
+                ])
+                ->get()
+            : collect();
 
         // Добавляем поле manual (номер manual) к каждой TDR записи
         $ordersParts = $ordersParts->map(function($tdr) {
@@ -185,15 +188,11 @@ class TdrPrintFormController extends Controller
             ->concat($this->selectedPartGroupPrlRows($current_wo, $ordersParts))
             ->values();
 
-        // Собираем все уникальные номера manual из компонентов
-        $uniqueManuals = $ordersParts->map(function($tdr) {
-            return $tdr->manual ?? null;
-        })->filter(function($manual) {
-            return $manual !== null && $manual !== '';
-        })->unique()->values()->toArray();
-
-        // Определяем, есть ли несколько manual
-        $hasMultipleManuals = count($uniqueManuals) > 1;
+        // KIT parts have already been purchased. Consume that supply before the
+        // order PRL is printed, then append the bushing order to the same form.
+        $ordersParts = $this->removeKitSupplyFromPrlRows($current_wo, $ordersParts)
+            ->concat($this->buildBushingPrlRows($current_wo))
+            ->values();
 
         // Pass all rows to the shared client-side paginator. It measures the
         // final print-width DOM and fills each Letter page by actual height.
@@ -203,18 +202,12 @@ class TdrPrintFormController extends Controller
 
     public function bushingPrlForm(Request $request, $id)
     {
-        $current_wo = Workorder::findOrFail($id);
-        $ordersParts = $this->buildBushingPrlRows($current_wo);
-
-        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST', true, 'bush-prl');
+        return $this->prlForm($request, $id);
     }
 
     public function bushPrlForm(Request $request, $id)
     {
-        $current_wo = Workorder::findOrFail($id);
-        $ordersParts = $this->buildBushingPrlRows($current_wo);
-
-        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST', true, 'bush-prl');
+        return $this->prlForm($request, $id);
     }
 
     public function kitForm(Request $request, $id)
@@ -309,8 +302,8 @@ class TdrPrintFormController extends Controller
     }
 
     /**
-     * Bush PRL is generated from the primary manual only.  Mirror that exact
-     * scope when deciding whether a bushing is already paid for by the KIT.
+     * Bushing rows are generated from the primary manual only. Mirror that
+     * scope when deciding how much of a selected bushing is supplied by KIT.
      */
     private function kitBushingCrossedOutIdentities(Workorder $workorder, int $manualId): array
     {
@@ -332,14 +325,16 @@ class TdrPrintFormController extends Controller
         );
 
         $componentIds = $kitBushings
-            ->mapWithKeys(fn (Component $component): array => [(int) $component->id => true])
+            ->mapWithKeys(fn (Component $component): array => [
+                (int) $component->id => max(1, (int) ($component->units_assy ?? 1)),
+            ])
             ->all();
         $partNumbers = $kitBushings
-            ->pluck('part_number')
-            ->map(fn ($partNumber): string => $this->normalizePrlPartNumber($partNumber))
-            ->filter()
-            ->unique()
-            ->mapWithKeys(fn (string $partNumber): array => [$partNumber => true])
+            ->groupBy(fn (Component $component): string => $this->normalizePrlPartNumber($component->part_number))
+            ->reject(fn ($components, string $partNumber): bool => $partNumber === '')
+            ->map(fn ($components): int => $components->sum(
+                fn (Component $component): int => max(1, (int) ($component->units_assy ?? 1))
+            ))
             ->all();
 
         return [
@@ -450,15 +445,20 @@ class TdrPrintFormController extends Controller
                                 return max(1, (int) ($selectedByComponent->get($candidate->id)['qty'] ?? 1));
                             })
                             : null;
-                        $additionallyCrossedOut = $partNumberComponents->contains(function (Component $candidate) use ($additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $optionQty): bool {
+                        $coveredQty = $partNumberComponents->max(function (Component $candidate) use ($additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers): int {
                             $partNumber = $this->normalizePrlPartNumber($candidate->part_number);
                             $componentCoverage = $additionalCrossedOutComponentIds[(int) $candidate->id] ?? null;
                             $partNumberCoverage = $partNumber !== '' ? ($additionalCrossedOutPartNumbers[$partNumber] ?? null) : null;
-                            $requiredQty = max(1, (int) ($optionQty ?? $candidate->units_assy ?? 1));
 
-                            return $this->coverageIdentityFullyCovers($componentCoverage, $requiredQty)
-                                || $this->coverageIdentityFullyCovers($partNumberCoverage, $requiredQty);
+                            return max(
+                                $componentCoverage === true ? PHP_INT_MAX : (int) ($componentCoverage ?? 0),
+                                $partNumberCoverage === true ? PHP_INT_MAX : (int) ($partNumberCoverage ?? 0)
+                            );
                         });
+                        $remainingQty = $optionQty === null
+                            ? null
+                            : max(0, (int) $optionQty - (int) $coveredQty);
+                        $additionallyCrossedOut = $optionQty !== null && $remainingQty === 0 && $coveredQty > 0;
                         $controllerCrossedOut = $selectedComponent === null || $additionallyCrossedOut;
                         $manualCrossedOut = isset($manualCrossedOutComponentIds[(int) $displayComponent->id]);
                         $includedInKit = $partNumberComponents->contains(
@@ -471,7 +471,10 @@ class TdrPrintFormController extends Controller
                             'controller_crossed_out' => $controllerCrossedOut,
                             'manual_crossed_out' => $manualCrossedOut,
                             'crossed_out' => $controllerCrossedOut || $manualCrossedOut,
-                            'qty' => $optionQty,
+                            // A partial KIT quantity reduces the extra order. A
+                            // fully covered line keeps its original qty visible
+                            // under the cross-out for auditability.
+                            'qty' => $remainingQty !== null && $remainingQty > 0 ? $remainingQty : $optionQty,
                             'included_in_kit' => $includedInKit,
                             'crossout_reason' => $partNumberComponents
                                 ->map(fn (Component $candidate) => $additionalCrossedOutReasons[(int) $candidate->id] ?? null)
@@ -493,12 +496,12 @@ class TdrPrintFormController extends Controller
 
     private function buildKitPrlRows(Workorder $workorder, array $manualCrossedOutComponentIds = [])
     {
+        // A detached received part does not inherit the complete unit's overhaul KIT.
+        if ($workorder->scope_type === Unit::SCOPE_COMPONENT) {
+            return collect();
+        }
+
         $manualIds = $workorder->usedManualIds();
-        $crossedOutIdentities = $this->kitCrossedOutIdentities($workorder);
-        $groupCrossedOutIdentities = $this->partGroupCrossedOutIdentities($workorder);
-        $crossedOutIdentities['component_ids'] = ($crossedOutIdentities['component_ids'] ?? []) + ($groupCrossedOutIdentities['component_ids'] ?? []);
-        $crossedOutIdentities['part_numbers'] = ($crossedOutIdentities['part_numbers'] ?? []) + ($groupCrossedOutIdentities['part_numbers'] ?? []);
-        $crossedOutIdentities['reasons'] = ($crossedOutIdentities['reasons'] ?? []) + ($groupCrossedOutIdentities['reasons'] ?? []);
         $kitComponents = $this->filterComponentsForUnit(
             Component::query()
                 ->whereIn('manual_id', $manualIds)
@@ -517,14 +520,21 @@ class TdrPrintFormController extends Controller
         $regularRows = $this->buildKitPrlRowsForComponents(
             $regularKitComponents,
             'KIT',
-            $crossedOutIdentities,
+            [],
             $manualCrossedOutComponentIds
+        );
+        $allKitBushingOptions = $kitBushingComponents->mapWithKeys(
+            fn (Component $component): array => [
+                (int) $component->id => [
+                    'qty' => max(1, (int) ($component->units_assy ?? 1)),
+                ],
+            ]
         );
         $bushingRows = $this->buildBushingPrlRowsForComponents(
             $kitBushingComponents,
-            $this->selectedBushingComponents($workorder),
+            $allKitBushingOptions,
             'KIT',
-            $crossedOutIdentities,
+            [],
             $manualCrossedOutComponentIds
         );
 
@@ -629,42 +639,79 @@ class TdrPrintFormController extends Controller
             ->values();
     }
 
-    private function kitCrossedOutIdentities(Workorder $workorder): array
+    private function removeKitSupplyFromPrlRows(Workorder $workorder, $rows)
     {
-        $componentIds = collect();
-        $orderNew = Necessary::where('name', 'Order New')->first();
-
-        if ($orderNew) {
-            $missingCode = Code::missing();
-            $componentIds = $componentIds->merge(
-                Tdr::query()
-                    ->prlParts($workorder->id, $orderNew->id, $missingCode?->id)
-                    ->get(['component_id', 'order_component_id'])
-                    ->map(fn (Tdr $tdr): int => (int) ($tdr->order_component_id ?: $tdr->component_id))
-            );
+        if ($workorder->scope_type === Unit::SCOPE_COMPONENT) {
+            return collect($rows)->values();
         }
 
-        $componentIds = $componentIds
-            ->map(fn ($componentId): int => (int) $componentId)
-            ->filter(fn (int $componentId): bool => $componentId > 0)
-            ->unique()
-            ->values();
+        $kitSupply = $this->filterComponentsForUnit(
+            Component::query()
+                ->whereIn('manual_id', $workorder->usedManualIds())
+                ->where('kit', true)
+                ->get(),
+            $workorder
+        )
+            ->groupBy(function (Component $component): string {
+                $partNumber = $this->normalizePrlPartNumber($component->part_number);
 
-        $partNumbers = Component::query()
-            ->whereKey($componentIds->all())
-            ->pluck('part_number')
-            ->map(fn ($partNumber): string => $this->normalizePrlPartNumber($partNumber))
-            ->filter()
-            ->unique()
-            ->mapWithKeys(fn (string $partNumber): array => [$partNumber => true])
+                return $partNumber !== ''
+                    ? 'part-number|' . $partNumber
+                    : 'component|' . (int) $component->id;
+            })
+            ->map(fn ($components): int => $components->sum(
+                fn (Component $component): int => max(1, (int) ($component->units_assy ?? 1))
+            ))
             ->all();
 
-        return [
-            'component_ids' => $componentIds
-                ->mapWithKeys(fn (int $componentId): array => [$componentId => true])
-                ->all(),
-            'part_numbers' => $partNumbers,
-        ];
+        return collect($rows)
+            ->map(function ($row) use (&$kitSupply) {
+                if ($row instanceof Tdr && ! empty($row->prl_crossed_out)) {
+                    return $row;
+                }
+                if (is_array($row) && ! empty($row['prl_crossed_out'])) {
+                    return $row;
+                }
+
+                $isArray = is_array($row);
+                $component = $isArray
+                    ? ($row['orderComponent'] ?? $row['component'] ?? null)
+                    : ($row->orderComponent ?? $row->component ?? null);
+                $assembly = $isArray
+                    ? ($row['orderComponentAssembly'] ?? null)
+                    : ($row->orderComponentAssembly ?? null);
+                $partNumber = $assembly
+                    ? (is_array($assembly) ? ($assembly['assy_part_number'] ?? '') : ($assembly->assy_part_number ?? ''))
+                    : (is_array($component) ? ($component['part_number'] ?? '') : ($component->part_number ?? ''));
+                $normalizedPartNumber = $this->normalizePrlPartNumber($partNumber);
+                $componentId = (int) (is_array($component) ? ($component['id'] ?? 0) : ($component->id ?? 0));
+                $identity = $normalizedPartNumber !== ''
+                    ? 'part-number|' . $normalizedPartNumber
+                    : 'component|' . $componentId;
+                $availableQty = (int) ($kitSupply[$identity] ?? 0);
+
+                if ($availableQty <= 0) {
+                    return $row;
+                }
+
+                $requiredQty = max(1, (int) ($isArray ? ($row['qty'] ?? 1) : ($row->qty ?? 1)));
+                $coveredQty = min($requiredQty, $availableQty);
+                $kitSupply[$identity] = $availableQty - $coveredQty;
+
+                if ($coveredQty >= $requiredQty) {
+                    return null;
+                }
+
+                if ($isArray) {
+                    $row['qty'] = $requiredQty - $coveredQty;
+                } else {
+                    $row->qty = $requiredQty - $coveredQty;
+                }
+
+                return $row;
+            })
+            ->filter(fn ($row): bool => $row !== null)
+            ->values();
     }
 
     private function normalizePrlPartNumber(?string $partNumber): string
@@ -2484,6 +2531,8 @@ class TdrPrintFormController extends Controller
     private function filterComponentsForUnit($components, Workorder $workorder)
     {
         $resolver = app(ManualIplBranchRuleResolver::class);
+        $components = app(WorkorderPartScopeResolver::class)
+            ->filterComponents(collect($components), $workorder);
 
         return $components
             ->filter(function (Component $component) use ($resolver, $workorder): bool {

@@ -21,20 +21,23 @@ class PartGroupCoverageResolver
             throw new \InvalidArgumentException("Invalid part group scope: {$scope}");
         }
 
-        $groups = ManualPartGroup::query()
+        $allGroups = ManualPartGroup::query()
             ->whereIn('manual_id', $workorder->usedManualIds())
             ->with([
-                'options.coverages.coveredOption.coverages',
-                'options.coverages.coveredOption.group',
+                'options.coverages',
                 'serviceBulletin:id,ac_mfg_service_bulletin_no,oem_service_bulletin_no',
             ])
             ->get()
-            ->filter(fn (ManualPartGroup $group): bool => $group->appliesTo($scope))
             ->keyBy('id');
+        $groups = $allGroups->filter(fn (ManualPartGroup $group): bool => $group->appliesTo($scope));
 
         if ($groups->isEmpty()) {
             return [];
         }
+
+        $optionsById = $allGroups
+            ->flatMap(fn (ManualPartGroup $group) => $group->options)
+            ->keyBy('id');
 
         $selected = $this->explicitSelections($workorder, $groups);
         $selected = $this->inferSelectionsFromTdrs($workorder, $groups, $selected);
@@ -83,7 +86,10 @@ class PartGroupCoverageResolver
                     $scope,
                     $reason,
                     $group,
-                    $option
+                    $option,
+                    $allGroups,
+                    $optionsById,
+                    [(int) $option->id => true]
                 );
             }
         }
@@ -239,7 +245,10 @@ class PartGroupCoverageResolver
         string $scope,
         string $reason,
         ManualPartGroup $selectedGroup,
-        ManualPartGroupOption $selectedOption
+        ManualPartGroupOption $selectedOption,
+        Collection $groups,
+        Collection $optionsById,
+        array $optionPath
     ): void {
         if (! $member->appliesTo($scope)) {
             return;
@@ -260,10 +269,44 @@ class PartGroupCoverageResolver
             return;
         }
 
-        $coveredOption = $member->coveredOption;
-        if (! $coveredOption || $coveredOption->group?->type !== ManualPartGroup::TYPE_ASSY) {
+        $coveredOptionId = (int) ($member->covered_manual_part_group_option_id ?? 0);
+        /** @var ManualPartGroupOption|null $coveredOption */
+        $coveredOption = $optionsById->get($coveredOptionId);
+        if (! $coveredOption || isset($optionPath[$coveredOptionId])) {
             return;
         }
+
+        /** @var ManualPartGroup|null $coveredGroup */
+        $coveredGroup = $groups->get((int) $coveredOption->manual_part_group_id);
+        if (! $coveredGroup) {
+            return;
+        }
+
+        if ($coveredGroup->type === ManualPartGroup::TYPE_OVERSIZE) {
+            foreach ($coveredGroup->options as $bushingOption) {
+                $bushingComponentId = (int) ($bushingOption->component_id ?? 0);
+                if ($bushingComponentId <= 0) {
+                    continue;
+                }
+
+                $this->addCoverage(
+                    $coverage,
+                    $bushingComponentId,
+                    $memberQty,
+                    $reason,
+                    $selectedGroup,
+                    $selectedOption
+                );
+            }
+
+            return;
+        }
+
+        if ($coveredGroup->type !== ManualPartGroup::TYPE_ASSY) {
+            return;
+        }
+
+        $optionPath[$coveredOptionId] = true;
 
         foreach ($coveredOption->coverages as $nestedMember) {
             $this->expandBundleMember(
@@ -273,7 +316,10 @@ class PartGroupCoverageResolver
                 $scope,
                 $reason,
                 $selectedGroup,
-                $selectedOption
+                $selectedOption,
+                $groups,
+                $optionsById,
+                $optionPath
             );
         }
     }

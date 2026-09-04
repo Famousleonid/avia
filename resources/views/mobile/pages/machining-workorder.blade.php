@@ -748,6 +748,9 @@
                 fileInput.name = multiple ? 'photos[]' : 'image';
                 fileInput.accept = 'image/*';
                 fileInput.capture = 'environment';
+                if (opts.allowPortrait) {
+                    fileInput.setAttribute('data-allow-portrait', '');
+                }
                 if (multiple) {
                     fileInput.multiple = true;
                 }
@@ -797,6 +800,7 @@
                     }
                     openMachiningNativePicker({
                         multiple: false,
+                        allowPortrait: true,
                         onFiles: (files) => uploadMachiningDocPdf(files[0]),
                     });
                 });

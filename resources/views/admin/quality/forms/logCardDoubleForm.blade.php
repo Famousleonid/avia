@@ -663,60 +663,78 @@
     };
 
     $buildRows = function (array $items) use ($components, $codes, $twoLineAssyValue, $formatLogCardDate) {
-        return collect($items)->map(function ($item, $index) use ($components, $codes, $twoLineAssyValue, $formatLogCardDate) {
-        $component = $components->firstWhere('id', $item['component_id'] ?? null);
-        $hasSerial = !empty($item['serial_number']);
-        $hasAssySerial = !empty($item['assy_serial_number']);
-        $assyPartNumber = trim((string) ($item['assy_part_number'] ?? ''));
-        if ($assyPartNumber === '') {
-            $assyPartNumber = trim((string) ($component->assy_part_number ?? ''));
-        }
-        $hasAssyPartNumber = $assyPartNumber !== '';
-        $reasonCode = $codes->firstWhere('id', $item['reason'] ?? null);
-        $basePartNumber = trim((string) ($item['part_number'] ?? ($component->part_number ?? '')));
-        $baseSerialNumber = trim((string) ($item['serial_number'] ?? ''));
-
-        if ($hasAssyPartNumber && !$hasAssySerial) {
-            $partNumber = $basePartNumber !== ''
-                ? $basePartNumber . "\n(" . $assyPartNumber . ')'
-                : $assyPartNumber;
-            $serialNumber = $baseSerialNumber !== '' ? $baseSerialNumber . "\n\u{00A0}" : '';
-        } elseif ($hasAssySerial && !$hasSerial) {
-            $partNumber = $assyPartNumber;
-            $serialNumber = $item['assy_serial_number'] ?? '';
-        } elseif ($hasAssySerial && $hasSerial) {
-            $partNumber = $basePartNumber;
-            if (trim((string) $assyPartNumber) !== '') {
-                $partNumber .= "\n(" . trim((string) $assyPartNumber) . ')';
-            }
-
-            $serialNumber = $baseSerialNumber;
-            if (trim((string) ($item['assy_serial_number'] ?? '')) !== '') {
-                $serialNumber .= "\n(" . trim((string) ($item['assy_serial_number'] ?? '')) . ')';
-            }
-        } else {
-            $partNumber = $basePartNumber;
-            $serialNumber = $baseSerialNumber;
-        }
-
-        $qaPartNumber = trim((string) ($item['qa_part_number'] ?? ''));
-        $qaSerialNumber = trim((string) ($item['qa_serial_number'] ?? ''));
-
-        return [
-            'source_index' => $index,
-            'description' => $item['qa_description'] ?? ($item['name'] ?? $item['description'] ?? ($component->name ?? '')),
-            'part_number' => $twoLineAssyValue($qaPartNumber !== '' ? $qaPartNumber : $partNumber),
-            'serial_number' => $twoLineAssyValue($qaSerialNumber !== '' ? $qaSerialNumber : $serialNumber),
-            'fit_date' => $formatLogCardDate($item['qa_fit_date'] ?? ($item['fit_date'] ?? '')),
-            'fit_cso' => $item['qa_fit_cso'] ?? ($item['fit_cso'] ?? ''),
-            'fit_csn' => $item['qa_fit_csn'] ?? ($item['fit_csn'] ?? ''),
-            'removed_date' => $formatLogCardDate($item['qa_removed_date'] ?? ($item['removed_date'] ?? '')),
-            'removed_cso' => $item['qa_removed_cso'] ?? ($item['removed_cso'] ?? ''),
-            'removed_csn' => $item['qa_removed_csn'] ?? ($item['removed_csn'] ?? ''),
-            'reason' => $item['qa_reason'] ?? ($reasonCode?->name ?? ($item['reason'] ?? '')),
-            'cell_colors' => is_array($item['qa_cell_colors'] ?? null) ? $item['qa_cell_colors'] : [],
+        $visibleFields = [
+            'description',
+            'part_number',
+            'serial_number',
+            'fit_date',
+            'fit_cso',
+            'fit_csn',
+            'removed_date',
+            'removed_cso',
+            'removed_csn',
+            'reason',
         ];
-        })->values();
+
+        return collect($items)
+            ->filter(fn ($item): bool => is_array($item) && ($item['row_type'] ?? '') !== 'manual')
+            ->map(function ($item, $index) use ($components, $codes, $twoLineAssyValue, $formatLogCardDate) {
+                $component = $components->firstWhere('id', $item['component_id'] ?? null);
+                $hasSerial = !empty($item['serial_number']);
+                $hasAssySerial = !empty($item['assy_serial_number']);
+                $assyPartNumber = trim((string) ($item['assy_part_number'] ?? ''));
+                if ($assyPartNumber === '') {
+                    $assyPartNumber = trim((string) ($component->assy_part_number ?? ''));
+                }
+                $hasAssyPartNumber = $assyPartNumber !== '';
+                $reasonCode = $codes->firstWhere('id', $item['reason'] ?? null);
+                $basePartNumber = trim((string) ($item['part_number'] ?? ($component->part_number ?? '')));
+                $baseSerialNumber = trim((string) ($item['serial_number'] ?? ''));
+
+                if ($hasAssyPartNumber && !$hasAssySerial) {
+                    $partNumber = $basePartNumber !== ''
+                        ? $basePartNumber . "\n(" . $assyPartNumber . ')'
+                        : $assyPartNumber;
+                    $serialNumber = $baseSerialNumber !== '' ? $baseSerialNumber . "\n\u{00A0}" : '';
+                } elseif ($hasAssySerial && !$hasSerial) {
+                    $partNumber = $assyPartNumber;
+                    $serialNumber = $item['assy_serial_number'] ?? '';
+                } elseif ($hasAssySerial && $hasSerial) {
+                    $partNumber = $basePartNumber;
+                    if (trim((string) $assyPartNumber) !== '') {
+                        $partNumber .= "\n(" . trim((string) $assyPartNumber) . ')';
+                    }
+
+                    $serialNumber = $baseSerialNumber;
+                    if (trim((string) ($item['assy_serial_number'] ?? '')) !== '') {
+                        $serialNumber .= "\n(" . trim((string) ($item['assy_serial_number'] ?? '')) . ')';
+                    }
+                } else {
+                    $partNumber = $basePartNumber;
+                    $serialNumber = $baseSerialNumber;
+                }
+
+                $qaPartNumber = trim((string) ($item['qa_part_number'] ?? ''));
+                $qaSerialNumber = trim((string) ($item['qa_serial_number'] ?? ''));
+
+                return [
+                    'source_index' => $index,
+                    'description' => $item['qa_description'] ?? ($item['name'] ?? $item['description'] ?? ($component->name ?? '')),
+                    'part_number' => $twoLineAssyValue($qaPartNumber !== '' ? $qaPartNumber : $partNumber),
+                    'serial_number' => $twoLineAssyValue($qaSerialNumber !== '' ? $qaSerialNumber : $serialNumber),
+                    'fit_date' => $formatLogCardDate($item['qa_fit_date'] ?? ($item['fit_date'] ?? '')),
+                    'fit_cso' => $item['qa_fit_cso'] ?? ($item['fit_cso'] ?? ''),
+                    'fit_csn' => $item['qa_fit_csn'] ?? ($item['fit_csn'] ?? ''),
+                    'removed_date' => $formatLogCardDate($item['qa_removed_date'] ?? ($item['removed_date'] ?? '')),
+                    'removed_cso' => $item['qa_removed_cso'] ?? ($item['removed_cso'] ?? ''),
+                    'removed_csn' => $item['qa_removed_csn'] ?? ($item['removed_csn'] ?? ''),
+                    'reason' => $item['qa_reason'] ?? ($reasonCode?->name ?? ($item['reason'] ?? '')),
+                    'cell_colors' => is_array($item['qa_cell_colors'] ?? null) ? $item['qa_cell_colors'] : [],
+                ];
+            })
+            ->filter(fn (array $row): bool => collect($visibleFields)
+                ->contains(fn (string $field): bool => trim((string) ($row[$field] ?? '')) !== ''))
+            ->values();
     };
 
     $aircraftFields = [

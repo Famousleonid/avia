@@ -806,6 +806,27 @@
         line-height: 1;
     }
 
+    .dir-top-count-badge {
+        position: absolute;
+        top: -7px;
+        right: -8px;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        padding: 0;
+        border: 1px solid var(--main-top-card-bg);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #101418;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        box-sizing: border-box;
+        z-index: 2;
+    }
+
     .dir-top-help {
         font-size: 1rem;
         line-height: 1;

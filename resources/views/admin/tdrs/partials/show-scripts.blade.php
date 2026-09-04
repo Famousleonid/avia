@@ -3138,6 +3138,9 @@ document.addEventListener('DOMContentLoaded', function() {
             var ifr = document.getElementById('addPartIframe');
             if (ifr) ifr.src = 'about:blank';
         } else if (e.data && (e.data.type === 'addProcessesSuccess' || e.data.type === 'addPartSuccess')) {
+            if (e.data.type === 'addProcessesSuccess' && typeof window.addBushingProcessOption === 'function') {
+                window.addBushingProcessOption(e.data.process, e.data.processName || '');
+            }
             var procModal = document.getElementById('addProcessesModal');
             var partModal = document.getElementById('addPartModal');
             var m1 = procModal ? bootstrap.Modal.getInstance(procModal) : null;

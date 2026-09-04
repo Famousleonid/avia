@@ -113,10 +113,13 @@
                                             <tbody id="manual-part-group-members"></tbody>
                                         </table>
                                     </div>
+                                    <div class="alert alert-warning py-2 px-3 mt-2 mb-0 d-none" id="manual-part-group-bushing-warning" role="alert" aria-live="polite">
+                                        {{ __('Add the complete Bushing Original/Oversize group.') }}
+                                    </div>
                                 </div>
                                 <div class="col-12 d-none" id="manual-part-group-assy-wrap">
-                                    <label class="form-label mb-1">{{ __('Included ASSY groups') }}</label>
-                                    <div class="small text-muted mb-2">{{ __('A KIT may include previously created ASSY groups. Their complete composition will be crossed out when the KIT is selected.') }}</div>
+                                    <label class="form-label mb-1" id="manual-part-group-nested-label">{{ __('Included groups') }}</label>
+                                    <div class="small text-muted mb-2" id="manual-part-group-nested-help"></div>
                                     <div class="border rounded p-2" id="manual-part-group-assy-members"></div>
                                 </div>
                                 <div class="col-12">
@@ -152,8 +155,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const assyWrap = document.getElementById('manual-part-group-assy-wrap');
     const assyMembers = document.getElementById('manual-part-group-assy-members');
     const tbody = document.getElementById('manual-part-group-members');
+    const nameInput = document.getElementById('manual-part-group-name');
+    const bushingWarning = document.getElementById('manual-part-group-bushing-warning');
+    const saveButton = document.getElementById('manual-part-group-save');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    let includedAssy = {};
+    let includedGroups = {};
+    let editingExistingGroup = false;
 
     function escapeHtml(value) {
         const span = document.createElement('span');
@@ -173,18 +180,77 @@ document.addEventListener('DOMContentLoaded', function () {
     function isAssy() { return type.value === 'assy'; }
     function isKit() { return type.value === 'kit'; }
 
-    function groupComponentIds(group) {
+    function memberBelongsToBushingGroup(member) {
+        return groups.some(function (group) {
+            return group.type === 'oversize' && (group.options || []).some(function (option) {
+                return Number(option.component_id) === Number(member.component_id);
+            });
+        });
+    }
+
+    function hasIndividualBushingMember() {
+        return isAssy() && members.some(memberBelongsToBushingGroup);
+    }
+
+    function refreshBushingWarning() {
+        const show = hasIndividualBushingMember();
+        bushingWarning.classList.toggle('d-none', !show);
+        saveButton.disabled = show;
+    }
+
+    function suggestedGroupName() {
+        if (!isAssy()) return 'Default';
+        const assyPart = members.find(function (member) { return member.is_default; }) || members[0];
+        return String(assyPart?.part_number || 'Default').trim() || 'Default';
+    }
+
+    function updateSuggestedGroupName() {
+        if (!editingExistingGroup) nameInput.value = suggestedGroupName();
+    }
+
+    function highlightGroupInList(groupId) {
+        list.querySelectorAll('.part-group-list-item').forEach(function (item) {
+            item.classList.toggle('is-selected', Number(item.dataset.id) === Number(groupId));
+        });
+        const selected = list.querySelector('.part-group-list-item.is-selected');
+        selected?.scrollIntoView({ block: 'nearest' });
+    }
+
+    function groupForOptionId(optionId) {
+        return groups.find(function (group) {
+            return (group.options || []).some(function (option) { return Number(option.id) === Number(optionId); });
+        });
+    }
+
+    function groupComponentIds(group, visited) {
+        visited = visited || {};
+        if (!group || visited[group.id]) return [];
+        visited[group.id] = true;
         const ids = [];
         (group.options || []).forEach(function (option) {
             if (Number(option.component_id) > 0) ids.push(Number(option.component_id));
             (option.coverages || []).forEach(function (coverage) {
                 if (Number(coverage.component_id) > 0) ids.push(Number(coverage.component_id));
-                (coverage.covered_option?.component_ids || []).forEach(function (componentId) {
-                    if (Number(componentId) > 0) ids.push(Number(componentId));
-                });
+                const nestedGroup = groupForOptionId(coverage.covered_option_id);
+                groupComponentIds(nestedGroup, visited).forEach(function (componentId) { ids.push(componentId); });
             });
         });
         return Array.from(new Set(ids));
+    }
+
+    function groupReaches(startGroupId, targetGroupId, visited) {
+        if (Number(startGroupId) === Number(targetGroupId)) return true;
+        visited = visited || {};
+        if (visited[startGroupId]) return false;
+        visited[startGroupId] = true;
+
+        const startGroup = groups.find(function (group) { return Number(group.id) === Number(startGroupId); });
+        return (startGroup?.options || []).some(function (option) {
+            return (option.coverages || []).some(function (coverage) {
+                const nestedGroup = groupForOptionId(coverage.covered_option_id);
+                return nestedGroup && groupReaches(nestedGroup.id, targetGroupId, visited);
+            });
+        });
     }
 
     function renderTableGroupBadges() {
@@ -202,7 +268,7 @@ document.addEventListener('DOMContentLoaded', function () {
             componentGroups.forEach(function (group) {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = 'badge text-bg-success manual-part-group-badge';
+                button.className = 'badge manual-part-group-badge';
                 button.dataset.partGroupId = String(group.id);
                 button.title = group.name || group.code;
 
@@ -220,7 +286,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function refreshType() {
         orderFields.classList.toggle('d-none', !isKit());
         sbWrap.classList.toggle('d-none', !isKit());
-        assyWrap.classList.toggle('d-none', !isKit());
+        assyWrap.classList.toggle('d-none', !isBundle());
+        document.getElementById('manual-part-group-nested-help').textContent = isAssy()
+            ? '{{ __('An ASSY may include existing ASSY groups and complete Bushing Original/Oversize groups.') }}'
+            : '{{ __('A KIT may include previously created ASSY groups. Their complete composition will be crossed out when the KIT is selected.') }}';
         document.getElementById('manual-part-group-default-heading').textContent = isAssy()
             ? '{{ __('ASSY part') }}'
             : '{{ __('Default') }}';
@@ -231,52 +300,71 @@ document.addEventListener('DOMContentLoaded', function () {
                 : (type.value === 'oversize'
                     ? '{{ __('Select one original bushing and its oversizes with the same Initial Bushing IPL Number.') }}'
                     : '{{ __('All selected P/Ns are variants of one detail.') }}'));
+        updateSuggestedGroupName();
         renderMembers();
-        renderAssyMembers();
+        renderNestedGroups();
     }
 
     function renderMembers() {
         tbody.innerHTML = members.map(function (member, index) {
-            return '<tr data-index="' + index + '"><td>' + escapeHtml(member.ipl_num) + '</td><td>' + escapeHtml(member.part_number) + '</td><td>' + escapeHtml(member.name) + '</td>' +
+            const invalidBushing = isAssy() && memberBelongsToBushingGroup(member);
+            return '<tr data-index="' + index + '" class="' + (invalidBushing ? 'table-warning' : '') + '"><td>' + escapeHtml(member.ipl_num) + '</td><td>' + escapeHtml(member.part_number) + '</td><td>' + escapeHtml(member.name) + '</td>' +
                 '<td><input type="number" min="1" max="9999" class="form-control form-control-sm part-group-member-qty" value="' + Number(member.qty || 1) + '" ' + (!isBundle() ? 'disabled' : '') + '></td>' +
                 '<td class="text-center"><input type="radio" name="part-group-default" class="form-check-input part-group-member-default" ' + (member.is_default ? 'checked' : '') + ' ' + (isKit() ? 'disabled' : '') + '></td>' +
                 '<td><button type="button" class="btn btn-sm btn-outline-danger part-group-member-remove" aria-label="Remove"><i class="bi bi-x"></i></button></td></tr>';
         }).join('');
+        refreshBushingWarning();
     }
 
-    function renderAssyMembers() {
+    function renderNestedGroups() {
         const currentGroupId = Number(document.getElementById('manual-part-group-id').value || 0);
-        const assyOptions = groups
-            .filter(function (group) { return group.type === 'assy' && group.id !== currentGroupId && (group.options || []).length; })
-            .map(function (group) { return { group: group, option: group.options[0] }; });
+        const allowedTypes = isAssy() ? ['assy', 'oversize'] : (isKit() ? ['assy'] : []);
+        const nestedOptions = groups
+            .filter(function (group) {
+                return allowedTypes.includes(group.type)
+                    && Number(group.id) !== currentGroupId
+                    && (group.options || []).length
+                    && (!currentGroupId || !groupReaches(group.id, currentGroupId));
+            })
+            .map(function (group) {
+                const option = (group.options || []).find(function (item) { return item.is_default; }) || group.options[0];
+                return { group: group, option: option };
+            });
 
-        assyMembers.innerHTML = assyOptions.length ? assyOptions.map(function (entry) {
+        assyMembers.innerHTML = nestedOptions.length ? nestedOptions.map(function (entry) {
             const optionId = Number(entry.option.id);
-            const selected = includedAssy[optionId];
+            const selected = includedGroups[optionId];
+            const typeLabel = entry.group.type === 'oversize' ? 'Bushing Original/Oversize' : 'ASSY';
             return '<div class="d-flex align-items-center gap-2 mb-1">' +
                 '<input type="checkbox" class="form-check-input manual-part-group-assy-check" data-option-id="' + optionId + '" ' + (selected ? 'checked' : '') + '>' +
-                '<div class="flex-grow-1"><strong>' + escapeHtml(entry.option.part_number) + '</strong> — ' + escapeHtml(entry.group.name) + '</div>' +
+                '<div class="flex-grow-1"><strong>' + escapeHtml(entry.option.part_number) + '</strong> — ' + escapeHtml(entry.group.name) + ' <span class="badge text-bg-secondary">' + typeLabel + '</span></div>' +
                 '<label class="small text-muted mb-0">Qty</label>' +
                 '<input type="number" min="1" max="9999" class="form-control form-control-sm manual-part-group-assy-qty" data-option-id="' + optionId + '" value="' + Number(selected?.qty || 1) + '" style="width:80px" ' + (!selected ? 'disabled' : '') + '>' +
                 '</div>';
-        }).join('') : '<div class="small text-muted">{{ __('Create an ASSY group first if this KIT contains a complete assembly.') }}</div>';
+        }).join('') : '<div class="small text-muted">' + (isAssy()
+            ? '{{ __('No eligible ASSY or Bushing groups are available.') }}'
+            : '{{ __('Create an ASSY group first if this KIT contains a complete assembly.') }}') + '</div>';
     }
 
     function resetForm(useSelection) {
         form.reset();
+        editingExistingGroup = false;
         document.getElementById('manual-part-group-id').value = '';
         document.querySelectorAll('.manual-part-group-scope').forEach(function (scope) { scope.checked = true; });
         members = useSelection ? selectedTableMembers() : [];
-        includedAssy = {};
+        includedGroups = {};
         if (members[0]) members[0].is_default = true;
+        nameInput.value = 'Default';
         document.getElementById('manual-part-group-delete').classList.add('d-none');
+        highlightGroupInList(0);
         refreshType();
     }
 
     function editGroup(group) {
         resetForm(false);
+        editingExistingGroup = true;
         document.getElementById('manual-part-group-id').value = group.id;
-        document.getElementById('manual-part-group-name').value = group.name || '';
+        nameInput.value = group.name || 'Default';
         type.value = group.type;
         document.getElementById('manual-part-group-notes').value = group.notes || '';
         document.getElementById('manual-part-group-sb').value = group.manual_service_bulletin_id || '';
@@ -291,13 +379,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (isAssy()) {
             members.forEach(function (member) { member.is_default = Number(member.component_id) === Number(option.component_id); });
         }
-        includedAssy = {};
+        includedGroups = {};
         (option.coverages || []).filter(function (coverage) { return Number(coverage.covered_option_id) > 0; }).forEach(function (coverage) {
-            includedAssy[Number(coverage.covered_option_id)] = { qty: Number(coverage.qty || 1) };
+            includedGroups[Number(coverage.covered_option_id)] = { qty: Number(coverage.qty || 1) };
         });
         document.querySelectorAll('.manual-part-group-scope').forEach(function (scope) { scope.checked = (group.applies_to || []).includes(scope.value); });
         document.getElementById('manual-part-group-delete').classList.remove('d-none');
         refreshType();
+        highlightGroupInList(group.id);
     }
 
     function renderList() {
@@ -352,13 +441,22 @@ document.addEventListener('DOMContentLoaded', function () {
         const checkbox = event.target.closest('.manual-part-group-assy-check');
         if (!checkbox) return;
         const optionId = Number(checkbox.dataset.optionId);
-        if (checkbox.checked) includedAssy[optionId] = includedAssy[optionId] || { qty: 1 };
-        else delete includedAssy[optionId];
-        renderAssyMembers();
+        if (checkbox.checked) includedGroups[optionId] = includedGroups[optionId] || { qty: 1 };
+        else delete includedGroups[optionId];
+        renderNestedGroups();
     });
     tbody.addEventListener('click', function (event) {
         const button = event.target.closest('.part-group-member-remove'); if (!button) return;
-        members.splice(Number(button.closest('tr').dataset.index), 1); renderMembers();
+        members.splice(Number(button.closest('tr').dataset.index), 1);
+        if (!members.some(function (member) { return member.is_default; }) && members[0]) members[0].is_default = true;
+        updateSuggestedGroupName();
+        renderMembers();
+    });
+    tbody.addEventListener('change', function (event) {
+        const selectedAssyPart = event.target.closest('.part-group-member-default');
+        if (!selectedAssyPart) return;
+        members.forEach(function (member, index) { member.is_default = index === Number(selectedAssyPart.closest('tr').dataset.index); });
+        updateSuggestedGroupName();
     });
     list.addEventListener('click', function (event) { const item = event.target.closest('.part-group-list-item'); if (item) editGroup(groups.find(function (group) { return group.id === Number(item.dataset.id); })); });
     partsTable.addEventListener('click', function (event) {
@@ -371,15 +469,20 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
+        if (hasIndividualBushingMember()) {
+            refreshBushingWarning();
+            showNotification('{{ __('Add the complete Bushing Original/Oversize group.') }}', 'error');
+            return;
+        }
         const id = Number(document.getElementById('manual-part-group-id').value || 0);
         const group = groups.find(function (item) { return item.id === id; });
-        const save = document.getElementById('manual-part-group-save'); save.disabled = true;
+        const save = saveButton; save.disabled = true;
         try {
             const data = await request(group?.update_url || form.dataset.storeUrl, group ? 'PUT' : 'POST', payload());
             if (group) groups = groups.map(function (item) { return item.id === group.id ? Object.assign(data.group, { update_url: group.update_url, delete_url: group.delete_url }) : item; });
             else window.location.reload();
-            renderList(); renderTableGroupBadges(); showNotification(data.message, 'success');
-        } catch (error) { showNotification(error.message, 'error'); } finally { save.disabled = false; }
+            renderList(); renderTableGroupBadges(); highlightGroupInList(data.group.id); showNotification(data.message, 'success');
+        } catch (error) { showNotification(error.message, 'error'); } finally { refreshBushingWarning(); }
     });
     document.getElementById('manual-part-group-delete').addEventListener('click', async function () {
         const group = groups.find(function (item) { return item.id === Number(document.getElementById('manual-part-group-id').value); });

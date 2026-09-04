@@ -17,6 +17,8 @@ use App\Models\Tdr;
 use App\Services\LogCardTdrAccessService;
 use App\Services\LogCardPayloadProtectionService;
 use App\Services\ManualIplBranchRuleResolver;
+use App\Services\ManualPartGroupCompositionResolver;
+use App\Services\WorkorderPartScopeResolver;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -301,15 +303,18 @@ class LogCardController extends Controller
             ->get();
         if ($filterForWorkorderUnit) {
             $components = $this->filterLogCardComponentsForUnit($components, $current_wo);
-            if ($alwaysIncludeComponentIds->isNotEmpty()) {
-                $savedComponents = Component::with(['assemblies'])
-                    ->where('manual_id', $manual_id)
-                    ->whereIn('id', $alwaysIncludeComponentIds)
-                    ->get();
-                $components = $components
-                    ->merge($savedComponents)
-                    ->unique('id');
-            }
+        } else {
+            $components = app(WorkorderPartScopeResolver::class)
+                ->filterComponents($components, $current_wo);
+        }
+        if ($alwaysIncludeComponentIds->isNotEmpty()) {
+            $savedComponents = Component::with(['assemblies'])
+                ->where('manual_id', $manual_id)
+                ->whereIn('id', $alwaysIncludeComponentIds)
+                ->get();
+            $components = $components
+                ->merge($savedComponents)
+                ->unique('id');
         }
         $components = $this->sortLogCardComponentsByPartNumber($components);
 
@@ -505,25 +510,26 @@ class LogCardController extends Controller
         $componentsById = $components->keyBy(fn (Component $component): int => (int) $component->id);
         $assignedComponentIds = collect();
 
-        $groups = ManualPartGroup::query()
+        $allGroups = ManualPartGroup::query()
             ->where('manual_id', $manualId)
-            ->where('type', ManualPartGroup::TYPE_ASSY)
-            ->with(['options.coverages.component', 'options.component'])
+            ->with(['options.coverages', 'options.component'])
             ->orderBy('id')
             ->get();
+        $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
+            ->componentIdsByGroup($allGroups);
+        $groups = $allGroups->where('type', ManualPartGroup::TYPE_ASSY);
 
         $choiceGroups = $groups->map(function (ManualPartGroup $group) use (
             $componentsById,
-            $assignedComponentIds
+            $assignedComponentIds,
+            $componentIdsByGroup
         ): ?array {
             $option = $group->options->first();
             if (! $option) {
                 return null;
             }
 
-            $memberIds = $option->coverages
-                ->pluck('component_id')
-                ->push($option->component_id)
+            $memberIds = collect($componentIdsByGroup[(int) $group->id] ?? [])
                 ->map(fn ($id): int => (int) $id)
                 ->filter(fn (int $id): bool => $id > 0
                     && $componentsById->has($id)
@@ -532,47 +538,37 @@ class LogCardController extends Controller
                 ->unique()
                 ->values();
 
+            $assyComponentId = (int) ($option->component_id ?? 0);
+            $assyPartNumber = trim((string) ($option->part_number ?? ''));
+            $assyIplNumber = trim((string) ($option->ipl_num ?? ''));
             $choices = $memberIds
-                ->map(function (int $componentId) use ($componentsById): array {
+                ->map(function (int $componentId) use (
+                    $componentsById,
+                    $option,
+                    $assyComponentId,
+                    $assyPartNumber,
+                    $assyIplNumber
+                ): array {
                     $component = $componentsById->get($componentId);
+                    $isAssyPart = $componentId === $assyComponentId;
 
                     return [
                         'choice_key' => 'component_'.$componentId,
-                        'choice_kind' => 'component',
+                        'choice_kind' => $isAssyPart ? 'assy' : 'component',
                         'component' => $component,
                         'component_id' => $componentId,
                         'part_number' => (string) ($component->part_number ?? ''),
                         'ipl_num' => (string) ($component->ipl_num ?? ''),
                         'label' => (string) ($component->name ?? ''),
-                        'manual_part_group_option_id' => null,
-                        'assy_part_number' => '',
-                        'assy_ipl_num' => '',
+                        'manual_part_group_option_id' => $isAssyPart ? (int) $option->id : null,
+                        'assy_part_number' => $isAssyPart ? '' : $assyPartNumber,
+                        'assy_ipl_num' => $isAssyPart ? '' : $assyIplNumber,
+                        'is_assy_part' => $isAssyPart,
                     ];
                 })
                 ->values();
 
-            $baseComponentId = (int) ($option->component_id ?? 0);
-            $baseComponent = $componentsById->get($baseComponentId);
-            $assyPartNumber = trim((string) ($option->part_number ?? ''));
-            if ($baseComponent
-                && $memberIds->contains($baseComponentId)
-                && $assyPartNumber !== ''
-                && strcasecmp($assyPartNumber, trim((string) $baseComponent->part_number)) !== 0) {
-                $choices->push([
-                    'choice_key' => 'option_'.$option->id,
-                    'choice_kind' => 'assy',
-                    'component' => $baseComponent,
-                    'component_id' => $baseComponentId,
-                    'part_number' => $assyPartNumber,
-                    'ipl_num' => (string) ($option->ipl_num ?? ''),
-                    'label' => (string) $group->name,
-                    'manual_part_group_option_id' => (int) $option->id,
-                    'assy_part_number' => $assyPartNumber,
-                    'assy_ipl_num' => (string) ($option->ipl_num ?? ''),
-                ]);
-            }
-
-            if ($choices->count() < 2) {
+            if ($choices->isEmpty()) {
                 return null;
             }
 
@@ -617,6 +613,8 @@ class LogCardController extends Controller
     private function filterLogCardComponentsForUnit($components, Workorder $workorder)
     {
         $resolver = app(ManualIplBranchRuleResolver::class);
+        $components = app(WorkorderPartScopeResolver::class)
+            ->filterComponents(collect($components), $workorder);
         $manualId = (int) ($workorder->unit->manual_id ?? 0);
 
         return $components
@@ -1288,6 +1286,16 @@ class LogCardController extends Controller
             ->whereIn('id', $workorder->usedManualIds())
             ->get(['id', 'number', 'title'])
             ->keyBy(fn (Manual $manual): int => (int) $manual->id);
+        $partGroupsById = ManualPartGroup::query()
+            ->with('options')
+            ->whereIn('id', collect($rows)
+                ->pluck('manual_part_group_id')
+                ->map(fn ($id): int => (int) $id)
+                ->filter()
+                ->unique()
+                ->all())
+            ->get()
+            ->keyBy('id');
         $partGroupOptionsById = ManualPartGroupOption::query()
             ->with('group:id,manual_id,type')
             ->whereIn('id', collect($rows)
@@ -1352,25 +1360,38 @@ class LogCardController extends Controller
             $assembly = null;
             $partGroupChoice = (string) ($row['manual_part_group_choice'] ?? '');
             $isPartGroupChoice = in_array($partGroupChoice, ['component', 'assy'], true);
-            $partGroupOption = $partGroupOptionsById->get((int) ($row['manual_part_group_option_id'] ?? 0));
+            $partGroup = $partGroupsById->get((int) ($row['manual_part_group_id'] ?? 0));
+            $partGroupOption = $partGroupChoice === 'assy'
+                ? $partGroupOptionsById->get((int) ($row['manual_part_group_option_id'] ?? 0))
+                : $partGroup?->options?->first();
 
             if ($partGroupChoice === 'assy' && $partGroupOption?->group?->type === ManualPartGroup::TYPE_ASSY) {
                 $row['manual_part_group_id'] = (string) $partGroupOption->manual_part_group_id;
                 $row['manual_part_group_option_id'] = (string) $partGroupOption->id;
                 $row['component_assembly_id'] = '';
-                $row['assy_part_number'] = (string) ($partGroupOption->part_number ?? '');
-                $row['assy_ipl_num'] = (string) ($partGroupOption->ipl_num ?? '');
+                $row['part_number'] = (string) ($component?->part_number ?? '');
+                $row['name'] = (string) ($component?->name ?? '');
+                $isActualAssyPart = (int) ($partGroupOption->component_id ?? 0) === $componentId
+                    && strcasecmp(
+                        trim((string) ($partGroupOption->part_number ?? '')),
+                        trim((string) ($component?->part_number ?? ''))
+                    ) === 0;
+                $row['assy_part_number'] = $isActualAssyPart ? '' : (string) ($partGroupOption->part_number ?? '');
+                $row['assy_ipl_num'] = $isActualAssyPart ? '' : (string) ($partGroupOption->ipl_num ?? '');
                 $assemblyId = 0;
                 $assyPartNumber = trim((string) $row['assy_part_number']);
                 $assyIplNum = trim((string) $row['assy_ipl_num']);
-            } elseif ($partGroupChoice === 'component') {
+            } elseif ($partGroupChoice === 'component' && $partGroup?->type === ManualPartGroup::TYPE_ASSY && $partGroupOption) {
                 unset($row['manual_part_group_option_id']);
                 $row['component_assembly_id'] = '';
-                $row['assy_part_number'] = '';
-                $row['assy_ipl_num'] = '';
+                $row['part_number'] = (string) ($component?->part_number ?? '');
+                $row['name'] = (string) ($component?->name ?? '');
+                $isActualAssyPart = (int) ($partGroupOption->component_id ?? 0) === $componentId;
+                $row['assy_part_number'] = $isActualAssyPart ? '' : (string) ($partGroupOption->part_number ?? '');
+                $row['assy_ipl_num'] = $isActualAssyPart ? '' : (string) ($partGroupOption->ipl_num ?? '');
                 $assemblyId = 0;
-                $assyPartNumber = '';
-                $assyIplNum = '';
+                $assyPartNumber = trim((string) $row['assy_part_number']);
+                $assyIplNum = trim((string) $row['assy_ipl_num']);
             }
 
             if (! $isPartGroupChoice && $component && $assemblyId > 0) {
@@ -1488,15 +1509,20 @@ class LogCardController extends Controller
             ->whereIn('id', $submittedComponentIds)
             ->get(['id', 'manual_id'])
             ->keyBy('id');
+        $scopeResolver = app(WorkorderPartScopeResolver::class);
         $hasInvalidComponent = $submittedComponentIds->contains(function (int $componentId) use (
             $componentsById,
             $storedComponentIds,
-            $usedManualIds
+            $usedManualIds,
+            $scopeResolver,
+            $workorder
         ): bool {
             $component = $componentsById->get($componentId);
 
             return ! $component
                 || (! in_array((int) $component->manual_id, $usedManualIds, true)
+                    && ! $storedComponentIds->contains($componentId))
+                || (! $scopeResolver->allowsComponent($workorder, $componentId)
                     && ! $storedComponentIds->contains($componentId));
         });
         if ($hasInvalidComponent) {
@@ -1521,13 +1547,18 @@ class LogCardController extends Controller
                 'component_data' => [__('Select only one item from each ASSY group.')],
             ]);
         }
-        $assyGroupsById = ManualPartGroup::query()
+        $compositionGroups = ManualPartGroup::query()
             ->with(['options.coverages'])
+            ->whereIn('manual_id', $usedManualIds)
+            ->get();
+        $assyGroupsById = $compositionGroups
             ->whereIn('id', $submittedPartGroupIds)
-            ->get()
             ->keyBy('id');
+        $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
+            ->componentIdsByGroup($compositionGroups);
         $hasInvalidAssyChoice = collect($decoded)->contains(function ($row) use (
             $assyGroupsById,
+            $componentIdsByGroup,
             $componentsById,
             $usedManualIds
         ): bool {
@@ -1557,12 +1588,7 @@ class LogCardController extends Controller
             if (! $groupOption) {
                 return true;
             }
-            $memberIds = $groupOption->coverages
-                ->pluck('component_id')
-                ->push($groupOption->component_id)
-                ->map(fn ($id): int => (int) $id)
-                ->filter()
-                ->unique();
+            $memberIds = collect($componentIdsByGroup[$groupId] ?? []);
             if (! $memberIds->contains((int) $component->id)) {
                 return true;
             }

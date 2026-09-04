@@ -1172,7 +1172,8 @@
         }
 
         .marketing-workorders-filter-row th {
-            top: 31px !important;
+            /* Match the 27px sticky heading row and overlap its shared border. */
+            top: 27px !important;
             z-index: 12 !important;
             padding: 4px 6px !important;
             box-shadow: 0 2px 6px rgba(0,0,0,.18) !important;
@@ -1520,6 +1521,21 @@
             overflow: hidden;
         }
 
+        #marketingMediaModal [data-marketing-media-drag-handle] {
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+
+        #marketingMediaModal .modal-dialog.is-dragging [data-marketing-media-drag-handle] {
+            cursor: grabbing;
+        }
+
+        #marketingMediaModal .modal-header .btn-close {
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
         .marketing-files-panel {
             min-width: 0;
             min-height: 0;
@@ -1563,6 +1579,15 @@
             grid-column: 1 / -1;
         }
 
+        #marketingFileCategory {
+            border-color: rgba(var(--bs-warning-rgb), .58);
+        }
+
+        #marketingFileCategory:focus {
+            border-color: rgba(var(--bs-warning-rgb), .78);
+            box-shadow: 0 0 0 .16rem rgba(var(--bs-warning-rgb), .12);
+        }
+
         .marketing-file-upload-grid label {
             display: block;
             margin-bottom: 3px;
@@ -1574,6 +1599,92 @@
 
         html[data-bs-theme="dark"] .marketing-file-upload-grid label {
             color: var(--avia-text-secondary);
+        }
+
+        .marketing-file-upload-grid .marketing-file-dropzone {
+            display: flex;
+            min-height: 72px;
+            margin: 0;
+            padding: 10px 12px;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: 1px dashed #7b8794;
+            border-radius: 7px;
+            background: rgba(13, 110, 253, .035);
+            color: var(--bs-body-color);
+            cursor: pointer;
+            text-align: center;
+            text-transform: none;
+            transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+        }
+
+        .marketing-file-dropzone:hover,
+        .marketing-file-dropzone:focus-visible,
+        #marketingFileInput:focus-visible + .marketing-file-dropzone,
+        .marketing-file-dropzone.is-dragover {
+            border-color: var(--bs-info);
+            background: rgba(13, 202, 240, .1);
+            box-shadow: 0 0 0 2px rgba(13, 202, 240, .12);
+            outline: 0;
+        }
+
+        .marketing-file-dropzone.has-files {
+            border-style: solid;
+            border-color: var(--bs-success);
+            background: rgba(25, 135, 84, .08);
+        }
+
+        .marketing-file-dropzone-icon {
+            flex: 0 0 auto;
+            color: var(--bs-info);
+            font-size: 1.4rem;
+            line-height: 1;
+        }
+
+        .marketing-file-dropzone-copy {
+            min-width: 0;
+        }
+
+        .marketing-file-dropzone-title,
+        .marketing-file-dropzone-status {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .marketing-file-dropzone-title {
+            color: var(--bs-body-color);
+            font-size: .8rem;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .marketing-file-dropzone-status {
+            margin-top: 3px;
+            color: var(--bs-secondary-color, #6c757d);
+            font-size: .68rem;
+            font-weight: 400;
+            line-height: 1.25;
+            white-space: nowrap;
+        }
+
+        html[data-bs-theme="dark"] .marketing-file-dropzone {
+            border-color: var(--avia-border-strong);
+            background: rgba(13, 202, 240, .025);
+        }
+
+        html[data-bs-theme="dark"] .marketing-file-dropzone:hover,
+        html[data-bs-theme="dark"] .marketing-file-dropzone:focus-visible,
+        html[data-bs-theme="dark"] #marketingFileInput:focus-visible + .marketing-file-dropzone,
+        html[data-bs-theme="dark"] .marketing-file-dropzone.is-dragover {
+            border-color: var(--bs-info);
+            background: rgba(13, 202, 240, .09);
+        }
+
+        html[data-bs-theme="dark"] .marketing-file-dropzone.has-files {
+            border-color: var(--bs-success);
+            background: rgba(25, 135, 84, .1);
         }
 
         .marketing-file-notify-row {
@@ -1674,6 +1785,13 @@
         .marketing-files-cell-button {
             position: relative;
             white-space: nowrap;
+        }
+
+        .marketing-files-cell-button.is-window-open {
+            border-color: var(--bs-warning) !important;
+            background: rgba(255, 193, 7, .12) !important;
+            color: var(--bs-warning) !important;
+            box-shadow: 0 0 0 2px rgba(255, 193, 7, .65), 0 0 12px rgba(255, 193, 7, .24) !important;
         }
 
         .marketing-files-unread {
@@ -2576,27 +2694,33 @@
     <div class="modal fade" id="marketingMediaModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header" data-marketing-media-drag-handle>
                     <h5 class="modal-title"><span class="text-info" id="marketingMediaWoNumber"></span> <span id="marketingMediaTitleSuffix">Files</span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="marketingMediaBody">
                     <div class="marketing-files-shell">
                         <section class="marketing-files-panel">
-                            <h6 class="marketing-files-panel-title">
+                            <h6 class="marketing-files-panel-title" data-marketing-media-drag-handle>
                                 <span><i class="bi bi-people me-1"></i>Manager Files</span>
                                 <span class="badge bg-secondary" id="marketingManagerFilesCount">0</span>
                             </h6>
                             <form id="marketingFileUploadForm" data-no-spinner enctype="multipart/form-data" autocomplete="off">
                                 <div class="marketing-file-upload-grid mt-2">
                                     <div class="span-2">
-                                        <label class="visually-hidden" for="marketingFileInput">Choose manager files</label>
-                                        <input class="form-control form-control-sm" id="marketingFileInput" name="files[]" type="file" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt">
-                                        <div class="form-text">Up to 10 files, 10 MB each.</div>
+                                        <input class="visually-hidden" id="marketingFileInput" name="files[]" type="file" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt" aria-describedby="marketingFileDropzoneStatus">
+                                        <label class="marketing-file-dropzone" id="marketingFileDropzone" for="marketingFileInput">
+                                            <i class="bi bi-cloud-arrow-up marketing-file-dropzone-icon" aria-hidden="true"></i>
+                                            <span class="marketing-file-dropzone-copy">
+                                                <span class="marketing-file-dropzone-title">Drag &amp; drop files here, or click to choose</span>
+                                                <span class="marketing-file-dropzone-status" id="marketingFileDropzoneStatus" aria-live="polite">Up to 10 files, 10 MB each. PDF, images, Word, Excel, CSV or TXT.</span>
+                                            </span>
+                                        </label>
                                     </div>
                                     <div>
                                         <label for="marketingFileCategory">Category</label>
                                         <select class="form-select form-select-sm" id="marketingFileCategory" name="category" required>
+                                            <option value="" selected>All files</option>
                                             @foreach(\App\Models\MarketingWoFile::CATEGORIES as $key => $label)
                                                 <option value="{{ $key }}">{{ $label }}</option>
                                             @endforeach
@@ -2619,7 +2743,7 @@
                                                 @endif
                                             @endforeach
                                         </select>
-                                        <div class="form-text">Selected managers receive an in-app notification.</div>
+                                        <div class="form-text">Selected managers always receive an in-app notification. Check Send email notification to email the same managers too.</div>
                                     </div>
                                     <div class="span-2 marketing-file-notify-row">
                                         <label class="form-check d-flex align-items-center gap-2 mb-0 text-capitalize" for="marketingFileSendEmail">
@@ -2759,9 +2883,16 @@
                 : [];
             const workorderSalesTitle = document.getElementById('marketingWorkorderSalesTitle');
             const mediaModalEl = document.getElementById('marketingMediaModal');
+            const mediaDialogEl = mediaModalEl?.querySelector('.modal-dialog');
+            const mediaDialogHeaderEl = mediaModalEl?.querySelector('.modal-header');
+            const mediaDragHandles = Array.from(mediaModalEl?.querySelectorAll('[data-marketing-media-drag-handle]') || []);
             const mediaWoNumber = document.getElementById('marketingMediaWoNumber');
             const mediaBody = document.getElementById('marketingMediaBody');
             const marketingFileUploadForm = document.getElementById('marketingFileUploadForm');
+            const marketingFileInput = document.getElementById('marketingFileInput');
+            const marketingFileDropzone = document.getElementById('marketingFileDropzone');
+            const marketingFileDropzoneStatus = document.getElementById('marketingFileDropzoneStatus');
+            const marketingFileCategory = document.getElementById('marketingFileCategory');
             const marketingManagerFilesList = document.getElementById('marketingManagerFilesList');
             const marketingManagerFilesCount = document.getElementById('marketingManagerFilesCount');
             const marketingProductionImages = document.getElementById('marketingProductionImages');
@@ -2804,8 +2935,10 @@
                 addressDrafts: [],
                 contactDraftOpen: false,
                 activeWorkorderFiles: null,
+                managerFiles: [],
             };
             let overviewTextareaHeights = {};
+            let marketingMediaDrag = null;
             let overviewTextareaHeightsRestored = false;
             const citySuggestionTimers = new WeakMap();
             let overviewTextareaHeightsSaveTimer = null;
@@ -4272,6 +4405,7 @@
 
             function renderWorkorderRow(wo) {
                 const isComplete = String(wo.status || '').trim().toLowerCase() === 'complete';
+                const filesWindowOpen = Number(state.activeWorkorderFiles?.workorderId || 0) === Number(wo.id || 0);
 
                 return `
 <tr class="${isComplete ? 'marketing-workorder-complete' : ''}" data-workorder-id="${Number(wo.id || 0)}">
@@ -4291,7 +4425,7 @@
   <td>${escapeHtml(wo.shipping_shipment_at?.display || '-')}</td>
   <td>${escapeHtml(wo.shipping_awb_no || '-')}</td>
   <td>
-    <button class="btn btn-sm btn-outline-info marketing-files-cell-button js-marketing-files" type="button" data-workorder-id="${Number(wo.id || 0)}" data-files-url="${escapeHtml(wo.urls.files)}" data-wo-label="${escapeHtml(wo.number_label)}" title="Manager and production files">
+    <button class="btn btn-sm btn-outline-info marketing-files-cell-button js-marketing-files${filesWindowOpen ? ' is-window-open' : ''}" type="button" data-workorder-id="${Number(wo.id || 0)}" data-files-url="${escapeHtml(wo.urls.files)}" data-wo-label="${escapeHtml(wo.number_label)}" aria-controls="marketingMediaModal" aria-pressed="${filesWindowOpen ? 'true' : 'false'}" title="Manager and production files">
       <i class="bi bi-paperclip"></i> Files ${Number(wo.marketing_file_count || 0)}
       ${Number(wo.marketing_unread_file_count || 0) > 0 ? `<span class="marketing-files-unread">${Number(wo.marketing_unread_file_count)}</span>` : ''}
     </button>
@@ -4759,10 +4893,10 @@
                 return 'bi-file-earmark';
             }
 
-            function renderManagerFiles(files) {
+            function renderManagerFiles(files, isFiltered = false) {
                 marketingManagerFilesCount.textContent = String(files.length);
                 if (!files.length) {
-                    marketingManagerFilesList.innerHTML = '<div class="marketing-empty">No manager files yet</div>';
+                    marketingManagerFilesList.innerHTML = `<div class="marketing-empty">${isFiltered ? 'No files in this category' : 'No manager files yet'}</div>`;
                     return;
                 }
 
@@ -4793,6 +4927,16 @@
   </div>
 </article>`;
                 }).join('');
+            }
+
+            function applyManagerFileCategoryFilter() {
+                const category = String(marketingFileCategory?.value || '');
+                const files = Array.isArray(state.managerFiles) ? state.managerFiles : [];
+                const filteredFiles = category === ''
+                    ? files
+                    : files.filter((file) => String(file.category || '') === category);
+
+                renderManagerFiles(filteredFiles, category !== '');
             }
 
             function updateWorkorderFileSummary(summary) {
@@ -4831,7 +4975,8 @@
                     filesUrl: state.activeWorkorderFiles?.filesUrl || '',
                 };
                 marketingFileUploadForm.action = data.urls.upload;
-                renderManagerFiles(data.manager_files || []);
+                state.managerFiles = Array.isArray(data.manager_files) ? data.manager_files : [];
+                applyManagerFileCategoryFilter();
                 updateWorkorderFileSummary(data.summary || {});
                 if (loadProduction) loadProductionFiles(data);
             }
@@ -4843,6 +4988,163 @@
                 renderFilesWorkspace(data, loadProduction);
             }
 
+            const marketingFileUploadRules = {
+                maxFiles: 10,
+                maxBytes: 10 * 1024 * 1024,
+                extensions: new Set(['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt']),
+            };
+            let marketingFileDragDepth = 0;
+
+            function marketingFileValidationError(files) {
+                if (files.length < 1) return 'Choose at least one file.';
+                if (files.length > marketingFileUploadRules.maxFiles) return 'Choose no more than 10 files.';
+
+                const unsupported = files.find((file) => {
+                    const extension = String(file.name || '').split('.').pop().toLowerCase();
+                    return !marketingFileUploadRules.extensions.has(extension);
+                });
+                if (unsupported) return `${unsupported.name}: this file type is not accepted.`;
+
+                const tooLarge = files.find((file) => Number(file.size || 0) > marketingFileUploadRules.maxBytes);
+                if (tooLarge) return `${tooLarge.name}: the file is larger than 10 MB.`;
+
+                return '';
+            }
+
+            function syncMarketingFileDropzone() {
+                if (!marketingFileInput || !marketingFileDropzone || !marketingFileDropzoneStatus) return;
+                const files = Array.from(marketingFileInput.files || []);
+                marketingFileDropzone.classList.toggle('has-files', files.length > 0);
+                marketingFileDropzoneStatus.textContent = files.length === 0
+                    ? 'Up to 10 files, 10 MB each. PDF, images, Word, Excel, CSV or TXT.'
+                    : files.length === 1
+                        ? files[0].name
+                        : `${files.length} files selected: ${files.slice(0, 3).map((file) => file.name).join(', ')}${files.length > 3 ? '…' : ''}`;
+            }
+
+            function clearMarketingFileDragState() {
+                marketingFileDragDepth = 0;
+                marketingFileDropzone?.classList.remove('is-dragover');
+            }
+
+            function acceptMarketingDroppedFiles(fileList) {
+                if (!marketingFileInput) return;
+                const files = Array.from(fileList || []);
+                const error = marketingFileValidationError(files);
+                if (error) {
+                    notify(error, 'error');
+                    return;
+                }
+
+                try {
+                    marketingFileInput.files = fileList;
+                    syncMarketingFileDropzone();
+                } catch (error) {
+                    notify('These files could not be added. Click the upload area and choose them instead.', 'error');
+                }
+            }
+
+            function isMarketingFileDrag(event) {
+                return Array.from(event.dataTransfer?.types || []).includes('Files');
+            }
+
+            function syncMarketingFilesWindowButton() {
+                const activeWorkorderId = Number(state.activeWorkorderFiles?.workorderId || 0);
+                document.querySelectorAll('.js-marketing-files').forEach((button) => {
+                    const isOpen = activeWorkorderId > 0 && Number(button.dataset.workorderId || 0) === activeWorkorderId;
+                    button.classList.toggle('is-window-open', isOpen);
+                    button.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+                });
+            }
+
+            function marketingMediaPositionBounds() {
+                if (!mediaDialogEl || !mediaDialogHeaderEl) return null;
+                const dialogRect = mediaDialogEl.getBoundingClientRect();
+                const headerRect = mediaDialogHeaderEl.getBoundingClientRect();
+                const visibleHorizontal = Math.min(120, Math.max(72, dialogRect.width * .08));
+                const visibleHeader = Math.min(36, Math.max(28, headerRect.height * .6));
+
+                return {
+                    minLeft: visibleHorizontal - dialogRect.width,
+                    maxLeft: window.innerWidth - visibleHorizontal,
+                    minTop: visibleHeader - headerRect.height,
+                    maxTop: window.innerHeight - visibleHeader,
+                };
+            }
+
+            function positionMarketingMediaDialog(left, top) {
+                if (!mediaDialogEl) return;
+                const bounds = marketingMediaPositionBounds();
+                if (!bounds) return;
+                const clampedLeft = Math.min(bounds.maxLeft, Math.max(bounds.minLeft, left));
+                const clampedTop = Math.min(bounds.maxTop, Math.max(bounds.minTop, top));
+
+                mediaDialogEl.style.left = `${Math.round(clampedLeft)}px`;
+                mediaDialogEl.style.top = `${Math.round(clampedTop)}px`;
+            }
+
+            function beginMarketingMediaDrag(event) {
+                if (!mediaDialogEl || event.button !== 0 || event.target.closest('button, a, input, select, textarea, label')) return;
+                const rect = mediaDialogEl.getBoundingClientRect();
+                marketingMediaDrag = {
+                    pointerId: event.pointerId,
+                    handle: event.currentTarget,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    startLeft: rect.left,
+                    startTop: rect.top,
+                };
+
+                mediaDialogEl.style.position = 'fixed';
+                mediaDialogEl.style.width = `${Math.round(rect.width)}px`;
+                mediaDialogEl.style.maxWidth = 'none';
+                mediaDialogEl.style.margin = '0';
+                mediaDialogEl.style.right = 'auto';
+                mediaDialogEl.style.bottom = 'auto';
+                mediaDialogEl.style.transform = 'none';
+                mediaDialogEl.style.transition = 'none';
+                mediaDialogEl.dataset.dragPositioned = '1';
+                positionMarketingMediaDialog(rect.left, rect.top);
+                mediaDialogEl.classList.add('is-dragging');
+                try {
+                    event.currentTarget.setPointerCapture?.(event.pointerId);
+                } catch (_) {}
+                event.preventDefault();
+            }
+
+            function moveMarketingMediaDialog(event) {
+                if (!marketingMediaDrag || event.pointerId !== marketingMediaDrag.pointerId) return;
+                positionMarketingMediaDialog(
+                    marketingMediaDrag.startLeft + event.clientX - marketingMediaDrag.startX,
+                    marketingMediaDrag.startTop + event.clientY - marketingMediaDrag.startY,
+                );
+                event.preventDefault();
+            }
+
+            function endMarketingMediaDrag(event) {
+                if (!marketingMediaDrag || event.pointerId !== marketingMediaDrag.pointerId) return;
+                try {
+                    marketingMediaDrag.handle.releasePointerCapture?.(event.pointerId);
+                } catch (_) {}
+                marketingMediaDrag = null;
+                mediaDialogEl?.classList.remove('is-dragging');
+            }
+
+            function resetMarketingMediaDialogPosition() {
+                marketingMediaDrag = null;
+                if (!mediaDialogEl) return;
+                mediaDialogEl.classList.remove('is-dragging');
+                delete mediaDialogEl.dataset.dragPositioned;
+                ['position', 'width', 'max-width', 'margin', 'left', 'right', 'top', 'bottom', 'transform', 'transition']
+                    .forEach((property) => mediaDialogEl.style.removeProperty(property));
+            }
+
+            function keepMarketingMediaDialogReachable() {
+                if (!mediaDialogEl || mediaDialogEl.dataset.dragPositioned !== '1') return;
+                const rect = mediaDialogEl.getBoundingClientRect();
+                positionMarketingMediaDialog(rect.left, rect.top);
+            }
+
             async function openWorkorderFiles(button) {
                 const url = button.dataset.filesUrl;
                 const woLabel = button.dataset.woLabel || 'WO';
@@ -4850,8 +5152,10 @@
                 if (!url || !workorderId) return;
 
                 state.activeWorkorderFiles = { workorderId, filesUrl: url, uploadUrl: '' };
+                syncMarketingFilesWindowButton();
                 mediaWoNumber.textContent = woLabel;
                 marketingFileUploadForm.reset();
+                syncMarketingFileDropzone();
                 marketingManagerFilesList.innerHTML = `<div class="text-center text-muted py-4">${loadingHtml('Loading')}</div>`;
                 marketingProductionImages.innerHTML = `<div class="text-center text-muted py-3">${loadingHtml('Loading')}</div>`;
                 bootstrap.Modal.getOrCreateInstance(mediaModalEl).show();
@@ -4869,14 +5173,29 @@
                 const uploadUrl = state.activeWorkorderFiles?.uploadUrl || marketingFileUploadForm.action;
                 if (!uploadUrl) return;
 
+                if (!marketingFileCategory?.value) {
+                    notify('Select a category for the files before uploading.', 'error');
+                    marketingFileCategory?.focus();
+                    return;
+                }
+
+                const validationError = marketingFileValidationError(Array.from(marketingFileInput?.files || []));
+                if (validationError) {
+                    notify(validationError, 'error');
+                    return;
+                }
+
                 const button = marketingFileUploadForm.querySelector('[data-marketing-file-upload]');
                 const originalHtml = button.innerHTML;
+                const selectedCategory = marketingFileCategory.value;
                 button.disabled = true;
                 button.innerHTML = `<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Uploading`;
 
                 try {
                     const data = await requestFormData(uploadUrl, new FormData(marketingFileUploadForm));
                     marketingFileUploadForm.reset();
+                    marketingFileCategory.value = selectedCategory;
+                    syncMarketingFileDropzone();
                     renderFilesWorkspace(data, false);
                     notify('File uploaded');
                 } catch (error) {
@@ -5094,9 +5413,22 @@
 
             mediaModalEl?.addEventListener('hidden.bs.modal', () => {
                 state.activeWorkorderFiles = null;
+                state.managerFiles = [];
+                syncMarketingFilesWindowButton();
                 mediaWoNumber.textContent = '';
                 marketingFileUploadForm?.reset();
+                clearMarketingFileDragState();
+                syncMarketingFileDropzone();
+                resetMarketingMediaDialogPosition();
             });
+
+            mediaDragHandles.forEach((handle) => {
+                handle.addEventListener('pointerdown', beginMarketingMediaDrag);
+                handle.addEventListener('pointermove', moveMarketingMediaDialog);
+                handle.addEventListener('pointerup', endMarketingMediaDrag);
+                handle.addEventListener('pointercancel', endMarketingMediaDrag);
+            });
+            window.addEventListener('resize', keepMarketingMediaDialogReachable);
 
             profileForm.addEventListener('submit', saveProfile);
             profileForm.querySelector('[data-profile-save-button]')?.addEventListener('click', saveProfile);
@@ -5106,6 +5438,36 @@
             createForm.addEventListener('submit', addCompany);
             workorderSalesForm?.addEventListener('submit', saveWorkorderSalesFields);
             marketingFileUploadForm?.addEventListener('submit', uploadMarketingFiles);
+            marketingFileCategory?.addEventListener('change', applyManagerFileCategoryFilter);
+            marketingFileInput?.addEventListener('change', () => {
+                const error = marketingFileValidationError(Array.from(marketingFileInput.files || []));
+                if (error) {
+                    marketingFileInput.value = '';
+                    notify(error, 'error');
+                }
+                syncMarketingFileDropzone();
+            });
+            marketingFileDropzone?.addEventListener('dragenter', (event) => {
+                if (!isMarketingFileDrag(event)) return;
+                event.preventDefault();
+                marketingFileDragDepth++;
+                marketingFileDropzone.classList.add('is-dragover');
+            });
+            marketingFileDropzone?.addEventListener('dragover', (event) => {
+                if (!isMarketingFileDrag(event)) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+            });
+            marketingFileDropzone?.addEventListener('dragleave', () => {
+                marketingFileDragDepth = Math.max(0, marketingFileDragDepth - 1);
+                if (marketingFileDragDepth === 0) marketingFileDropzone.classList.remove('is-dragover');
+            });
+            marketingFileDropzone?.addEventListener('drop', (event) => {
+                if (!isMarketingFileDrag(event)) return;
+                event.preventDefault();
+                clearMarketingFileDragState();
+                acceptMarketingDroppedFiles(event.dataTransfer.files);
+            });
             workorderSalesForm?.addEventListener('input', syncWorkorderSalesDatePlaceholderState);
             workorderSalesForm?.addEventListener('change', syncWorkorderSalesDatePlaceholderState);
 

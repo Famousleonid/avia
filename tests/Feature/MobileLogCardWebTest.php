@@ -284,4 +284,23 @@ class MobileLogCardWebTest extends TestCase
 
         Http::assertNothingSent();
     }
+
+    public function test_mobile_log_card_rejects_portrait_before_nameplate_recognition(): void
+    {
+        config()->set('services.openai.api_key', 'test-key-not-a-real-secret');
+        Http::fake();
+
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $technician->id]);
+
+        $this->actingAs($technician)
+            ->post(route('mobile.log-card.photo.store', $workorder), [
+                'photo' => UploadedFile::fake()->image('portrait-nameplate.png', 80, 120),
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['photo']);
+
+        Http::assertNothingSent();
+        $this->assertCount(0, $workorder->fresh()->getMedia('logs'));
+    }
 }

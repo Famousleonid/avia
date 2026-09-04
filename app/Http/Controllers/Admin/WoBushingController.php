@@ -16,6 +16,7 @@ use App\Models\WoBushingBatch;
 use App\Models\WoBushingLine;
 use App\Models\WoBushingProcess;
 use App\Services\WoBushingRelationalSync;
+use App\Services\WorkorderPartScopeResolver;
 use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -208,6 +209,40 @@ class WoBushingController extends Controller
     private static function bushingNdtProcessNames(): array
     {
         return ['NDT-1', 'NDT-4'];
+    }
+
+    /**
+     * Process-name ids accepted by each selector in both Bushing create and edit forms.
+     *
+     * @return array<string, list<int>>
+     */
+    private function bushingProcessNameIdsByField(): array
+    {
+        $processNameIdsByName = ProcessName::query()
+            ->whereIn('name', array_merge(
+                ['Machining', 'Passivation', 'Cad plate', 'Anodizing', 'Xylan coating'],
+                self::stressReliefProcessNames(),
+                self::bushingNdtProcessNames()
+            ))
+            ->pluck('id', 'name');
+
+        return [
+            'machining' => array_values(array_filter([(int) ($processNameIdsByName['Machining'] ?? 0)])),
+            'stress_relief' => collect(self::stressReliefProcessNames())
+                ->map(fn (string $name): int => (int) ($processNameIdsByName[$name] ?? 0))
+                ->filter()
+                ->values()
+                ->all(),
+            'ndt' => collect(self::bushingNdtProcessNames())
+                ->map(fn (string $name): int => (int) ($processNameIdsByName[$name] ?? 0))
+                ->filter()
+                ->values()
+                ->all(),
+            'passivation' => array_values(array_filter([(int) ($processNameIdsByName['Passivation'] ?? 0)])),
+            'cad' => array_values(array_filter([(int) ($processNameIdsByName['Cad plate'] ?? 0)])),
+            'anodizing' => array_values(array_filter([(int) ($processNameIdsByName['Anodizing'] ?? 0)])),
+            'xylan' => array_values(array_filter([(int) ($processNameIdsByName['Xylan coating'] ?? 0)])),
+        ];
     }
 
     private function resolveProcessKey(?string $processName, ?string $processCode = null): string
@@ -513,10 +548,10 @@ class WoBushingController extends Controller
 
     private function bushingGroupsForWorkorder(Workorder $workorder)
     {
-        return $this->bushingGroupsForManual((int) $workorder->unit->manual_id);
+        return $this->bushingGroupsForManual((int) $workorder->unit->manual_id, $workorder);
     }
 
-    private function bushingGroupsForManual(int $manualId)
+    private function bushingGroupsForManual(int $manualId, ?Workorder $workorder = null)
     {
         $bushings = Component::where('manual_id', $manualId)
             ->where('is_bush', 1)
@@ -547,6 +582,11 @@ class WoBushingController extends Controller
                     : ((int) $left->id) <=> ((int) $right->id);
             })
             ->values();
+
+        if ($workorder) {
+            $bushings = app(WorkorderPartScopeResolver::class)
+                ->filterComponents($bushings, $workorder);
+        }
 
         return $bushings
             ->groupBy(fn (Component $component) => (string) ($component->bush_ipl_num ?? ''))
@@ -638,6 +678,33 @@ class WoBushingController extends Controller
                     'ordered' => $orderedQty,
                     'maximum' => $maximumQty,
                 ]),
+            ]);
+        }
+    }
+
+    private function validateBushingComponentsInScope(Workorder $workorder, array $groupBushingsData): void
+    {
+        $componentIds = collect($groupBushingsData)
+            ->flatMap(function ($group): array {
+                if (! is_array($group['items'] ?? null)) {
+                    return [];
+                }
+
+                return collect($group['items'])
+                    ->filter(fn ($item): bool => filter_var($item['selected'] ?? false, FILTER_VALIDATE_BOOLEAN))
+                    ->keys()
+                    ->all();
+            })
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique();
+
+        $outside = $componentIds->first(fn (int $id): bool =>
+            ! app(WorkorderPartScopeResolver::class)->allowsComponent($workorder, $id)
+        );
+        if ($outside !== null) {
+            throw ValidationException::withMessages([
+                'group_bushings' => __('A selected bushing is outside this workorder Work Scope.'),
             ]);
         }
     }
@@ -764,6 +831,7 @@ class WoBushingController extends Controller
         $workorderId = $request->workorder_id;
         $groupBushingsData = $request->group_bushings ?? [];
         $workorder = Workorder::findOrFail($workorderId);
+        $this->validateBushingComponentsInScope($workorder, $groupBushingsData);
         $this->validateBushingGroupOrderQuantities($groupBushingsData);
 
         // Check if WoBushing already exists for this workorder
@@ -978,6 +1046,7 @@ class WoBushingController extends Controller
     {
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual_id = $current_wo->unit->manual_id;
+        $bushingProcessNameIdsByField = $this->bushingProcessNameIdsByField();
 
         $bushings = $this->bushingGroupsForWorkorder($current_wo);
 
@@ -1037,6 +1106,7 @@ class WoBushingController extends Controller
             'linesExist',
             'processAssignments',
             'hasBushingSpecProcessBatches',
+            'bushingProcessNameIdsByField',
             'vendors'
         ));
     }
@@ -1052,6 +1122,8 @@ class WoBushingController extends Controller
         $woBushing = WoBushing::findOrFail($id);
         $current_wo = $woBushing->workorder;
         $manual_id = $current_wo->unit->manual_id;
+
+        $bushingProcessNameIdsByField = $this->bushingProcessNameIdsByField();
 
         $bushings = $this->bushingGroupsForWorkorder($current_wo);
 
@@ -1135,7 +1207,8 @@ class WoBushingController extends Controller
             'anodizingProcesses',
             'xylanProcesses',
             'bushData',
-            'linesExist'
+            'linesExist',
+            'bushingProcessNameIdsByField'
         ));
     }
 
@@ -1158,6 +1231,7 @@ class WoBushingController extends Controller
         $woBushing = WoBushing::findOrFail($id);
         $workorder = $woBushing->workorder ?: Workorder::findOrFail($woBushing->workorder_id);
         $groupBushingsData = $request->group_bushings ?? [];
+        $this->validateBushingComponentsInScope($workorder, $groupBushingsData);
         $this->validateBushingGroupOrderQuantities($groupBushingsData);
         $before = $this->bushingSnapshot($woBushing);
 

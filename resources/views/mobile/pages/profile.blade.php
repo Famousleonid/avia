@@ -73,7 +73,7 @@
                         <label for="avatarUpload" class="btn btn-outline-secondary btn-sm mb-0">
                             📷 Upload
                         </label>
-                        <input type="file" id="avatarUpload" name="file" accept="image/*" class="d-none">
+                        <input type="file" id="avatarUpload" name="file" accept="image/*" class="d-none" data-allow-portrait>
 
                         <img id="avatarPreviewImg"
                              src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}"

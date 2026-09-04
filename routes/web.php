@@ -153,33 +153,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::get('/admin/user-guide', [UserGuideController::class, 'index'])
     ->middleware(['auth', 'verified', 'desktop'])
     ->name('admin.user-guide');
-Route::get('/admin/user-guide/workorder-main', [UserGuideController::class, 'workorderMain'])
-    ->middleware(['auth', 'verified', 'desktop'])
-    ->name('admin.user-guide.workorder-main');
-Route::get('/admin/user-guide/tdr-report', [UserGuideController::class, 'tdrReport'])
-    ->middleware(['auth', 'verified', 'desktop'])
-    ->name('admin.user-guide.tdr-report');
-Route::get('/admin/user-guide/workorder-pictures', [UserGuideController::class, 'workorderPictures'])
-    ->middleware(['auth', 'verified', 'desktop'])
-    ->name('admin.user-guide.workorder-pictures');
-Route::get('/admin/user-guide/training', [UserGuideController::class, 'training'])
-    ->middleware(['auth', 'verified', 'desktop'])
-    ->name('admin.user-guide.training');
-Route::get('/admin/user-guide/technicians', [UserGuideController::class, 'technicians'])
-    ->middleware(['auth', 'verified', 'desktop'])
-    ->name('admin.user-guide.technicians');
-Route::get('/admin/user-guide/materials', [UserGuideController::class, 'materials'])
-    ->middleware(['auth', 'verified', 'desktop'])
-    ->name('admin.user-guide.materials');
-Route::get('/admin/user-guide/mobile-workorders', [UserGuideController::class, 'mobileWorkorders'])
-    ->middleware(['auth', 'verified', 'desktop'])
-    ->name('admin.user-guide.mobile-workorders');
-Route::get('/admin/user-guide/mobile-workorder', [UserGuideController::class, 'mobileWorkorder'])
-    ->middleware(['auth', 'verified', 'desktop'])
-    ->name('admin.user-guide.mobile-workorder');
-Route::get('/admin/user-guide/mobile-workorder-pictures', [UserGuideController::class, 'mobileWorkorderPictures'])
-    ->middleware(['auth', 'verified', 'desktop'])
-    ->name('admin.user-guide.mobile-workorder-pictures');
 
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {

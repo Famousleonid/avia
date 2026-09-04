@@ -456,9 +456,8 @@
             <div class="card-header m-1 shadow">
                 <div class="d-flex text-center align-items-center">
                     <div style="width: 120px;">
-                        <a href="{{ !empty($userGuideEmbed) ? route('admin.user-guide', ['center' => 1]) . '#workorders' : route('mains.show', $current_wo->id) }}"
+                        <a href="{{ route('mains.show', $current_wo->id) }}"
                            class="btn btn-outline-info tdr-show-back-btn"
-                           @if(!empty($userGuideEmbed)) target="_parent" data-user-guide-return-to-workorders @endif
                            title="{{ __('Back to WO main') }}">
                             <i class="bi bi-arrow-left tdr-show-back-arrow" aria-hidden="true"></i>
                             <span class="tdr-show-back-text">
@@ -624,15 +623,6 @@
                                                     target="_blank" color="outline-primary"/>
                                     <span class="badge bg-success rounded-pill"
                                           style="{{ $paperCountBadgeStyle }}">{{ $prlPartsCount }}</span>
-                                </div>
-                            @endif
-                            @if(($bushingPrlCount ?? 0) > 0)
-                                <div class="position-relative d-inline-block ">
-                                    <x-paper-button text="Bush PRL"
-                                                    href="{{ route('tdrs.bushPrlForm', ['id' => $current_wo->id]) }}"
-                                                    target="_blank" color="outline-primary"/>
-                                    <span class="badge bg-success rounded-pill"
-                                          style="{{ $paperCountBadgeStyle }}">{{ $bushingPrlCount }}</span>
                                 </div>
                             @endif
                         </div>

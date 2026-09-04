@@ -708,7 +708,9 @@ class WorkorderController extends Controller
         $this->authorize('create', Workorder::class);
 
         $customers = Customer::query()->orderBy('name')->get();
-        $units = Unit::with('manual')->get();
+        $units = Unit::with(['manual', 'defaultScopeComponent', 'defaultScopePartGroupOption.group'])->get();
+        $scopeResolver = app(\App\Services\WorkorderPartScopeResolver::class);
+        $units->each(fn (Unit $unit) => $unit->setAttribute('work_scope_display', $scopeResolver->displayLabelForUnit($unit)));
         $instructions = Instruction::all();
         $manuals = Manual::query()
             ->orderByRaw('CASE WHEN number IS NULL OR number = "" THEN 1 ELSE 0 END')
@@ -923,7 +925,9 @@ class WorkorderController extends Controller
         $instructions = $instructionsQuery->get();
         $current_wo = $workorder;
         $customers = Customer::all();
-        $units = Unit::with('manual')->get();
+        $units = Unit::with(['manual', 'defaultScopeComponent', 'defaultScopePartGroupOption.group'])->get();
+        $scopeResolver = app(\App\Services\WorkorderPartScopeResolver::class);
+        $units->each(fn (Unit $unit) => $unit->setAttribute('work_scope_display', $scopeResolver->displayLabelForUnit($unit)));
         $manuals = Manual::query()
             ->orderByRaw('CASE WHEN number IS NULL OR number = "" THEN 1 ELSE 0 END')
             ->orderBy('number')
@@ -944,8 +948,9 @@ class WorkorderController extends Controller
             ->values();
         $notUsedManualIds = $workorder->notUsedManualIds();
         $canUpdateWorkorderManuals = auth()->user()?->can('workorders.manageManuals') ?? false;
+        $workorderScopeDisplay = $scopeResolver->displayLabelForWorkorder($workorder);
 
-        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs','canChangeTechnik', 'workorderManualPackage', 'notUsedManualIds', 'canUpdateWorkorderManuals'));
+        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs','canChangeTechnik', 'workorderManualPackage', 'notUsedManualIds', 'canUpdateWorkorderManuals', 'workorderScopeDisplay'));
 
     }
 
@@ -1090,6 +1095,12 @@ class WorkorderController extends Controller
             'description',
             'not_used_manual_ids',
         ]));
+
+        if ((int) $oldUnitId !== (int) $workorder->unit_id) {
+            app(WorkorderStdProcessItemsService::class)->rebuild(
+                $workorder->fresh(['unit.manuals', 'instruction'])
+            );
+        }
 
         if ($request->has('description')) {
             $description = trim((string) $request->input('description', ''));

@@ -5,15 +5,18 @@ namespace App\Http\Controllers\General;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Workorder;
-use App\Services\Media\ImageOrientationNormalizer;
+use App\Services\Media\MobileLandscapePhotoProcessor;
+use App\Services\Media\WorkorderPhotoStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MediaController extends Controller
 {
-    public function __construct(private ImageOrientationNormalizer $imageOrientationNormalizer)
-    {
+    public function __construct(
+        private MobileLandscapePhotoProcessor $landscapePhotoProcessor,
+        private WorkorderPhotoStorageService $photoStorage,
+    ) {
     }
 
     public function store_avatar(Request $request, $id)
@@ -36,15 +39,15 @@ class MediaController extends Controller
 
         $category = $request->query('category', 'photos');
 
-        if ($request->hasFile('photos')) {
-            foreach ($request->file('photos') as $photo) {
-                $photo = $this->imageOrientationNormalizer->normalize($photo);
-                // Формируем уникальное читаемое имя файла
-                $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.' . $photo->getClientOriginalExtension();
+        $request->validate([
+            'photos' => ['required', 'array', 'min:1'],
+            'photos.*' => ['file', 'image', 'max:102400'],
+        ]);
 
-                $workorder->addMedia($photo)
-                    ->usingFileName($filename)
-                    ->toMediaCollection($category);
+        if ($request->hasFile('photos')) {
+            $photos = $this->landscapePhotoProcessor->prepareMany($request->file('photos'), 'photos');
+            foreach ($photos as $photo) {
+                $this->photoStorage->store($workorder, $photo, $category);
             }
         }
 
@@ -401,8 +404,7 @@ class MediaController extends Controller
 
         $toCollection = $data['to'];
 
-        // move() — штатный способ Spatie (переназначает collection_name и переносит файл)
-        $media->move($workorder, $toCollection);
+        $this->photoStorage->move($workorder, $media, $toCollection);
 
         return response()->json(['success' => true]);
     }
@@ -419,9 +421,7 @@ class MediaController extends Controller
 
         // multiple upload
         foreach ($request->file('files', []) as $file) {
-            $workorder
-                ->addMedia($file)
-                ->toMediaCollection($group);
+            $this->photoStorage->store($workorder, $file, $group);
         }
 
         return response()->json(['success' => true]);

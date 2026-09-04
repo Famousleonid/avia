@@ -191,11 +191,10 @@
                                             @endif
 
                                             <div class="d-flex align-items-center gap-2 ms-3">
-                                                <a href="{{ !empty($userGuideEmbed) ? route('admin.user-guide', ['center' => 1]) . '#workorder-tdr' : route('tdrs.show', ['id' => $current_workorder->id]) }}"
+                                                <a href="{{ route('tdrs.show', ['id' => $current_workorder->id]) }}"
                                                    class="btn btn-outline-success dir-top-square-btn"
                                                    data-tippy-content="{{ __('TDR Report') }}"
-                                                   @if(!empty($userGuideEmbed)) target="_parent" data-user-guide-tdr @endif
-                                                   @if(empty($userGuideEmbed)) onclick="showLoadingSpinner()" @endif>
+                                                   onclick="showLoadingSpinner()">
                                                     <i class="bi bi-hammer"></i>
                                                 </a>
 
@@ -205,12 +204,25 @@
                                                    onclick="showLoadingSpinner()">
                                                     <i class="bi bi-images text-decoration-none"></i>
                                                     @if($photoTotalCount)
-                                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info"
-                                                              style="font-size:10px; min-width:18px;">
+                                                        <span class="dir-top-count-badge bg-info">
                                                             {{ (int)($photoTotalCount ?? 0) }}
                                                         </span>
                                                     @endif
                                                 </a>
+
+                                                <span class="position-relative d-inline-flex ms-2">
+                                                    <button type="button"
+                                                            class="btn btn-outline-warning dir-top-square-btn open-pdf-modal"
+                                                            title="{{ __('PDF Library') }}"
+                                                            aria-label="{{ __('PDF Library') }}"
+                                                            data-tippy-content="{{ __('PDF Library') }}"
+                                                            data-id="{{ $current_workorder->id }}"
+                                                            data-number="{{ $current_workorder->number }}">
+                                                        <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+                                                    </button>
+                                                    <span id="pdfCountBadge"
+                                                          class="dir-top-count-badge bg-warning d-none"></span>
+                                                </span>
 
                                                 @admin
                                                     <a href="{{ route('tools.index', ['workorder_id' => $current_workorder->id, 'workorder' => $current_workorder->number, 'user' => auth()->user()?->selection_name]) }}"
@@ -1330,6 +1342,7 @@
     @include('components.delete')
 
     @include('admin.mains.partials.modals')
+    @include('admin.tdrs.partials.show-modals', ['pdfLibraryOnly' => true])
 
 @endsection
 
@@ -1341,7 +1354,15 @@
             number: {{ (int)($current_workorder->number ?? 0) }},
             manual_id: {{ (int)($manual_id ?? 0) }}
         };
+        window.currentWorkorderId = {{ (int)($current_workorder->id ?? 0) }};
     </script>
+
+    <script src="{{ asset('js/tdrs/show/pdf-badge-handler.js') }}"></script>
+    <script src="{{ asset('js/tdrs/show/pdf-library-handler.js') }}"></script>
+    <script src="{{ asset('js/tdrs/show/pdf-viewer-handler.js') }}"></script>
+    <script src="{{ asset('js/tdrs/show/pdf-upload-handler.js') }}"></script>
+    <script src="{{ asset('js/tdrs/show/pdf-delete-handler.js') }}"></script>
+    <script src="{{ asset('js/tdrs/show/show-main.js') }}"></script>
 
     {{--  Общие --}}
     @include('admin.mains.partials.js.mains-common')

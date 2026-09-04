@@ -112,7 +112,7 @@
                 <div class="manual-part-groups-container">
                     @foreach($componentPartGroups as $partGroup)
                         <button type="button"
-                                class="badge text-bg-success manual-part-group-badge"
+                                class="badge manual-part-group-badge"
                                 data-part-group-id="{{ $partGroup->id }}"
                                 title="{{ $partGroup->name }}">
                             <span class="manual-part-group-badge-name">{{ $partGroup->name }}</span>

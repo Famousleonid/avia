@@ -41,6 +41,7 @@ class QuantumRoLine extends Model
         'apply_message',
         'applied_target_table',
         'applied_target_id',
+        'applied_targets',
         'applied_source_hash',
         'applied_at',
     ];
@@ -57,6 +58,7 @@ class QuantumRoLine extends Model
         'qty_reserved' => 'decimal:4',
         'qty_repaired' => 'decimal:4',
         'raw_payload' => 'array',
+        'applied_targets' => 'array',
         'first_seen_at' => 'datetime',
         'last_seen_at' => 'datetime',
         'applied_at' => 'datetime',

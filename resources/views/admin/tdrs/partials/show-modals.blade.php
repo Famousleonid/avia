@@ -1,3 +1,4 @@
+@unless(!empty($pdfLibraryOnly))
 {{-- Missing Modal --}}
 <div class="modal fade" id="inlineProcessDefinitionModal" tabindex="-1" aria-labelledby="inlineProcessDefinitionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -202,6 +203,7 @@
         </div>
     </div>
 </div>
+@endunless
 
 <style>
     .pdf-library-modal .modal-content {
@@ -485,6 +487,7 @@
     </div>
 </div>
 
+@unless(!empty($pdfLibraryOnly))
 {{-- Unit Inspection Modal --}}
 <div class="modal fade" id="unitInspectionModal" tabindex="-1" aria-labelledby="unitInspectionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -807,3 +810,4 @@
         </div>
     </div>
 </div>
+@endunless

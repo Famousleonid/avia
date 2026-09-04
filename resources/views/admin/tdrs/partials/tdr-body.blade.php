@@ -671,8 +671,7 @@
                     @endforeach
                 </select>
             </div>
-            @if(empty($userGuideEmbed))
-                @php
+            @php
                     // F&C Doc button color = aggregate data state of the document marks
                     $fcDocStatus = app(\App\Services\Measurements\ProcessDocumentRenderer::class)
                         ->fcDocumentStatus(optional($current_wo->unit)->manuals, $current_wo);
@@ -691,17 +690,16 @@
                         'nodata' => __('F&C Document — some values not measured'),
                         default  => __('F&C Document — filled manual pages with this WO measurements'),
                     };
-                @endphp
-                <a href="{{ route('workorders.fc-document', $current_wo->id) }}" target="_blank"
-                   class="btn {{ $fcDocBtnClass }} btn-sm {{ count($processGroups ?? []) > 0 ? 'ms-auto me-2' : 'ms-auto' }}"
-                   style="{{ $fcDocBtnStyle }}"
-                   title="{{ $fcDocTitle }}">
-                    <i class="bi bi-file-earmark-richtext"></i> {{ __('F&C Doc') }}
-                </a>
-            @endif
+            @endphp
+            <a href="{{ route('workorders.fc-document', $current_wo->id) }}" target="_blank"
+               class="btn {{ $fcDocBtnClass }} btn-sm {{ count($processGroups ?? []) > 0 ? 'ms-auto me-2' : 'ms-auto' }}"
+               style="{{ $fcDocBtnStyle }}"
+               title="{{ $fcDocTitle }}">
+                <i class="bi bi-file-earmark-richtext"></i> {{ __('F&C Doc') }}
+            </a>
             @if(count($processGroups ?? []) > 0)
                 <button type="button"
-                        class="btn btn-outline-primary btn-sm {{ !empty($userGuideEmbed) ? 'ms-auto' : '' }}"
+                        class="btn btn-outline-primary btn-sm"
                         data-bs-toggle="modal"
                         data-bs-target="#tdrGroupProcessModal">
                     <i class="fas fa-print"></i> {{ __('Group Process') }}
