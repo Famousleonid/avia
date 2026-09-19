@@ -1,3 +1,15 @@
 *
 !public/
 !.gitignore
+
+# Version manual-package test code only, never credentials or captured DB data.
+!codex/
+codex/*
+!codex/manual-package-import/
+codex/manual-package-import/**
+!codex/manual-package-import/**/
+!codex/manual-package-import/**/test*.php
+!codex/manual-package-import/**/test*.py
+!codex/manual-package-import/**/test*.js
+codex/manual-package-import/**/node_modules/
+codex/manual-package-import/**/vendor/

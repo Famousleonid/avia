@@ -27,3 +27,15 @@ yarn-error.log
 /outputs/process_names_ref/node_modules/
 
 public/app/*.apk
+
+# Portable journal only; other generated outputs remain local.
+!/output/
+/output/*
+!/output/manuals-production-journal.html
+!/output/manuals-production-20260915.html
+!/output/manuals-production-20260915.md
+
+# Generated process logs and PDF render scratch directories are not source.
+/storage/framework/sf_proc_*.err*
+/storage/framework/sf_proc_*.out*
+/tmp/pdfs/
