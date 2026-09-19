@@ -259,9 +259,11 @@
                                         <input type="text" class="form-control" id="description_0"
                                                name="processes[0][description]" placeholder="CMM fig.___ pg. ___" >
 
-                                        <label for="notes" class="form-label" style="margin-bottom: -5px">Notes</label>
-                                        <input type="text" class="form-control" id="notes" name="processes[0][notes]"
-                                               placeholder="Enter Notes">
+                                        <div class="process-notes-field d-none">
+                                            <label for="notes_0" class="form-label" style="margin-bottom: -5px">Notes</label>
+                                            <input type="text" class="form-control" id="notes_0" name="processes[0][notes]"
+                                                   placeholder="Enter Notes" disabled>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -367,6 +369,23 @@
         // Данные процессов для использования в динамически создаваемых строках
         const processNamesData = @json($processNames->keyBy('id'));
 
+        function processUsesNotes(processNameId) {
+            const processName = processNamesData[String(processNameId)] || processNamesData[processNameId];
+            if (!processName) return false;
+
+            return !(Boolean(processName.print_form) && String(processName.process_sheet_name || '').trim() !== '');
+        }
+
+        function updateNotesFieldForProcessRow(processRow, processNameId) {
+            const notesField = processRow?.querySelector('.process-notes-field');
+            const notesInput = notesField?.querySelector('input[name*="[notes]"]');
+            if (!notesField || !notesInput) return;
+
+            const show = processUsesNotes(processNameId);
+            notesField.classList.toggle('d-none', !show);
+            notesInput.disabled = !show;
+        }
+
         function isMachiningEcProcessName(processNameId) {
             if (processNameId === undefined || processNameId === null || processNameId === '') {
                 return false;
@@ -397,6 +416,7 @@
             if (!processRow || processNameId === undefined || processNameId === null || processNameId === '') {
                 return;
             }
+            updateNotesFieldForProcessRow(processRow, processNameId);
             const pid = String(processNameId);
             const isEcName = ecProcessNameId && parseInt(pid, 10) === parseInt(String(ecProcessNameId), 10);
             const standaloneWrap = processRow.querySelector('.standalone-ec-only-wrap');
@@ -470,13 +490,16 @@
                     <div class="col-md-2">
                         <label>Description</label>
                         <input type="text" class="form-control" name="processes[${index}][description]" placeholder="CMM fig.___">
-                        <label class="mt-1">Notes</label>
-                        <input type="text" class="form-control" name="processes[${index}][notes]" placeholder="Notes">
+                        <div class="process-notes-field d-none">
+                            <label class="mt-1" for="notes_${index}">Notes</label>
+                            <input type="text" class="form-control" id="notes_${index}" name="processes[${index}][notes]" placeholder="Notes" disabled>
+                        </div>
                     </div>
                 </div>`;
                 container.appendChild(newRow);
                 const sel = newRow.querySelector('.select2-process');
                 if (sel) {
+                    updateNotesFieldForProcessRow(newRow, ecProcessNameId);
                     loadProcessesForRow(sel);
                 }
                 newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -561,8 +584,10 @@
             <div>
                 <label for="description_${index}" class="form-label" style="margin-bottom: -5px">Description</label>
                 <input type="text" class="form-control" id="description_${index}" name="processes[${index}][description]" placeholder="CMM fig.___ pg. ___">
-                <label for="notes_${index}" class="form-label" style="margin-bottom: -5px">Notes</label>
-                <input type="text" class="form-control" id="notes_${index}" name="processes[${index}][notes]" placeholder="Enter Notes">
+                <div class="process-notes-field d-none">
+                    <label for="notes_${index}" class="form-label" style="margin-bottom: -5px">Notes</label>
+                    <input type="text" class="form-control" id="notes_${index}" name="processes[${index}][notes]" placeholder="Enter Notes" disabled>
+                </div>
             </div>
         </div>
     </div>`;
@@ -748,7 +773,7 @@
 
                 // Получаем значение notes
                 const notesInput = row.querySelector('input[name*="[notes]"]');
-                const notesValue = notesInput ? notesInput.value.trim() : null;
+                const notesValue = notesInput && !notesInput.disabled ? notesInput.value.trim() : null;
 
                 const selectedSpecificationInputs = Array.from(row.querySelectorAll(
                     '.process-options input[type="radio"]:checked, .ndt-plus-process-checkbox:checked'

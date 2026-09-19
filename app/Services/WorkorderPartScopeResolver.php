@@ -30,6 +30,15 @@ class WorkorderPartScopeResolver
         }
         $workorder->loadMissing(['unit', 'instruction:id,name']);
 
+        // An incorporated R&M assembly conversion changes the effective BOM
+        // without overwriting the received Work Scope kept on the workorder.
+        if ($workorder->modified_scope_part_group_option_id) {
+            return $this->optionComponentQuantities(
+                (int) $workorder->modified_scope_part_group_option_id,
+                $formScope
+            );
+        }
+
         return match ($workorder->scope_type) {
             Unit::SCOPE_COMPONENT => $workorder->scope_component_id
                 ? [(int) $workorder->scope_component_id => 1]

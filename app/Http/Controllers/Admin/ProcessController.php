@@ -7,11 +7,14 @@ use App\Models\Manual;
 use App\Models\ManualProcess;
 use App\Models\Process;
 use App\Models\ProcessName;
+use App\Models\Workorder;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\Services\ProcessAccessDecision;
 use App\Services\ProcessAccessGuard;
 
@@ -48,11 +51,17 @@ class ProcessController extends Controller
         }
 
         $manual = Manual::findOrFail($manualId);
-        $decision = $this->guard()->canManageManual($request->user(), $manual);
+        $bushingContext = $request->query('context') === 'bushing';
+        $workorder = $bushingContext
+            ? $this->resolveBushingWorkorder($request, $manual)
+            : null;
+        $decision = $bushingContext
+            ? $this->guard()->canManageWorkorderBushingProcesses($request->user(), $manual, $workorder)
+            : $this->guard()->canManageManual($request->user(), $manual);
         if (! $decision->allowed) {
             return $this->denyDecision($request, $decision, route('manuals.index'));
         }
-        $bushingContext = $request->query('context') === 'bushing';
+
         if ($bushingContext) {
             $processNameOrder = array_flip(self::BUSHING_PROCESS_NAMES);
             $processNames = ProcessName::forPicker()
@@ -65,7 +74,7 @@ class ProcessController extends Controller
         }
         $processes = Process::all();
 
-        return view('admin.processes.create', compact('manual','processNames','processes','bushingContext'));
+        return view('admin.processes.create', compact('manual', 'processNames', 'processes', 'bushingContext', 'workorder'));
     }
 
     /**
@@ -82,10 +91,33 @@ class ProcessController extends Controller
             'process_names_id' => 'required|integer|exists:process_names,id',
             'manual_id' => 'required|integer|exists:manuals,id',
             'process_comment' => 'nullable|string|max:2000',
+            'context' => 'nullable|string|in:bushing',
+            'workorder_id' => 'nullable|integer|required_if:context,bushing|exists:workorders,id',
         ]);
 
         $manual = Manual::findOrFail((int) $validated['manual_id']);
         $processName = ProcessName::findOrFail((int) $validated['process_names_id']);
+        $bushingContext = ($validated['context'] ?? null) === 'bushing';
+        $workorder = null;
+
+        if ($bushingContext) {
+            $workorder = $this->resolveBushingWorkorder($request, $manual);
+            $decision = $this->guard()->canManageWorkorderBushingProcesses(
+                $request->user(),
+                $manual,
+                $workorder
+            );
+            if (! $decision->allowed) {
+                return $this->denyDecision($request, $decision, route('tdrs.show', $workorder->id));
+            }
+
+            if (! in_array($processName->name, self::BUSHING_PROCESS_NAMES, true)) {
+                throw ValidationException::withMessages([
+                    'process_names_id' => 'This process name is not available for bushings.',
+                ]);
+            }
+        }
+
         if ($processName->name === ProcessName::SYSTEM_TRAVELER_NAME) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -101,13 +133,21 @@ class ProcessController extends Controller
         // Проверяем, какой сценарий используется
         if ($request->has('selected_process_id') && $request->selected_process_id) {
             // Сценарий 1: Выбор существующего процесса
-            $decision = $this->guard()->canAttachExistingManualProcess($request->user(), $manual);
+            $decision = $bushingContext
+                ? $this->guard()->canManageWorkorderBushingProcesses($request->user(), $manual, $workorder)
+                : $this->guard()->canAttachExistingManualProcess($request->user(), $manual);
             if (! $decision->allowed) {
                 return $this->denyDecision($request, $decision, route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
             }
 
             $validated['selected_process_id'] = $request->validate([
-                'selected_process_id' => 'required|integer|exists:processes,id'
+                'selected_process_id' => [
+                    'required',
+                    'integer',
+                    Rule::exists('processes', 'id')->where(
+                        fn ($query) => $query->where('process_names_id', $processName->id)
+                    ),
+                ],
             ])['selected_process_id'];
 
             $processId = $validated['selected_process_id'];
@@ -137,16 +177,18 @@ class ProcessController extends Controller
             $existingManualProcess = ManualProcess::where('manual_id', $validated['manual_id'])
                 ->where('processes_id', $processId)
                 ->first();
+            $manualProcessCreated = false;
 
             // Если связи не существует, создаем её
             if (!$existingManualProcess) {
-                ManualProcess::create([
+                $existingManualProcess = ManualProcess::create([
                     'manual_id' => $validated['manual_id'],
                     'processes_id' => $processId,
                     'process_comment' => filled($validated['process_comment'] ?? null)
                         ? trim((string) $validated['process_comment'])
                         : null,
                 ]);
+                $manualProcessCreated = true;
             } elseif (filled($validated['process_comment'] ?? null)) {
                 $existingManualProcess->forceFill([
                     'process_comment' => trim((string) $validated['process_comment']),
@@ -155,6 +197,18 @@ class ProcessController extends Controller
 
             // Загружаем процесс для возврата (независимо от того, новый он или существующий)
             $processToReturn = $process ?? Process::find($processId);
+            $processToReturn->setAttribute('process_comment', $existingManualProcess->process_comment);
+
+            if ($bushingContext && $workorder && $manualProcessCreated) {
+                $this->logBushingProcessAdded(
+                    $request,
+                    $workorder,
+                    $manual,
+                    $processName,
+                    $processToReturn,
+                    $process !== null
+                );
+            }
 
             // Если это AJAX-запрос или JSON запрос, возвращаем JSON
             if ($request->ajax() || $request->wantsJson()) {
@@ -183,7 +237,13 @@ class ProcessController extends Controller
     public function getProcesses(Request $request)
     {
         $manual = Manual::findOrFail((int) $request->query('manualId'));
-        $decision = $this->guard()->canBrowseProcessCatalog($request->user(), $manual);
+        $bushingContext = $request->query('context') === 'bushing';
+        $workorder = $bushingContext
+            ? $this->resolveBushingWorkorder($request, $manual)
+            : null;
+        $decision = $bushingContext
+            ? $this->guard()->canManageWorkorderBushingProcesses($request->user(), $manual, $workorder)
+            : $this->guard()->canBrowseProcessCatalog($request->user(), $manual);
         if (! $decision->allowed) {
             return response()->json([
                 'success' => false,
@@ -198,6 +258,12 @@ class ProcessController extends Controller
         if ($processNameId) {
             $processName = ProcessName::find((int) $processNameId);
             if ($processName) {
+                if ($bushingContext && ! in_array($processName->name, self::BUSHING_PROCESS_NAMES, true)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This process name is not available for bushings.',
+                    ], 422);
+                }
                 $createDecision = $this->guard()->canCreateProcessDefinition($request->user(), $manual, $processName);
             }
         }
@@ -233,21 +299,25 @@ class ProcessController extends Controller
         if ($isMachiningProcess && !empty($machiningProcessNameIds)) {
             $existingProcesses = Process::whereIn('id', $existingProcessIds)
                 ->whereIn('process_names_id', $machiningProcessNameIds)
+                ->orderBy('process')
                 ->get();
 
             // Фильтруем процессы для выбора (исключаем существующие) для всех вариантов Machining
             $availableProcesses = Process::whereIn('process_names_id', $machiningProcessNameIds)
                 ->whereNotIn('id', $existingProcessIds)
+                ->orderBy('process')
                 ->get();
         } else {
             // Для обычных процессов используем стандартную логику
             $existingProcesses = Process::whereIn('id', $existingProcessIds)
                 ->where('process_names_id', $processNameId)
+                ->orderBy('process')
                 ->get();
 
             // Фильтруем процессы для выбора (исключаем существующие)
             $availableProcesses = Process::where('process_names_id', $processNameId)
                 ->whereNotIn('id', $existingProcessIds)
+                ->orderBy('process')
                 ->get();
         }
 
@@ -268,11 +338,67 @@ class ProcessController extends Controller
         });
 
         return response()->json([
+            'success' => true,
             'existingProcesses' => $existingProcesses,
             'availableProcesses' => $availableProcesses,
             'canCreateProcess' => $createDecision?->allowed ?? false,
             'createProcessMessage' => $createDecision && ! $createDecision->allowed ? $createDecision->message : null,
         ]);
+    }
+
+    private function resolveBushingWorkorder(Request $request, Manual $manual): Workorder
+    {
+        $workorderId = (int) $request->input('workorder_id', $request->query('workorder_id'));
+        abort_if($workorderId <= 0, 400, 'Workorder ID is required for bushing processes.');
+
+        $workorder = Workorder::query()
+            ->with('unit:id,manual_id')
+            ->findOrFail($workorderId);
+
+        abort_unless(
+            (int) ($workorder->unit?->manual_id ?? 0) === (int) $manual->id,
+            422,
+            'The workorder does not use this CMM.'
+        );
+
+        return $workorder;
+    }
+
+    private function logBushingProcessAdded(
+        Request $request,
+        Workorder $workorder,
+        Manual $manual,
+        ProcessName $processName,
+        Process $process,
+        bool $createdDefinition
+    ): void {
+        $summary = sprintf(
+            '%s: %s',
+            trim((string) $processName->name),
+            trim((string) $process->process)
+        );
+
+        activity('workorder')
+            ->causedBy($request->user())
+            ->performedOn($workorder)
+            ->event('bushing_process_catalog_added')
+            ->withProperties([
+                'source' => 'bushing_process_catalog',
+                'manual_id' => (int) $manual->id,
+                'manual_number' => (string) $manual->number,
+                'process_name_id' => (int) $processName->id,
+                'process_name' => (string) $processName->name,
+                'process_id' => (int) $process->id,
+                'process' => (string) $process->process,
+                'created_definition' => $createdDefinition,
+                'attributes' => [
+                    'bushing_process_catalog' => $summary,
+                ],
+                'old' => [
+                    'bushing_process_catalog' => null,
+                ],
+            ])
+            ->log('Bushing process added to CMM');
     }
 
     private function guard(): ProcessAccessGuard

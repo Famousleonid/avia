@@ -79,7 +79,7 @@
             top: -1px;
             vertical-align: middle;
             border-top: 1px;
-            z-index: 1020;
+            z-index: 20;
         }
 
         @media (max-width: 1200px) {

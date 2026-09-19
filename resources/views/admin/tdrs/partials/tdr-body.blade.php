@@ -672,6 +672,10 @@
                 </select>
             </div>
             @php
+                $showFcDocButton = auth()->user()?->roleIs('Admin') ?? false;
+            @endphp
+            @if($showFcDocButton)
+                @php
                     // F&C Doc button color = aggregate data state of the document marks
                     $fcDocStatus = app(\App\Services\Measurements\ProcessDocumentRenderer::class)
                         ->fcDocumentStatus(optional($current_wo->unit)->manuals, $current_wo);
@@ -690,16 +694,18 @@
                         'nodata' => __('F&C Document — some values not measured'),
                         default  => __('F&C Document — filled manual pages with this WO measurements'),
                     };
-            @endphp
-            <a href="{{ route('workorders.fc-document', $current_wo->id) }}" target="_blank"
-               class="btn {{ $fcDocBtnClass }} btn-sm {{ count($processGroups ?? []) > 0 ? 'ms-auto me-2' : 'ms-auto' }}"
-               style="{{ $fcDocBtnStyle }}"
-               title="{{ $fcDocTitle }}">
-                <i class="bi bi-file-earmark-richtext"></i> {{ __('F&C Doc') }}
-            </a>
+                @endphp
+                <a href="{{ route('workorders.fc-document', $current_wo->id) }}" target="_blank"
+                   class="btn {{ $fcDocBtnClass }} btn-sm {{ count($processGroups ?? []) > 0 ? 'ms-auto me-2' : 'ms-auto' }}"
+                   style="{{ $fcDocBtnStyle }}"
+                   title="{{ $fcDocTitle }}"
+                   data-fc-doc-button>
+                    <i class="bi bi-file-earmark-richtext"></i> {{ __('F&C Doc') }}
+                </a>
+            @endif
             @if(count($processGroups ?? []) > 0)
                 <button type="button"
-                        class="btn btn-outline-primary btn-sm"
+                        class="btn btn-outline-primary btn-sm {{ $showFcDocButton ? '' : 'ms-auto' }}"
                         data-bs-toggle="modal"
                         data-bs-target="#tdrGroupProcessModal">
                     <i class="fas fa-print"></i> {{ __('Group Process') }}
@@ -771,6 +777,11 @@
                 <tbody>
                 @foreach($tdrs as $tdr)
                     @if($tdr->use_tdr == true && $tdr->use_process_forms == true)
+                        @php
+                            $tdrDeleteLockedByProcessRo = auth()->check()
+                                && auth()->user()->roleIs(['Technician', 'Team Leader'])
+                                && ($roLockedTdrIds ?? collect())->contains((int) $tdr->id);
+                        @endphp
                         <tr data-tdr-id="{{ $tdr->id }}" data-tdr-ec="{{ $tdrEcIds->contains((int) $tdr->id) ? '1' : '0' }}">
                             <td class="tdr-drag-cell">
                                 <button type="button"
@@ -814,27 +825,22 @@
                                 <div class="d-flex">
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2 open-part-processes-tab"
                                             title="{{ __('Part Processes') }}"
+                                            data-tdr-action="processes"
                                             data-tdr-id="{{ $tdr->id }}">
                                         <img src="{{ asset('img/icons/tdr-process-train.png') }}"
                                              alt=""
                                              class="tdr-process-icon">
                                     </button>
-                                    @php $tdrInspectIcId = $tdrInspectIcByComp[$tdr->component_id] ?? null; @endphp
-                                    @if($tdrInspectIcId)
-                                        <button type="button" class="btn btn-outline-info btn-sm me-2 tdr-inspect-part"
-                                                title="{{ __('Inspect — measure this part') }}"
-                                                data-ic-id="{{ $tdrInspectIcId }}">
-                                            <i class="bi bi-rulers"></i>
-                                        </button>
-                                    @endif
                                     @if($tdr->isManufacturePairMember())
                                         <button type="button" class="btn btn-outline-secondary btn-sm me-2" disabled
+                                                data-tdr-action="edit"
                                                 title="{{ __('Manufacture entries must be deleted as a pair and recreated.') }}">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                     @else
                                         <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Edit') }}"
                                                 data-bs-toggle="modal" data-bs-target="#editTdrModal"
+                                                data-tdr-action="edit"
                                                 data-tdr-id="{{ $tdr->id }}">
                                             <i class="bi bi-pencil"></i>
                                         </button>
@@ -845,7 +851,13 @@
                                         <input type="hidden" name="return_to" value="show">
                                         <button type="button"
                                                 class="btn btn-outline-danger btn-sm"
-                                                @if($tdr->isManufacturePairMember())
+                                                data-tdr-action="delete"
+                                                @if($tdrDeleteLockedByProcessRo)
+                                                    disabled
+                                                    aria-disabled="true"
+                                                    data-tdr-delete-locked="process-ro"
+                                                    title="{{ __('Assigned process RO: only Admin or Manager can delete this TDR.') }}"
+                                                @elseif($tdr->isManufacturePairMember())
                                                     data-tdr-manufacture-pair-delete
                                                 @else
                                                     data-bs-toggle="modal"
@@ -855,6 +867,15 @@
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
+                                    @php $tdrInspectIcId = $tdrInspectIcByComp[$tdr->component_id] ?? null; @endphp
+                                    @if($tdrInspectIcId)
+                                        <button type="button" class="btn btn-outline-info btn-sm me-2 tdr-inspect-part"
+                                                title="{{ __('Inspect — measure this part') }}"
+                                                data-tdr-action="inspect"
+                                                data-ic-id="{{ $tdrInspectIcId }}">
+                                            <i class="bi bi-rulers"></i>
+                                        </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

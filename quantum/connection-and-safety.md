@@ -47,6 +47,10 @@ QUANTUM_MANAGER_ORACLE_DSN
 php -d extension=php_oci8_19.dll manager\sync_manager.php --mode=tables
 ```
 
+For direct workstation diagnostics, explicitly set `$env:TNS_ADMIN='C:\oracle\network\admin'`
+before PHP. On 11/Sep/2026 the W107855 SELECT failed without this explicit setting
+and succeeded with it; Oracle listener connectivity itself was healthy.
+
 ## Read-only правило
 
 Quantum использовать только для чтения.

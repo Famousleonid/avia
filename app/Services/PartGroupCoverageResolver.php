@@ -31,8 +31,9 @@ class PartGroupCoverageResolver
             ->keyBy('id');
         $groups = $allGroups->filter(fn (ManualPartGroup $group): bool => $group->appliesTo($scope));
 
+        $automaticCoverage = $this->automaticIplCoverage($workorder);
         if ($groups->isEmpty()) {
-            return [];
+            return $automaticCoverage;
         }
 
         $optionsById = $allGroups
@@ -41,7 +42,7 @@ class PartGroupCoverageResolver
 
         $selected = $this->explicitSelections($workorder, $groups);
         $selected = $this->inferSelectionsFromTdrs($workorder, $groups, $selected);
-        $coverage = $this->bushingCoverageFromLines($workorder, $groups);
+        $coverage = $this->bushingCoverageFromLines($workorder, $groups) + $automaticCoverage;
 
         foreach ($selected as $groupId => $selection) {
             /** @var ManualPartGroup|null $group */
@@ -94,6 +95,32 @@ class PartGroupCoverageResolver
             }
         }
 
+        return $coverage;
+    }
+
+    /** Letter suffixes are variants of one IPL position, without a manual group. */
+    private function automaticIplCoverage(Workorder $workorder): array
+    {
+        $orderedIds = Tdr::where('workorder_id', $workorder->id)->whereNotNull('order_component_id')
+            ->pluck('order_component_id')->map(fn ($id) => (int) $id)->all();
+        if ($orderedIds === []) {
+            return [];
+        }
+        $parts = \App\Models\Component::whereIn('manual_id', $workorder->usedManualIds())
+            ->where('is_bush', false)->get(['id', 'manual_id', 'ipl_num', 'part_number']);
+        $coverage = [];
+        foreach ($parts->groupBy(fn ($p) => $p->manual_id.'|'.PartVariantGrouping::iplFamily($p->ipl_num)) as $family) {
+            $selected = $family->whereIn('id', $orderedIds);
+            if ($selected->isEmpty()) {
+                continue;
+            }
+            foreach ($family->whereNotIn('id', $orderedIds) as $part) {
+                $coverage[(int) $part->id] = [
+                    'covered_qty' => PHP_INT_MAX, 'group_id' => 0, 'option_id' => 0,
+                    'reason' => 'IPL alternative not selected; selected P/N: '.$selected->pluck('part_number')->implode(', '),
+                ];
+            }
+        }
         return $coverage;
     }
 
@@ -292,6 +319,26 @@ class PartGroupCoverageResolver
                 $this->addCoverage(
                     $coverage,
                     $bushingComponentId,
+                    $memberQty,
+                    $reason,
+                    $selectedGroup,
+                    $selectedOption
+                );
+            }
+
+            return;
+        }
+
+        if ($coveredGroup->type === ManualPartGroup::TYPE_ALTERNATIVE) {
+            foreach ($coveredGroup->options as $alternativeOption) {
+                $alternativeComponentId = (int) ($alternativeOption->component_id ?? 0);
+                if ($alternativeComponentId <= 0) {
+                    continue;
+                }
+
+                $this->addCoverage(
+                    $coverage,
+                    $alternativeComponentId,
                     $memberQty,
                     $reason,
                     $selectedGroup,

@@ -74,6 +74,7 @@
     function addEmptyProcessRows(extraEmptyRows, columnCount) {
         const containers = document.querySelectorAll('.spec-process-table-body');
         containers.forEach(function(container, index) {
+            if (container.closest('[data-sp-preview-page]')?.hidden) return;
             container.querySelectorAll('.spec-process-compensation-hidden').forEach(function(row) {
                 row.classList.remove('spec-process-compensation-hidden');
             });
@@ -84,7 +85,10 @@
             const minEmpty = Math.max(0, minRows - dataRows);
             const needsCompensation = container.closest('.container-fluid')
                 ?.classList.contains('spec-description-row-expanded') ?? false;
-            const normalTotal = minEmpty + (extraEmptyRows || 0);
+            const previewCapacity = Number(container.dataset.previewCapacity) || 0;
+            const normalTotal = previewCapacity
+                ? Math.max(0, previewCapacity - dataRows)
+                : minEmpty + (extraEmptyRows || 0);
             const totalNeeded = Math.max(0, normalTotal - (needsCompensation ? 1 : 0));
             const toAdd = Math.max(0, totalNeeded - existing);
             for (let i = 0; i < toAdd; i++) {
@@ -124,9 +128,36 @@
         });
     }
 
+    let previewProcessRows = null;
+    function fillPreviewPages(settings) {
+        const pages = Array.from(document.querySelectorAll('[data-sp-preview-page]'));
+        if (!pages.length) return;
+        const footers = Array.from(document.querySelectorAll('[data-sp-preview-footer]'));
+        const breaks = Array.from(document.querySelectorAll('[data-sp-preview-break]'));
+        if (previewProcessRows === null) {
+            previewProcessRows = pages.flatMap(page => Array.from(page.querySelectorAll('.spec-process-name-row')));
+        }
+        // The controller supplies 15 process rows per page. Extra rows are
+        // available slots, so consume them before starting another page.
+        const capacity = 15 + Math.max(0, Number(settings.processTableExtraEmptyRows) || 0);
+        const pageCount = Math.max(1, Math.ceil(previewProcessRows.length / capacity));
+        pages.forEach((page, index) => {
+            const body = page.querySelector('.spec-process-table-body');
+            body.replaceChildren(...previewProcessRows.slice(index * capacity, (index + 1) * capacity));
+            body.dataset.previewCapacity = String(capacity);
+            page.hidden = index >= pageCount;
+            if (footers[index]) {
+                footers[index].hidden = page.hidden;
+                footers[index].querySelector('[data-sp-preview-page-number]').textContent = `${index + 1} of ${pageCount}`;
+            }
+            if (breaks[index]) breaks[index].hidden = index >= pageCount - 1;
+        });
+    }
+
     function refreshProcessFormLayout(settings) {
         applyPrintSettings(settings);
         removeAllEmptyRows();
+        fillPreviewPages(settings);
         syncDescriptionRowHeight();
         const columnCount = parseInt(document.querySelector('.spec-process-table-body')?.dataset?.columnCount) || 6;
         addEmptyProcessRows(settings.processTableExtraEmptyRows || 0, columnCount);

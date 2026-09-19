@@ -6,6 +6,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 $projectRoot = dirname(__DIR__, 4);
 require $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autoload.php';
+require_once __DIR__.'/ipl_quantity.php';
 
 /** @return never */
 function fail(string $message): void
@@ -16,7 +17,9 @@ function fail(string $message): void
 
 function clean(mixed $value): string
 {
-    return trim(preg_replace('/\s+/u', ' ', (string) ($value ?? '')) ?? '');
+    $value = str_replace(["\u{FEFF}", "\xEF\xBB\xBF"], '', (string) ($value ?? ''));
+
+    return trim(preg_replace('/\s+/u', ' ', $value) ?? '');
 }
 
 function normalizeDash(string $value): string
@@ -58,7 +61,13 @@ function partNumberCompatible(mixed $left, mixed $right): bool
     $rightValues = expandPartNumbers($right);
     foreach ($leftValues as $a) {
         foreach ($rightValues as $b) {
-            if ($a === $b || (str_ends_with($a, '-') && str_starts_with($b, $a)) || (str_ends_with($b, '-') && str_starts_with($a, $b))) {
+            $aPattern = str_contains($a, '_') ? '/^'.preg_replace('/_+/', '[A-Z0-9]+', preg_quote($a, '/')).'$/' : null;
+            $bPattern = str_contains($b, '_') ? '/^'.preg_replace('/_+/', '[A-Z0-9]+', preg_quote($b, '/')).'$/' : null;
+            if ($a === $b
+                || ($aPattern !== null && preg_match($aPattern, $b) === 1)
+                || ($bPattern !== null && preg_match($bPattern, $a) === 1)
+                || (str_ends_with($a, '-') && str_starts_with($b, $a))
+                || (str_ends_with($b, '-') && str_starts_with($a, $b))) {
                 return true;
             }
         }
@@ -224,7 +233,7 @@ $outputDir = isset($options['output-dir']) ? (string) $options['output-dir'] : '
 if ($sourceDir === false || ! is_dir($sourceDir)) {
     fail('A valid --source-dir is required.');
 }
-if (! preg_match('/^(\d{2}-\d{2}-\d{2})(?:\s+[A-Za-z0-9][A-Za-z0-9 .&()\/_-]*)?$/', $manualNumber, $manualMatches)) {
+if (! preg_match('/^(\d{2}-\d{2}-\d{2})(?:\s*[A-Za-z][A-Za-z0-9 .&()\/_-]*)?$/', $manualNumber, $manualMatches)) {
     fail('--manual-number must start with NN-NN-NN and may include the manual variant name.');
 }
 $workbookManualNumber = $manualMatches[1];
@@ -309,7 +318,18 @@ $issues = [];
 $parts = [];
 $partsByIpl = [];
 $partsByPn = [];
+$quantityNormalizations = [];
 foreach ($partsRows as $index => $row) {
+    $rawQuantity = clean($row['units_assy'] ?? '');
+    try {
+        $quantity = normalizeIplQuantity($rawQuantity);
+    } catch (InvalidArgumentException $e) {
+        $issues[] = ['type' => 'invalid_ipl_quantity', 'row' => $index + 2, 'ipl_num' => $row['ipl_num'] ?? '', 'source_quantity' => $rawQuantity];
+        continue;
+    }
+    if ($quantity !== $rawQuantity) {
+        $quantityNormalizations[] = ['row' => $index + 2, 'ipl_num' => normalizeIpl($row['ipl_num'] ?? ''), 'source_quantity' => $rawQuantity, 'units_assy' => $quantity];
+    }
     $part = [
         'source_row' => $index + 2,
         'ipl_num' => normalizeIpl($row['ipl_num'] ?? ''),
@@ -317,7 +337,7 @@ foreach ($partsRows as $index => $row) {
         'assy_part_number' => normalizeDash(clean($row['assy_part_number'] ?? '')),
         'name' => clean($row['name'] ?? ''),
         'assy_ipl_num' => normalizeDash(clean($row['assy_ipl_num'] ?? '')),
-        'units_assy' => clean($row['units_assy'] ?? ''),
+        'units_assy' => $quantity,
     ];
     if (! preg_match('/^\d+[A-Z]?-\d+[A-Z]?$/i', $part['ipl_num']) || $part['part_number'] === '' || $part['name'] === '') {
         $issues[] = ['type' => 'invalid_part_row', 'row' => $index + 2, 'data' => $part];
@@ -352,7 +372,10 @@ if (isset($options['target-json']) && clean($options['target-json']) !== '') {
         }
         $decoded = $decoded[0];
     }
-    if (! is_array($decoded) || clean($decoded['number'] ?? '') !== $manualNumber) {
+    $decodedManualNumber = is_array($decoded)
+        ? clean($decoded['number'] ?? ($decoded['manual']['number'] ?? ''))
+        : '';
+    if (! is_array($decoded) || $decodedManualNumber !== $manualNumber) {
         fail('--target-json manual number does not match --manual-number.');
     }
     $target = $decoded;
@@ -363,6 +386,9 @@ if (isset($options['target-json']) && clean($options['target-json']) !== '') {
 $canonicalByIpl = $partsByIpl;
 $candidateByPn = $partsByPn;
 foreach ($targetComponents as $component) {
+    if (! empty($component['deleted_at'])) {
+        continue;
+    }
     $ipl = normalizeIpl($component['ipl_num'] ?? '');
     if ($ipl === '') {
         continue;
@@ -404,6 +430,18 @@ foreach ($workbook->getWorksheetIterator() as $worksheet) {
 $workbook->disconnectWorksheets();
 unset($workbook);
 
+// Mandatory independent stage: do not confuse this sheet with WO Process Sheet or process flags.
+$inProcessCheckSheet = null;
+try {
+    $inProcessCheckSheet = (new \App\Services\InProcessCheckSheetImporter())->extract($workbookPath);
+    foreach ($inProcessCheckSheet['issues'] as $detail) {
+        $issues[] = ['type' => 'in_process_check_sheet_review', 'detail' => $detail];
+    }
+} catch (\Throwable $e) {
+    $issues[] = ['type' => 'in_process_check_sheet_missing_or_invalid', 'detail' => $e->getMessage()];
+}
+file_put_contents($outputDir.DIRECTORY_SEPARATOR.'in_process_check_sheet.json', json_encode($inProcessCheckSheet, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
 if (count(array_filter($manualOccurrences, static fn (array $item): bool => $item['manual'] === $workbookManualNumber)) === 0) {
     $issues[] = ['type' => 'manual_number_not_found_in_workbook', 'manual' => $workbookManualNumber];
 }
@@ -424,14 +462,12 @@ $setFlag = static function (string $ipl, string $flag, array $detail) use (&$fla
     $flagsByIpl[$ipl][$flag] = true;
 };
 
-$mapProcessSheets = static function (string $sheetPrefix, string $flag) use (
+$mapProcessSheets = static function (string $sheetLabel, string $flag, callable $matchesSheet) use (
     $sheets, $workbookManualNumber, $canonicalByIpl, &$issues, $setFlag
 ): void {
-    $matchingSheets = array_filter(array_keys($sheets), static fn (string $key): bool =>
-        $key === $sheetPrefix || str_starts_with($key, $sheetPrefix.' (')
-    );
+    $matchingSheets = array_filter(array_keys($sheets), $matchesSheet);
     if ($matchingSheets === []) {
-        $issues[] = ['type' => 'missing_workbook_sheet', 'sheet' => $sheetPrefix];
+        $issues[] = ['type' => 'missing_workbook_sheet', 'sheet' => $sheetLabel];
         return;
     }
 
@@ -481,11 +517,20 @@ $mapProcessSheets = static function (string $sheetPrefix, string $flag) use (
             if ($ipls === []) {
                 continue;
             }
-            if (count($partNumbers) !== 1 && count($partNumbers) !== count($ipls)) {
+            if (count($ipls) > 1 && count($partNumbers) > 1 && count($partNumbers) !== count($ipls)) {
                 $issues[] = ['type' => 'multiline_count_mismatch', 'sheet' => $sheets[$sheetKeyName]['name'], 'row' => $rowIndex + 1, 'ipls' => $ipls, 'part_numbers' => $partNumbers];
             }
-            foreach ($ipls as $position => $ipl) {
-                $workbookPn = count($partNumbers) === 1 ? $partNumbers[0] : ($partNumbers[$position] ?? null);
+            $pairs = [];
+            if (count($ipls) === 1) {
+                foreach ($partNumbers as $workbookPn) {
+                    $pairs[] = [$ipls[0], $workbookPn];
+                }
+            } else {
+                foreach ($ipls as $position => $ipl) {
+                    $pairs[] = [$ipl, count($partNumbers) === 1 ? $partNumbers[0] : ($partNumbers[$position] ?? null)];
+                }
+            }
+            foreach ($pairs as [$ipl, $workbookPn]) {
                 $ipl = normalizeIpl($ipl);
                 $detail = ['sheet' => $sheets[$sheetKeyName]['name'], 'row' => $rowIndex + 1, 'workbook_part_number' => $workbookPn, 'description' => $description];
                 $targetIpls = [];
@@ -522,9 +567,15 @@ $mapProcessSheets = static function (string $sheetPrefix, string $flag) use (
     }
 };
 
-$mapProcessSheets('NDT', 'ndt_list');
-$mapProcessSheets('CAD', 'cad_list');
-$mapProcessSheets('PAINT', 'paint_list');
+$mapProcessSheets('NDT', 'ndt_list', static fn (string $key): bool =>
+    $key === 'NDT' || $key === 'NDT BUSHINGS' || preg_match('/^NDT \(\d+\)$/', $key) === 1
+);
+$mapProcessSheets('CAD', 'cad_list', static fn (string $key): bool =>
+    $key === 'CAD' || $key === 'CAD BUSHINGS' || $key === 'CAD BUHSINGS' || $key === 'CAD AIRCO' || preg_match('/^CAD \(\d+\)$/', $key) === 1
+);
+$mapProcessSheets('PAINT', 'paint_list', static fn (string $key): bool =>
+    $key === 'PAINT' || preg_match('/^PAINT \(\d+\)$/', $key) === 1
+);
 
 if (! isset($sheets['LLP'])) {
     $issues[] = ['type' => 'missing_workbook_sheet', 'sheet' => 'LLP'];
@@ -603,22 +654,69 @@ if (count($matchingPrlSheets) !== 1) {
         }
         $ipls = [];
         foreach ($items as $position => $item) {
+            $item = ltrim(clean($item), "-\xE2\x80\x90\xE2\x80\x91\xE2\x80\x92\xE2\x80\x93\xE2\x80\x94");
             $figure = count($figures) === 1 ? $figures[0] : ($figures[$position] ?? $currentFigure);
-            $figure = clean($figure) !== '' ? $figure : $currentFigure;
-            $ipls[] = normalizeDash($figure.'-'.$item);
+            $figure = clean($figure);
+            if (! preg_match('/^\d+[A-Z]?$/i', $figure)) {
+                $figure = $currentFigure;
+            }
+            $ipls[] = normalizeIpl($figure.'-'.$item);
         }
-        if (count($partNumbers) !== 1 && count($partNumbers) !== count($ipls)) {
+        if (count($ipls) > 1 && count($partNumbers) > 1 && count($partNumbers) !== count($ipls)) {
             $issues[] = ['type' => 'prl_multiline_count_mismatch', 'sheet' => $sheets[$prlKey]['name'], 'row' => $rowIndex + 1, 'ipls' => $ipls, 'part_numbers' => $partNumbers];
         }
         $isKit = strtoupper(clean($row[5] ?? '')) === 'KIT';
+        if (! $isKit) {
+            continue;
+        }
         foreach ($ipls as $position => $ipl) {
-            $workbookPn = count($partNumbers) === 1 ? $partNumbers[0] : ($partNumbers[$position] ?? null);
-            $detail = ['sheet' => $sheets[$prlKey]['name'], 'row' => $rowIndex + 1, 'workbook_part_number' => $workbookPn, 'description' => $description];
-            if ($isKit) {
-                $setFlag($ipl, 'kit', $detail);
+            $candidatePartNumbers = count($ipls) === 1
+                ? $partNumbers
+                : [count($partNumbers) === 1 ? $partNumbers[0] : ($partNumbers[$position] ?? null)];
+            $candidatePartNumbers = array_values(array_filter($candidatePartNumbers, static fn ($value): bool => clean($value) !== ''));
+            $ipl = normalizeIpl($ipl);
+            $targetIpls = [];
+            if (isset($canonicalByIpl[$ipl])) {
+                foreach ($candidatePartNumbers as $workbookPn) {
+                    if (partNumberCompatible($workbookPn, $canonicalByIpl[$ipl]['part_number'])) {
+                        $targetIpls[] = $ipl;
+                        break;
+                    }
+                }
             }
-            if (isset($canonicalByIpl[$ipl]) && $workbookPn && ! partNumberCompatible($workbookPn, $canonicalByIpl[$ipl]['part_number'])) {
-                $issues[] = ['type' => 'workbook_csv_part_mismatch', 'ipl' => $ipl, 'flag' => 'kit', 'csv_part_number' => $canonicalByIpl[$ipl]['part_number']] + $detail;
+            if ($targetIpls === []) {
+                [$declaredFigure, $declaredItem] = array_pad(explode('-', $ipl, 2), 2, '');
+                preg_match('/^(\d+)/', $declaredItem, $declaredItemMatch);
+                $declaredBase = $declaredItemMatch[1] ?? '';
+                foreach ($canonicalByIpl as $candidateIpl => $candidate) {
+                    [$candidateFigure, $candidateItem] = array_pad(explode('-', $candidateIpl, 2), 2, '');
+                    preg_match('/^(\d+)/', $candidateItem, $candidateItemMatch);
+                    if ($candidateFigure !== $declaredFigure || ($candidateItemMatch[1] ?? '') !== $declaredBase) {
+                        continue;
+                    }
+                    foreach ($candidatePartNumbers as $workbookPn) {
+                        if (partNumberCompatible($workbookPn, $candidate['part_number'] ?? '')) {
+                            $targetIpls[] = $candidateIpl;
+                            break;
+                        }
+                    }
+                }
+            }
+            $detail = [
+                'sheet' => $sheets[$prlKey]['name'], 'row' => $rowIndex + 1,
+                'workbook_part_numbers' => $candidatePartNumbers, 'description' => $description,
+            ];
+            if ($targetIpls === []) {
+                if (isset($canonicalByIpl[$ipl])) {
+                    $issues[] = ['type' => 'workbook_csv_part_mismatch', 'ipl' => $ipl, 'flag' => 'kit', 'csv_part_number' => $canonicalByIpl[$ipl]['part_number']] + $detail;
+                } else {
+                    $issues[] = ['type' => 'ipl_not_in_component_sources', 'ipl' => $ipl, 'flag' => 'kit'] + $detail;
+                }
+                continue;
+            }
+            foreach (array_values(array_unique($targetIpls)) as $targetIpl) {
+                $mappingDetail = $targetIpl === $ipl ? $detail : $detail + ['declared_ipl' => $ipl, 'remapped_by_part_number' => true];
+                $setFlag($targetIpl, 'kit', $mappingDetail);
             }
         }
     }
@@ -677,12 +775,16 @@ if ($target !== null) {
     $exactExisting = [];
     $newIpls = [];
     $iplConflicts = [];
+    $quantityUpdates = [];
     foreach ($parts as $part) {
         $existing = $targetByIpl[$part['ipl_num']] ?? null;
         if ($existing === null) {
             $newIpls[] = $part['ipl_num'];
         } elseif (partIdentity($existing['part_number'] ?? '') === partIdentity($part['part_number'])) {
             $exactExisting[] = $part['ipl_num'];
+            if (clean($existing['units_assy'] ?? '') !== $part['units_assy']) {
+                $quantityUpdates[] = ['target_id' => $existing['id'] ?? null, 'ipl_num' => $part['ipl_num'], 'part_number' => $part['part_number'], 'previous_units_assy' => $existing['units_assy'] ?? null, 'units_assy' => $part['units_assy']];
+            }
         } else {
             $iplConflicts[] = [
                 'ipl_num' => $part['ipl_num'],
@@ -737,6 +839,7 @@ if ($target !== null) {
         'ipl_conflicts' => $iplConflicts,
         'existing_only_ipls' => $existingOnly,
         'flag_additions' => $flagAdditions,
+        'quantity_updates' => $quantityUpdates,
         'service_bulletins' => $sbComparison,
     ];
 }
@@ -787,8 +890,10 @@ $analysis = [
     'issue_counts' => $issueCounts,
     'issues' => $issues,
     'mappings' => $mappings,
+    'quantity_normalizations' => $quantityNormalizations,
     'service_bulletins' => $bulletins,
     'target_comparison' => $targetComparison,
+    'in_process_check_sheet' => $inProcessCheckSheet,
 ];
 file_put_contents($outputDir.DIRECTORY_SEPARATOR.'analysis.json', json_encode($analysis, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 

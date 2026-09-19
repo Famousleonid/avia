@@ -69,7 +69,9 @@ class WorkorderStdProcessItemsService
                     $scopeComponentRank = $scopeComponentIds !== null
                         ? array_flip($scopeComponentIds)
                         : null;
-                    $legacyInferredPart = $workorder->scope_type === null && $scopeQuantities !== null;
+                    $legacyInferredPart = $workorder->scope_type === null
+                        && $workorder->modified_scope_part_group_option_id === null
+                        && $scopeQuantities !== null;
                     $manualRows = $this->manualStdRowsForManualStd($manualId, $std);
                     $flagColumn = $this->componentFlagColumnForStd($std);
 
@@ -210,6 +212,7 @@ class WorkorderStdProcessItemsService
             && $this->scopedSnapshotNeedsRebuild(
                 $workorder,
                 $workorder->scope_type === null
+                    && $workorder->modified_scope_part_group_option_id === null
             );
 
         if (! $hasRows || $scopedSnapshotNeedsRebuild) {
@@ -220,7 +223,6 @@ class WorkorderStdProcessItemsService
         $rows = WorkorderStdProcessItem::query()
             ->where('workorder_id', $workorder->id)
             ->where('std_type', $std)
-            ->with('component:id,kit_prl_choice_group')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
@@ -244,7 +246,7 @@ class WorkorderStdProcessItemsService
             })
             ->all();
 
-        return StdProcess::sortRowsForSnapshot($rows);
+        return StdProcess::sortRowsForSnapshot(app(PartVariantGrouping::class)->annotateStdRows($rows, $std));
     }
 
     public function hasRowsForWorkorder(int $workorderId): bool

@@ -21,6 +21,7 @@
                         ? (int) $coverage->covered_manual_part_group_option_id
                         : null,
                     'qty' => (int) $coverage->qty,
+                    'applies_to' => $coverage->applies_to,
                     'part_number' => $coverage->component?->part_number,
                     'ipl_num' => $coverage->component?->ipl_num,
                     'name' => $coverage->component?->name,
@@ -41,6 +42,12 @@
             'delete_url' => route('manuals.part-groups.destroy', ['manual' => $cmm, 'partGroup' => $group]),
         ];
     })->values();
+    $partGroupCatalog = $parts->map(fn ($part) => [
+        'component_id' => (int) $part->id,
+        'ipl_num' => (string) $part->ipl_num,
+        'part_number' => (string) $part->part_number,
+        'name' => (string) $part->name,
+    ])->values();
 @endphp
 
 <div class="modal fade" id="manualPartGroupsModal" tabindex="-1" aria-labelledby="manualPartGroupsModalLabel" aria-hidden="true">
@@ -52,11 +59,11 @@
             </div>
             <div class="modal-body">
                 <div class="row g-3">
-                    <div class="col-lg-4 border-end">
+                    <div class="col-lg-4 border-end" id="manual-part-group-sidebar">
                         <div class="list-group" id="manual-part-group-list"></div>
                     </div>
-                    <div class="col-lg-8">
-                        <form id="manual-part-group-form" data-store-url="{{ route('manuals.part-groups.store', ['manual' => $cmm]) }}">
+                    <div class="col-lg-8" id="manual-part-group-editor">
+                        <form id="manual-part-group-form" data-no-spinner data-store-url="{{ route('manuals.part-groups.store', ['manual' => $cmm]) }}">
                             <input type="hidden" id="manual-part-group-id">
                             <div class="row g-2">
                                 <div class="col-md-7">
@@ -103,9 +110,28 @@
                                     @endforeach
                                 </div>
                                 <div class="col-12">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
                                         <label class="form-label mb-0">{{ __('Members / alternatives') }}</label>
+                                        <button type="button" class="btn btn-sm btn-outline-info" id="manual-part-group-add" aria-expanded="false" aria-controls="manual-part-group-picker"><i class="bi bi-plus-lg" aria-hidden="true"></i> {{ __('Add') }}</button>
+                                    </div>
+                                    <div class="mb-2">
                                         <span class="small text-muted" id="manual-part-group-member-help"></span>
+                                    </div>
+                                    <div class="border rounded p-2 mb-2 d-none" id="manual-part-group-picker">
+                                        <label class="form-label small" for="manual-part-group-search">{{ __('Parts in this CMM — search Item / IPL, P/N or name') }}</label>
+                                        <input type="search" class="form-control form-control-sm mb-2" id="manual-part-group-search" autocomplete="off" placeholder="{{ __('Search all Parts') }}">
+                                        <div class="table-responsive border rounded" style="max-height:220px; overflow:auto">
+                                            <table class="table table-sm mb-0" style="min-width:480px">
+                                                <thead class="position-sticky top-0 bg-body"><tr><th aria-label="{{ __('Select') }}"></th><th>Item / IPL</th><th>P/N</th><th>{{ __('Name') }}</th><th>{{ __('Status') }}</th></tr></thead>
+                                                <tbody id="manual-part-group-picker-rows"></tbody>
+                                            </table>
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+                                            <span class="small text-muted me-auto" id="manual-part-group-picker-count" aria-live="polite"></span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="manual-part-group-picker-cancel">{{ __('Cancel') }}</button>
+                                            <button type="button" class="btn btn-sm btn-info" id="manual-part-group-picker-apply" disabled>{{ __('Add selected') }}</button>
+                                        </div>
+                                        <div class="small text-muted mt-1">{{ __('Save group to apply changes.') }}</div>
                                     </div>
                                     <div class="table-responsive border rounded" style="max-height: 280px; overflow:auto">
                                         <table class="table table-sm mb-0" style="min-width: 620px">
@@ -118,9 +144,18 @@
                                     </div>
                                 </div>
                                 <div class="col-12 d-none" id="manual-part-group-assy-wrap">
-                                    <label class="form-label mb-1" id="manual-part-group-nested-label">{{ __('Included groups') }}</label>
-                                    <div class="small text-muted mb-2" id="manual-part-group-nested-help"></div>
-                                    <div class="border rounded p-2" id="manual-part-group-assy-members"></div>
+                                    <details class="border rounded p-2" id="manual-part-group-included-details">
+                                        <summary class="fw-semibold">{{ __('Included groups') }} (<span id="manual-part-group-included-count">0</span>)</summary>
+                                        <div class="small text-muted my-2" id="manual-part-group-nested-help">{{ __('Only directly included groups are listed. Expand a group to see its contents.') }}</div>
+                                        <div id="manual-part-group-assy-members"></div>
+                                        <button type="button" class="btn btn-sm btn-outline-info mt-2" id="manual-part-group-nested-add" aria-expanded="false" aria-controls="manual-part-group-nested-picker">+ {{ __('Add group') }}</button>
+                                        <div class="border rounded p-2 mt-2 d-none" id="manual-part-group-nested-picker">
+                                            <label class="form-label small" for="manual-part-group-nested-search">{{ __('Find a group to include') }}</label>
+                                            <input type="search" class="form-control form-control-sm mb-2" id="manual-part-group-nested-search" autocomplete="off">
+                                            <div id="manual-part-group-nested-results" style="max-height:240px;overflow:auto"></div>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="manual-part-group-nested-cancel">{{ __('Close') }}</button>
+                                        </div>
+                                    </details>
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label" for="manual-part-group-notes">{{ __('Notes') }}</label>
@@ -139,6 +174,22 @@
     </div>
 </div>
 
+<style>
+    #manualPartGroupsModal .row > div { min-width: 0; }
+    #manualPartGroupsModal details > summary { cursor: pointer; overflow-wrap: anywhere; }
+    #manualPartGroupsModal .part-group-nested-row { display: flex; align-items: flex-start; gap: .5rem; padding: .5rem 0; }
+    #manualPartGroupsModal .part-group-nested-row > details { flex: 1; min-width: 0; }
+    #manualPartGroupsModal .part-group-nested-actions { display: flex; align-items: center; gap: .35rem; flex-shrink: 0; }
+    #manualPartGroupsModal .part-group-nested-actions input { width: 65px; }
+    #manualPartGroupsModal .part-group-composition { margin: .5rem 0 0; padding-left: 1.2rem; overflow-wrap: anywhere; }
+    #manualPartGroupsModal .part-group-composition li { margin: .35rem 0; }
+    #manualPartGroupsModal .part-group-nested-result { display: flex; align-items: center; gap: .5rem; padding: .5rem; }
+    #manualPartGroupsModal .part-group-nested-result > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    @media (max-width: 575px) {
+        #manualPartGroupsModal .part-group-nested-row { flex-wrap: wrap; }
+        #manualPartGroupsModal .part-group-nested-row > details { flex-basis: 100%; }
+    }
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const modal = document.getElementById('manualPartGroupsModal');
@@ -147,6 +198,13 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!modal || !form || !partsTable) return;
 
     let groups = @json($partGroupPayload);
+    const partCatalog = @json($partGroupCatalog);
+    const picker = document.getElementById('manual-part-group-picker');
+    const pickerRows = document.getElementById('manual-part-group-picker-rows');
+    const pickerSearch = document.getElementById('manual-part-group-search');
+    const pickerApply = document.getElementById('manual-part-group-picker-apply');
+    const pickerToggle = document.getElementById('manual-part-group-add');
+    const pickedParts = new Set();
     let members = [];
     const list = document.getElementById('manual-part-group-list');
     const type = document.getElementById('manual-part-group-type');
@@ -161,6 +219,28 @@ document.addEventListener('DOMContentLoaded', function () {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     let includedGroups = {};
     let editingExistingGroup = false;
+    const nestedDetails = document.getElementById('manual-part-group-included-details');
+    const nestedPicker = document.getElementById('manual-part-group-nested-picker');
+    const nestedSearch = document.getElementById('manual-part-group-nested-search');
+    const nestedResults = document.getElementById('manual-part-group-nested-results');
+    const nestedAdd = document.getElementById('manual-part-group-nested-add');
+
+    function setCatalogMode(showCatalog) {
+        document.getElementById('manual-part-group-sidebar').classList.toggle('d-none', !showCatalog);
+        const editor = document.getElementById('manual-part-group-editor');
+        editor.classList.toggle('col-lg-8', showCatalog);
+        editor.classList.toggle('col-lg-12', !showCatalog);
+        modal.dataset.catalogMode = showCatalog ? '1' : '0';
+    }
+
+    function groupTypeLabel(group) {
+        return { assy: 'ASSY', kit: 'KIT', alternative_pn: 'Alternative P/N', oversize: 'Bushing Original/Oversize' }[group?.type] || '';
+    }
+
+    function closeNestedPicker() {
+        nestedPicker.classList.add('d-none');
+        nestedAdd.setAttribute('aria-expanded', 'false');
+    }
 
     function escapeHtml(value) {
         const span = document.createElement('span');
@@ -179,6 +259,69 @@ document.addEventListener('DOMContentLoaded', function () {
     function isBundle() { return ['assy', 'kit'].includes(type.value); }
     function isAssy() { return type.value === 'assy'; }
     function isKit() { return type.value === 'kit'; }
+
+    function closePicker() {
+        picker.classList.add('d-none');
+        pickerToggle.setAttribute('aria-expanded', 'false');
+        pickedParts.clear();
+    }
+
+    function pickerStatus(part) {
+        if (members.some(member => Number(member.component_id) === part.component_id)) return '{{ __('Already included') }}';
+        const nestedIds = Object.keys(includedGroups).flatMap(id => groupComponentIds(groupForOptionId(Number(id))));
+        if (nestedIds.includes(part.component_id)) return '{{ __('Included via group') }}';
+        if (isAssy() && memberBelongsToBushingGroup(part)) return '{{ __('Add the complete Bushing group below') }}';
+        return '';
+    }
+
+    function refreshPickerCount() {
+        pickerApply.disabled = pickedParts.size === 0;
+        document.getElementById('manual-part-group-picker-count').textContent = pickedParts.size + ' {{ __('selected') }}';
+    }
+
+    function renderPicker() {
+        const terms = pickerSearch.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+        const matches = partCatalog.filter(part => {
+            const text = [part.ipl_num, part.part_number, part.name].join(' ').toLocaleLowerCase();
+            return terms.every(term => text.includes(term));
+        });
+        pickerRows.innerHTML = matches.map(part => {
+            const status = pickerStatus(part);
+            if (status) pickedParts.delete(part.component_id);
+            return '<tr><td><input type="checkbox" class="form-check-input part-group-pick" data-component-id="' + part.component_id + '" aria-label="' + escapeHtml(part.ipl_num + ' / ' + part.part_number).replace(/"/g, '&quot;') + '" ' + (status ? 'disabled' : '') + ' ' + (pickedParts.has(part.component_id) ? 'checked' : '') + '></td><td>' + escapeHtml(part.ipl_num) + '</td><td>' + escapeHtml(part.part_number) + '</td><td>' + escapeHtml(part.name) + '</td><td class="small text-muted">' + escapeHtml(status) + '</td></tr>';
+        }).join('') || '<tr><td colspan="5" class="text-muted text-center">{{ __('No matching parts') }}</td></tr>';
+        refreshPickerCount();
+    }
+
+    pickerToggle.addEventListener('click', function () {
+        if (!picker.classList.contains('d-none')) { closePicker(); return; }
+        pickerSearch.value = '';
+        picker.classList.remove('d-none');
+        pickerToggle.setAttribute('aria-expanded', 'true');
+        renderPicker();
+        pickerSearch.focus();
+    });
+    pickerSearch.addEventListener('input', renderPicker);
+    pickerSearch.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') event.preventDefault();
+    });
+    pickerRows.addEventListener('change', function (event) {
+        const checkbox = event.target.closest('.part-group-pick');
+        if (!checkbox) return;
+        const id = Number(checkbox.dataset.componentId);
+        if (checkbox.checked) pickedParts.add(id); else pickedParts.delete(id);
+        refreshPickerCount();
+    });
+    document.getElementById('manual-part-group-picker-cancel').addEventListener('click', closePicker);
+    pickerApply.addEventListener('click', function () {
+        partCatalog.filter(part => pickedParts.has(part.component_id) && !pickerStatus(part)).forEach(part => {
+            members.push(Object.assign({}, part, { qty: 1, is_default: members.length === 0 }));
+        });
+        closePicker();
+        updateSuggestedGroupName();
+        renderMembers();
+        pickerToggle.focus();
+    });
 
     function memberBelongsToBushingGroup(member) {
         return groups.some(function (group) {
@@ -213,7 +356,7 @@ document.addEventListener('DOMContentLoaded', function () {
             item.classList.toggle('is-selected', Number(item.dataset.id) === Number(groupId));
         });
         const selected = list.querySelector('.part-group-list-item.is-selected');
-        selected?.scrollIntoView({ block: 'nearest' });
+        if (modal.dataset.catalogMode === '1') selected?.scrollIntoView({ block: 'nearest' });
     }
 
     function groupForOptionId(optionId) {
@@ -258,11 +401,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const componentId = Number(row.dataset.componentId || 0);
             const container = row.querySelector('.manual-part-groups-container');
             const empty = row.querySelector('.manual-part-group-empty');
+            const assyContainer = row.querySelector('.manual-part-assy-groups-container');
             if (!container || componentId <= 0) return;
 
             container.replaceChildren();
+            assyContainer?.replaceChildren();
             const componentGroups = groups.filter(function (group) {
-                return groupComponentIds(group).includes(componentId);
+                return (group.options || []).some(option => Number(option.component_id) === componentId);
             });
 
             componentGroups.forEach(function (group) {
@@ -276,20 +421,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 name.className = 'manual-part-group-badge-name';
                 name.textContent = group.name || group.code;
                 button.append(name);
-                container.append(button);
+                (group.type === 'assy' ? assyContainer : container)?.append(button);
             });
 
-            empty?.classList.toggle('d-none', componentGroups.length > 0 || Boolean(row.dataset.kitChoiceGroup));
+            empty?.classList.toggle('d-none', componentGroups.some(group => group.type !== 'assy'));
+            row.querySelector('.manual-part-assy-empty')?.classList.toggle('d-none', componentGroups.some(group => group.type === 'assy'));
         });
     }
 
     function refreshType() {
+        closePicker();
+        closeNestedPicker();
         orderFields.classList.toggle('d-none', !isKit());
         sbWrap.classList.toggle('d-none', !isKit());
         assyWrap.classList.toggle('d-none', !isBundle());
-        document.getElementById('manual-part-group-nested-help').textContent = isAssy()
-            ? '{{ __('An ASSY may include existing ASSY groups and complete Bushing Original/Oversize groups.') }}'
-            : '{{ __('A KIT may include previously created ASSY groups. Their complete composition will be crossed out when the KIT is selected.') }}';
+        document.getElementById('manual-part-group-nested-help').textContent = '{{ __('Only directly included groups are listed. Expand a group to see its contents.') }}';
         document.getElementById('manual-part-group-default-heading').textContent = isAssy()
             ? '{{ __('ASSY part') }}'
             : '{{ __('Default') }}';
@@ -314,39 +460,80 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td><button type="button" class="btn btn-sm btn-outline-danger part-group-member-remove" aria-label="Remove"><i class="bi bi-x"></i></button></td></tr>';
         }).join('');
         refreshBushingWarning();
+        if (!picker.classList.contains('d-none')) renderPicker();
     }
 
-    function renderNestedGroups() {
+    function optionEntry(optionId) {
+        const group = groupForOptionId(Number(optionId));
+        const option = group?.options.find(item => Number(item.id) === Number(optionId));
+        return group && option ? { group, option } : null;
+    }
+
+    function nestedLabel(entry) {
+        return [entry.option.ipl_num, entry.group.name || entry.option.part_number].filter(Boolean).join(' · ');
+    }
+
+    function compositionHtml(entry, visited = []) {
+        if (visited.includes(entry.group.id)) return '<div class="text-warning">{{ __('Circular group reference') }}</div>';
+        const path = [...visited, entry.group.id];
+        let rows;
+        if (['alternative_pn', 'oversize'].includes(entry.group.type)) {
+            rows = entry.group.options.map(option => '<li>' + escapeHtml([option.ipl_num, option.part_number].filter(Boolean).join(' · ')) + '</li>');
+        } else {
+            rows = (entry.option.coverages || []).map(coverage => {
+                const child = optionEntry(coverage.covered_option_id);
+                if (child) return '<li><details><summary>' + escapeHtml(nestedLabel(child)) + ' <span class="badge text-bg-secondary">' + groupTypeLabel(child.group) + '</span> · Qty ' + Number(coverage.qty || 1) + '</summary>' + compositionHtml(child, path) + '</details></li>';
+                if (!coverage.component_id || Number(coverage.component_id) === Number(entry.option.component_id)) return '';
+                return '<li>' + escapeHtml([coverage.ipl_num, coverage.part_number, coverage.name].filter(Boolean).join(' · ')) + ' · Qty ' + Number(coverage.qty || 1) + '</li>';
+            });
+        }
+        return '<ul class="part-group-composition">' + rows.join('') + '</ul>';
+    }
+
+    function eligibleNestedOptions() {
         const currentGroupId = Number(document.getElementById('manual-part-group-id').value || 0);
-        const allowedTypes = isAssy() ? ['assy', 'oversize'] : (isKit() ? ['assy'] : []);
-        const nestedOptions = groups
+        const allowedTypes = isAssy() ? ['assy', 'oversize', 'alternative_pn'] : (isKit() ? ['assy'] : []);
+        const includedGroupIds = Object.keys(includedGroups).map(id => groupForOptionId(Number(id))?.id);
+        return groups
             .filter(function (group) {
                 return allowedTypes.includes(group.type)
                     && Number(group.id) !== currentGroupId
+                    && !includedGroupIds.includes(group.id)
                     && (group.options || []).length
-                    && (!currentGroupId || !groupReaches(group.id, currentGroupId));
+                    && (!currentGroupId || !groupReaches(group.id, currentGroupId))
+                    && !includedGroupIds.some(id => groupReaches(id, group.id));
             })
             .map(function (group) {
                 const option = (group.options || []).find(function (item) { return item.is_default; }) || group.options[0];
                 return { group: group, option: option };
             });
 
-        assyMembers.innerHTML = nestedOptions.length ? nestedOptions.map(function (entry) {
-            const optionId = Number(entry.option.id);
-            const selected = includedGroups[optionId];
-            const typeLabel = entry.group.type === 'oversize' ? 'Bushing Original/Oversize' : 'ASSY';
-            return '<div class="d-flex align-items-center gap-2 mb-1">' +
-                '<input type="checkbox" class="form-check-input manual-part-group-assy-check" data-option-id="' + optionId + '" ' + (selected ? 'checked' : '') + '>' +
-                '<div class="flex-grow-1"><strong>' + escapeHtml(entry.option.part_number) + '</strong> — ' + escapeHtml(entry.group.name) + ' <span class="badge text-bg-secondary">' + typeLabel + '</span></div>' +
-                '<label class="small text-muted mb-0">Qty</label>' +
-                '<input type="number" min="1" max="9999" class="form-control form-control-sm manual-part-group-assy-qty" data-option-id="' + optionId + '" value="' + Number(selected?.qty || 1) + '" style="width:80px" ' + (!selected ? 'disabled' : '') + '>' +
-                '</div>';
-        }).join('') : '<div class="small text-muted">' + (isAssy()
-            ? '{{ __('No eligible ASSY or Bushing groups are available.') }}'
-            : '{{ __('Create an ASSY group first if this KIT contains a complete assembly.') }}') + '</div>';
+    }
+
+    function renderNestedPicker() {
+        const terms = nestedSearch.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+        const entries = eligibleNestedOptions().filter(entry => {
+            const text = [entry.group.name, entry.option.part_number, entry.option.ipl_num, groupTypeLabel(entry.group)].join(' ').toLocaleLowerCase();
+            return terms.every(term => text.includes(term));
+        });
+        nestedResults.innerHTML = entries.map(entry => '<div class="part-group-nested-result"><span>' + escapeHtml(nestedLabel(entry)) + ' <span class="badge text-bg-secondary">' + groupTypeLabel(entry.group) + '</span></span><button type="button" class="btn btn-sm btn-outline-info part-group-nested-pick" data-option-id="' + entry.option.id + '">{{ __('Add') }}</button></div>').join('') || '<div class="small text-muted">{{ __('No eligible groups') }}</div>';
+    }
+
+    function renderNestedGroups() {
+        const ids = Object.keys(includedGroups);
+        document.getElementById('manual-part-group-included-count').textContent = ids.length;
+        assyMembers.innerHTML = ids.map(id => {
+            const entry = optionEntry(Number(id));
+            const label = entry ? nestedLabel(entry) : '{{ __('Unavailable group') }} #' + id;
+            return '<div class="part-group-nested-row" data-option-id="' + id + '"><details><summary>' + escapeHtml(label) + (entry ? ' <span class="badge text-bg-secondary">' + groupTypeLabel(entry.group) + '</span>' : '') + '</summary>' + (entry ? compositionHtml(entry) : '') + '</details><div class="part-group-nested-actions"><label class="small" for="nested-qty-' + id + '">Qty</label><input id="nested-qty-' + id + '" type="number" min="1" max="9999" class="form-control form-control-sm manual-part-group-assy-qty" data-option-id="' + id + '" value="' + Number(includedGroups[id].qty || 1) + '"><button type="button" class="btn btn-sm btn-outline-danger part-group-nested-remove" data-option-id="' + id + '" aria-label="{{ __('Remove group from composition') }}">×</button></div></div>';
+        }).join('') || '<div class="small text-muted">{{ __('No included groups') }}</div>';
+        if (!nestedPicker.classList.contains('d-none')) renderNestedPicker();
     }
 
     function resetForm(useSelection) {
+        closePicker();
+        closeNestedPicker();
+        nestedDetails.open = false;
         form.reset();
         editingExistingGroup = false;
         document.getElementById('manual-part-group-id').value = '';
@@ -357,6 +544,7 @@ document.addEventListener('DOMContentLoaded', function () {
         nameInput.value = 'Default';
         document.getElementById('manual-part-group-delete').classList.add('d-none');
         highlightGroupInList(0);
+        document.getElementById('manualPartGroupsModalLabel').textContent = '{{ __('Part Groups') }}';
         refreshType();
     }
 
@@ -371,7 +559,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const option = group.options[0] || {};
         document.getElementById('manual-part-group-order-pn').value = isKit() ? (option.part_number || '') : '';
         document.getElementById('manual-part-group-order-ipl').value = isKit() ? (option.ipl_num || '') : '';
-        members = isBundle() ? (option.coverages || []).filter(function (coverage) { return Number(coverage.component_id) > 0; }) : group.options.map(function (item) {
+        members = isBundle() ? (option.coverages || []).filter(function (coverage) { return Number(coverage.component_id) > 0; }).map(function (coverage) { return Object.assign({}, coverage); }) : group.options.map(function (item) {
             const row = partsTable.querySelector('.manual-part-select[data-component-id="' + item.component_id + '"]')?.closest('tr');
             const cells = row?.querySelectorAll('td') || [];
             return { component_id: item.component_id, ipl_num: item.ipl_num || '', part_number: item.part_number || '', name: cells[3]?.textContent.trim() || '', qty: 1, is_default: item.is_default };
@@ -387,6 +575,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('manual-part-group-delete').classList.remove('d-none');
         refreshType();
         highlightGroupInList(group.id);
+        document.getElementById('manualPartGroupsModalLabel').textContent = group.name + ' · ' + groupTypeLabel(group);
     }
 
     function renderList() {
@@ -398,16 +587,16 @@ document.addEventListener('DOMContentLoaded', function () {
     function payload() {
         const componentIds = members.map(function (member) { return Number(member.component_id); });
         const memberQty = {};
+        const memberScopes = {};
         tbody.querySelectorAll('tr').forEach(function (row) {
             const member = members[Number(row.dataset.index)];
             memberQty[member.component_id] = Number(row.querySelector('.part-group-member-qty')?.value || 1);
             member.is_default = Boolean(row.querySelector('.part-group-member-default')?.checked);
+            if (member.applies_to?.length) memberScopes[member.component_id] = member.applies_to;
         });
-        const includedOptionIds = [];
+        const includedOptionIds = isBundle() ? Object.keys(includedGroups).map(Number) : [];
         const includedGroupQty = {};
-        assyMembers.querySelectorAll('.manual-part-group-assy-check:checked').forEach(function (checkbox) {
-            const optionId = Number(checkbox.dataset.optionId);
-            includedOptionIds.push(optionId);
+        includedOptionIds.forEach(function (optionId) {
             includedGroupQty[optionId] = Number(assyMembers.querySelector('.manual-part-group-assy-qty[data-option-id="' + optionId + '"]')?.value || 1);
         });
         return {
@@ -422,6 +611,7 @@ document.addEventListener('DOMContentLoaded', function () {
             order_part_number: isKit() ? (document.getElementById('manual-part-group-order-pn').value.trim() || null) : null,
             order_ipl_num: isKit() ? (document.getElementById('manual-part-group-order-ipl').value.trim() || null) : null,
             member_qty: memberQty,
+            member_applies_to: memberScopes,
         };
     }
 
@@ -435,15 +625,42 @@ document.addEventListener('DOMContentLoaded', function () {
         return data;
     }
 
-    document.getElementById('manual-part-groups-open')?.addEventListener('click', function () { resetForm(true); });
+    document.getElementById('manual-part-groups-open')?.addEventListener('click', function () { setCatalogMode(true); resetForm(true); });
     type.addEventListener('change', refreshType);
     assyMembers.addEventListener('change', function (event) {
-        const checkbox = event.target.closest('.manual-part-group-assy-check');
-        if (!checkbox) return;
-        const optionId = Number(checkbox.dataset.optionId);
-        if (checkbox.checked) includedGroups[optionId] = includedGroups[optionId] || { qty: 1 };
-        else delete includedGroups[optionId];
+        const qty = event.target.closest('.manual-part-group-assy-qty');
+        if (qty && includedGroups[Number(qty.dataset.optionId)]) {
+            includedGroups[Number(qty.dataset.optionId)].qty = Number(qty.value || 1);
+            return;
+        }
+    });
+    assyMembers.addEventListener('click', function (event) {
+        const remove = event.target.closest('.part-group-nested-remove');
+        if (!remove) return;
+        delete includedGroups[Number(remove.dataset.optionId)];
         renderNestedGroups();
+        if (!picker.classList.contains('d-none')) renderPicker();
+    });
+    nestedAdd.addEventListener('click', function () {
+        if (!nestedPicker.classList.contains('d-none')) { closeNestedPicker(); return; }
+        nestedPicker.classList.remove('d-none');
+        nestedAdd.setAttribute('aria-expanded', 'true');
+        nestedSearch.value = '';
+        renderNestedPicker();
+        nestedSearch.focus();
+    });
+    nestedSearch.addEventListener('input', renderNestedPicker);
+    nestedSearch.addEventListener('keydown', event => { if (event.key === 'Enter') event.preventDefault(); });
+    document.getElementById('manual-part-group-nested-cancel').addEventListener('click', closeNestedPicker);
+    nestedResults.addEventListener('click', function (event) {
+        const button = event.target.closest('.part-group-nested-pick');
+        if (!button) return;
+        const optionId = Number(button.dataset.optionId);
+        if (!eligibleNestedOptions().some(entry => Number(entry.option.id) === optionId)) return;
+        includedGroups[optionId] = { qty: 1 };
+        closeNestedPicker();
+        renderNestedGroups();
+        if (!picker.classList.contains('d-none')) renderPicker();
     });
     tbody.addEventListener('click', function (event) {
         const button = event.target.closest('.part-group-member-remove'); if (!button) return;
@@ -453,6 +670,8 @@ document.addEventListener('DOMContentLoaded', function () {
         renderMembers();
     });
     tbody.addEventListener('change', function (event) {
+        const quantity = event.target.closest('.part-group-member-qty');
+        if (quantity) members[Number(quantity.closest('tr').dataset.index)].qty = Number(quantity.value || 1);
         const selectedAssyPart = event.target.closest('.part-group-member-default');
         if (!selectedAssyPart) return;
         members.forEach(function (member, index) { member.is_default = index === Number(selectedAssyPart.closest('tr').dataset.index); });
@@ -464,6 +683,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!badge) return;
         const group = groups.find(function (item) { return item.id === Number(badge.dataset.partGroupId); });
         if (!group) return;
+        setCatalogMode(false);
         editGroup(group);
         window.bootstrap?.Modal.getOrCreateInstance(modal).show();
     });
@@ -476,6 +696,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const id = Number(document.getElementById('manual-part-group-id').value || 0);
         const group = groups.find(function (item) { return item.id === id; });
+        if (typeof window.confirmDialog !== 'function') { showNotification('{{ __('Confirmation dialog is unavailable. Nothing was saved.') }}', 'error'); return; }
+        const confirmed = await window.confirmDialog({ title: '{{ __('Save part group?') }}', message: nameInput.value, okText: '{{ __('Save group') }}', cancelText: '{{ __('Cancel') }}' });
+        if (!confirmed) return;
         const save = saveButton; save.disabled = true;
         try {
             const data = await request(group?.update_url || form.dataset.storeUrl, group ? 'PUT' : 'POST', payload());

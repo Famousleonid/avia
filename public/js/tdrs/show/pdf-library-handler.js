@@ -30,6 +30,17 @@ const PdfLibraryHandler = {
             // keep the full list; the toggle decides whether generated docs show
             this._allPdfs = Array.isArray(data.pdfs) ? data.pdfs : [];
 
+            const updateOptions = (id, categories, prefix = [], suffix = []) => {
+                const select = document.getElementById(id);
+                if (!select || !Array.isArray(categories)) return;
+                const value = select.value;
+                select.replaceChildren(...[...prefix, ...categories, ...suffix].map(item => new Option(item.name, item.key)));
+                select.value = Array.from(select.options).some(option => option.value === value) ? value : select.options[0]?.value;
+            };
+            updateOptions('pdfUploadCategory', data.upload_categories);
+            updateOptions('pdfCategoryFilter', data.document_categories,
+                [{key:'uploaded',name:'Uploaded only'},{key:'all',name:'All documents'}],
+                [{key:'ec_draft',name:'EC Draft (generated)'},{key:'fc',name:'F&C (generated)'},{key:'machining',name:'Machining (generated)'}]);
             const filter = document.getElementById('pdfCategoryFilter');
             if (filter && !filter._bound) {
                 filter._bound = true;
@@ -39,7 +50,7 @@ const PdfLibraryHandler = {
             this.renderPdfList();
         } catch (error) {
             console.error('Load PDF error:', error);
-            container.innerHTML = '<div class="col-12"><div class="alert alert-danger">Failed to load PDF files</div></div>';
+            container.innerHTML = '<div class="col-12"><div class="alert alert-danger">Failed to load documents</div></div>';
         } finally {
             if (typeof hideLoadingSpinner === 'function') {
                 hideLoadingSpinner();
@@ -69,39 +80,34 @@ const PdfLibraryHandler = {
         }
 
         if (pdfs.length === 0) {
-            container.innerHTML = '<div class="text-muted text-center py-4">No PDF files in this category.</div>';
+            container.innerHTML = '<div class="text-muted text-center py-4">No documents in this category.</div>';
             return;
         }
 
         let html = '';
         pdfs.forEach(pdf => {
                 const fileSize = this.formatFileSize(pdf.size);
-                const uploadDate = new Date(pdf.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-
-                const displayName = pdf.name && pdf.name !== pdf.file_name ? pdf.name : pdf.file_name;
-                const displayTitle = pdf.name && pdf.name !== pdf.file_name ? `${pdf.name} (${pdf.file_name})` : pdf.file_name;
+                const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                const uploadDate = escape(pdf.display_date || '');
+                const displayName = escape(pdf.name && pdf.name !== pdf.file_name ? pdf.name : pdf.file_name);
+                const displayTitle = escape(pdf.name && pdf.name !== pdf.file_name ? `${pdf.name} (${pdf.file_name})` : pdf.file_name);
 
                 html += `
                     <div class="pdf-list-row pdf-card" data-pdf-id="${pdf.id}">
-                        <div class="pdf-list-icon" aria-hidden="true">PDF</div>
+                        <div class="pdf-list-icon" aria-hidden="true">${pdf.mime_type?.startsWith('image/') ? 'IMG' : 'PDF'}</div>
                         <div class="min-w-0">
-                            <div class="pdf-list-title" title="${displayTitle}">${displayName} <span class="badge ${pdf.is_generated ? 'bg-secondary' : (pdf.kind === 'ec_approved' ? 'bg-success' : 'bg-info')}" style="font-size:9px;vertical-align:middle">${pdf.kind_label || 'General'}</span></div>
+                            <div class="pdf-list-title" title="${displayTitle}">${displayName} <span class="badge ${pdf.is_generated ? 'bg-secondary' : (pdf.kind === 'ec_approved' ? 'bg-success' : 'bg-info')}" style="font-size:9px;vertical-align:middle">${escape(pdf.kind_label || 'General')}</span></div>
                             <div class="pdf-list-meta">${fileSize} · ${uploadDate}</div>
                         </div>
                         <div class="pdf-list-actions">
                             <button class="btn btn-sm btn-outline-info view-pdf-btn"
                                     type="button"
                                     data-url="${pdf.url}"
+                                    data-mime="${escape(pdf.mime_type)}"
                                     data-download="${pdf.download_url}"
                                     data-name="${displayName}"
-                                    title="View PDF"
-                                    aria-label="View PDF">
+                                    title="View document"
+                                    aria-label="View document">
                                 <i class="bi bi-eye"></i>
                             </button>
                             <a href="${pdf.download_url}"

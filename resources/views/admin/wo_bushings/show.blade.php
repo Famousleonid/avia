@@ -264,6 +264,23 @@
                 var groupLabelBtn = e.target.closest('.js-bushing-batch-label');
                 if (groupLabelBtn) {
                     e.preventDefault();
+                    var routeNumber = groupLabelBtn.getAttribute('data-route-number');
+                    if (routeNumber) {
+                        var table = groupLabelBtn.closest('.bushing-view-table');
+                        if (!table) return;
+                        var routeBoxes = Array.from(table.querySelectorAll('.bushing-batch-ungroup-checkbox'))
+                            .filter(function (cb) { return cb.getAttribute('data-route-number') === routeNumber; });
+                        if (!routeBoxes.length) return;
+                        var selectRoute = !routeBoxes.every(function (cb) { return cb.checked; });
+                        if (selectRoute) {
+                            table.querySelectorAll('.bushing-batch-ungroup-checkbox').forEach(function (cb) {
+                                cb.checked = false;
+                            });
+                        }
+                        routeBoxes.forEach(function (cb) { cb.checked = selectRoute; });
+                        return;
+                    }
+
                     var grpProcessKey = groupLabelBtn.getAttribute('data-process-key') || '';
                     var grpBatchId = groupLabelBtn.getAttribute('data-batch-id') || '';
                     if (!grpProcessKey || !grpBatchId) return;

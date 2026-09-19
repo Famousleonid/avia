@@ -442,9 +442,19 @@
             font-size: var(--component-header-font-size) !important;
         }
 
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col:last-child {
+            border-right: 1px solid black !important;
+        }
+
         .spec-visible-process-last > .col-2,
         .spec-visible-process-last > .col-10 > .row.g-0 > .col {
             border-bottom: 1px solid black !important;
+        }
+
+        .spec-component-header-row > .col-10 > .row.g-0 > .col > .spec-batch-title {
+            display: block !important;
+            white-space: nowrap !important;
+            line-height: 28px !important;
         }
 
         .part-no-data {
@@ -461,7 +471,7 @@
         }
         .part-no-data div {
             display: block !important;
-            line-height: 7.2px !important;
+            line-height: 9px !important;
             max-width: 100% !important;
             overflow: hidden !important;
             overflow-wrap: normal !important;
@@ -498,8 +508,9 @@
             }
 
             .spec-process-footer {
-                position: fixed;
-                bottom: 0;
+                position: static;
+                break-inside: avoid;
+                page-break-inside: avoid;
                 width: var(--print-footer-width);
                 max-width: none;
                 margin-left: 0;
@@ -515,7 +526,8 @@
                 max-height: 100vh;
                 overflow: hidden;
             }
-            .border-r {
+
+        .border-r {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -556,7 +568,7 @@
             }
             .part-no-data div {
                 display: block !important;
-                line-height: 7.2px !important;
+                line-height: 9px !important;
                 max-width: 100% !important;
                 overflow: hidden !important;
                 overflow-wrap: normal !important;
@@ -574,7 +586,7 @@
 
         .spec-component-header-row > .col-10 > .row.g-0 > .col .part-no-data,
         .spec-component-header-row > .col-10 > .row.g-0 > .col .part-no-data div {
-            font-size: 7px !important;
+            font-size: 9px !important;
         }
 
         .border-r {
@@ -876,7 +888,7 @@
                         @foreach($processGroups as $groupIndex => $group)
                             <div class="col {{ $groupIndex < 5 ? 'border-l-t-r' : 'border-l-t' }} text-center" style="height:
                             30px">
-                                <span class="">Bushings </span>
+                                <span class="spec-batch-title">Bush {{ $group['batch_label'] }}</span>
                             </div>
                         @endforeach
                         @for($i = count($processGroups); $i < 6; $i++)

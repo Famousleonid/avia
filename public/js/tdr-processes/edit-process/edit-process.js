@@ -34,6 +34,26 @@
             return p && p.name === 'Machining (EC)';
         },
 
+        processUsesNotes(processNameId) {
+            const p =
+                (this.config.processNamesData || {})[processNameId] ||
+                (this.config.processNamesData || {})[String(processNameId)];
+
+            if (!p) return false;
+
+            return !(Boolean(p.print_form) && String(p.process_sheet_name || '').trim() !== '');
+        },
+
+        toggleNotesField(processRow, processNameId) {
+            const notesField = processRow?.querySelector('.process-notes-field');
+            const notesInput = notesField?.querySelector('input[name="notes"]');
+            if (!notesField || !notesInput) return;
+
+            const show = this.processUsesNotes(processNameId);
+            notesField.classList.toggle('d-none', !show);
+            notesInput.disabled = !show;
+        },
+
         toggleEcCheckbox(processRow, processNameId) {
             const ecContainer =
                 (processRow && processRow.querySelector('#ec-checkbox-container')) ||
@@ -89,6 +109,7 @@
                     const processRow = select.closest('.process-row');
 
                     self.toggleEcCheckbox(processRow, processNameId);
+                    self.toggleNotesField(processRow, processNameId);
                     self.handleNdtContainer(processRow, processNameId, ndtPlusSelect);
                     self.loadProcessesForRow(select);
                 });
@@ -161,6 +182,7 @@
             const processNameId = processNameSelect.value;
             const processRow = processNameSelect.closest('.process-row');
             this.toggleEcCheckbox(processRow, processNameId);
+            this.toggleNotesField(processRow, processNameId);
 
             if (ndtPlusContainer) {
                 if (this.isNdtProcess(processNameId)) {

@@ -615,6 +615,13 @@ class TdrProcessController extends Controller
 
         $formConfig = config('process_forms.travel-form', config('process_forms.tdr-processes'));
 
+        // Match the part's own manual (it can differ from the workorder unit manual).
+        $travelerTemplateNotes = \App\Models\TravelerNoteTemplate::query()
+            ->where('manual_id', $this->getManualIdForTdr($current_tdr->id))
+            ->where('part_number', $current_tdr->component?->part_number ?? '')
+            ->whereIn('process_names_id', $tdrProcesses->pluck('process_names_id'))
+            ->pluck('notes', 'process_names_id');
+
         // Fig: чертежи всех строк traveler-группы (общий чертёж — один раз)
         $figPagesHtml = $this->figPagesHtmlForRows($tdrProcesses, $current_wo);
 
@@ -627,6 +634,7 @@ class TdrProcessController extends Controller
             'repairNum',
             'vendorName',
             'travelerGroup',
+            'travelerTemplateNotes',
             'formConfig',
             'figPagesHtml'
         ));
@@ -1486,6 +1494,16 @@ class TdrProcessController extends Controller
             ], 422);
         }
 
+        if (
+            ($request->user()?->roleIs(['Technician', 'Team Leader']) ?? false)
+            && $processes->contains(fn (TdrProcess $process): bool => filled(trim((string) $process->repair_order)))
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => __('A process with an assigned RO can only be grouped by an Admin or Manager.'),
+            ], 403);
+        }
+
         $filledVendorIds = $processes
             ->pluck('vendor_id')
             ->filter()
@@ -1656,6 +1674,16 @@ class TdrProcessController extends Controller
             ->orderBy('id')
             ->get();
 
+        if (
+            ($request->user()?->roleIs(['Technician', 'Team Leader']) ?? false)
+            && $processes->contains(fn (TdrProcess $process): bool => filled(trim((string) $process->repair_order)))
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => __('A Traveler with an assigned RO can only be ungrouped by an Admin or Manager.'),
+            ], 403);
+        }
+
         if ($processes->isNotEmpty()) {
             $processIds = $processes->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
             $travelerGroups = $processes
@@ -1740,10 +1768,16 @@ class TdrProcessController extends Controller
      * @param  int  $id
      * @return Application|Factory|View
      */
-    public function edit($id)
+    public function edit(Request $request, $id)
     {
         // Находим запись TdrProcess по ID
         $current_tdr_processes = TdrProcess::findOrFail($id);
+
+        abort_if(
+            $this->assignedRoStructureIsRestricted($request, $current_tdr_processes),
+            403,
+            __('A process with an assigned RO can only be changed by an Admin or Manager.')
+        );
 
         $tdr_id = $current_tdr_processes->tdrs_id;
 
@@ -1786,6 +1820,13 @@ class TdrProcessController extends Controller
     public function editFormPartial(Request $request, $id)
     {
         $current_tdr_processes = TdrProcess::findOrFail($id);
+
+        abort_if(
+            $this->assignedRoStructureIsRestricted($request, $current_tdr_processes),
+            403,
+            __('A process with an assigned RO can only be changed by an Admin or Manager.')
+        );
+
         $current_tdr = Tdr::with(['workorder.unit', 'component'])->find($current_tdr_processes->tdrs_id);
         $current_wo = $current_tdr->workorder;
         $processNames = ProcessName::forPicker()->orderBy('name')->get();
@@ -1817,6 +1858,16 @@ class TdrProcessController extends Controller
     {
         // Находим запись TdrProcess по ID
         $current_tdr_processes = TdrProcess::findOrFail($id);
+
+        if ($this->assignedRoStructureIsRestricted($request, $current_tdr_processes)) {
+            $message = __('A process with an assigned RO can only be changed by an Admin or Manager.');
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 403);
+            }
+
+            return back()->with('error', $message);
+        }
 
         // Нормализация: radio отправляет process как скаляр, валидация ожидает массив
         $processes = $request->input('processes', []);
@@ -1934,8 +1985,13 @@ class TdrProcessController extends Controller
             'ec' => $ecValue, // Используем вычисленное значение EC
             'standalone_ec_only' => $standaloneEcRow,
             'description' => $request->input('description') ?? null, // Добавляем поле description (необязательное)
-            'notes' => $request->input('notes') ?? null, // Добавляем поле notes (необязательное)
         ];
+
+        // Notes используется только в Traveler. Скрытое/отключённое поле не должно
+        // стирать ранее сохранённую заметку при редактировании печатного процесса.
+        if ($request->has('notes')) {
+            $dataToUpdate['notes'] = $validated['notes'] ?? null;
+        }
 
         // Обновляем запись
         $current_tdr_processes->update($dataToUpdate);
@@ -1983,6 +2039,16 @@ class TdrProcessController extends Controller
 
         // Находим запись по ID
         $tdrProcess = TdrProcess::findOrFail($tdr_process);
+
+        if ($this->assignedRoStructureIsRestricted($request, $tdrProcess)) {
+            $message = __('A process with an assigned RO can only be deleted by an Admin or Manager.');
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 403);
+            }
+
+            return redirect()->back()->with('error', $message);
+        }
 
         if ($tdrProcess->in_traveler) {
             $msg = __('Cannot delete a process that is part of a Traveler group. UnGroup first.');
@@ -2305,6 +2371,12 @@ class TdrProcessController extends Controller
         }
     }
 
+    private function assignedRoStructureIsRestricted(Request $request, TdrProcess $process): bool
+    {
+        return ($request->user()?->roleIs(['Technician', 'Team Leader']) ?? false)
+            && filled(trim((string) $process->repair_order));
+    }
+
 
     public function updateDate(\Illuminate\Http\Request $request, \App\Models\TdrProcess $tdrProcess)
     {
@@ -2334,6 +2406,8 @@ class TdrProcessController extends Controller
         if ($tdrProcess->in_traveler) {
             return $this->updateTravelerProcessDateFields($request, $tdrProcess, $data, $isAjax);
         }
+
+        app(\App\Services\PaintFinishAccess::class)->authorizeUpdate(auth()->user(), [$tdrProcess], $data);
 
         $isExactEcProcess = $this->isExactEcProcess($tdrProcess);
         $canEditExactEcProcessDates = $this->userCanEditExactEcProcessDates();
@@ -2682,6 +2756,8 @@ class TdrProcessController extends Controller
             abort(404);
         }
 
+        app(\App\Services\PaintFinishAccess::class)->authorizeUpdate(auth()->user(), $processes, $data, true);
+
         $currentStart = $processes
             ->map(fn (TdrProcess $process) => $process->date_start ? $process->date_start->format('Y-m-d') : null)
             ->filter()
@@ -2865,6 +2941,8 @@ class TdrProcessController extends Controller
 
             return back()->withErrors(['date' => 'No date fields'])->withInput();
         }
+
+        app(\App\Services\PaintFinishAccess::class)->authorizeUpdate(auth()->user(), $processes, $data, true);
 
         if (! $this->userCanBypassProcessSequence()
             && ($errors = app(ProcessSequenceGuard::class)->validateTravelerGroupDateUpdate($tdr, $travelerGroup, $data))) {

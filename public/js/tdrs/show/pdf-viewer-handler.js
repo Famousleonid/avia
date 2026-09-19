@@ -15,7 +15,7 @@ const PdfViewerHandler = {
                 const downloadUrl = btn.dataset.download;
                 const pdfName = btn.dataset.name;
 
-                this.openPdfViewer(pdfUrl, downloadUrl, pdfName);
+                this.openPdfViewer(pdfUrl, downloadUrl, pdfName, btn.dataset.mime);
             });
         });
     },
@@ -26,7 +26,7 @@ const PdfViewerHandler = {
      * @param {string} downloadUrl - URL для скачивания PDF
      * @param {string} pdfName - Имя PDF файла
      */
-    openPdfViewer(pdfUrl, downloadUrl, pdfName) {
+    openPdfViewer(pdfUrl, downloadUrl, pdfName, mimeType = 'application/pdf') {
         const iframe = document.getElementById('pdfViewerFrame');
         const downloadLink = document.getElementById('pdfDownloadLink');
         const modalLabel = document.getElementById('pdfViewerModalLabel');
@@ -36,7 +36,16 @@ const PdfViewerHandler = {
             return;
         }
 
-        iframe.src = pdfUrl;
+        const image = document.getElementById('documentViewerImage');
+        const isImage = mimeType.startsWith('image/');
+        iframe.classList.toggle('d-none', isImage);
+        iframe.classList.toggle('d-block', !isImage);
+        iframe.src = isImage ? 'about:blank' : pdfUrl;
+        if (image) {
+            image.classList.toggle('d-none', !isImage);
+            if (isImage) image.src = pdfUrl;
+            else image.removeAttribute('src');
+        }
         downloadLink.href = downloadUrl;
         downloadLink.download = pdfName;
 
@@ -55,6 +64,7 @@ const PdfViewerHandler = {
      * Закрывает просмотрщик и очищает iframe
      */
     closePdfViewer() {
+        document.getElementById('documentViewerImage')?.removeAttribute('src');
         const iframe = document.getElementById('pdfViewerFrame');
         const downloadLink = document.getElementById('pdfDownloadLink');
 

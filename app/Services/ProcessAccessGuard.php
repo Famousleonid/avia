@@ -7,6 +7,7 @@ use App\Models\ManualProcess;
 use App\Models\ManualProcessNameLock;
 use App\Models\ProcessName;
 use App\Models\User;
+use App\Models\Workorder;
 
 class ProcessAccessGuard
 {
@@ -119,6 +120,32 @@ class ProcessAccessGuard
         }
 
         return ProcessAccessDecision::deny('You do not have access to this manual.', 'manual_access_denied');
+    }
+
+    /**
+     * Temporary shop-floor exception: a Technician may add a process to the
+     * CMM selected by a concrete workorder, but does not gain general CMM edit
+     * access. The controller also limits this path to bushing process names.
+     */
+    public function canManageWorkorderBushingProcesses(
+        User $user,
+        Manual $manual,
+        Workorder $workorder
+    ): ProcessAccessDecision {
+        $workorder->loadMissing('unit:id,manual_id');
+
+        if ((int) ($workorder->unit?->manual_id ?? 0) !== (int) $manual->id) {
+            return ProcessAccessDecision::deny(
+                'The workorder does not use this CMM.',
+                'workorder_manual_mismatch'
+            );
+        }
+
+        if ($user->roleIs('Technician')) {
+            return ProcessAccessDecision::allow();
+        }
+
+        return $this->canManageManual($user, $manual);
     }
 
     private function canMutateManualProcess(User $user, ManualProcess $manualProcess): ProcessAccessDecision

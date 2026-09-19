@@ -12,6 +12,55 @@ class PageVisitStatTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_cleanup_requires_preview_and_preserves_boundary_recent_and_newly_added_visits(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $this->travelTo(now()->startOfSecond());
+        $cutoff = now()->subDays(30);
+        $make = fn ($date) => PageVisit::create([
+            'user_id' => $admin->id, 'visited_at' => $date,
+            'method' => 'GET', 'path' => '/cleanup-test', 'url' => 'http://avia.loc/cleanup-test',
+        ]);
+        $old = $make($cutoff->copy()->subSecond());
+        $boundary = $make($cutoff);
+        $recent = $make(now());
+        $this->actingAs($admin)->deleteJson(route('admin.page-visits.cleanup'), [
+            'token' => (string) \Illuminate\Support\Str::uuid(),
+        ])->assertStatus(422);
+        $preview = $this->postJson(route('admin.page-visits.cleanup-preview'), ['days' => 30])->assertOk();
+        $this->assertDatabaseHas('page_visits', ['id' => $old->id]);
+        $late = $make($cutoff->copy()->subDay());
+        $payload = ['token' => $preview->json('token')];
+        $this->deleteJson(route('admin.page-visits.cleanup'), $payload)->assertOk();
+        $this->assertDatabaseMissing('page_visits', ['id' => $old->id]);
+        foreach ([$boundary, $recent, $late] as $visit) {
+            $this->assertDatabaseHas('page_visits', ['id' => $visit->id]);
+        }
+        $this->deleteJson(route('admin.page-visits.cleanup'), $payload)->assertStatus(422);
+        $this->travelBack();
+    }
+
+    public function test_cleanup_validates_retention_and_rejects_expired_preview(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $this->actingAs($admin);
+        foreach ([0, -1, 1.5, 'invalid', 36501] as $days) {
+            $this->postJson(route('admin.page-visits.cleanup-preview'), ['days' => $days])
+                ->assertUnprocessable()->assertJsonValidationErrors('days');
+        }
+        $preview = $this->postJson(route('admin.page-visits.cleanup-preview'), ['days' => 90])->assertOk();
+        $this->travel(11)->minutes();
+        $this->deleteJson(route('admin.page-visits.cleanup'), ['token' => $preview->json('token')])->assertStatus(422);
+        $this->travelBack();
+    }
+
+    public function test_cleanup_is_forbidden_without_is_admin(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['is_admin' => false]);
+        $this->actingAs($admin)->postJson(route('admin.page-visits.cleanup-preview'), ['days' => 30])->assertForbidden();
+        $this->deleteJson(route('admin.page-visits.cleanup'), ['token' => (string) \Illuminate\Support\Str::uuid()])->assertForbidden();
+    }
+
     public function test_is_admin_can_view_page_visit_stats_with_filters(): void
     {
         $admin = $this->createUserWithRole('Admin', ['is_admin' => true]);

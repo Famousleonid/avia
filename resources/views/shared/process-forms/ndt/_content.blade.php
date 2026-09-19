@@ -148,16 +148,19 @@
                 sort($processNumbers);
             @endphp
             <div class="row fs-8 data-row-ndt" data-row-index="{{ $rowIndex }}">
-                <div class="col-1 border-l-b details-row text-center" style="height: 32px">{{ $component->tdr->component->ipl_num }}</div>
-                <div class="col-3 border-l-b details-row text-center" style="height: 32px; line-height: 1">
+                <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ $component->tdr->component->ipl_num }}</div>
+                <div class="col-3 border-l-b details-row text-center" style="min-height: 32px; height: auto; line-height: 1">
                     {{ $component->tdr->component->part_number }}
                     @if($component->tdr->serial_number)<br>SN {{ $component->tdr->serial_number }}@endif
                 </div>
-                <div class="col-3 border-l-b details-row text-center" style="height: 32px">{{ $component->tdr->component->name }}</div>
-                <div class="col-2 border-l-b details-row text-center" style="height: 32px">{{ implode(' / ', $processNumbers) }}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif</div>
-                <div class="col-1 border-l-b details-row text-center" style="height: 32px">{{ $component->tdr->qty }}</div>
-                <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-                <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
+                <div class="col-3 border-l-b details-row text-center" style="min-height: 32px; height: auto; line-height: 1; flex-direction: column">
+                    <span>{{ $component->tdr->component->name }}</span>
+                    @if($component->description)<span>{{ $component->description }}</span>@endif
+                </div>
+                <div class="col-2 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ implode(' / ', $processNumbers) }}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif</div>
+                <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ $component->tdr->qty }}</div>
+                <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto"></div>
+                <div class="col-1 border-l-b-r details-row text-center" style="min-height: 32px; height: auto"></div>
             </div>
             @php $rowIndex++; @endphp
         @endforeach

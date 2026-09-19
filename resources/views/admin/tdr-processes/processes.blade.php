@@ -987,7 +987,7 @@
     <!-- Модульные JavaScript файлы -->
     <script src="{{ asset('js/tdr-processes/notification-handler.js') }}"></script>
     <script src="{{ asset('js/tdr-processes/group-forms-modal-handler.js') }}"></script>
-    <script src="{{ asset('js/tdr-processes/sortable-handler.js') }}"></script>
+    <script src="{{ asset('js/tdr-processes/sortable-handler.js') }}?v={{ filemtime(public_path('js/tdr-processes/sortable-handler.js')) }}"></script>
     <script src="{{ asset('js/tdr-processes/delete-modal-handler.js') }}"></script>
     <script src="{{ asset('js/tdr-processes/vendor-handler.js') }}"></script>
     <script src="{{ asset('js/tdr-processes/form-link-handler.js') }}"></script>

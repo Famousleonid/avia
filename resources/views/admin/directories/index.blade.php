@@ -12,6 +12,7 @@
         .dir-code-quick-cell:hover { background: rgba(var(--bs-primary-rgb), .08); }
         .dir-code-quick-value { font-family: var(--bs-font-monospace); font-size: 1rem; font-weight: 600; }
         .dir-code-edit-status { min-height: 1.25rem; }
+        #dirTable .js-sp-sort-order.is-sp-excluded { color: #858b92 !important; }
     </style>
 @endsection
 
@@ -23,7 +24,9 @@
         $hideProcessNameTableFields = ! $canDeleteDirectoryItems && $slug === 'process_names'
             ? ['notify_user_id', 'print_form']
             : [];
-        $hideProcessNameFormFields = $hideProcessNameTableFields;
+        $hideProcessNameFormFields = $isProcessNamesDirectory
+            ? array_merge($hideProcessNameTableFields, ['sp_sort_order'])
+            : $hideProcessNameTableFields;
     @endphp
 
     <div class="card border-0 dir-page">
@@ -62,6 +65,12 @@
         </div>
 
         <div class="card-body pt-1 m-0">
+            @if($slug === 'document_categories')
+                <p class="small text-muted">Deleting a category removes it from new uploads. Existing documents keep their category. General is the default and cannot be deleted.</p>
+                @if($errors->any())
+                    <div class="alert alert-danger">{{ $errors->first() }}</div>
+                @endif
+            @endif
             @if($items->count())
                 <div class="dir-panel">
                     <div class="table-responsive">
@@ -70,6 +79,12 @@
                             <tr>
                                 @foreach($cfg['fields'] as $field => $label)
                                     @continue(in_array($field, $hideProcessNameTableFields, true))
+                                    @if($isProcessNamesDirectory && $field === 'sp_sort_order')
+                                        <th class="text-primary px-2 text-center" style="width:110px; min-width:110px;">
+                                            <a href="{{ route('process_names.sp-form-preview') }}" target="_blank" rel="noopener" title="Preview blank SP Form in saved process order">SP form</a>
+                                        </th>
+                                        @continue
+                                    @endif
                                     <th class="text-primary sortable px-2" data-sort-field="{{ $field }}" data-direction="asc" style="{{ $field === 'print_form' ? 'width:8%; min-width:90px;' : 'min-width:140px;' }}">
                                         {{ __($label) }}
                                         <i class="bi bi-chevron-expand ms-1"></i>
@@ -117,7 +132,12 @@
                                             title="{{ (string)$display }}"
                                             @if($isQuickCodeCell) role="button" tabindex="0" aria-label="Edit code" @endif
                                         >
-                                            @if($type === 'boolean' || $type === 'checkbox')
+                                            @if($isProcessNamesDirectory && $field === 'sp_sort_order')
+                                                <input type="number" min="0" max="99999" step="1"
+                                                       class="form-control form-control-sm text-center mx-auto js-sp-sort-order {{ $val !== '' && (int) $val === 0 ? 'is-sp-excluded' : '' }}"
+                                                       style="width:85px" value="{{ $val }}" data-saved="{{ $val }}"
+                                                       aria-label="SP order for {{ $item->name }}" placeholder="Last">
+                                            @elseif($type === 'boolean' || $type === 'checkbox')
                                                 <button type="button" class="btn btn-sm js-dir-toggle {{ $val ? 'btn-success' : 'btn-outline-secondary' }}" data-id="{{ $item->id }}" data-field="{{ $field }}" data-value="{{ $val ? 1 : 0 }}">{{ $val ? 'Yes' : 'No' }}</button>
                                             @elseif($isQuickCodeCell)
                                                 <span class="dir-code-quick-value js-dir-code-value">{{ $display !== '' && $display !== null ? $display : '--' }}</span>
@@ -143,7 +163,11 @@
                                                 <button class="btn btn-outline-primary btn-sm btn-icon me-2" data-bs-toggle="modal" data-bs-target="#dirEditModal" onclick="dirOpenEdit(this.closest('tr'))" title="Edit"><i class="bi bi-pencil-square"></i></button>
                                             @endif
                                             @if($canDeleteDirectoryItems)
+                                                @if($slug === 'document_categories')
+                                                <button type="button" class="btn btn-outline-danger btn-sm btn-icon" @disabled($item->key === 'general') onclick="dirOpenDelete(this.closest('tr')); document.getElementById('dirDeleteForm').requestSubmit();" title="Delete"><i class="bi bi-trash"></i></button>
+                                                @else
                                                 <button class="btn btn-outline-danger btn-sm btn-icon" data-bs-toggle="modal" data-bs-target="#dirDeleteModal" onclick="dirOpenDelete(this.closest('tr'))" title="Delete"><i class="bi bi-trash"></i></button>
+                                                @endif
                                             @endif
                                         </div>
                                     </td>
@@ -172,7 +196,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="dirCreateForm" method="POST" action="{{ $cfg['baseUrl'] }}">
+                    <form id="dirCreateForm" method="POST" action="{{ $cfg['baseUrl'] }}" @if($slug === 'document_categories') data-no-spinner @endif>
                         @csrf
                         @foreach($cfg['fields'] as $field => $label)
                             @continue(in_array($field, $hideProcessNameFormFields, true))
@@ -225,7 +249,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="dirEditForm" method="POST" action="">
+                    <form id="dirEditForm" method="POST" action="" @if($slug === 'document_categories') data-no-spinner @endif>
                         @csrf
                         @method('PUT')
                         <input type="hidden" id="dirEditId" name="id">
@@ -303,7 +327,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-warning mb-3">Are you sure you want to delete this record?</div>
-                    <form id="dirDeleteForm" method="POST" action="">
+                    <form id="dirDeleteForm" method="POST" action="" @if($slug === 'document_categories') data-no-spinner @endif>
                         @csrf
                         @method('DELETE')
                         <input type="hidden" id="dirDeleteId" name="id">
@@ -384,6 +408,55 @@
             const noResults = document.getElementById('dirNoResults');
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const fieldUpdateUrlTemplate = @json($fieldUpdateUrlTemplate);
+            function sortRowsBySpOrder() {
+                const rows = Array.from(tbody.querySelectorAll('tr[data-row]'));
+                const rank = row => Number(row.dataset.sp_sort_order) > 0
+                    ? Number(row.dataset.sp_sort_order) : Infinity;
+                rows.sort((a, b) => (rank(a) - rank(b)) || Number(a.dataset.id) - Number(b.dataset.id));
+                rows.forEach(row => tbody.appendChild(row));
+                table.querySelectorAll('th.sortable').forEach(header => {
+                    header.dataset.direction = 'asc';
+                    header.querySelector('i')?.setAttribute('class', 'bi bi-chevron-expand ms-1');
+                });
+            }
+            tbody?.addEventListener('change', async (event) => {
+                const input = event.target.closest('.js-sp-sort-order');
+                if (!input || input.value === input.dataset.saved) return;
+                const previous = input.dataset.saved;
+                if (!input.checkValidity()) {
+                    window.notifyError('SP order must be a whole number from 0 to 99999.');
+                    input.value = previous;
+                    return;
+                }
+                const value = input.value === '' ? null : Number(input.value);
+                const orderInputs = Array.from(tbody.querySelectorAll('.js-sp-sort-order'));
+                orderInputs.forEach(field => { field.disabled = true; });
+                try {
+                    const row = input.closest('tr[data-row]');
+                    const response = await fetch(buildFieldUrl(fieldUpdateUrlTemplate, row.dataset.id, 'sp_sort_order'), {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                        body: JSON.stringify({ sp_sort_order: value })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(firstValidationMessage(data, 'Unable to save SP order.'));
+                    const updates = new Map(data.updates.map(update => [String(update.id), update.value]));
+                    orderInputs.forEach(field => {
+                        const updatedRow = field.closest('tr[data-row]');
+                        if (!updates.has(updatedRow.dataset.id)) return;
+                        field.value = updates.get(updatedRow.dataset.id) ?? '';
+                        field.dataset.saved = field.value;
+                        field.classList.toggle('is-sp-excluded', field.value === '0');
+                        updatedRow.dataset.sp_sort_order = field.value;
+                    });
+                    sortRowsBySpOrder();
+                } catch (error) {
+                    input.value = previous;
+                    window.notifyError(error.message || 'Unable to save SP order.');
+                } finally {
+                    orderInputs.forEach(field => { field.disabled = false; });
+                }
+            });
             const codeModalEl = IS_PROCESS_NAMES_DIR ? document.getElementById('dirCodeQuickModal') : null;
             const codeModal = codeModalEl ? bootstrap.Modal.getOrCreateInstance(codeModalEl) : null;
             const codeForm = document.getElementById('dirCodeQuickForm');
@@ -407,6 +480,35 @@
             const vendorSaveBtn = document.getElementById('dirVendorSaveBtn');
             let currentVendorRow = null;
             let currentCodeRow = null;
+
+            if (DIR.key === 'document_categories') {
+                ['dirCreateForm', 'dirEditForm', 'dirDeleteForm'].forEach(id => {
+                    document.getElementById(id)?.addEventListener('submit', async event => {
+                        event.preventDefault();
+                        const form = event.currentTarget;
+                        if (typeof window.confirmDialog !== 'function') {
+                            window.notifyError('Confirmation dialog is unavailable.');
+                            return;
+                        }
+                        const modal = form.closest('.modal');
+                        if (modal?.classList.contains('show')) {
+                            await new Promise(resolve => {
+                                modal.addEventListener('hidden.bs.modal', resolve, { once: true });
+                                bootstrap.Modal.getInstance(modal).hide();
+                            });
+                        }
+                        const deleting = id === 'dirDeleteForm';
+                        if (await window.confirmDialog({
+                            title: deleting ? 'Delete category' : 'Save category',
+                            message: deleting ? 'Remove this category from new uploads? Existing files will be preserved.' : 'Save this document category?',
+                            okText: deleting ? 'Delete' : 'Save', danger: deleting
+                        })) {
+                            window.safeShowSpinner?.();
+                            form.submit();
+                        }
+                    });
+                });
+            }
 
             if (!table || !tbody || !searchInput || !noResults) {
                 return;

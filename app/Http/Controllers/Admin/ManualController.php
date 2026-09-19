@@ -458,45 +458,10 @@ class ManualController extends Controller
             ->get();
 
         $partGroupsByComponent = collect();
-        $partGroupsById = $partGroups->keyBy('id');
-        $optionToGroupId = $partGroups
-            ->flatMap(fn (ManualPartGroup $group) => $group->options)
-            ->mapWithKeys(fn ($option): array => [(int) $option->id => (int) $option->manual_part_group_id]);
-        $componentIdsMemo = [];
-        $componentIdsForGroup = function (int $groupId, array $visited = []) use (&$componentIdsForGroup, &$componentIdsMemo, $partGroupsById, $optionToGroupId) {
-            if (isset($visited[$groupId])) {
-                return collect();
-            }
-            if (isset($componentIdsMemo[$groupId])) {
-                return $componentIdsMemo[$groupId];
-            }
-
-            $group = $partGroupsById->get($groupId);
-            if (! $group) {
-                return collect();
-            }
-
-            $visited[$groupId] = true;
-            $componentIds = $group->options->flatMap(function ($option) use (&$componentIdsForGroup, $optionToGroupId, $visited) {
-                $ids = collect([$option->component_id])->merge($option->coverages->pluck('component_id'));
-                foreach ($option->coverages as $coverage) {
-                    $nestedGroupId = (int) ($optionToGroupId->get((int) $coverage->covered_manual_part_group_option_id) ?? 0);
-                    if ($nestedGroupId > 0) {
-                        $ids = $ids->merge($componentIdsForGroup($nestedGroupId, $visited));
-                    }
-                }
-
-                return $ids;
-            })->filter(fn ($componentId): bool => (int) $componentId > 0)
-                ->map(fn ($componentId): int => (int) $componentId)
-                ->unique()
-                ->values();
-
-            return $componentIdsMemo[$groupId] = $componentIds;
-        };
-
+        // Badges describe this position, not every assembly containing it.
+        // ASSY options point to the head; alternative/oversize options to variants.
         foreach ($partGroups as $partGroup) {
-            $componentIds = $componentIdsForGroup((int) $partGroup->id);
+            $componentIds = $partGroup->options->pluck('component_id')->filter()->unique();
 
             foreach ($componentIds as $componentId) {
                 $partGroupsByComponent->put(

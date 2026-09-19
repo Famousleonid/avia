@@ -211,7 +211,7 @@ class ManualPartGroupController extends Controller
 
         if ($includedOptionIds->isNotEmpty()) {
             $allowedNestedTypes = $data['type'] === ManualPartGroup::TYPE_ASSY
-                ? [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_OVERSIZE]
+                ? [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_OVERSIZE, ManualPartGroup::TYPE_ALTERNATIVE]
                 : [ManualPartGroup::TYPE_ASSY];
             $includedOptions = ManualPartGroupOption::query()
                 ->whereIn('id', $includedOptionIds)
@@ -223,7 +223,7 @@ class ManualPartGroupController extends Controller
             if ($includedOptions->count() !== $includedOptionIds->count()) {
                 throw ValidationException::withMessages([
                     'included_group_option_ids' => $data['type'] === ManualPartGroup::TYPE_ASSY
-                        ? 'An ASSY may include only ASSY and Bushing Original/Oversize groups from this manual.'
+                        ? 'An ASSY may include only ASSY, Alternative P/N, and Bushing Original/Oversize groups from this manual.'
                         : 'A KIT may include only ASSY groups from this manual.',
                 ]);
             }
@@ -478,6 +478,7 @@ class ManualPartGroupController extends Controller
                     'applies_to' => $coverage->applies_to,
                     'part_number' => $coverage->component?->part_number,
                     'ipl_num' => $coverage->component?->ipl_num,
+                    'name' => $coverage->component?->name,
                     'covered_option' => $coverage->coveredOption ? [
                         'part_number' => $coverage->coveredOption->part_number,
                         'ipl_num' => $coverage->coveredOption->ipl_num,

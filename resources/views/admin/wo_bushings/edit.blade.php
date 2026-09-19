@@ -141,7 +141,7 @@
                         <button type="button"
                                 class="btn btn-outline-info btn-sm"
                                 data-bushing-add-process
-                                data-add-processes-url="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'context' => 'bushing']) }}">
+                                data-add-processes-url="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'context' => 'bushing', 'workorder_id' => $current_wo->id]) }}">
                             <i class="fas fa-plus"></i> {{ __('Add Process') }}
                         </button>
                     </div>
@@ -305,7 +305,7 @@
                                                                     data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField[$field] ?? []) }}">
                                                                 <option value="">...</option>
                                                                 @foreach($column['options'] as $process)
-                                                                    <option value="{{ $process->id }}" {{ ($rowProcesses[$field] ?? null) == $process->id ? 'selected' : '' }}>
+                                                                    <option data-process-comment="{{ trim((string) ($bushingProcessComments[$process->id] ?? '')) }}" value="{{ $process->id }}" {{ ($rowProcesses[$field] ?? null) == $process->id ? 'selected' : '' }}>
                                                                         {{ $process->process }}
                                                                     </option>
                                                                 @endforeach
@@ -331,7 +331,7 @@
                                                                 data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField['ndt'] ?? []) }}">
                                                             <option value="">...</option>
                                                             @foreach($ndtProcesses as $process)
-                                                                <option value="{{ $process->id }}" {{ (int) $selectedNdt === (int) $process->id ? 'selected' : '' }}>
+                                                                <option data-process-comment="{{ trim((string) ($bushingProcessComments[$process->id] ?? '')) }}" value="{{ $process->id }}" {{ (int) $selectedNdt === (int) $process->id ? 'selected' : '' }}>
                                                                     {{ $process->process_name->name }}
                                                                 </option>
                                                             @endforeach
@@ -356,7 +356,7 @@
                                                                     data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField[$field] ?? []) }}">
                                                                 <option value="">...</option>
                                                                 @foreach($column['options'] as $process)
-                                                                    <option value="{{ $process->id }}" {{ ($rowProcesses[$field] ?? null) == $process->id ? 'selected' : '' }}>
+                                                                    <option data-process-comment="{{ trim((string) ($bushingProcessComments[$process->id] ?? '')) }}" value="{{ $process->id }}" {{ ($rowProcesses[$field] ?? null) == $process->id ? 'selected' : '' }}>
                                                                         {{ $process->process }}
                                                                     </option>
                                                                 @endforeach
@@ -382,6 +382,7 @@
         </div>
     </div>
 
+    @include('admin.wo_bushings.partials.process-selects')
     <script>
         window.initEditBushingForm = function(root) {
             root = root || document;
@@ -427,6 +428,7 @@
             }
 
             fitBushingColumnToContent();
+            window.initBushingProcessSelects(form);
 
             var addProcessButton = formRoot?.querySelector('[data-bushing-add-process]');
             if (addProcessButton) {
@@ -456,7 +458,9 @@
                     var label = select.dataset.processField === 'ndt'
                         ? (processName || process.process || ('#' + processId))
                         : (process.process || processName || ('#' + processId));
-                    select.add(new Option(label, processId));
+                    var option = new Option(label, processId);
+                    option.dataset.processComment = process.process_comment || '';
+                    select.add(option);
                 });
             };
 
@@ -515,6 +519,7 @@
                         line.querySelectorAll('.bushing-process-control').forEach(function(control) {
                             control.disabled = !showProcesses;
                             if (!showProcesses) control.value = '';
+                            if (window.jQuery) window.jQuery(control).trigger('change.select2');
                         });
                         });
                     });

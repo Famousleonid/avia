@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class WoBushingBatch extends Model
 {
     protected $fillable = [
+        'route_number',
+        'legacy_number',
         'workorder_id',
         'process_id',
         'process_column_key',

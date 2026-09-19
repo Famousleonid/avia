@@ -35,6 +35,9 @@ class DirectoryController extends Controller
 
     private function dir(string $slug): array
     {
+        if ($slug === 'document_categories') {
+            abort_unless(auth()->user()?->isSystemAdmin(), 403);
+        }
         $dir = config("directories.$slug");
         abort_if(!$dir, 404, "Directory [$slug] not configured");
 
@@ -180,6 +183,12 @@ class DirectoryController extends Controller
 
     private function applyOrder($query, array $dir)
     {
+        if (($dir['key'] ?? null) === 'process_names') {
+            return $query
+                ->orderByRaw('CASE WHEN sp_sort_order > 0 THEN 0 ELSE 1 END')
+                ->orderByRaw('CASE WHEN sp_sort_order > 0 THEN sp_sort_order ELSE NULL END')
+                ->orderBy('id');
+        }
         $order = $dir['order'] ?? ['id' => 'desc'];
 
         foreach ((array)$order as $col => $direction) {
@@ -322,13 +331,19 @@ class DirectoryController extends Controller
             Arr::only($validated, [$field])
         );
 
-        $item->fill($data)->save();
+        $updates = [];
+        if ($directory === 'process_names' && $field === 'sp_sort_order') {
+            $updates = $item->moveToSpPosition(isset($data[$field]) ? (int) $data[$field] : null);
+        } else {
+            $item->fill($data)->save();
+        }
 
         return response()->json([
             'ok' => true,
             'id' => $item->id,
             'field' => $field,
             'value' => $item->{$field},
+            'updates' => $updates,
         ]);
     }
 

@@ -36,7 +36,7 @@
         @if(!$inBatch && !empty($woPid) && !$locked)
             <div class="bushing-batch-inner d-flex align-items-center justify-content-center gap-1 flex-wrap">
                 <input type="checkbox" class="form-check-input bushing-batch-group-checkbox mt-0"
-                       data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid }}"
+                       data-route-number="{{ $a['route_number'] ?? '' }}" data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid }}"
                        data-component-id="{{ $componentId }}"
                        title="{{ __('Select to add to a batch') }}" autocomplete="off">
             </div>
@@ -45,27 +45,27 @@
                 <button type="button"
                         class="btn btn-sm btn-secondary py-0 px-1 js-bushing-batch-label align-self-center"
                         style="font-size:0.65rem;"
-                        data-process-key="{{ $processKey }}"
+                        data-route-number="{{ $a['route_number'] ?? '' }}" data-process-key="{{ $processKey }}"
                         data-batch-id="{{ $batchId }}"
                         data-wo-process-id="{{ $woPid ?? '' }}"
                         title="{{ __('Toggle all checkboxes in this group') }}">{{ $batchLabel }}</button>
                 <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0"
-                       data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid ?? '' }}"
+                       data-route-number="{{ $a['route_number'] ?? '' }}" data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid ?? '' }}"
                        data-batch-id="{{ $batchId }}"
                        data-component-id="{{ $componentId }}"
-                       title="{{ __('Select to remove from batch') }}" autocomplete="off">
+                       title="{{ !empty($a['route_number']) ? __('Select for forms / print') : __('Select to remove from batch') }}" autocomplete="off">
             </div>
         @elseif($locked)
             <div class="bushing-batch-inner d-flex align-items-center justify-content-center gap-1 flex-wrap">
                 <button type="button"
                         class="btn btn-sm py-0 px-1 js-bushing-batch-label align-self-center {{ $finished ? 'btn-success' : 'btn-warning text-dark' }}"
                         style="font-size:0.65rem;"
-                        data-process-key="{{ $processKey }}"
+                        data-route-number="{{ $a['route_number'] ?? '' }}" data-process-key="{{ $processKey }}"
                         data-batch-id="{{ ($inBatch && $batchId > 0) ? (string) $batchId : '' }}"
                         data-wo-process-id="{{ $woPid ?? '' }}"
-                        title="{{ __('Toggle all checkboxes in this group') }}">{{ $sentLabel }}</button>
+                        title="{{ __('Toggle all checkboxes in this group') }}">{{ !empty($a['route_number']) ? $batchLabel.' · '.$sentLabel : $sentLabel }}</button>
                 <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0"
-                       data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid ?? '' }}"
+                       data-route-number="{{ $a['route_number'] ?? '' }}" data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid ?? '' }}"
                        data-batch-id="{{ ($inBatch && $batchId > 0) ? (string) $batchId : '' }}"
                        data-component-id="{{ $componentId }}"
                        title="{{ __('Select for forms / print') }}" autocomplete="off">

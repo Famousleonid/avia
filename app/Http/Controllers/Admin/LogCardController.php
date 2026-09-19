@@ -15,6 +15,7 @@ use App\Models\StdProcess;
 use App\Models\Workorder;
 use App\Models\Tdr;
 use App\Services\LogCardTdrAccessService;
+use App\Services\LogCardAssemblyIdentity;
 use App\Services\LogCardPayloadProtectionService;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\ManualPartGroupCompositionResolver;
@@ -59,6 +60,7 @@ class LogCardController extends Controller
                 : json_decode($log_card->component_data, true);
         }
         $componentData = is_array($componentData) ? $componentData : [];
+        $componentData = app(LogCardAssemblyIdentity::class)->cleanRows($componentData);
         $componentData = collect($componentData)
             ->map(function ($row, int $storageIndex) {
                 if (is_array($row)) {
@@ -534,6 +536,8 @@ class LogCardController extends Controller
                 ->filter(fn (int $id): bool => $id > 0
                     && $componentsById->has($id)
                     && (int) ($componentsById->get($id)->units_assy ?? 1) === 1
+                    && ($id === (int) $option->component_id
+                        || app(LogCardAssemblyIdentity::class)->hasOwnAssembly($componentsById->get($id), (string) $option->part_number))
                     && ! $assignedComponentIds->contains($id))
                 ->unique()
                 ->values();
@@ -729,6 +733,7 @@ class LogCardController extends Controller
                 : json_decode($log_card->component_data, true);
         }
         $componentData = is_array($componentData) ? $componentData : [];
+        $componentData = app(LogCardAssemblyIdentity::class)->cleanRows($componentData);
 
         $manualIds = collect($componentData)
             ->filter(fn ($row) => is_array($row) && ! empty($row['manual_id']))
@@ -977,6 +982,7 @@ class LogCardController extends Controller
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
         $componentData = json_decode($log_card->component_data, true);
+        $componentData = app(LogCardAssemblyIdentity::class)->cleanRows(is_array($componentData) ? $componentData : []);
 
         // Проверяем конкретно компоненты 937, 940 и 981
         $comp937 = Component::find(937);
@@ -1429,7 +1435,7 @@ class LogCardController extends Controller
         }
         unset($row);
 
-        return json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
+        return json_encode(array_values(app(LogCardAssemblyIdentity::class)->cleanRows($rows)), JSON_UNESCAPED_UNICODE);
     }
 
     private function validateLogCardComponentData(Request $request, Workorder $workorder): void

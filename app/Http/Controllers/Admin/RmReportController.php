@@ -4,12 +4,19 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Builder;
+use App\Models\ManualPartGroup;
+use App\Models\ManualPartGroupOption;
+use App\Models\ManualServiceBulletin;
 use App\Models\RmReport;
 use App\Models\Workorder;
+use App\Services\WorkorderAssemblyModificationService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class RmReportController extends Controller
 {
@@ -37,7 +44,7 @@ class RmReportController extends Controller
         session(['current_workorder_id' => $id]);
         
         // Получаем существующие записи R&M для этого workorder
-        $rm_reports = RmReport::where('manual_id', $manual_id)->get();
+        $rm_reports = RmReport::where('manual_id', $manual_id)->templatesFirst()->get();
 
         return view('admin.rm_reports.create', compact('current_wo', 'rm_reports'));
     }
@@ -50,25 +57,23 @@ class RmReportController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'part_description' => 'required|string|max:255',
-            'mod_repair' => 'required|in:Mod,Repair,SB',
-            'mod_repair_description' => 'required|string|max:250',
-            'ident_method' => 'nullable|string|max:255',
-            'workorder_id' => 'required|exists:workorders,id',
-        ]);
-
-        // Получаем workorder для получения manual_id
-        $workorder = Workorder::findOrFail($validated['workorder_id']);
+        $request->validate(['workorder_id' => ['required', 'integer', 'exists:workorders,id']]);
+        $workorder = Workorder::findOrFail($request->integer('workorder_id'));
+        $validated = $this->validateRecord($request, $workorder);
 
         // Создаем запись в rm_reports
         $rmReport = RmReport::create([
             'manual_id' => $workorder->unit->manual_id,
+            'is_admin_template' => $validated['is_admin_template'],
+            'manual_service_bulletin_id' => $validated['manual_service_bulletin_id'] ?? null,
+            'source_assy_option_id' => $validated['source_assy_option_id'] ?? null,
+            'target_assy_option_id' => $validated['target_assy_option_id'] ?? null,
             'part_description' => $validated['part_description'],
             'mod_repair' => $validated['mod_repair'],
             'description' => $validated['mod_repair_description'],
-            'ident_method' => $validated['ident_method'],
+            'ident_method' => $validated['ident_method'] ?? null,
         ]);
+        $rmReport->loadMissing(['serviceBulletin', 'sourceAssyOption', 'targetAssyOption']);
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -76,10 +81,20 @@ class RmReportController extends Controller
                 'message' => 'R&M Record created successfully',
                 'data' => [
                     'id' => $rmReport->id,
+                    'is_admin_template' => $rmReport->is_admin_template,
                     'part_description' => $rmReport->part_description,
                     'mod_repair' => $rmReport->mod_repair,
                     'description' => $rmReport->description,
                     'ident_method' => $rmReport->ident_method,
+                    'manual_service_bulletin_id' => $rmReport->manual_service_bulletin_id,
+                    'source_assy_option_id' => $rmReport->source_assy_option_id,
+                    'target_assy_option_id' => $rmReport->target_assy_option_id,
+                    'changes_assembly_scope' => $rmReport->changesAssemblyScope(),
+                    'service_bulletin_label' => $this->serviceBulletinLabel($rmReport->serviceBulletin),
+                    'source_assy_label' => $this->assyOptionLabel($rmReport->sourceAssyOption),
+                    'target_assy_label' => $this->assyOptionLabel($rmReport->targetAssyOption),
+                    'source_assy_part_number' => $rmReport->sourceAssyOption?->part_number,
+                    'target_assy_part_number' => $rmReport->targetAssyOption?->part_number,
                 ]
             ]);
         }
@@ -103,9 +118,12 @@ class RmReportController extends Controller
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual_id = $current_wo->unit->manual_id;
 
-        $rm_reports = RmReport::where('manual_id', $manual_id)->get();
+        $rm_reports = RmReport::where('manual_id', $manual_id)->templatesFirst()
+            ->with(['serviceBulletin', 'sourceAssyOption.group', 'targetAssyOption.group'])
+            ->get();
+        [$assyOptions, $serviceBulletins] = $this->recordFormOptions((int) $manual_id);
 
-        return view('admin.rm_reports.partial', compact('current_wo', 'rm_reports'));
+        return view('admin.rm_reports.partial', compact('current_wo', 'rm_reports', 'assyOptions', 'serviceBulletins'));
     }
 
     /**
@@ -119,7 +137,10 @@ class RmReportController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $manual_id = $current_wo->unit->manual_id;
 
-        $rm_reports = RmReport::where('manual_id', $manual_id)->get();
+        $rm_reports = RmReport::where('manual_id', $manual_id)->templatesFirst()
+            ->with(['serviceBulletin', 'sourceAssyOption.group', 'targetAssyOption.group'])
+            ->get();
+        [$assyOptions, $serviceBulletins] = $this->recordFormOptions((int) $manual_id);
 
         // Если это AJAX запрос, возвращаем JSON
         if (request()->ajax()) {
@@ -129,7 +150,7 @@ class RmReportController extends Controller
             ]);
         }
 
-        return view('admin.rm_reports.show', compact('current_wo', 'rm_reports'));
+        return view('admin.rm_reports.show-page', compact('current_wo', 'rm_reports', 'assyOptions', 'serviceBulletins'));
     }
 public function rmRecordForm(Request $request, $id)
 {
@@ -180,7 +201,7 @@ public function rmRecordForm(Request $request, $id)
         session(['current_workorder_id' => $id]);
         
         // Получаем существующие записи R&M для этого workorder
-        $rm_reports = RmReport::where('manual_id', $manual_id)->get();
+        $rm_reports = RmReport::where('manual_id', $manual_id)->templatesFirst()->get();
 
         return view('admin.rm_reports.edit', compact('current_wo', 'rm_reports'));
     }
@@ -192,10 +213,16 @@ public function rmRecordForm(Request $request, $id)
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, WorkorderAssemblyModificationService $modificationService)
     {
-        $selectedRecords = json_decode($request->selected_records, true);
-        $workorder_id = $request->workorder_id;
+        $request->validate([
+            'workorder_id' => ['required', 'integer', 'exists:workorders,id'],
+            'selected_records' => ['nullable', 'json'],
+            'notes' => ['nullable', 'array'],
+            'notes.*' => ['nullable', 'string'],
+        ]);
+        $selectedRecords = json_decode((string) $request->selected_records, true);
+        $workorder_id = (int) $request->workorder_id;
         
         // Собираем технические заметки (новый формат: notes[])
         $technicalNotes = $request->input('notes', []);
@@ -209,41 +236,22 @@ public function rmRecordForm(Request $request, $id)
             }
         }
         
+        $workorder = Workorder::findOrFail($workorder_id);
+        $recordIds = $this->selectedRecordIds($selectedRecords);
+        $rmRecords = $this->selectedRecordsForWorkorder($workorder, $recordIds);
         $dataToSave = [];
-        
-        // Добавляем R&M записи, если они выбраны
-        if (!empty($selectedRecords)) {
-            // Проверяем, является ли $selectedRecords массивом объектов или простым массивом ID
-            if (is_array($selectedRecords) && isset($selectedRecords[0]) && is_array($selectedRecords[0])) {
-                // Если это массив объектов, извлекаем только ID
-                $recordIds = collect($selectedRecords)->pluck('id')->toArray();
-            } else {
-                // Если это простой массив ID
-                $recordIds = $selectedRecords;
-            }
-            
-            // Получаем выбранные записи R&M
-            $rmRecords = RmReport::whereIn('id', $recordIds)->get();
-            
-            // Преобразуем в массив для JSON
-            $rmData = $rmRecords->map(function($record) {
-                return [
-                    'id' => $record->id,
-                    'created_at' => $record->created_at->toISOString()
-                ];
-            })->toArray();
-            
-            $dataToSave['rm_records'] = $rmData;
+        if ($rmRecords->isNotEmpty()) {
+            $dataToSave['rm_records'] = $this->recordSnapshots($rmRecords);
         }
         
         // Добавляем технические заметки
         $dataToSave['technical_notes'] = $technicalNotes;
         
-        // Сохраняем в поле rm_report таблицы workorders
-        $workorder = Workorder::findOrFail($workorder_id);
-        $workorder->update([
-            'rm_report' => json_encode($dataToSave)
-        ]);
+        $modification = DB::transaction(function () use ($workorder, $dataToSave, $rmRecords, $modificationService): array {
+            $workorder->update(['rm_report' => json_encode($dataToSave)]);
+
+            return $modificationService->sync($workorder->fresh(['unit', 'scopeComponent', 'modifiedScopePartGroupOption']), $rmRecords);
+        });
         
         $successMessage = '';
         if (!empty($selectedRecords)) {
@@ -253,7 +261,8 @@ public function rmRecordForm(Request $request, $id)
         
         return response()->json([
             'success' => true,
-            'message' => $successMessage
+            'message' => $successMessage,
+            'modification' => $modification,
         ]);
     }
 
@@ -266,6 +275,7 @@ public function rmRecordForm(Request $request, $id)
         public function destroy($id)
     {
         $rmReport = RmReport::findOrFail($id);
+        abort_if($rmReport->is_admin_template && ! auth()->user()?->roleIs('Admin'), 403, 'Only Admin can delete protected R&M templates.');
         
         // Получаем workorder_id из текущей сессии или из параметра запроса
         $workorder_id = session('current_workorder_id') ?? request('workorder_id');
@@ -296,6 +306,19 @@ public function rmRecordForm(Request $request, $id)
         $usedInOtherWorkorders = $usedInWorkorders->filter(function($workorder) use ($workorder_id) {
             return $workorder->id != $workorder_id;
         });
+
+        if ($rmReport->changesAssemblyScope() && $usedInWorkorders->isNotEmpty()) {
+            $workorderNumbers = $usedInWorkorders->pluck('number')->implode(', ');
+            $errorMessage = 'Cannot delete an active assembly conversion. Deselect it first in Workorder(s): '.$workorderNumbers;
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMessage], 422);
+            }
+
+            $redirectTo = $workorder_id ? route('rm_reports.show', $workorder_id) : url()->previous();
+
+            return redirect($redirectTo)->with('error', $errorMessage);
+        }
 
         if ($usedInOtherWorkorders->count() > 0) {
             $workorderNumbers = $usedInOtherWorkorders->pluck('number')->implode(', ');
@@ -334,6 +357,7 @@ public function rmRecordForm(Request $request, $id)
     public function destroyMultiple(Request $request)
     {
         $selectedRecords = json_decode($request->selected_records, true);
+        abort_if(! auth()->user()?->roleIs('Admin') && RmReport::whereIn('id', $selectedRecords ?: [])->where('is_admin_template', true)->exists(), 403);
         $workorder_id = $request->workorder_id;
         
         if (!empty($selectedRecords)) {
@@ -361,7 +385,10 @@ public function rmRecordForm(Request $request, $id)
                         return $workorder->id != $workorder_id;
                     });
 
-                    if ($usedInOtherWorkorders->count() > 0) {
+                    if ($rmReport->changesAssemblyScope() && $usedInWorkorders->isNotEmpty()) {
+                        $workorderNumbers = $usedInWorkorders->pluck('number')->implode(', ');
+                        $recordsInUse[] = "Record ID {$rmReport->id} ({$rmReport->part_description}) - active assembly conversion in: ".$workorderNumbers;
+                    } elseif ($usedInOtherWorkorders->count() > 0) {
                         $workorderNumbers = $usedInOtherWorkorders->pluck('number')->implode(', ');
                         $recordsInUse[] = "Record ID {$rmReport->id} ({$rmReport->part_description}) - used in: " . $workorderNumbers;
                     } else {
@@ -418,7 +445,7 @@ public function rmRecordForm(Request $request, $id)
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function saveToWorkorder(Request $request)
+    public function saveToWorkorder(Request $request, WorkorderAssemblyModificationService $modificationService)
     {
         // Обрабатываем selected_records - может быть пустым массивом или не передан
         $selectedRecords = [];
@@ -429,7 +456,7 @@ public function rmRecordForm(Request $request, $id)
             }
         }
         
-        $workorder_id = $request->workorder_id;
+        $workorder_id = (int) $request->workorder_id;
         
         // Собираем технические заметки (новый формат: notes[])
         $technicalNotes = $request->input('notes', []);
@@ -450,27 +477,9 @@ public function rmRecordForm(Request $request, $id)
         
         // Добавляем R&M записи, если они выбраны
         if (!empty($selectedRecords)) {
-            // Проверяем, является ли $selectedRecords массивом объектов или простым массивом ID
-            if (is_array($selectedRecords) && isset($selectedRecords[0]) && is_array($selectedRecords[0])) {
-                // Если это массив объектов, извлекаем только ID
-                $recordIds = collect($selectedRecords)->pluck('id')->toArray();
-            } else {
-                // Если это простой массив ID
-                $recordIds = $selectedRecords;
-            }
-            
-            // Получаем выбранные записи R&M
-            $rmRecords = RmReport::whereIn('id', $recordIds)->get();
-            
-            // Преобразуем в массив для JSON
-            $rmData = $rmRecords->map(function($record) {
-                return [
-                    'id' => $record->id,
-                    'created_at' => $record->created_at->toISOString()
-                ];
-            })->toArray();
-            
-            $dataToSave['rm_records'] = $rmData;
+            $recordIds = $this->selectedRecordIds($selectedRecords);
+            $rmRecords = $this->selectedRecordsForWorkorder($workorder, $recordIds);
+            $dataToSave['rm_records'] = $this->recordSnapshots($rmRecords);
         } else {
             // Если записи не выбраны, сохраняем существующие записи из workorder (если есть)
             if ($workorder->rm_report) {
@@ -484,10 +493,13 @@ public function rmRecordForm(Request $request, $id)
         // Добавляем технические заметки
         $dataToSave['technical_notes'] = $technicalNotes;
         
-        // Сохраняем в поле rm_report таблицы workorders
-        $workorder->update([
-            'rm_report' => json_encode($dataToSave)
-        ]);
+        $selectedSnapshotIds = collect($dataToSave['rm_records'] ?? [])->pluck('id')->map(fn ($recordId): int => (int) $recordId)->all();
+        $rmRecords = $this->selectedRecordsForWorkorder($workorder, $selectedSnapshotIds);
+
+        DB::transaction(function () use ($workorder, $dataToSave, $rmRecords, $modificationService): void {
+            $workorder->update(['rm_report' => json_encode($dataToSave)]);
+            $modificationService->sync($workorder->fresh(['unit', 'scopeComponent', 'modifiedScopePartGroupOption']), $rmRecords);
+        });
         
         $successMessage = '';
         if (!empty($selectedRecords)) {
@@ -522,17 +534,12 @@ public function rmRecordForm(Request $request, $id)
      * @param  int  $id
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function updateRecord(Request $request, $id)
+    public function updateRecord(Request $request, $id, WorkorderAssemblyModificationService $modificationService)
     {
         $rmReport = RmReport::findOrFail($id);
-
-        $validated = $request->validate([
-            'part_description' => 'required|string|max:255',
-            'mod_repair' => 'required|in:Mod,Repair,SB',
-            'mod_repair_description' => 'required|string',
-            'ident_method' => 'nullable|string|max:255',
-            'workorder_id' => 'required|exists:workorders,id',
-        ]);
+        $request->validate(['workorder_id' => ['required', 'integer', 'exists:workorders,id']]);
+        $workorder = Workorder::findOrFail($request->integer('workorder_id'));
+        $validated = $this->validateRecord($request, $workorder, $rmReport);
 
         $newDescription = (string) $validated['mod_repair_description'];
         $oldDescription = (string) ($rmReport->description ?? '');
@@ -552,13 +559,37 @@ public function rmRecordForm(Request $request, $id)
                 ->withInput();
         }
         
-        // Обновляем запись
-        $rmReport->update([
-            'part_description' => $validated['part_description'],
-            'mod_repair' => $validated['mod_repair'],
-            'description' => $newDescription,
-            'ident_method' => $validated['ident_method'],
-        ]);
+        DB::transaction(function () use ($rmReport, $validated, $newDescription, $modificationService): void {
+            $rmReport->update([
+                'is_admin_template' => $validated['is_admin_template'],
+                'manual_service_bulletin_id' => $validated['manual_service_bulletin_id'] ?? null,
+                'source_assy_option_id' => $validated['source_assy_option_id'] ?? null,
+                'target_assy_option_id' => $validated['target_assy_option_id'] ?? null,
+                'part_description' => $validated['part_description'],
+                'mod_repair' => $validated['mod_repair'],
+                'description' => $newDescription,
+                'ident_method' => $validated['ident_method'] ?? null,
+            ]);
+
+            // R&M rows are reusable manual templates. Refresh every Workorder
+            // currently using this row so its Modified P/N and effective scope
+            // cannot drift apart when the conversion is edited.
+            $this->workordersUsingRecord($rmReport)->each(function (Workorder $usedWorkorder) use ($modificationService): void {
+                $selectedIds = collect(data_get(json_decode((string) $usedWorkorder->rm_report, true), 'rm_records', []))
+                    ->pluck('id')
+                    ->map(fn ($recordId): int => (int) $recordId)
+                    ->filter()
+                    ->all();
+                $records = $this->selectedRecordsForWorkorder($usedWorkorder, $selectedIds);
+
+                $modificationService->sync(
+                    $usedWorkorder->fresh(['unit', 'scopeComponent', 'modifiedScopePartGroupOption']),
+                    $records
+                );
+            });
+        });
+
+        $rmReport->refresh()->loadMissing(['serviceBulletin', 'sourceAssyOption', 'targetAssyOption']);
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -566,15 +597,242 @@ public function rmRecordForm(Request $request, $id)
                 'message' => 'R&M Record updated successfully',
                 'data' => [
                     'id' => $rmReport->id,
+                    'is_admin_template' => $rmReport->is_admin_template,
                     'part_description' => $rmReport->part_description,
                     'mod_repair' => $rmReport->mod_repair,
                     'description' => $rmReport->description,
                     'ident_method' => $rmReport->ident_method,
+                    'manual_service_bulletin_id' => $rmReport->manual_service_bulletin_id,
+                    'source_assy_option_id' => $rmReport->source_assy_option_id,
+                    'target_assy_option_id' => $rmReport->target_assy_option_id,
+                    'changes_assembly_scope' => $rmReport->changesAssemblyScope(),
+                    'service_bulletin_label' => $this->serviceBulletinLabel($rmReport->serviceBulletin),
+                    'source_assy_label' => $this->assyOptionLabel($rmReport->sourceAssyOption),
+                    'target_assy_label' => $this->assyOptionLabel($rmReport->targetAssyOption),
+                    'source_assy_part_number' => $rmReport->sourceAssyOption?->part_number,
+                    'target_assy_part_number' => $rmReport->targetAssyOption?->part_number,
                 ]
             ]);
         }
 
         return redirect()->route('rm_reports.show', $validated['workorder_id'])
             ->with('success', 'R&M Record updated successfully');
+    }
+
+    /** @return array<string, mixed> */
+    private function validateRecord(Request $request, Workorder $workorder, ?RmReport $existing = null): array
+    {
+        abort_if($existing?->is_admin_template && ! auth()->user()?->roleIs('Admin'), 403, 'Only Admin can change protected R&M templates.');
+        abort_if($request->has('is_admin_template') && ! auth()->user()?->roleIs('Admin') && $request->boolean('is_admin_template'), 403);
+        $validated = $request->validate([
+            'is_admin_template' => ['sometimes', 'boolean'],
+            'part_description' => ['required', 'string', 'max:255'],
+            'mod_repair' => ['required', 'in:Mod,Repair,SB'],
+            'mod_repair_description' => $existing
+                ? ['required', 'string']
+                : ['required', 'string', 'max:250'],
+            'ident_method' => ['nullable', 'string', 'max:255'],
+            'workorder_id' => ['required', 'integer', 'exists:workorders,id'],
+            'manual_service_bulletin_id' => ['nullable', 'integer', 'exists:manual_service_bulletins,id'],
+            'source_assy_option_id' => ['nullable', 'integer', 'exists:manual_part_group_options,id'],
+            'target_assy_option_id' => ['nullable', 'integer', 'exists:manual_part_group_options,id'],
+        ]);
+
+        $validated['is_admin_template'] = $request->has('is_admin_template')
+            ? $request->boolean('is_admin_template') : (bool) ($existing?->is_admin_template ?? false);
+        $manualId = (int) ($workorder->unit?->manual_id ?? 0);
+        if ($existing && (int) $existing->manual_id !== $manualId) {
+            throw ValidationException::withMessages([
+                'workorder_id' => __('This R&M record does not belong to the Workorder manual.'),
+            ]);
+        }
+
+        $mappingFields = [
+            'manual_service_bulletin_id',
+            'source_assy_option_id',
+            'target_assy_option_id',
+        ];
+        $hasMappingValue = collect($mappingFields)->contains(
+            fn (string $field): bool => (int) ($validated[$field] ?? 0) > 0
+        );
+
+        if (! $hasMappingValue) {
+            $validated['manual_service_bulletin_id'] = null;
+            $validated['source_assy_option_id'] = null;
+            $validated['target_assy_option_id'] = null;
+
+            return $validated;
+        }
+
+        if (($validated['mod_repair'] ?? null) !== 'SB') {
+            throw ValidationException::withMessages([
+                'mod_repair' => __('Assembly conversion can only be configured for an SB record.'),
+            ]);
+        }
+
+        foreach ($mappingFields as $field) {
+            if ((int) ($validated[$field] ?? 0) <= 0) {
+                throw ValidationException::withMessages([
+                    $field => __('Select the Service Bulletin, received ASSY, and modified ASSY.'),
+                ]);
+            }
+        }
+
+        $optionIds = [
+            (int) $validated['source_assy_option_id'],
+            (int) $validated['target_assy_option_id'],
+        ];
+        if ($optionIds[0] === $optionIds[1]) {
+            throw ValidationException::withMessages([
+                'target_assy_option_id' => __('Modified ASSY must be different from the received ASSY.'),
+            ]);
+        }
+
+        $validOptions = ManualPartGroupOption::query()
+            ->whereIn('id', $optionIds)
+            ->whereHas('group', fn ($group) => $group
+                ->where('manual_id', $manualId)
+                ->where('type', ManualPartGroup::TYPE_ASSY))
+            ->count();
+        if ($validOptions !== 2) {
+            throw ValidationException::withMessages([
+                'source_assy_option_id' => __('Both assemblies must be active ASSY groups from this Workorder manual.'),
+            ]);
+        }
+
+        $validBulletin = ManualServiceBulletin::query()
+            ->whereKey((int) $validated['manual_service_bulletin_id'])
+            ->where('manual_id', $manualId)
+            ->exists();
+        if (! $validBulletin) {
+            throw ValidationException::withMessages([
+                'manual_service_bulletin_id' => __('The Service Bulletin must belong to this Workorder manual.'),
+            ]);
+        }
+
+        return $validated;
+    }
+
+    /** @return array{0:Collection<int, ManualPartGroupOption>,1:Collection<int, ManualServiceBulletin>} */
+    private function recordFormOptions(int $manualId): array
+    {
+        $assyOptions = ManualPartGroupOption::query()
+            ->whereHas('group', fn ($group) => $group
+                ->where('manual_id', $manualId)
+                ->where('type', ManualPartGroup::TYPE_ASSY))
+            ->with(['group:id,manual_id,name,type', 'component:id,part_number,ipl_num,name'])
+            ->orderBy('ipl_num')
+            ->orderBy('part_number')
+            ->get();
+        $serviceBulletins = ManualServiceBulletin::query()
+            ->where('manual_id', $manualId)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        return [$assyOptions, $serviceBulletins];
+    }
+
+    /** @return list<int> */
+    private function selectedRecordIds(mixed $selectedRecords): array
+    {
+        $records = is_array($selectedRecords) ? $selectedRecords : [];
+
+        return collect($records)
+            ->map(fn ($record) => is_array($record) ? ($record['id'] ?? null) : $record)
+            ->map(fn ($recordId): int => (int) $recordId)
+            ->filter(fn (int $recordId): bool => $recordId > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** @return Collection<int, RmReport> */
+    private function selectedRecordsForWorkorder(Workorder $workorder, array $recordIds): Collection
+    {
+        if ($recordIds === []) {
+            return collect();
+        }
+
+        $manualId = (int) ($workorder->unit?->manual_id ?? 0);
+        $records = RmReport::query()
+            ->whereIn('id', $recordIds)
+            ->where('manual_id', $manualId)
+            ->with(['serviceBulletin', 'sourceAssyOption.group', 'targetAssyOption.group'])
+            ->get();
+
+        if ($records->count() !== count($recordIds)) {
+            throw ValidationException::withMessages([
+                'selected_records' => __('Every selected R&M record must belong to this Workorder manual.'),
+            ]);
+        }
+
+        return $records;
+    }
+
+    /** @param Collection<int, RmReport> $records */
+    private function recordSnapshots(Collection $records): array
+    {
+        return $records->map(fn (RmReport $record): array => [
+            'id' => (int) $record->id,
+            'created_at' => $record->created_at->toISOString(),
+            'manual_service_bulletin_id' => $record->manual_service_bulletin_id
+                ? (int) $record->manual_service_bulletin_id
+                : null,
+            'source_assy_option_id' => $record->source_assy_option_id
+                ? (int) $record->source_assy_option_id
+                : null,
+            'target_assy_option_id' => $record->target_assy_option_id
+                ? (int) $record->target_assy_option_id
+                : null,
+        ])->values()->all();
+    }
+
+    /** @return Collection<int, Workorder> */
+    private function workordersUsingRecord(RmReport $record): Collection
+    {
+        return Workorder::query()
+            ->withoutGlobalScope('exclude_drafts')
+            ->where(function ($query) use ($record): void {
+                $query->where('modified_scope_rm_report_id', $record->id)
+                    ->orWhereNotNull('rm_report');
+            })
+            ->get()
+            ->filter(function (Workorder $workorder) use ($record): bool {
+                if ((int) ($workorder->modified_scope_rm_report_id ?? 0) === (int) $record->id) {
+                    return true;
+                }
+
+                return collect(data_get(json_decode((string) $workorder->rm_report, true), 'rm_records', []))
+                    ->contains(fn ($item): bool => (int) data_get($item, 'id') === (int) $record->id);
+            })
+            ->values();
+    }
+
+    private function serviceBulletinLabel(?ManualServiceBulletin $bulletin): string
+    {
+        if (! $bulletin) {
+            return '';
+        }
+
+        return collect([
+            $bulletin->ac_mfg_service_bulletin_no,
+            $bulletin->oem_service_bulletin_no,
+            $bulletin->description,
+        ])->map(fn ($value): string => trim((string) $value))
+            ->first(fn (string $value): bool => $value !== '') ?? ('SB #'.$bulletin->id);
+    }
+
+    private function assyOptionLabel(?ManualPartGroupOption $option): string
+    {
+        if (! $option) {
+            return '';
+        }
+
+        $partNumber = trim((string) $option->part_number);
+        $ipl = trim((string) $option->ipl_num);
+
+        return $ipl !== '' ? $partNumber.' · IPL '.$ipl : $partNumber;
     }
 }

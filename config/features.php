@@ -58,6 +58,16 @@ return [
         'allow_is_admin' => false,
     ],
 
+    'library.traveler_notes' => [
+        'label' => 'Notes Traveler',
+        'group' => 'Library',
+        'managed' => false,
+        'roles' => ['Admin'],
+        // Slava Y (Yushkevich Viacheslav), verified local and production account.
+        'user_ids' => [31],
+        'allow_is_admin' => false,
+    ],
+
     'library.countries' => [
         'label' => 'Countries',
         'group' => 'Library',

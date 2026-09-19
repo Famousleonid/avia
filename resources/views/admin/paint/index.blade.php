@@ -791,7 +791,7 @@
                                         @endif
                                     </td>
                                     <td class="paint-col-date-cell">
-                                        @if ($editTp)
+                                        @if ($editTp && ($canEditPaintFinish ?? false))
                                             <form method="POST"
                                                   action="{{ route('tdrprocesses.updateDate', $editTp) }}"
                                                   class="js-ajax mb-0"
@@ -824,6 +824,12 @@
                                                            aria-hidden="true">
                                                 </div>
                                             </form>
+                                        @elseif ($editTp)
+                                            <input type="hidden" name="date_finish" class="js-paint-date-ymd" value="{{ $tpFinishYmd }}">
+                                            <input type="text" readonly tabindex="-1" aria-readonly="true"
+                                                   class="form-control form-control-sm finish-input paint-date-readonly w-100 {{ $tpFinishYmd !== '' ? 'has-finish' : '' }}"
+                                                   title="Only Admin or technicians from Never stop`s team can edit the finish date."
+                                                   value="{{ $tpFinishDisp }}" placeholder="—">
                                         @elseif ($finishStr !== '')
                                             <input type="text"
                                                    readonly

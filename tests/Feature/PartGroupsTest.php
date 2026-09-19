@@ -76,6 +76,31 @@ class PartGroupsTest extends TestCase
             ->assertDontSee('New ASSY / KIT P/N');
     }
 
+    public function test_manual_badges_show_assy_only_on_its_head_not_on_members(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $head = $this->createPartGroupComponent($manual->id, '1-270', 'LOWER-ASSY');
+        $member = $this->createPartGroupComponent($manual->id, '1-320', 'BEARING');
+        $group = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id, 'code' => 'BADGES-'.uniqid(),
+            'name' => 'Lower ASSY', 'type' => 'assy', 'behavior' => 'bundle', 'applies_to' => ['prl'],
+        ]);
+        $option = $group->options()->create([
+            'component_id' => $head->id, 'part_number' => $head->part_number,
+            'ipl_num' => $head->ipl_num, 'is_default' => true,
+        ]);
+        $option->coverages()->create(['component_id' => $member->id, 'qty' => 1, 'applies_to' => ['prl']]);
+        $page = $this->actingAs($admin)->get(route('manuals.show', $manual))->assertOk();
+        $badges = $page->viewData('partGroupsByComponent');
+        $this->assertSame([$group->id], $badges->get($head->id)->pluck('id')->all());
+        $this->assertFalse($badges->has($member->id));
+        $page->assertSee('manual-part-assy-groups-container', false)
+            ->assertSee('id="manual-part-group-sidebar"', false)
+            ->assertSee('id="manual-part-group-included-details"', false)
+            ->assertDontSee('class="form-check-input manual-part-group-assy-check"', false);
+    }
+
     public function test_new_group_name_defaults_to_assy_part_number_or_default(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -163,6 +188,7 @@ class PartGroupsTest extends TestCase
     public function test_editing_bundle_preserves_existing_workorder_selection_and_option_id(): void
     {
         [$admin, $workorder, $member, $group, $option] = $this->bundleFixture(['prl', 'ndt'], 1);
+        $addedMember = $this->createPartGroupComponent($group->manual_id, '2-40', 'ADDED-ASSY-MEMBER');
         WorkorderPartGroupSelection::query()->create([
             'workorder_id' => $workorder->id,
             'manual_part_group_id' => $group->id,
@@ -177,13 +203,21 @@ class PartGroupsTest extends TestCase
                 'name' => 'Updated ASSY Group',
                 'type' => ManualPartGroup::TYPE_ASSY,
                 'applies_to' => ['prl', 'ndt'],
-                'component_ids' => [$member->id],
+                'component_ids' => [$member->id, $addedMember->id],
                 'default_component_id' => $member->id,
-                'member_qty' => [$member->id => 3],
+                'member_qty' => [$member->id => 3, $addedMember->id => 2],
+                'member_applies_to' => [$member->id => ['prl', 'ndt']],
             ]
         );
 
         $response->assertOk();
+        $this->assertDatabaseHas('manual_part_group_coverages', [
+            'manual_part_group_option_id' => $option->id,
+            'component_id' => $addedMember->id,
+            'qty' => 2,
+        ]);
+        $addedCoverage = collect($response->json('group.options.0.coverages'))->firstWhere('component_id', $addedMember->id);
+        $this->assertSame($addedMember->name, $addedCoverage['name']);
         $this->assertDatabaseHas('manual_part_group_options', [
             'id' => $option->id,
             'component_id' => $member->id,
@@ -232,7 +266,10 @@ class PartGroupsTest extends TestCase
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
         $unit = $this->createUnit(['manual_id' => $manual->id]);
-        $workorder = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id, 'user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
         $base = $this->createPartGroupComponent($manual->id, '1-10', '47170-103');
         $bushing = $this->createPartGroupComponent($manual->id, '1-20', 'BUSH-100');
         $group = ManualPartGroup::query()->create([
@@ -503,9 +540,78 @@ class PartGroupsTest extends TestCase
             ->get(route('manuals.show', $manual))
             ->assertOk()
             ->assertViewHas('partGroupsByComponent', function ($groupsByComponent) use ($oversize, $mainGroupId): bool {
-                return collect($groupsByComponent->get($oversize->id, []))
+                return ! collect($groupsByComponent->get($oversize->id, []))
                     ->contains(fn (ManualPartGroup $group): bool => (int) $group->id === $mainGroupId);
             });
+    }
+
+    public function test_assy_can_include_a_complete_alternative_part_number_group(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $assy = $this->createPartGroupComponent($manual->id, '1-1', 'ASSY-100');
+        $alternateA = $this->createPartGroupComponent($manual->id, '1-70', 'AXLE-A');
+        $alternateB = $this->createPartGroupComponent($manual->id, '1-71', 'AXLE-B');
+
+        $alternativeGroup = ManualPartGroup::query()->create([
+            'manual_id' => $manual->id,
+            'code' => 'MPG-'.uniqid(),
+            'name' => 'Axle Wheel',
+            'behavior' => ManualPartGroup::BEHAVIOR_CHOOSE_ONE,
+            'type' => ManualPartGroup::TYPE_ALTERNATIVE,
+            'applies_to' => ['prl', 'ndt'],
+        ]);
+        $defaultOption = $alternativeGroup->options()->create([
+            'component_id' => $alternateA->id,
+            'part_number' => $alternateA->part_number,
+            'ipl_num' => $alternateA->ipl_num,
+            'option_kind' => 'alternate',
+            'is_default' => true,
+            'sort_order' => 0,
+        ]);
+        $alternativeGroup->options()->create([
+            'component_id' => $alternateB->id,
+            'part_number' => $alternateB->part_number,
+            'ipl_num' => $alternateB->ipl_num,
+            'option_kind' => 'alternate',
+            'is_default' => false,
+            'sort_order' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+            'name' => 'ASSY-100',
+            'type' => ManualPartGroup::TYPE_ASSY,
+            'applies_to' => ['prl', 'ndt'],
+            'component_ids' => [$assy->id],
+            'default_component_id' => $assy->id,
+            'included_group_option_ids' => [$defaultOption->id],
+            'included_group_qty' => [$defaultOption->id => 1],
+        ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $assyGroupId = (int) $response->json('group.id');
+        $assyOptionId = (int) $response->json('group.options.0.id');
+        $this->assertDatabaseHas('manual_part_group_coverages', [
+            'manual_part_group_option_id' => $assyOptionId,
+            'covered_manual_part_group_option_id' => $defaultOption->id,
+            'qty' => 1,
+        ]);
+
+        WorkorderPartGroupSelection::query()->create([
+            'workorder_id' => $workorder->id,
+            'manual_part_group_id' => $assyGroupId,
+            'manual_part_group_option_id' => $assyOptionId,
+            'qty' => 1,
+            'selected_by_user_id' => $admin->id,
+        ]);
+
+        $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($workorder, 'ndt');
+
+        $this->assertSame(1, $coverage[$alternateA->id]['covered_qty']);
+        $this->assertSame(1, $coverage[$alternateB->id]['covered_qty']);
+        $this->assertSame('Included in ASSY ASSY-100', $coverage[$alternateA->id]['reason']);
     }
 
     public function test_assy_group_rejects_an_indirect_nesting_cycle(): void
@@ -636,6 +742,7 @@ class PartGroupsTest extends TestCase
     public function test_kit_prl_crosses_out_group_member_only_when_selected_bundle_covers_required_quantity(): void
     {
         [$admin, $workorder, $member, $group, $option] = $this->bundleFixture(['prl'], 1);
+        $workorder->update(['instruction_id' => $this->createOverhaulInstruction()->id]);
         $member->update(['kit' => true, 'units_assy' => 2]);
         $selection = WorkorderPartGroupSelection::query()->create([
             'workorder_id' => $workorder->id,

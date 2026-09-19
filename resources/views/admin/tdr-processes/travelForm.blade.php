@@ -516,9 +516,9 @@
                 <div class="div6 border-r-b " style="min-height: 36px; align-content: center"></div>
                 <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
                 <div class="div8 border-r-b fs-8" style="min-height: 36px; align-content: center">
-                    @if($tp->notes)
-                        {{ $tp->notes }}
-                    @endif
+                    @foreach(collect([$tp->notes, $travelerTemplateNotes->get($tp->process_names_id)])->filter(fn ($note) => filled($note))->unique() as $note)
+                        <div style="white-space: pre-wrap; overflow-wrap: anywhere">{{ $note }}</div>
+                    @endforeach
                 </div>
 
                 @php $prevTraveler = $inTraveler; @endphp

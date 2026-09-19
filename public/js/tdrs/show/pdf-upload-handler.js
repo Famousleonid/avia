@@ -105,8 +105,8 @@ const PdfUploadHandler = {
             return;
         }
 
-        if (!this.isPdfFile(file)) {
-            showNotification('Please select a PDF file', 'warning');
+        if (!this.isSupportedFile(file)) {
+            showNotification('Please select a PDF, JPG/JPEG, PNG or WebP file (max 10 MB).', 'warning');
             this.clearFormFile();
             return;
         }
@@ -151,9 +151,12 @@ const PdfUploadHandler = {
 
                 if (typeof PdfLibraryHandler !== 'undefined') {
                     await PdfLibraryHandler.loadPdfLibrary(workorderId);
+                    const filter = document.getElementById('pdfCategoryFilter');
+                    if (filter) filter.value = catSel?.value || 'general';
+                    PdfLibraryHandler.renderPdfList();
                 }
 
-                this.showSuccessToast('PDF file uploaded successfully.');
+                this.showSuccessToast('Document uploaded successfully.');
                 window.setTimeout(() => this.resetUploadUi(), 650);
             } catch (error) {
                 console.error('Upload error:', error);
@@ -180,6 +183,7 @@ const PdfUploadHandler = {
         });
 
         request.open('POST', `/workorders/pdf/${workorderId}`);
+        request.setRequestHeader('Accept', 'application/json');
         request.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]')?.content || '');
         request.send(formData);
     },
@@ -193,9 +197,9 @@ const PdfUploadHandler = {
         this.resetUploadUi();
     },
 
-    isPdfFile(file) {
+    isSupportedFile(file) {
         const name = (file?.name || '').toLowerCase();
-        return file && (file.type === 'application/pdf' || name.endsWith('.pdf'));
+        return file && /\.(pdf|jpe?g|png|webp)$/.test(name) && file.size <= 10 * 1024 * 1024;
     },
 
     updateSelectedFile(file) {
@@ -225,6 +229,8 @@ const PdfUploadHandler = {
         const cancelBtn = document.getElementById('clearPdfFileBtn');
         const dropZone = document.getElementById('pdfDropZone');
         const fileInput = document.getElementById('pdfFileInput');
+        const category = document.getElementById('pdfUploadCategory');
+        if (category) category.disabled = isUploading;
 
         cancelBtn?.classList.toggle('d-none', !isUploading);
         dropZone?.classList.toggle('is-uploading', isUploading);

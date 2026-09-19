@@ -142,6 +142,7 @@ class AppServiceProvider extends ServiceProvider
         return [
             'admin.tdrs.wo_BoxTitle',
             'admin.tdrs.wo_ProcessForm',
+            'admin.tdrs.in-process-check-sheet',
             'admin.tdrs.tdrForm',
             'admin.tdrs.prlForm',
             'admin.tdrs.specProcessForm',

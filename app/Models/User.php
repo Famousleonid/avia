@@ -102,6 +102,12 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return $this->role?->name;
     }
 
+    public function canEditPaintFinishDate(): bool
+    {
+        return $this->roleIs('Admin')
+            || ($this->roleIs(['Paint', 'Technician']) && (int) $this->team_id === Team::NEVER_STOP_TEAM_ID);
+    }
+
     public function getSelectionNameAttribute(): string
     {
         $parts = preg_split('/\s+/u', trim((string) $this->name), -1, PREG_SPLIT_NO_EMPTY) ?: [];

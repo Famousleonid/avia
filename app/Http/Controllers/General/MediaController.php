@@ -260,20 +260,21 @@ class MediaController extends Controller
         $workorder = Workorder::findOrFail($id);
 
         $request->validate([
-            'pdf' => 'required|mimes:pdf|max:10240', // максимум 10MB на файл
+            'pdf' => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
             'document_name' => 'nullable|string|max:255',
-            'doc_kind' => 'nullable|in:general,ec_approved',
+            'doc_kind' => ['nullable', \Illuminate\Validation\Rule::exists('document_categories', 'key')->whereNull('deleted_at')],
         ]);
 
         if ($request->hasFile('pdf')) {
             $pdf = $request->file('pdf');
             $documentName = $request->input('document_name');
-            $docKind = $request->input('doc_kind', 'general');
+            $docKind = $request->input('doc_kind') ?: 'general';
 
             // Формируем уникальное читаемое имя файла
-            $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.pdf';
+            $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.' . $pdf->extension();
 
             $media = $workorder->addMedia($pdf)
+                ->usingName(pathinfo($pdf->getClientOriginalName(), PATHINFO_FILENAME))
                 ->usingFileName($filename)
                 ->toMediaCollection('pdfs');
 
@@ -336,7 +337,7 @@ class MediaController extends Controller
         }
 
         return response()->file($filePath, [
-            'Content-Type' => 'application/pdf',
+            'Content-Type' => $media->mime_type,
             'Content-Disposition' => 'inline; filename="' . $media->file_name . '"',
         ]);
     }

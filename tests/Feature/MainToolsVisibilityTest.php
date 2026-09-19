@@ -49,4 +49,34 @@ class MainToolsVisibilityTest extends TestCase
             strpos($html, 'bi bi-images text-decoration-none')
         );
     }
+
+    public function test_draft_main_shows_only_photo_action_and_no_work_panels_for_every_role(): void
+    {
+        $draft = $this->createWorkorder([
+            'number' => random_int(700000, 999999),
+            'draft_number' => random_int(1000, 9999),
+            'is_draft' => true,
+        ]);
+        $admin = $this->createUserWithRole('Admin');
+        $technician = $this->createUserWithRole('Technician');
+
+        foreach ([$admin, $technician] as $user) {
+            $this->flushSession();
+
+            $this->actingAs($user)
+                ->get(route('mains.show', $draft))
+                ->assertOk()
+                ->assertSee('data-draft-main="1"', false)
+                ->assertSee('data-main-draft-badge', false)
+                ->assertSee('data-main-action="photos"', false)
+                ->assertDontSee('data-main-action="tdr"', false)
+                ->assertDontSee('data-main-action="pdf"', false)
+                ->assertDontSee('data-main-action="tools"', false)
+                ->assertDontSee('data-main-action="logs"', false)
+                ->assertDontSee('data-main-action="parts"', false)
+                ->assertDontSee('data-main-tabs', false)
+                ->assertDontSee('id="pdfModal"', false)
+                ->assertDontSee('js/tdrs/show/pdf-library-handler.js', false);
+        }
+    }
 }

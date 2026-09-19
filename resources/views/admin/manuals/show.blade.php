@@ -294,7 +294,8 @@
             white-space: normal;
         }
 
-        #manualPartsTable .manual-part-groups-container {
+        #manualPartsTable .manual-part-groups-container,
+        #manualPartsTable .manual-part-assy-groups-container {
             display: flex;
             flex-direction: column;
             align-items: stretch;
@@ -337,10 +338,6 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-        }
-
-        #manualPartsTable .manual-part-legacy-group {
-            margin-top: 3px;
         }
 
         #manualPartsTable col.manual-part-flag-col {
@@ -573,6 +570,11 @@
             align-items: center;
             gap: 0;
             min-height: 18px;
+        }
+        .manual-process-specification-text {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            min-width: 0;
         }
         .manual-process-comment {
             text-align: left !important;
@@ -1072,28 +1074,6 @@
                                 @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
                             <i class="bi bi-diagram-3"></i> {{ __('Part Groups') }}
                         </button>
-                        <div class="btn-group btn-group-sm d-none"
-                             hidden
-                             aria-hidden="true"
-                             role="group"
-                             aria-label="{{ __('Legacy KIT and STD grouping') }}">
-                            <button type="button"
-                                    class="btn btn-outline-warning"
-                                    id="manual-kit-choice-group-apply"
-                                    data-url="{{ route('manuals.components.kit-prl-choice-group', ['manual' => $cmm]) }}"
-                                    tabindex="-1"
-                                    @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
-                                {{ __('Legacy Group') }}
-                            </button>
-                            <button type="button"
-                                    class="btn btn-outline-secondary"
-                                    id="manual-kit-choice-group-clear"
-                                    data-url="{{ route('manuals.components.kit-prl-choice-group', ['manual' => $cmm]) }}"
-                                    tabindex="-1"
-                                    @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
-                                <i class="bi bi-x-circle"></i>
-                            </button>
-                        </div>
                         <form action="{{ $manualPartsLocked ? route('manuals.part-lock.unlock', ['manual' => $cmm]) : route('manuals.part-lock.lock', ['manual' => $cmm]) }}"
                               method="POST"
                               class="d-none m-0"
@@ -1391,6 +1371,16 @@
                                             </span>
                                             <span>{{ $processName?->name ?? 'Unknown Process Name' }}</span>
                                         </span>
+                                        @if($processName)
+                                            <button type="button" class="btn btn-outline-primary btn-sm float-end ms-2"
+                                                    data-add-group-process
+                                                    data-create-url="{{ route('processes.create', ['manual_id' => $cmm->id, 'modal' => 1, 'process_name_id' => $processName->id]) }}"
+                                                    title="{{ __('Add process') }}: {{ $processName->name }}"
+                                                    aria-label="{{ __('Add process') }}: {{ $processName->name }}"
+                                                    @disabled(! app(\App\Services\ProcessAccessGuard::class)->canCreateProcessDefinition(auth()->user(), $cmm, $processName)->allowed)>
+                                                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                                            </button>
+                                        @endif
                                     </td>
                                     <td class="align-content-center text-start">
                                         &nbsp;
@@ -1455,7 +1445,7 @@
                                         </td>
                                         <td class="align-content-center manual-process-actions">
                                             <button type="button"
-                                               class="btn btn-outline-primary btn-sm open-manual-process-edit"
+                                               class="btn btn-outline-primary btn-sm open-manual-process-edit d-none"
                                                title="{{ __('Edit') }}"
                                                data-update-url="{{ route('manual_processes.update', $mp) }}"
                                                data-process-name="{{ $processName?->name ?? '' }}"
@@ -2225,10 +2215,22 @@
         </div>
     </div>
 
+    <div class="modal fade" id="manualProcessCreateModal" tabindex="-1" aria-label="{{ __('Add process') }}" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="--bs-modal-width: 900px;">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title">{{ __('Add process') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
+                </div>
+                <iframe id="manualProcessCreateFrame" title="{{ __('Add process') }}" style="width: 100%; height: min(760px, calc(100dvh - 130px)); border: 0;"></iframe>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="manualProcessEditModal" tabindex="-1" aria-labelledby="manualProcessEditModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="--bs-modal-width: 1000px;">
             <div class="modal-content bg-gradient">
-                <form id="manualProcessEditForm" method="POST" novalidate data-no-spinner>
+                <form id="manualProcessEditForm" method="POST" novalidate data-no-spinner style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                     @csrf
                     @method('PUT')
                     <div class="modal-header">
@@ -2239,7 +2241,7 @@
                         <div id="manualProcessEditErrors" class="alert alert-danger d-none" role="alert"></div>
                         <div class="mb-3">
                             <label for="manualProcessEditValue" class="form-label">{{ __('Process') }}</label>
-                            <input type="text" class="form-control" id="manualProcessEditValue" name="process" maxlength="255" required>
+                            <textarea class="form-control" id="manualProcessEditValue" name="process" rows="3" maxlength="255" required></textarea>
                         </div>
                         <div class="mb-0">
                             <label for="manualProcessEditComment" class="form-label">{{ __('Comment') }}</label>
@@ -2366,6 +2368,56 @@
             const manualUiScope = 'manuals.show';
             const manualId = @json((int) $cmm->id);
             const manualProcessEditModalEl = document.getElementById('manualProcessEditModal');
+            const createModalEl = document.getElementById('manualProcessCreateModal');
+            const createFrame = document.getElementById('manualProcessCreateFrame');
+            let createFrameReady = false;
+            let createModalShown = false;
+            function focusNewProcessInput() {
+                if (!createFrameReady || !createModalShown) return;
+                const input = createFrame.contentDocument?.getElementById('process');
+                if (!input) return;
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+            createFrame.addEventListener('load', function () {
+                createFrameReady = true;
+                focusNewProcessInput();
+            });
+            createModalEl.addEventListener('shown.bs.modal', function () {
+                createModalShown = true;
+                focusNewProcessInput();
+            });
+            createModalEl.addEventListener('hide.bs.modal', function () {
+                createModalShown = false;
+            });
+            document.addEventListener('click', function (event) {
+                const button = event.target.closest('[data-add-group-process]');
+                if (!button || button.disabled) return;
+                createFrameReady = false;
+                createFrame.src = button.dataset.createUrl;
+                bootstrap.Modal.getOrCreateInstance(createModalEl).show();
+            });
+            window.addEventListener('message', async function (event) {
+                if (event.origin !== window.location.origin || event.source !== createFrame.contentWindow) return;
+                if (!['addProcessesSuccess', 'addProcessesCancel'].includes(event.data?.type)) return;
+                bootstrap.Modal.getOrCreateInstance(createModalEl).hide();
+                if (event.data.type !== 'addProcessesSuccess') return;
+                try {
+                    const response = await fetch(@json(route('manuals.show', ['manual' => $cmm->id, 'tab' => 'processes'])), {
+                        headers: { 'Accept': 'text/html' }, credentials: 'same-origin',
+                    });
+                    if (!response.ok || response.redirected) throw new Error('Could not refresh processes.');
+                    const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+                    const freshBody = doc.querySelector('#nav-processes table tbody');
+                    if (!freshBody) throw new Error('Could not refresh processes.');
+                    document.querySelector('#nav-processes table tbody').replaceWith(freshBody);
+                    const count = doc.querySelector('#nav-processes-tab .manual-parts-tab-count');
+                    if (count) document.querySelector('#nav-processes-tab .manual-parts-tab-count').textContent = count.textContent;
+                    window.showNotification(event.data.message || 'Process added successfully.', 'success');
+                } catch (error) {
+                    window.notifyError('Process saved, but the list could not be refreshed. Please refresh the page.');
+                }
+            });
             const manualProcessEditForm = document.getElementById('manualProcessEditForm');
 
             if (manualProcessEditModalEl && manualProcessEditForm && window.bootstrap?.Modal) {
@@ -2399,12 +2451,8 @@
                     if (data?.errors?.process_comment) manualProcessEditComment.classList.add('is-invalid');
                 }
 
-                document.addEventListener('click', function (event) {
-                    const trigger = event.target.closest('.open-manual-process-edit');
-                    if (!trigger) return;
-
-                    event.preventDefault();
-                    if (trigger.classList.contains('disabled') || trigger.getAttribute('aria-disabled') === 'true') return;
+                function openManualProcessEditor(trigger) {
+                    if (!trigger || trigger.disabled || trigger.classList.contains('disabled') || trigger.getAttribute('aria-disabled') === 'true' || manualProcessEditSave.disabled) return;
 
                     manualProcessEditTrigger = trigger;
                     manualProcessEditRow = trigger.closest('.manual-process-child-row');
@@ -2414,6 +2462,21 @@
                     manualProcessEditComment.value = trigger.dataset.comment || '';
                     clearManualProcessEditErrors();
                     manualProcessEditModal.show();
+                }
+
+                document.addEventListener('click', function (event) {
+                    const trigger = event.target.closest('.open-manual-process-edit');
+                    if (!trigger) return;
+                    event.preventDefault();
+                    openManualProcessEditor(trigger);
+                });
+
+                document.getElementById('nav-processes')?.addEventListener('dblclick', function (event) {
+                    if (event.target.closest('button, a, input, select, textarea, label, form')) return;
+                    const row = event.target.closest('.manual-process-child-row');
+                    if (!row) return;
+                    event.preventDefault();
+                    openManualProcessEditor(row.querySelector('.open-manual-process-edit'));
                 });
 
                 manualProcessEditModalEl.addEventListener('shown.bs.modal', function () {
@@ -2427,6 +2490,8 @@
 
                 manualProcessEditForm.addEventListener('submit', async function (event) {
                     event.preventDefault();
+                    if (manualProcessEditSave.disabled) return;
+                    if (!manualProcessEditForm.reportValidity()) return;
                     clearManualProcessEditErrors();
                     manualProcessEditSave.disabled = true;
                     manualProcessEditForm.setAttribute('aria-busy', 'true');
@@ -2844,154 +2909,27 @@
                 applyPartsSearch();
             }
 
-            (function initManualKitChoiceGrouping() {
+            // Part Groups uses the same selection, without a second grouping editor.
+            (function initManualPartsSelection() {
                 const table = document.getElementById('manualPartsTable');
                 const selectAll = document.getElementById('manual-parts-select-all');
-                const applyBtn = document.getElementById('manual-kit-choice-group-apply');
-                const clearBtn = document.getElementById('manual-kit-choice-group-clear');
-                if (!table || !applyBtn || !clearBtn) return;
-                const groupedLabel = @json(__('Grouped'));
-
-                function visibleSelectableBoxes() {
-                    return Array.from(table.querySelectorAll('.manual-part-select:not(:disabled)'))
-                        .filter(function (box) {
-                            return !box.closest('tr')?.hidden;
-                        });
+                if (!table || !selectAll) return;
+                const visibleBoxes = () => Array.from(table.querySelectorAll('.manual-part-select:not(:disabled)'))
+                    .filter(box => !box.closest('tr')?.hidden);
+                function refresh() {
+                    const boxes = visibleBoxes();
+                    const count = boxes.filter(box => box.checked).length;
+                    selectAll.checked = boxes.length > 0 && count === boxes.length;
+                    selectAll.indeterminate = count > 0 && count < boxes.length;
                 }
-
-                function selectedBoxes() {
-                    return Array.from(table.querySelectorAll('.manual-part-select:not(:disabled)')).filter(function (box) {
-                        return box.checked;
-                    });
-                }
-
-                function selectChoiceGroup(row) {
-                    const group = row?.dataset.kitChoiceGroup || '';
-                    if (!group) return;
-
-                    Array.from(table.querySelectorAll('tr[data-kit-choice-group]')).forEach(function (groupRow) {
-                        if ((groupRow.dataset.kitChoiceGroup || '') !== group) return;
-                        const box = groupRow.querySelector('.manual-part-select:not(:disabled)');
-                        if (box) box.checked = true;
-                    });
-                    updateSelectAllState();
-                }
-
-                function updateSelectAllState() {
-                    if (!selectAll) return;
-                    const boxes = visibleSelectableBoxes();
-                    const selected = boxes.filter(function (box) { return box.checked; });
-                    selectAll.checked = boxes.length > 0 && selected.length === boxes.length;
-                    selectAll.indeterminate = selected.length > 0 && selected.length < boxes.length;
-                }
-
-                function updateRows(group) {
-                    selectedBoxes().forEach(function (box) {
-                        const row = box.closest('tr');
-                        if (!row) return;
-                        row.dataset.kitChoiceGroup = group || '';
-                        delete row.dataset.searchText;
-                        const cell = row.querySelector('.manual-part-choice-cell');
-                        if (cell) {
-                            cell.innerHTML = group
-                                ? '<span class="badge text-bg-warning manual-part-choice-group-select" role="button" tabindex="0" title="{{ __('Select all parts in this group') }}" aria-label="{{ __('Select all parts in this group') }}"><i class="bi bi-check2"></i></span>'
-                                : '-';
-                            cell.title = group ? groupedLabel : '';
-                        }
-                    });
-                    updateSelectAllState();
-                }
-
-                async function submitGroup(action) {
-                    const boxes = selectedBoxes();
-                    if (boxes.length === 0) {
-                        showNotification('{{ __('Select parts first.') }}', 'warning');
-                        return;
-                    }
-                    if (action === 'group' && boxes.length < 2) {
-                        showNotification('{{ __('Select at least two parts to group.') }}', 'warning');
-                        return;
-                    }
-
-                    applyBtn.disabled = true;
-                    clearBtn.disabled = true;
-                    try {
-                        const response = await fetch(applyBtn.dataset.url, {
-                            method: 'PATCH',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json',
-                            },
-                            credentials: 'same-origin',
-                            body: JSON.stringify({
-                                component_ids: boxes.map(function (box) { return Number(box.dataset.componentId); }),
-                                action: action,
-                            }),
-                        });
-                        const data = await response.json().catch(function () { return {}; });
-                        if (!response.ok || !data.success) {
-                            throw new Error(data.message || '{{ __('Failed to update KIT group.') }}');
-                        }
-                        updateRows(data.kit_prl_choice_group || '');
-                        showNotification('{{ __('KIT group updated.') }}', 'success');
-                    } catch (error) {
-                        showNotification(error.message || '{{ __('Failed to update KIT group.') }}', 'error');
-                    } finally {
-                        applyBtn.disabled = false;
-                        clearBtn.disabled = false;
-                    }
-                }
-
-                selectAll?.addEventListener('change', function () {
-                    visibleSelectableBoxes().forEach(function (box) {
-                        box.checked = selectAll.checked;
-                    });
-                    updateSelectAllState();
+                selectAll.addEventListener('change', () => {
+                    visibleBoxes().forEach(box => { box.checked = selectAll.checked; });
+                    refresh();
                 });
-                table.addEventListener('change', function (event) {
-                    if (event.target.closest('.manual-part-select')) {
-                        updateSelectAllState();
-                    }
-                });
-                table.addEventListener('click', function (event) {
-                    const groupMarker = event.target.closest('.manual-part-choice-group-select');
-                    if (!groupMarker) return;
-                    selectChoiceGroup(groupMarker.closest('tr'));
-                });
-                table.addEventListener('keydown', function (event) {
-                    const groupMarker = event.target.closest('.manual-part-choice-group-select');
-                    if (!groupMarker || !['Enter', ' '].includes(event.key)) return;
-                    event.preventDefault();
-                    selectChoiceGroup(groupMarker.closest('tr'));
-                });
-                table.addEventListener('manual-parts:row-deleted', updateSelectAllState);
-                applyBtn.addEventListener('click', function () {
-                    submitGroup('group');
-                });
-                clearBtn.addEventListener('click', async function () {
-                    const boxes = selectedBoxes();
-                    if (boxes.length === 0) {
-                        showNotification('{{ __('Select parts first.') }}', 'warning');
-                        return;
-                    }
-                    if (typeof window.confirmDialog === 'function') {
-                        const confirmed = await window.confirmDialog({
-                            title: '{{ __('Clear KIT group?') }}',
-                            message: '{{ __('Selected parts will be removed from their KIT group.') }}',
-                            okText: '{{ __('Clear') }}',
-                            cancelText: '{{ __('Cancel') }}',
-                            danger: true,
-                        });
-                        if (!confirmed) return;
-                    }
-                    submitGroup('clear');
-                });
-                document.getElementById('parts-search')?.addEventListener('input', function () {
-                    requestAnimationFrame(updateSelectAllState);
-                });
-                updateSelectAllState();
+                table.addEventListener('change', refresh);
+                table.addEventListener('manual-parts:row-deleted', refresh);
+                document.getElementById('parts-search')?.addEventListener('input', () => requestAnimationFrame(refresh));
+                refresh();
             })();
 
             // ÐŸÐµÑ€ÐµÐºÐ»ÑŽÑ‡ÐµÐ½Ð¸Ðµ ÐºÐ½Ð¾Ð¿Ð¾Ðº "Add ..." Ð² Ð½Ð°Ð²Ð¸Ð³Ð°Ñ†Ð¸Ð¸ Ð²ÐºÐ»Ð°Ð´Ð¾Ðº

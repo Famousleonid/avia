@@ -383,7 +383,10 @@ class QuantumRoBufferApplyService
             ];
         }
 
-        $target = $batches->get($batchNumber - 1);
+        $labels = app(BushingRouteBatches::class)->labels((int) $workorder->id);
+        $target = $batches->contains(fn ($batch) => $batch->route_number || $batch->legacy_number)
+            ? $batches->first(fn ($batch) => ($labels[$route['process_key']][$batch->id] ?? null) === 'B'.$batchNumber)
+            : $batches->get($batchNumber - 1);
 
         if (! $target) {
             return [

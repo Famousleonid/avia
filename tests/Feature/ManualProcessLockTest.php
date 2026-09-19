@@ -190,6 +190,10 @@ class ManualProcessLockTest extends TestCase
         ]));
         $page->assertOk();
         $page->assertSee('id="manualProcessEditModal"', false);
+        $page->assertSee('name="process" rows="3"', false);
+        $page->assertSee('--bs-modal-width: 1000px', false);
+        $page->assertSee("addEventListener('dblclick'", false);
+        $page->assertSee('trigger.disabled', false);
         $page->assertSee('data-update-url="'.route('manual_processes.update', $manualProcess).'"', false);
         $page->assertSee('data-manual-process-lock-toggle', false);
         $page->assertSee('class="manual-process-specification-text"', false);

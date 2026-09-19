@@ -19,6 +19,128 @@ class WorkorderActionsTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_creating_main_only_for_ignore_does_not_set_date_user(): void
+    {
+        $ignoreEditor = $this->createUserWithRole('Technician');
+        [$workorder, $task] = $this->createDateActorTask();
+
+        $createResponse = $this->actingAs($ignoreEditor)
+            ->postJson(route('mains.store'), [
+                'workorder_id' => $workorder->id,
+                'task_id' => $task->id,
+                'ignore_row' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('user_name', '');
+
+        $main = \App\Models\Main::query()->findOrFail($createResponse->json('main_id'));
+        $this->assertNull($main->user_id);
+    }
+
+    public function test_ignore_change_does_not_replace_existing_date_user(): void
+    {
+        $dateEditor = $this->createUserWithRole('Technician');
+        $ignoreEditor = $this->createUserWithRole('Technician');
+        [$workorder, $task] = $this->createDateActorTask();
+
+        $main = \App\Models\Main::query()->create([
+            'workorder_id' => $workorder->id,
+            'general_task_id' => $task->general_task_id,
+            'task_id' => $task->id,
+            'user_id' => $dateEditor->id,
+            'date_start' => '2026-09-01',
+            'ignore_row' => false,
+        ]);
+
+        $this->actingAs($ignoreEditor)
+            ->patchJson(route('mains.update', $main), ['ignore_row' => true])
+            ->assertOk()
+            ->assertJsonPath('user_name', $dateEditor->selection_name);
+
+        $this->assertSame($dateEditor->id, $main->fresh()->user_id);
+    }
+
+    public function test_user_who_clears_last_dates_remains_as_date_user(): void
+    {
+        $previousEditor = $this->createUserWithRole('Technician');
+        $dateClearer = $this->createUserWithRole('Technician');
+        [$workorder, $task] = $this->createDateActorTask();
+
+        $main = \App\Models\Main::query()->create([
+            'workorder_id' => $workorder->id,
+            'general_task_id' => $task->general_task_id,
+            'task_id' => $task->id,
+            'user_id' => $previousEditor->id,
+            'date_start' => '2026-09-01',
+            'date_finish' => '2026-09-02',
+            'ignore_row' => false,
+        ]);
+
+        $this->actingAs($dateClearer)
+            ->patchJson(route('mains.update', $main), [
+                'date_start' => null,
+                'date_finish' => null,
+                'ignore_row' => false,
+            ])
+            ->assertOk()
+            ->assertJsonPath('date_start', null)
+            ->assertJsonPath('date_finish', null)
+            ->assertJsonPath('user_name', $dateClearer->selection_name);
+
+        $main->refresh();
+        $this->assertNull($main->date_start);
+        $this->assertNull($main->date_finish);
+        $this->assertSame($dateClearer->id, $main->user_id);
+    }
+
+    private function createDateActorTask(): array
+    {
+        $workorder = $this->createWorkorder();
+        $generalTask = GeneralTask::query()->create([
+            'name' => 'Date actor '.uniqid(),
+            'sort_order' => 1,
+        ]);
+        $task = Task::query()->create([
+            'name' => 'Tracked date task '.uniqid(),
+            'general_task_id' => $generalTask->id,
+            'task_has_start_date' => true,
+        ]);
+
+        return [$workorder, $task];
+    }
+
+    public function test_user_who_clears_approval_date_remains_on_main_row(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $workorder = $this->createWorkorder();
+        $generalTask = GeneralTask::query()->create([
+            'name' => 'Approval clear '.uniqid(),
+            'sort_order' => 1,
+        ]);
+        $approvedTask = Task::query()->create([
+            'name' => 'Approved',
+            'general_task_id' => $generalTask->id,
+            'task_has_start_date' => false,
+        ]);
+
+        $this->actingAs($manager);
+        $this->postJson(route('workorders.approve.ajax', $workorder), [
+            'approve_date' => '2026-09-03',
+        ])->assertOk();
+
+        $this->postJson(route('workorders.approve.ajax', $workorder), [
+            'approve_date' => null,
+        ])->assertOk()->assertJsonPath('approved', false);
+
+        $main = \App\Models\Main::query()
+            ->where('workorder_id', $workorder->id)
+            ->where('task_id', $approvedTask->id)
+            ->firstOrFail();
+
+        $this->assertNull($main->date_finish);
+        $this->assertSame($manager->id, $main->user_id);
+    }
+
     public function test_manager_can_approve_workorder_and_main_record_is_created(): void
     {
         $manager = $this->createUserWithRole('Manager');

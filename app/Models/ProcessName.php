@@ -28,6 +28,7 @@ class ProcessName extends Model
     ];
 
     protected $fillable = [
+        'sp_sort_order',
         'name','code','process_sheet_name','form_number','std_days', 'notify_user_id','print_form','show_in_process_picker','sequence_exempt',
         'stage','scope', // EC gate / plan structure: start|prep|ndt|post|finish ; point|part
         'plan_order',    // merger tie-break among ready nodes: lower = earlier (null = 100); Machining=10 (in-house first)
@@ -35,6 +36,7 @@ class ProcessName extends Model
     public $timestamps = false;
 
     protected $casts = [
+        'sp_sort_order' => 'integer',
         'show_in_process_picker' => 'boolean',
         'print_form' => 'boolean',
         'sequence_exempt' => 'boolean',
@@ -45,6 +47,45 @@ class ProcessName extends Model
         return $query
             ->where('show_in_process_picker', true)
             ->where('name', '!=', self::SYSTEM_TRAVELER_NAME);
+    }
+
+    public function scopeInSpFormOrder($query)
+    {
+        return $query->orderByRaw('sp_sort_order IS NULL')
+            ->orderBy('sp_sort_order')->orderBy('id');
+    }
+
+    public function scopeIncludedInSpForm($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('sp_sort_order')->orWhere('sp_sort_order', '>', 0));
+    }
+
+    public function moveToSpPosition(?int $position): array
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($position) {
+            $rows = static::query()->inSpFormOrder()->lockForUpdate()->get();
+            $moving = $rows->firstWhere('id', $this->id);
+            $ordered = $rows->reject(fn ($row) => $row->id === $this->id || $row->sp_sort_order === 0)->values();
+            if ($position !== null && $position > 0) {
+                $ordered->splice(min($position - 1, $ordered->count()), 0, [$moving]);
+            }
+            $updates = $rows->whereStrict('sp_sort_order', 0)
+                ->reject(fn ($row) => $row->id === $this->id)
+                ->map(fn ($row) => ['id' => $row->id, 'value' => 0])->values()->all();
+            foreach ($ordered as $index => $row) {
+                $row->sp_sort_order = $index + 1;
+                $row->save();
+                $updates[] = ['id' => $row->id, 'value' => $row->sp_sort_order];
+            }
+            if ($position === null || $position === 0) {
+                $moving->sp_sort_order = $position;
+                $moving->save();
+                $updates[] = ['id' => $moving->id, 'value' => $position];
+            }
+            $this->sp_sort_order = $moving->sp_sort_order;
+
+            return $updates;
+        });
     }
 
     public function isSequenceExempt(): bool

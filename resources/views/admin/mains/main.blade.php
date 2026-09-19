@@ -61,6 +61,85 @@
             opacity: 1 !important;
         }
 
+        .main-workorder-jump {
+            position: relative;
+            flex: 0 0 112px;
+            width: 112px;
+            min-width: 0;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .main-workorder-jump-trigger {
+            width: 100%;
+            height: 32px;
+            padding: 0;
+            border: 0;
+            border-radius: .25rem;
+            color: #fff;
+            background: transparent;
+            font-size: 1.25rem;
+            font-weight: 500;
+            line-height: 1.2;
+            text-align: left;
+        }
+
+        .main-workorder-jump-trigger:hover,
+        .main-workorder-jump-trigger:focus-visible {
+            color: #6edff6;
+            background: rgba(13, 202, 240, .1);
+            outline: 1px solid rgba(13, 202, 240, .45);
+        }
+
+        .main-workorder-jump-form {
+            width: 100%;
+            min-width: 0;
+            margin: 0;
+        }
+
+        .main-workorder-jump-input-wrap {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: 30px;
+            overflow: hidden;
+            border: 1px solid #0dcaf0;
+            border-radius: .25rem;
+            background: #101e2c;
+            box-shadow: 0 0 0 .12rem rgba(13, 202, 240, .16);
+        }
+
+        .main-workorder-jump-prefix {
+            flex: 0 0 auto;
+            padding-left: .4rem;
+            color: #6edff6;
+            font-size: .8rem;
+            font-weight: 700;
+        }
+
+        .main-workorder-jump-input {
+            width: 100%;
+            min-width: 0;
+            height: 28px;
+            padding: .1rem .35rem .1rem .2rem;
+            border: 0;
+            outline: 0;
+            color: #fff;
+            background: transparent;
+            font-size: .9rem;
+            font-weight: 700;
+        }
+
+        .main-workorder-jump-input::placeholder {
+            color: #7891a8;
+            opacity: 1;
+        }
+
+        .main-workorder-jump-input.is-invalid {
+            color: #ff9da6;
+        }
+
         @media (max-width: 767.98px) {
             .dir-top-info-grid {
                 grid-template-columns: minmax(0, 1fr);
@@ -109,6 +188,58 @@
             color: var(--dir-text);
         }
 
+        .main-traveler-toggle {
+            align-items: center;
+            background: transparent;
+            border: 0;
+            color: var(--bs-info);
+            display: inline-flex;
+            gap: .35rem;
+            max-width: 100%;
+            padding: 0;
+            text-align: left;
+        }
+
+        .main-traveler-toggle:hover,
+        .main-traveler-toggle:focus-visible {
+            color: #6edff6;
+        }
+
+        .main-traveler-toggle .bi-chevron-right {
+            font-size: .7rem;
+            transition: transform .16s ease;
+        }
+
+        .main-traveler-toggle[aria-expanded="true"] .bi-chevron-right {
+            transform: rotate(90deg);
+        }
+
+        .main-traveler-detail-row > td {
+            background: rgba(13, 202, 240, .045) !important;
+            padding: .25rem .45rem .4rem 2.1rem;
+        }
+
+        .main-traveler-composition {
+            border-left: 2px solid rgba(13, 202, 240, .42);
+            display: grid;
+            gap: .2rem;
+            min-width: 0;
+            padding-left: .65rem;
+        }
+
+        .main-traveler-process {
+            align-items: baseline;
+            display: grid;
+            gap: .5rem;
+            grid-template-columns: 2ch minmax(0, 1fr);
+            line-height: 1.25;
+            min-width: 0;
+        }
+
+        .main-traveler-process-name {
+            overflow-wrap: anywhere;
+        }
+
     </style>
 @endsection
 
@@ -116,9 +247,10 @@
     @php
         $mainReadonlyDate = static fn ($date): string => format_project_date($date) ?? '';
         $mainReadonlyText = static fn ($value): string => trim((string) ($value ?? ''));
+        $isDraftMain = (bool) ($current_workorder->is_draft ?? false);
     @endphp
 
-    <div class="card dir-page">
+    <div class="card dir-page" data-draft-main="{{ $isDraftMain ? '1' : '0' }}">
         <div class="card-body p-0 shadow-lg">
             <div class="vh-layout">
 
@@ -182,24 +314,61 @@
                                     {{-- Compact actions line --}}
                                     <div class="dir-top-actions d-flex align-items-center justify-content-between gap-2">
                                         <div class="d-flex flex-wrap align-items-center gap-2">
-                                            <h5 class="mb-0 text-white">w {{ $current_workorder->number }}</h5>
+                                            <div class="main-workorder-jump"
+                                                 data-main-workorder-jump
+                                                 data-resolve-url="{{ route('mains.resolve-workorder-number') }}"
+                                                 data-invalid-message="{{ __('Enter a valid workorder number.') }}"
+                                                 data-search-error-message="{{ __('Unable to find this workorder.') }}">
+                                                <button type="button"
+                                                        class="main-workorder-jump-trigger"
+                                                        data-main-workorder-jump-trigger
+                                                        title="{{ __('Open another workorder') }}"
+                                                        aria-label="{{ __('Open another workorder') }}"
+                                                        aria-controls="mainWorkorderJumpForm"
+                                                        aria-expanded="false">w {{ $current_workorder->number }}</button>
+                                                <form id="mainWorkorderJumpForm"
+                                                      class="main-workorder-jump-form d-none"
+                                                      data-main-workorder-jump-form
+                                                      data-no-spinner
+                                                      novalidate>
+                                                    <label class="visually-hidden" for="mainWorkorderJumpInput">{{ __('Workorder number') }}</label>
+                                                    <span class="main-workorder-jump-input-wrap">
+                                                        <span class="main-workorder-jump-prefix" aria-hidden="true">W</span>
+                                                        <input type="text"
+                                                               id="mainWorkorderJumpInput"
+                                                               class="main-workorder-jump-input"
+                                                               data-main-workorder-jump-input
+                                                               inputmode="numeric"
+                                                               autocomplete="off"
+                                                               maxlength="20"
+                                                               placeholder="{{ $current_workorder->number }}"
+                                                               aria-label="{{ __('Workorder number') }}">
+                                                    </span>
+                                                </form>
+                                            </div>
 
-                                            @if($current_workorder->approve_at)
+                                            @if($isDraftMain)
+                                                <span class="badge bg-warning text-dark me-5" data-main-draft-badge>Draft</span>
+                                            @elseif($current_workorder->approve_at)
                                                 <span class="badge bg-success me-5">Approved {{ $current_workorder->approve_at?->format('d-M-y') ?? '—' }}</span>
                                             @else
                                                 <span class="badge bg-warning text-dark me-5">Not approved</span>
                                             @endif
 
                                             <div class="d-flex align-items-center gap-2 ms-3">
+                                                @unless($isDraftMain)
                                                 <a href="{{ route('tdrs.show', ['id' => $current_workorder->id]) }}"
                                                    class="btn btn-outline-success dir-top-square-btn"
+                                                   data-main-action="tdr"
                                                    data-tippy-content="{{ __('TDR Report') }}"
                                                    onclick="showLoadingSpinner()">
                                                     <i class="bi bi-hammer"></i>
                                                 </a>
+                                                @endunless
 
                                                 <a href="{{ route('mains.photos', $current_workorder->id) }}"
-                                                   class="btn btn-outline-info dir-top-square-btn position-relative ms-2"
+                                                   class="btn btn-outline-info dir-top-square-btn position-relative {{ $isDraftMain ? '' : 'ms-2' }}"
+                                                   data-main-action="photos"
                                                    data-tippy-content="{{ __('Pictures') }}"
                                                    onclick="showLoadingSpinner()">
                                                     <i class="bi bi-images text-decoration-none"></i>
@@ -210,12 +379,14 @@
                                                     @endif
                                                 </a>
 
+                                                @unless($isDraftMain)
                                                 <span class="position-relative d-inline-flex ms-2">
                                                     <button type="button"
                                                             class="btn btn-outline-warning dir-top-square-btn open-pdf-modal"
-                                                            title="{{ __('PDF Library') }}"
-                                                            aria-label="{{ __('PDF Library') }}"
-                                                            data-tippy-content="{{ __('PDF Library') }}"
+                                                            data-main-action="pdf"
+                                                            title="{{ __('Documents') }}"
+                                                            aria-label="{{ __('Documents') }}"
+                                                            data-tippy-content="{{ __('Documents') }}"
                                                             data-id="{{ $current_workorder->id }}"
                                                             data-number="{{ $current_workorder->number }}">
                                                         <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
@@ -227,6 +398,7 @@
                                                 @admin
                                                     <a href="{{ route('tools.index', ['workorder_id' => $current_workorder->id, 'workorder' => $current_workorder->number, 'user' => auth()->user()?->selection_name]) }}"
                                                        class="btn btn-outline-primary dir-top-square-btn ms-2"
+                                                       data-main-action="tools"
                                                        data-tippy-content="{{ __('Tools') }}"
                                                        onclick="showLoadingSpinner()">
                                                         <i class="bi bi-tools"></i>
@@ -235,11 +407,13 @@
 
                                                 @role('Admin')
                                                 <a class="btn btn-outline-warning dir-top-square-btn open-log-modal ms-2"
+                                                   data-main-action="logs"
                                                    data-tippy-content="{{ __('Logs') }}"
                                                    data-url="{{ route('workorders.logs-json', $current_workorder->id) }}">
                                                     <i class="bi bi-clock-history"></i>
                                                 </a>
                                                 @endrole
+                                                @endunless
                                             </div>
 
                                             <span class="dir-top-desc ms-5 text-white font-bold " style="font-size: 1.3rem"
@@ -249,7 +423,7 @@
                                         </div>
 
                                         <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                                            @if($manual_id && $current_workorder->user)
+                                            @if(! $isDraftMain && $manual_id && $current_workorder->user)
                                                 <x-training-status
                                                     :manual-id="$manual_id"
                                                     :unit="$current_workorder->unit"
@@ -300,12 +474,15 @@
                                                 <div class="dir-top-line align-items-center">
                                                     <span class="dir-top-k">Parts:</span>
                                                     <span class="dir-top-v dir-top-v-fit">Ordered: {{ $orderedQty ?? 0 }} | Received: {{ $receivedQty ?? 0 }}</span>
+                                                    @unless($isDraftMain)
                                                     <button type="button"
                                                             class="btn btn-success btn-sm ms-0 dir-top-parts-btn"
+                                                            data-main-action="parts"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#partsModal{{ $current_workorder->number }}">
                                                         Parts
                                                     </button>
+                                                    @endunless
                                                 </div>
                                                 <div class="dir-top-line">
                                                     <span class="dir-top-k">Opened:</span>
@@ -323,6 +500,7 @@
                     </div>
                 </div>
 
+                @unless($isDraftMain)
                 <script>
                     (function () {
                         const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
@@ -476,17 +654,12 @@
 
                                                         </td>
 
-                                                        {{-- user --}}
+                                                        {{-- user who last changed a date (including clearing it) --}}
                                                         <td class="task-tech-cell js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }} js-last-user"
                                                             data-tippy-content="
-                                                                <span style='color:#adb5bd'>Updated by:</span>
+                                                                <span style='color:#adb5bd'>Date updated by:</span>
                                                                 <span style='color:#0dcaf0;font-weight:500'>
                                                                     {{ $main?->user?->selection_name ?? '—' }}
-                                                                </span>
-                                                                <br>
-                                                                <span style='color:#adb5bd'>Updated at:</span>
-                                                                <span style='color:#20c997;font-weight:500'>
-                                                                    {{ $main?->updated_at?->format('d-M-Y H:i') ?? '—' }}
                                                                 </span>">
                                                             {{ $main?->user?->selection_name ?? '' }}
 
@@ -1160,6 +1333,7 @@
                                                                 @endphp
                                                             <tr data-closed="{{ $trClosed ? 1 : 0 }}"
                                                                 data-traveler-row="1"
+                                                                data-main-traveler-id="main-traveler-{{ (int) $tdr->id }}-{{ (int) $travelerGroup }}"
                                                                 data-qa-process-id="{{ (int) ($travelerLeader->id ?? 0) }}">
                                                                 <td class="text-center small text-info js-last-user"
                                                                     data-tippy-content="
@@ -1174,7 +1348,17 @@
                                                                         </span>">
                                                                     {{ $trDateUserName }}
                                                                 </td>
-                                                                <td><span class="text-info">Traveler {{ (int) $travelerGroup }}</span></td>
+                                                                <td>
+                                                                    <button type="button"
+                                                                            class="main-traveler-toggle"
+                                                                            data-main-traveler-toggle="main-traveler-{{ (int) $tdr->id }}-{{ (int) $travelerGroup }}"
+                                                                            aria-expanded="false"
+                                                                            aria-controls="main-traveler-{{ (int) $tdr->id }}-{{ (int) $travelerGroup }}">
+                                                                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                                                        <span>Traveler {{ (int) $travelerGroup }}</span>
+                                                                        <span class="text-muted small">({{ $travelerGroupProcesses->count() }})</span>
+                                                                    </button>
+                                                                </td>
 
                                                                 <td>
                                                                     <span class="main-readonly-ro {{ $trRoDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $trRoDisplay }}</span>
@@ -1185,6 +1369,21 @@
                                                                 </td>
                                                                 <td class="main-date-cell">
                                                                     <span class="main-readonly-date {{ $trFinishDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $trFinishDateTitle }}">{{ $trFinishDisplay }}</span>
+                                                                </td>
+                                                            </tr>
+                                                            <tr id="main-traveler-{{ (int) $tdr->id }}-{{ (int) $travelerGroup }}"
+                                                                class="main-traveler-detail-row"
+                                                                data-main-traveler-details="main-traveler-{{ (int) $tdr->id }}-{{ (int) $travelerGroup }}"
+                                                                hidden>
+                                                                <td colspan="5">
+                                                                    <div class="main-traveler-composition" aria-label="{{ __('Traveler composition') }}">
+                                                                        @foreach($travelerGroupProcesses->sortBy([['sort_order', 'asc'], ['id', 'asc']])->values() as $travelerProcessIndex => $travelerProcess)
+                                                                            <div class="main-traveler-process">
+                                                                                <span class="text-muted">{{ $travelerProcessIndex + 1 }}.</span>
+                                                                                <span class="main-traveler-process-name">{{ $travelerProcess->processName?->name ?? '—' }}</span>
+                                                                            </div>
+                                                                        @endforeach
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                             @else
@@ -1292,11 +1491,13 @@
                     </div>
                     <div class="main-tab-resize-handle" data-main-tab-resize title="Drag to resize"></div>
                 </div>
+                @endunless
 
             </div>
         </div>
     </div>
 
+    @unless($isDraftMain)
     {{-- modal log notes --}}
     <div class="modal fade" id="woNotesLogModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -1343,6 +1544,7 @@
 
     @include('admin.mains.partials.modals')
     @include('admin.tdrs.partials.show-modals', ['pdfLibraryOnly' => true])
+    @endunless
 
 @endsection
 
@@ -1357,6 +1559,122 @@
         window.currentWorkorderId = {{ (int)($current_workorder->id ?? 0) }};
     </script>
 
+    <script>
+        (function initMainWorkorderJumpWhenReady() {
+            function initMainWorkorderJump() {
+                const root = document.querySelector('[data-main-workorder-jump]');
+                if (!root || root.dataset.jumpReady === 'true') return;
+
+                const trigger = root.querySelector('[data-main-workorder-jump-trigger]');
+                const form = root.querySelector('[data-main-workorder-jump-form]');
+                const input = root.querySelector('[data-main-workorder-jump-input]');
+                const resolveUrl = root.dataset.resolveUrl || '';
+                let requestController = null;
+
+                if (!trigger || !form || !input || !resolveUrl) return;
+                root.dataset.jumpReady = 'true';
+
+                function setOpen(isOpen) {
+                    trigger.classList.toggle('d-none', isOpen);
+                    form.classList.toggle('d-none', !isOpen);
+                    trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                    input.classList.remove('is-invalid');
+
+                    if (isOpen) {
+                        input.value = '';
+                        window.requestAnimationFrame(() => input.focus());
+                    }
+                }
+
+                function normalizeNumber(value) {
+                    const compact = String(value || '').trim().replace(/[\s#-]+/g, '');
+                    const prefixed = compact.match(/^w(?:o)?(\d+)$/i);
+                    const number = prefixed ? prefixed[1] : compact;
+
+                    return /^\d{1,10}$/.test(number) && Number(number) > 0 ? number : '';
+                }
+
+                function showError(message) {
+                    input.disabled = false;
+                    input.classList.add('is-invalid');
+                    input.focus();
+                    input.select();
+
+                    const text = message || root.dataset.searchErrorMessage || 'Unable to find this workorder.';
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(text, 'error');
+                    }
+                }
+
+                trigger.addEventListener('click', () => setOpen(true));
+
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+
+                    const number = normalizeNumber(input.value);
+                    if (!number) {
+                        showError(root.dataset.invalidMessage);
+                        return;
+                    }
+
+                    requestController?.abort();
+                    requestController = new AbortController();
+                    input.disabled = true;
+                    input.classList.remove('is-invalid');
+
+                    try {
+                        const url = new URL(resolveUrl, window.location.origin);
+                        url.searchParams.set('number', number);
+
+                        const response = await fetch(url.toString(), {
+                            credentials: 'same-origin',
+                            signal: requestController.signal,
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            spinner: false
+                        });
+                        const data = await response.json().catch(() => ({}));
+
+                        if (!response.ok || data.ok !== true || !data.url) {
+                            throw new Error(data.message || root.dataset.searchErrorMessage);
+                        }
+
+                        if (typeof window.showLoadingSpinner === 'function') window.showLoadingSpinner();
+                        window.location.assign(data.url);
+                    } catch (error) {
+                        if (error.name !== 'AbortError') showError(error.message);
+                    } finally {
+                        requestController = null;
+                        input.disabled = false;
+                    }
+                });
+
+                input.addEventListener('input', () => input.classList.remove('is-invalid'));
+                input.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Escape') return;
+                    event.preventDefault();
+                    setOpen(false);
+                    trigger.focus();
+                });
+
+                document.addEventListener('pointerdown', (event) => {
+                    if (!form.classList.contains('d-none') && !root.contains(event.target)) {
+                        setOpen(false);
+                    }
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initMainWorkorderJump, { once: true });
+            } else {
+                initMainWorkorderJump();
+            }
+        })();
+    </script>
+
+    @unless($isDraftMain)
     <script src="{{ asset('js/tdrs/show/pdf-badge-handler.js') }}"></script>
     <script src="{{ asset('js/tdrs/show/pdf-library-handler.js') }}"></script>
     <script src="{{ asset('js/tdrs/show/pdf-viewer-handler.js') }}"></script>
@@ -1748,6 +2066,36 @@
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('[data-main-traveler-details]').forEach((detailsRow) => {
+                detailsRow.hidden = true;
+            });
+
+            document.addEventListener('click', (event) => {
+                const toggle = event.target?.closest?.('[data-main-traveler-toggle]');
+                if (!toggle) return;
+
+                const tableBody = toggle.closest('tbody');
+                const travelerId = toggle.dataset.mainTravelerToggle;
+                const detailsRow = tableBody?.querySelector('[data-main-traveler-details="' + travelerId + '"]');
+                if (!detailsRow) return;
+
+                const willOpen = toggle.getAttribute('aria-expanded') !== 'true';
+
+                tableBody.querySelectorAll('[data-main-traveler-toggle][aria-expanded="true"]').forEach((otherToggle) => {
+                    if (otherToggle === toggle) return;
+                    otherToggle.setAttribute('aria-expanded', 'false');
+                    const otherId = otherToggle.dataset.mainTravelerToggle;
+                    const otherDetails = tableBody.querySelector('[data-main-traveler-details="' + otherId + '"]');
+                    if (otherDetails) otherDetails.hidden = true;
+                });
+
+                toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                detailsRow.hidden = !willOpen;
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
 
             const STORAGE_KEY = 'avia_show_all_right';
             const checkbox = document.getElementById('showAll');
@@ -1764,6 +2112,18 @@
                     }
                     const isClosed = tr.dataset.closed === '1';
                     tr.style.display = (!showAll && isClosed) ? 'none' : '';
+
+                    if (tr.dataset.travelerRow === '1') {
+                        const travelerId = tr.dataset.mainTravelerId;
+                        const detailsRow = travelerId
+                            ? tr.parentElement?.querySelector('[data-main-traveler-details="' + travelerId + '"]')
+                            : null;
+                        const toggle = tr.querySelector('[data-main-traveler-toggle]');
+                        if (detailsRow) {
+                            detailsRow.hidden = tr.style.display === 'none'
+                                || toggle?.getAttribute('aria-expanded') !== 'true';
+                        }
+                    }
                 });
             }
 
@@ -1782,5 +2142,6 @@
         });
     </script>
     {{-- TODO(remove): Remove this note after verifying window.ajaxSubmit covers all js-ajax + js-main-inline-ajax flows. --}}
+    @endunless
 
 @endsection

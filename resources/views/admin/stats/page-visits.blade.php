@@ -180,6 +180,16 @@
                         <a href="{{ route('admin.page-visits.index') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
                     @endif
                 </form>
+                <form id="stat-cleanup" class="d-flex align-items-end flex-wrap gap-2 mt-3" data-no-spinner>
+                    @csrf
+                    <div>
+                        <label for="stat-cleanup-days" class="small text-secondary">Delete visits older than (days)</label>
+                        <input id="stat-cleanup-days" name="days" type="number" min="1" max="36500" step="1" value="90" required class="form-control form-control-sm" style="width: 130px">
+                    </div>
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Clean up…</button>
+                    <span class="small text-secondary">All users. Table filters do not apply. Deletion is permanent.</span>
+                </form>
+                <div id="stat-cleanup-result" class="small mt-2" role="status" aria-live="polite"></div>
             </div>
 
             <div class="page-visit-body">
@@ -262,4 +272,68 @@
             </div>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+<script>
+document.getElementById('stat-cleanup').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('button');
+    const result = document.getElementById('stat-cleanup-result');
+    if (button.disabled) return;
+    const report = (message, type) => {
+        result.textContent = message;
+        result.className = 'small mt-2 ' + (type === 'error' ? 'text-danger' : 'text-info');
+        if (typeof window.showNotification === 'function') window.showNotification(message, type);
+    };
+    if (typeof window.confirmDialog !== 'function') {
+        report('Confirmation dialog is unavailable. Reload the page and try again.', 'error');
+        return;
+    }
+    const send = async (url, method, payload) => {
+        const response = await fetch(url, {
+            method,
+            headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value},
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Cleanup request failed.');
+        return data;
+    };
+    button.disabled = true;
+    try {
+        const preview = await send(@json(route('admin.page-visits.cleanup-preview')), 'POST', {days: form.elements.days.value});
+        if (!preview.count) {
+            report('No visits older than ' + preview.cutoff + '.', 'info');
+            return;
+        }
+        const confirmed = await window.confirmDialog({
+            title: 'Delete old page visits?',
+            message: 'Permanently delete ' + preview.count + ' visits from ALL users before ' + preview.cutoff + '? Table filters do not apply. This cannot be undone.',
+            okText: 'Delete visits', cancelText: 'Cancel', danger: true
+        });
+        if (!confirmed) return;
+        const data = await send(@json(route('admin.page-visits.cleanup')), 'DELETE', {token: preview.token});
+        report('Deleted ' + data.deleted + ' page visits.', 'success');
+        // Refresh the table while retaining the current URL filters and the deletion result.
+        try {
+            const response = await fetch(window.location.href, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+            if (!response.ok) throw new Error();
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            for (const selector of ['.page-visit-body', '.page-visit-summary']) {
+                const replacement = page.querySelector(selector);
+                if (!replacement) throw new Error();
+                document.querySelector(selector).replaceWith(replacement);
+            }
+        } catch (_) {
+            report('Deleted ' + data.deleted + ' page visits. Reload the page to refresh the table.', 'info');
+        }
+    } catch (error) {
+        report(error.message || 'Cleanup request failed.', 'error');
+    } finally {
+        button.disabled = false;
+    }
+});
+</script>
 @endsection

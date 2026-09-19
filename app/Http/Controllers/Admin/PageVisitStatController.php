@@ -7,9 +7,49 @@ use App\Models\PageVisit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class PageVisitStatController extends Controller
 {
+    public function cleanupPreview(Request $request)
+    {
+        $validated = $request->validate(['days' => ['required', 'integer', 'min:1', 'max:36500']]);
+        $cutoff = now()->subDays((int) $validated['days'])->startOfSecond();
+        $maxId = (int) PageVisit::max('id');
+        $count = PageVisit::where('visited_at', '<', $cutoff)->where('id', '<=', $maxId)->count();
+        $token = (string) Str::uuid();
+        $request->session()->put('page_visit_cleanup', [
+            'token' => $token,
+            'user_id' => $request->user()->id,
+            'cutoff' => $cutoff->toDateTimeString(),
+            'max_id' => $maxId,
+            'expires_at' => now()->addMinutes(10)->timestamp,
+        ]);
+
+        return response()->json([
+            'token' => $token,
+            'count' => $count,
+            'cutoff' => format_project_date($cutoff).' '.$cutoff->format('H:i:s').' '.config('app.timezone'),
+        ]);
+    }
+
+    public function cleanup(Request $request)
+    {
+        $validated = $request->validate(['token' => ['required', 'uuid']]);
+        $preview = $request->session()->get('page_visit_cleanup');
+        abort_unless($preview
+            && hash_equals($preview['token'], $validated['token'])
+            && (int) $preview['user_id'] === (int) $request->user()->id
+            && $preview['expires_at'] > now()->timestamp, 422, 'Cleanup preview expired. Please preview again.');
+
+        $deleted = PageVisit::where('visited_at', '<', $preview['cutoff'])
+            ->where('id', '<=', $preview['max_id'])
+            ->delete();
+        $request->session()->forget('page_visit_cleanup');
+
+        return response()->json(['deleted' => $deleted]);
+    }
+
     public function index(Request $request)
     {
         $filters = $request->validate([

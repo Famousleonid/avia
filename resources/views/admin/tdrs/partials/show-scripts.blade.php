@@ -3,7 +3,7 @@
     window.tdrShowUrl = '{{ route("tdrs.show", ["id" => $current_wo->id]) }}';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script src="{{ asset('js/tdr-processes/sortable-handler.js') }}"></script>
+<script src="{{ asset('js/tdr-processes/sortable-handler.js') }}?v={{ filemtime(public_path('js/tdr-processes/sortable-handler.js')) }}"></script>
 <script src="{{ asset('js/tdr-processes/form-link-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/combined-form-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/edit-process/edit-process.js') }}"></script>
@@ -1310,11 +1310,215 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function disposePartProcessesFigSummary(container) {
+        var target = container || body;
+        if (target && typeof target.__partProcessesFigSummaryCleanup === 'function') {
+            target.__partProcessesFigSummaryCleanup();
+        }
+        if (target) target.__partProcessesFigSummaryCleanup = null;
+    }
+
+    function initPartProcessesFigSummary(container) {
+        var target = container || body;
+        var wrapper = target ? target.querySelector('.processes-modal-body') : null;
+        var table = wrapper ? wrapper.querySelector('.tdr-processes-table') : null;
+        var trigger = table ? table.querySelector('[data-fig-summary-trigger]') : null;
+        if (!wrapper || !table || !trigger) return;
+
+        disposePartProcessesFigSummary(target);
+
+        var showTimer = null;
+        var hideTimer = null;
+        var popover = document.createElement('div');
+        popover.className = 'part-process-fig-summary d-none';
+        popover.setAttribute('role', 'dialog');
+        popover.setAttribute('aria-label', '{{ __('Description FIG summary') }}');
+
+        var popoverHeader = document.createElement('div');
+        popoverHeader.className = 'part-process-fig-summary__header';
+
+        var title = document.createElement('strong');
+        title.textContent = '{{ __('FIG counts') }}';
+        popoverHeader.appendChild(title);
+
+        var printButton = document.createElement('button');
+        printButton.type = 'button';
+        printButton.className = 'btn btn-sm btn-outline-primary py-0 px-2';
+        printButton.innerHTML = '<i class="bi bi-printer me-1" aria-hidden="true"></i>{{ __('Print') }}';
+        popoverHeader.appendChild(printButton);
+        popover.appendChild(popoverHeader);
+
+        var summaryList = document.createElement('div');
+        summaryList.className = 'part-process-fig-summary__list';
+        popover.appendChild(summaryList);
+        document.body.appendChild(popover);
+
+        function collectFigCounts() {
+            var counts = new Map();
+            table.querySelectorAll('tbody tr[data-id] .process-description-cell').forEach(function(cell) {
+                var text = (cell.textContent || '').replace(/\s+/g, ' ').trim();
+                var figPattern = /\bfig(?:ure)?\.?\s*(?:no\.?\s*)?([0-9][0-9A-Za-z.-]*(?:\s*[,/&]\s*[0-9][0-9A-Za-z.-]*)*)/gi;
+                var match;
+                while ((match = figPattern.exec(text)) !== null) {
+                    (match[1].match(/[0-9][0-9A-Za-z.-]*/g) || []).forEach(function(rawReference) {
+                        var reference = rawReference.replace(/[.,;:]+$/, '');
+                        if (reference) counts.set(reference, (counts.get(reference) || 0) + 1);
+                    });
+                }
+            });
+
+            return Array.from(counts.entries()).sort(function(a, b) {
+                return a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' });
+            });
+        }
+
+        function renderSummary() {
+            summaryList.replaceChildren();
+            var counts = collectFigCounts();
+            if (!counts.length) {
+                var empty = document.createElement('div');
+                empty.className = 'small text-muted py-2';
+                empty.textContent = '{{ __('No FIG references in Description.') }}';
+                summaryList.appendChild(empty);
+                return;
+            }
+
+            counts.forEach(function(entry) {
+                var row = document.createElement('div');
+                row.className = 'part-process-fig-summary__row';
+                var label = document.createElement('span');
+                label.textContent = 'Fig. ' + entry[0];
+                var amount = document.createElement('strong');
+                amount.textContent = entry[1] + ' pcs';
+                row.appendChild(label);
+                row.appendChild(amount);
+                summaryList.appendChild(row);
+            });
+        }
+
+        function positionPopover() {
+            var triggerRect = trigger.getBoundingClientRect();
+            var popoverRect = popover.getBoundingClientRect();
+            var left = Math.max(12, Math.min(triggerRect.left, window.innerWidth - popoverRect.width - 12));
+            var top = triggerRect.bottom + 8;
+            if (top + popoverRect.height > window.innerHeight - 12) {
+                top = Math.max(12, triggerRect.top - popoverRect.height - 8);
+            }
+            popover.style.left = left + 'px';
+            popover.style.top = top + 'px';
+        }
+
+        function showPopover() {
+            clearTimeout(hideTimer);
+            renderSummary();
+            popover.classList.remove('d-none');
+            trigger.setAttribute('aria-expanded', 'true');
+            positionPopover();
+        }
+
+        function scheduleShow() {
+            clearTimeout(hideTimer);
+            clearTimeout(showTimer);
+            showTimer = window.setTimeout(showPopover, 500);
+        }
+
+        function scheduleHide() {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+            hideTimer = window.setTimeout(function() {
+                popover.classList.add('d-none');
+                trigger.setAttribute('aria-expanded', 'false');
+            }, 180);
+        }
+
+        function hideImmediately() {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+            popover.classList.add('d-none');
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        function printProcessTable() {
+            var printWindow = window.open('', '_blank', 'width=1100,height=800');
+            if (!printWindow) {
+                window.tdrShowNotify('{{ __('The print window was blocked by the browser.') }}', 'warning');
+                return;
+            }
+
+            var printDocument = printWindow.document;
+            printDocument.open();
+            printDocument.write('<!doctype html><html><head><meta charset="utf-8"><title>Part Processes</title><style>@page{size:landscape;margin:10mm}body{font-family:Arial,sans-serif;margin:0;color:#111}table{border-collapse:collapse;width:100%;font-size:10pt}th,td{border:1px solid #555;padding:5px 7px;vertical-align:top;text-align:left}th{background:#eee;font-weight:700}th:first-child,td:first-child{width:3rem;text-align:center}</style></head><body></body></html>');
+            printDocument.close();
+
+            var printTable = printDocument.createElement('table');
+            var printHead = printDocument.createElement('thead');
+            var printHeadRow = printDocument.createElement('tr');
+            ['#', 'Process Name', 'Process', 'Description'].forEach(function(headerText) {
+                var th = printDocument.createElement('th');
+                th.textContent = headerText;
+                printHeadRow.appendChild(th);
+            });
+            printHead.appendChild(printHeadRow);
+            printTable.appendChild(printHead);
+
+            var printBody = printDocument.createElement('tbody');
+            table.querySelectorAll('tbody tr[data-id]').forEach(function(sourceRow) {
+                var printRow = printDocument.createElement('tr');
+                [0, 1, 2, 3].forEach(function(cellIndex) {
+                    var td = printDocument.createElement('td');
+                    td.textContent = sourceRow.cells[cellIndex] ? sourceRow.cells[cellIndex].innerText.trim() : '';
+                    printRow.appendChild(td);
+                });
+                printBody.appendChild(printRow);
+            });
+            printTable.appendChild(printBody);
+            printDocument.body.appendChild(printTable);
+            printWindow.focus();
+            window.setTimeout(function() { printWindow.print(); }, 250);
+        }
+
+        function handleDocumentPointerDown(event) {
+            if (!popover.contains(event.target) && event.target !== trigger) hideImmediately();
+        }
+
+        function handleDocumentKeyDown(event) {
+            if (event.key === 'Escape') hideImmediately();
+        }
+
+        trigger.addEventListener('mouseenter', scheduleShow);
+        trigger.addEventListener('mouseleave', scheduleHide);
+        trigger.addEventListener('focus', scheduleShow);
+        trigger.addEventListener('blur', scheduleHide);
+        popover.addEventListener('mouseenter', function() { clearTimeout(hideTimer); });
+        popover.addEventListener('mouseleave', scheduleHide);
+        printButton.addEventListener('click', printProcessTable);
+        document.addEventListener('pointerdown', handleDocumentPointerDown);
+        document.addEventListener('keydown', handleDocumentKeyDown);
+        window.addEventListener('resize', hideImmediately);
+        document.addEventListener('scroll', hideImmediately, true);
+
+        target.__partProcessesFigSummaryCleanup = function() {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+            trigger.removeEventListener('mouseenter', scheduleShow);
+            trigger.removeEventListener('mouseleave', scheduleHide);
+            trigger.removeEventListener('focus', scheduleShow);
+            trigger.removeEventListener('blur', scheduleHide);
+            printButton.removeEventListener('click', printProcessTable);
+            document.removeEventListener('pointerdown', handleDocumentPointerDown);
+            document.removeEventListener('keydown', handleDocumentKeyDown);
+            window.removeEventListener('resize', hideImmediately);
+            document.removeEventListener('scroll', hideImmediately, true);
+            popover.remove();
+        };
+    }
+
     function loadProcessesAndBind(tdrId, container) {
         var target = container || body;
         var isTabTarget = target === body;
         if (!target) return;
         activeProcessesContainer = target;
+        disposePartProcessesFigSummary(target);
         target.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         if (isTabTarget) {
             if (woNum) woNum.textContent = '-';
@@ -1344,6 +1548,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (html.indexOf('processes-modal-body') === -1 || /<\s*body[\s>]/i.test(html)) {
                     throw new Error('Unexpected full page response for Part Processes partial');
                 }
+                disposeProcessRoDeleteTooltips(target);
                 target.innerHTML = html;
                 try {
                     var wrapper = target.querySelector('.processes-modal-body');
@@ -1366,13 +1571,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                         animation: 150,
                                         ghostClass: 'dragging',
                                         dragClass: 'dragging',
-                                        filter: '.disabled',
+                                        draggable: 'tr[data-id]',
+                                        filter: 'a, button, input, select, textarea, label, form, [data-process-ro-delete-tooltip]',
+                                        preventOnFilter: false,
                                         onEnd: function(evt) {
-                                            var newOrder = Array.from(evt.to.children)
-                                                .filter(function(row) { return !row.querySelector('.disabled') || !row.querySelector('[aria-disabled="true"]'); })
-                                                .map(function(row, index) {
-                                                    return { id: row.getAttribute('data-id'), sort_order: index + 1 };
-                                                });
+                                            SortableHandler.renumberVisualRows(evt.to);
+                                            var newOrder = SortableHandler.collectProcessOrder(evt.to);
                                             SortableHandler.updateProcessOrder(newOrder, updateOrderUrl);
                                         }
                                     });
@@ -1384,6 +1588,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
                     if (typeof CombinedProcessFormHandler !== 'undefined') CombinedProcessFormHandler.init(target);
                     initTravelerGroupHandlers(target);
+                    initPartProcessesFigSummary(target);
                     if (isTabTarget && addProcessBtn) {
                         addProcessBtn.disabled = false;
                         addProcessBtn.onclick = function() {
@@ -1932,10 +2137,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     })();
 
+    function disposeProcessRoDeleteTooltips(container) {
+        if (!container || !window.bootstrap || !bootstrap.Tooltip) return;
+
+        container.querySelectorAll('[data-process-ro-delete-tooltip]').forEach(function(trigger) {
+            var tooltip = bootstrap.Tooltip.getInstance(trigger);
+            if (tooltip) tooltip.dispose();
+        });
+    }
+
+    function initProcessRoDeleteTooltips(container) {
+        if (!container || !window.bootstrap || !bootstrap.Tooltip) return;
+
+        container.querySelectorAll('[data-process-ro-delete-tooltip]').forEach(function(trigger) {
+            bootstrap.Tooltip.getOrCreateInstance(trigger, {
+                boundary: 'viewport',
+                container: 'body',
+                delay: { show: 500, hide: 100 },
+                placement: 'top',
+                trigger: 'hover focus'
+            });
+        });
+    }
+
     function bindProcessHandlers(wrapper, container) {
         var target = container || body;
         if (!target) return;
         initInlineProcessCreate(wrapper, target);
+        initProcessRoDeleteTooltips(target);
         target.querySelectorAll('.load-edit-process').forEach(function(b) {
             b.addEventListener('click', function() {
                 var tdrProcessId = this.dataset.tdrProcessId;
@@ -2105,6 +2334,23 @@ document.addEventListener('DOMContentLoaded', function() {
             var groupLabelBtn = e.target.closest('.js-bushing-batch-label');
             if (groupLabelBtn) {
                 e.preventDefault();
+                    var routeNumber = groupLabelBtn.getAttribute('data-route-number');
+                    if (routeNumber) {
+                        var table = groupLabelBtn.closest('.bushing-view-table');
+                        if (!table) return;
+                        var routeBoxes = Array.from(table.querySelectorAll('.bushing-batch-ungroup-checkbox'))
+                            .filter(function (cb) { return cb.getAttribute('data-route-number') === routeNumber; });
+                        if (!routeBoxes.length) return;
+                        var selectRoute = !routeBoxes.every(function (cb) { return cb.checked; });
+                        if (selectRoute) {
+                            table.querySelectorAll('.bushing-batch-ungroup-checkbox').forEach(function (cb) {
+                                cb.checked = false;
+                            });
+                        }
+                        routeBoxes.forEach(function (cb) { cb.checked = selectRoute; });
+                        return;
+                    }
+
                 var grpProcessKey = groupLabelBtn.getAttribute('data-process-key') || '';
                 var grpBatchId = groupLabelBtn.getAttribute('data-batch-id');
                 if (grpBatchId === null || typeof grpBatchId === 'undefined') {

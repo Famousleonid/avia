@@ -137,6 +137,13 @@ Route::get('/stat', [PageVisitStatController::class, 'index'])
     ->middleware(['auth', 'verified', 'desktop', 'isAdmin'])
     ->name('admin.page-visits.index');
 
+Route::post('/stat/cleanup/preview', [PageVisitStatController::class, 'cleanupPreview'])
+    ->middleware(['auth', 'verified', 'desktop', 'isAdmin'])
+    ->name('admin.page-visits.cleanup-preview');
+Route::delete('/stat/cleanup', [PageVisitStatController::class, 'cleanup'])
+    ->middleware(['auth', 'verified', 'desktop', 'isAdmin'])
+    ->name('admin.page-visits.cleanup');
+
 Route::middleware(['auth'])->get('/session/heartbeat', function (\Illuminate\Http\Request $request) {
     return response()->json([
         'ok' => true,
@@ -303,6 +310,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     });
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class)->except(['show']);
+    Route::get('/mains/resolve-workorder-number', [MainController::class, 'resolveWorkorderNumber'])->name('mains.resolve-workorder-number');
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
     Route::get('/mains/{workorder}/photos', [MainController::class, 'photos'])->name('mains.photos');
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/repair-order', [MainController::class, 'updateWoBushingProcessGroupRepairOrder'])->name('mains.wo_bushing_group.repair_order');
@@ -312,6 +320,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
     Route::get('/workorders/quick-open-search', [WorkorderController::class, 'quickOpenSearch'])->name('workorders.quick-open-search');
     Route::get('/workorders/draft-matches', [WorkorderController::class, 'draftMatches'])->name('workorders.draft-matches');
+    Route::get('/workorders/{workorder}/scope-options', [\App\Http\Controllers\Admin\WorkorderScopeController::class, 'options'])->name('workorders.scope-options');
     Route::resource('/workorders', WorkorderController::class);
     Route::patch('/workorders/{workorder}/manuals/usage', [WorkorderController::class, 'updateManualUsage'])->name('workorders.manuals.usage');
     Route::delete('/workorders/{workorder}/force', [WorkorderController::class, 'forceDestroy'])->name('workorders.forceDestroy');
@@ -356,6 +365,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::post('log_card/sertDistrForm/{id}', [LogCardController::class, 'updateDestructionCertificate'])->name('log_card.destruction_certificate.update');
         Route::get('log_card/{workorder}/manual-components/{manual}', [LogCardController::class, 'manualComponentsPartial'])->name('log_card.manual-components');
         Route::get('tdrs/woProcessForm/{id}', [TdrPrintFormController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
+        Route::get('tdrs/in-process-check-sheet/{workorder}', [\App\Http\Controllers\Admin\InProcessCheckSheetController::class, 'show'])->name('tdrs.inProcessCheckSheet');
         Route::get('tdrs/woBoxTitle/{id}', [TdrPrintFormController::class, 'wo_BoxTitle'])->name('tdrs.wo_BoxTitle');
 
         Route::get('tdrs/log-card-partial/{workorder_id}', [LogCardController::class, 'partial'])->name('log_card.partial');
@@ -602,6 +612,11 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         ->parameters(['type-of-business' => 'companyType'])
         ->names('library.type-of-business')
         ->except(['create', 'edit', 'show']);
+    Route::get('/library/traveler-notes/options', [\App\Http\Controllers\Admin\TravelerNoteTemplateController::class, 'options'])
+        ->name('library.traveler-notes.options');
+    Route::resource('/library/traveler-notes', \App\Http\Controllers\Admin\TravelerNoteTemplateController::class)
+        ->parameters(['traveler-notes' => 'travelerNote'])->names('library.traveler-notes')
+        ->only(['index', 'store', 'update', 'destroy']);
     Route::resource('/library/units', LibraryUnitController::class)
         ->names('library.units')
         ->except(['create', 'edit', 'show']);
@@ -721,9 +736,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::get('/rm_reports/create/{id}', fn($id) => redirect()->route('rm_reports.show', $id))->name('rm_reports.create');
     Route::get('/rm_reports/partial/{workorder_id}', [RmReportController::class, 'partial'])->name('rm_reports.partial');
+    Route::delete('/rm_reports/multiple', [RmReportController::class, 'destroyMultiple'])->name('rm_reports.destroy.multiple');
     Route::resource('/rm_reports', RmReportController::class)->except('create', 'edit');
     Route::get('/rm_reports/{id}/edit', fn($id) => redirect()->route('rm_reports.show', $id))->name('rm_reports.edit');
-    Route::delete('/rm_reports/multiple', [RmReportController::class, 'destroyMultiple'])->name('rm_reports.destroy.multiple');
     Route::post('/rm_reports/save-to-workorder', [RmReportController::class, 'saveToWorkorder'])->name('rm_reports.save.to.workorder');
     Route::get('rm_reports/rmRecordForm/{id}',[RmReportController::class,'rmRecordForm'])->name('rm_reports.rmRecordForm');
     Route::get('/rm_reports/get-record/{id}', [RmReportController::class, 'getRecord'])->name('rm_reports.getRecord');
@@ -809,6 +824,7 @@ Route::middleware(['auth', 'verified', 'desktop'])
     ->group(function () {
 
         Route::patch('{directory}/toggle/{id}/{field}', [DirectoryController::class, 'toggle'])->name('directories.toggle');
+        Route::get('process_names/sp-form-preview', [TdrPrintFormController::class, 'specProcessFormPreview'])->name('process_names.sp-form-preview');
         Route::patch('{directory}/{id}/field/{field}', [DirectoryController::class, 'updateField'])->name('directories.field.update');
 
         foreach (array_keys(config('directories')) as $slug) {

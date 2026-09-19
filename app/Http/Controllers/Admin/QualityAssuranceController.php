@@ -378,6 +378,9 @@ class QualityAssuranceController extends Controller
         $log_card = LogCard::where('workorder_id', $workorder->id)->first();
         $componentData = $this->decodeLogCardRows($log_card?->component_data);
         $componentDataOut = $this->decodeLogCardRows($log_card?->component_data_out);
+        $identity = app(\App\Services\LogCardAssemblyIdentity::class);
+        $componentData = $identity->cleanRows($componentData);
+        $componentDataOut = $identity->cleanRows($componentDataOut);
 
         if ($componentDataOut === [] && $componentData !== []) {
             $componentDataOut = $componentData;

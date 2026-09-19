@@ -36,6 +36,8 @@
         $firstAssembly = $assemblyRows->first();
         $unitsAssy = trim((string) ($component->units_assy ?? ''));
         $componentPartGroups = collect($partGroupsByComponent->get((int) $component->id, []));
+        $ownAssyGroups = $componentPartGroups->where('type', \App\Models\ManualPartGroup::TYPE_ASSY);
+        $otherPartGroups = $componentPartGroups->where('type', '!=', \App\Models\ManualPartGroup::TYPE_ASSY);
         $popoverHtml = '<div class="assy-popover-list">';
         foreach ($assemblyRows as $assemblyIndex => $assembly) {
             $assyIpl = trim((string) ($assembly->assy_ipl_num ?? ''));
@@ -58,7 +60,6 @@
     @endphp
     <tr data-manual-id="{{ $component->manual_id ?? '' }}"
         data-component-id="{{ $component->id }}"
-        data-kit-choice-group="{{ $component->kit_prl_choice_group ?? '' }}"
         @if(! $showManualColumn) id="manual-part-row-{{ $component->id }}" @endif>
         @if($showSelectionColumn)
             <td class="text-center manual-part-select-cell">
@@ -74,7 +75,16 @@
         <td class="text-center">{{ $component->part_number }}</td>
         <td class="text-center">{{ $component->name }}</td>
         <td class="text-center">
-            @if($firstAssembly)
+            @if($showKitChoiceGroupColumn)
+                <div class="manual-part-assy-groups-container">
+                    @foreach($ownAssyGroups as $partGroup)
+                        <button type="button" class="badge manual-part-group-badge" data-part-group-id="{{ $partGroup->id }}" title="{{ $partGroup->name }}">
+                            <span class="manual-part-group-badge-name">{{ $partGroup->name }}</span>
+                        </button>
+                    @endforeach
+                </div>
+                <span class="text-muted small manual-part-assy-empty {{ $ownAssyGroups->isNotEmpty() ? 'd-none' : '' }}">-</span>
+            @elseif($firstAssembly)
                 @php
                     $firstAssyIpl = trim((string) ($firstAssembly->assy_ipl_num ?? ''));
                     $firstAssyPart = trim((string) ($firstAssembly->assy_part_number ?? ''));
@@ -110,7 +120,7 @@
         @if($showKitChoiceGroupColumn)
             <td class="text-center manual-part-choice-cell">
                 <div class="manual-part-groups-container">
-                    @foreach($componentPartGroups as $partGroup)
+                    @foreach($otherPartGroups as $partGroup)
                         <button type="button"
                                 class="badge manual-part-group-badge"
                                 data-part-group-id="{{ $partGroup->id }}"
@@ -119,16 +129,7 @@
                         </button>
                     @endforeach
                 </div>
-                @if(filled($component->kit_prl_choice_group))
-                    <span class="badge text-bg-warning manual-part-choice-group-select manual-part-legacy-group"
-                          role="button"
-                          tabindex="0"
-                          title="{{ __('Select all parts in this group') }}"
-                          aria-label="{{ __('Select all parts in this group') }}">
-                        {{ __('Legacy') }}
-                    </span>
-                @endif
-                <span class="manual-part-group-empty {{ $componentPartGroups->isNotEmpty() || filled($component->kit_prl_choice_group) ? 'd-none' : '' }}">-</span>
+                <span class="manual-part-group-empty {{ $otherPartGroups->isNotEmpty() ? 'd-none' : '' }}">-</span>
             </td>
         @endif
         <td class="text-center" style="width:120px;">

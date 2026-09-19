@@ -286,32 +286,7 @@ class WoBushingController extends Controller
      */
     private function batchLabelsByProcessForWorkorder(int $workorderId): array
     {
-        $batches = WoBushingBatch::query()
-            ->where('workorder_id', $workorderId)
-            ->whereHas('woBushingProcesses')
-            ->with('process.process_name')
-            ->orderBy('id')
-            ->get(['id', 'workorder_id', 'process_id', 'process_column_key']);
-
-        $idsByProcess = [];
-        foreach ($batches as $batch) {
-            $key = $this->resolveBatchProcessKey($batch);
-            if (! array_key_exists($key, self::bushingProcessPrintLabels())) {
-                continue;
-            }
-            $idsByProcess[$key][] = (int) $batch->id;
-        }
-
-        $labels = [];
-        foreach (array_keys(self::bushingProcessPrintLabels()) as $key) {
-            $ids = $idsByProcess[$key] ?? [];
-            sort($ids, SORT_NUMERIC);
-            foreach ($ids as $idx => $id) {
-                $labels[$key][$id] = 'B' . ($idx + 1);
-            }
-        }
-
-        return $labels;
+        return app(\App\Services\BushingRouteBatches::class)->labels($workorderId);
     }
 
     private function hasBushingSpecProcessBatches(?WoBushing $woBushing): bool
@@ -330,179 +305,9 @@ class WoBushingController extends Controller
             ));
     }
 
-    /**
-     * The bushing SP form is grouped by process route.
-     * Batches are only operational grouping in the tab and must not split print columns.
-     *
-     * @return list<array<string, mixed>>
-     */
     private function buildBushingSpecProcessGroups(Workorder $workorder): array
     {
-        $labelMap = self::bushingProcessPrintLabels();
-        $sortOrder = array_flip(array_keys($labelMap));
-        $partNumbersPerCell = 6;
-        $maxPartNumberCellsPerColumn = 7;
-        $maxPartNumbersPerColumn = $partNumbersPerCell * $maxPartNumberCellsPerColumn;
-
-        $groupBuckets = [];
-        $lines = WoBushingLine::query()
-            ->where('workorder_id', $workorder->id)
-            ->with([
-                'component',
-                'processes.process.process_name',
-            ])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        foreach ($lines as $line) {
-            $component = $line->component;
-            if (! $component) {
-                continue;
-            }
-
-            $processRows = [];
-            foreach ($line->processes as $woProcess) {
-                $key = WoBushingProcessColumnKey::fromProcess($woProcess->process);
-                if (! array_key_exists($key, $labelMap)) {
-                    continue;
-                }
-
-                $processRows[] = [
-                    'key' => $key,
-                    'order' => $sortOrder[$key] ?? 999,
-                ];
-            }
-
-            if ($processRows === []) {
-                continue;
-            }
-
-            usort($processRows, function (array $left, array $right): int {
-                return ((int) $left['order'] <=> (int) $right['order'])
-                    ?: strcmp((string) $left['key'], (string) $right['key']);
-            });
-
-            $processSignature = implode('|', array_values(array_unique(array_map(
-                fn (array $row): string => $row['key'],
-                $processRows
-            ))));
-            $partNumber = trim((string) $component->part_number);
-            $signature = $processSignature;
-
-            if (! isset($groupBuckets[$signature])) {
-                $groupBuckets[$signature] = [
-                    'process_keys' => [],
-                    'components_by_line' => [],
-                    'part_numbers' => [],
-                    'min_process_order' => 999,
-                    'min_line_order' => (int) ($line->sort_order ?? 0),
-                    'min_line_id' => (int) $line->id,
-                ];
-            }
-
-            $bucket = &$groupBuckets[$signature];
-            foreach ($processRows as $row) {
-                $bucket['process_keys'][$row['key']] = true;
-                $bucket['min_process_order'] = min((int) $bucket['min_process_order'], (int) $row['order']);
-            }
-            $bucket['min_line_order'] = min((int) $bucket['min_line_order'], (int) ($line->sort_order ?? 0));
-            $bucket['min_line_id'] = min((int) $bucket['min_line_id'], (int) $line->id);
-            $normalizedPartNumber = mb_strtoupper($partNumber);
-            if ($normalizedPartNumber !== '' && ! isset($bucket['part_numbers'][$normalizedPartNumber])) {
-                $bucket['part_numbers'][$normalizedPartNumber] = [
-                    'part_number' => $partNumber,
-                    'sort_order' => (int) ($line->sort_order ?? 0),
-                    'line_id' => (int) $line->id,
-                ];
-            }
-            $bucket['components_by_line'][(int) $line->id] = [
-                'line_id' => (int) $line->id,
-                'component_id' => (int) $component->id,
-                'component' => $component,
-                'qty' => max(1, (int) ($line->qty ?? 1)),
-                'sort_order' => (int) ($line->sort_order ?? 0),
-            ];
-            unset($bucket);
-        }
-
-        $groups = [];
-        foreach ($groupBuckets as $bucket) {
-            $processKeys = array_keys($bucket['process_keys']);
-            usort($processKeys, fn (string $left, string $right): int => ($sortOrder[$left] ?? 999) <=> ($sortOrder[$right] ?? 999));
-
-            $processes = [];
-            $processNumbers = [];
-            foreach ($processKeys as $idx => $processKey) {
-                $processLabel = $labelMap[$processKey];
-                $processes[] = $processLabel;
-                $processNumbers[$processLabel] = $idx + 1;
-            }
-
-            $components = array_values($bucket['components_by_line']);
-            usort($components, function (array $left, array $right): int {
-                return ((int) $left['sort_order'] <=> (int) $right['sort_order'])
-                    ?: ((int) $left['line_id'] <=> (int) $right['line_id']);
-            });
-
-            $partNumbers = array_values($bucket['part_numbers']);
-            usort($partNumbers, function (array $left, array $right): int {
-                return ((int) $left['sort_order'] <=> (int) $right['sort_order'])
-                    ?: ((int) $left['line_id'] <=> (int) $right['line_id'])
-                    ?: strnatcasecmp((string) $left['part_number'], (string) $right['part_number']);
-            });
-
-            $partNumberColumns = array_chunk($partNumbers, $maxPartNumbersPerColumn);
-            if ($partNumberColumns === []) {
-                $partNumberColumns = [[]];
-            }
-
-            foreach ($partNumberColumns as $columnIndex => $partNumberColumn) {
-                $columnPartNumbers = array_column($partNumberColumn, 'part_number');
-                $allowedPartNumbers = array_flip(array_map(
-                    fn (string $partNumber): string => mb_strtoupper(trim($partNumber)),
-                    $columnPartNumbers
-                ));
-                $columnComponents = $columnPartNumbers === []
-                    ? $components
-                    : array_values(array_filter(
-                        $components,
-                        fn (array $entry): bool => isset($allowedPartNumbers[mb_strtoupper(trim((string) ($entry['component']->part_number ?? '')))])
-                    ));
-
-                $groups[] = [
-                    'batch_id' => 0,
-                    'batch_label' => '',
-                    'process_key' => $processKeys[0] ?? '',
-                    'process_order' => (int) $bucket['min_process_order'],
-                    'line_order' => (int) $bucket['min_line_order'],
-                    'line_id' => (int) $bucket['min_line_id'],
-                    'part_number' => (string) ($columnPartNumbers[0] ?? ''),
-                    'part_numbers' => $columnPartNumbers,
-                    'part_number_cells' => array_chunk($columnPartNumbers, $partNumbersPerCell),
-                    'processes' => $processes,
-                    'components' => $columnComponents,
-                    'total_qty' => array_sum(array_map(fn (array $entry): int => (int) $entry['qty'], $columnComponents)),
-                    'process_numbers' => $processNumbers,
-                    'split_index' => $columnIndex,
-                ];
-            }
-        }
-
-        usort($groups, function (array $left, array $right) use ($sortOrder): int {
-            $leftOrder = $left['line_order'] ?? 999;
-            $rightOrder = $right['line_order'] ?? 999;
-            $leftProcessOrder = $left['process_order'] ?? ($sortOrder[$left['process_key'] ?? ''] ?? 999);
-            $rightProcessOrder = $right['process_order'] ?? ($sortOrder[$right['process_key'] ?? ''] ?? 999);
-
-            return ($leftOrder <=> $rightOrder)
-                ?: ($leftProcessOrder <=> $rightProcessOrder)
-                ?: strnatcasecmp((string) ($left['part_number'] ?? ''), (string) ($right['part_number'] ?? ''))
-                ?: ((int) ($left['split_index'] ?? 0) <=> (int) ($right['split_index'] ?? 0))
-                ?: ((int) ($left['line_id'] ?? 0) <=> (int) ($right['line_id'] ?? 0));
-        });
-
-        return array_values($groups);
+        return app(\App\Services\BushingSpecProcessGroups::class)->build($workorder);
     }
 
     private function buildProcessAssignments(?WoBushing $woBushing): array
@@ -537,6 +342,7 @@ class WoBushingController extends Controller
                 $rows[$lineId][$key] = [
                     'wo_process_id' => (int) $wp->id,
                     'batch_id' => $wp->batch_id ? (int) $wp->batch_id : null,
+                    'route_number' => $batch?->route_number,
                     'locked' => $dateStartSet,
                     'finished' => $dateStartSet && $dateFinishSet,
                 ];
@@ -549,6 +355,15 @@ class WoBushingController extends Controller
     private function bushingGroupsForWorkorder(Workorder $workorder)
     {
         return $this->bushingGroupsForManual((int) $workorder->unit->manual_id, $workorder);
+    }
+
+    private function bushingGroupIpl(Component $component): string
+    {
+        $groupIpl = trim((string) $component->bush_ipl_num);
+
+        return $groupIpl !== ''
+            ? $groupIpl
+            : trim((string) $component->ipl_num);
     }
 
     private function bushingGroupsForManual(int $manualId, ?Workorder $workorder = null)
@@ -589,7 +404,7 @@ class WoBushingController extends Controller
         }
 
         return $bushings
-            ->groupBy(fn (Component $component) => (string) ($component->bush_ipl_num ?? ''))
+            ->groupBy(fn (Component $component): string => $this->bushingGroupIpl($component))
             ->sort(function ($leftGroup, $rightGroup): int {
                 $left = $leftGroup->first();
                 $right = $rightGroup->first();
@@ -643,26 +458,31 @@ class WoBushingController extends Controller
             ->groupBy(function (array $row) use ($components): string {
                 $component = $components->get($row['component_id']);
 
-                return (int) $component->manual_id.'|'.trim((string) $component->bush_ipl_num);
+                return (int) $component->manual_id.'|'.$this->bushingGroupIpl($component);
             });
 
         $manualIds = $components->pluck('manual_id')->map(fn ($id): int => (int) $id)->unique()->all();
-        $groupIplNumbers = $components->pluck('bush_ipl_num')
-            ->map(fn ($value): string => trim((string) $value))
+        $groupIplNumbers = $components
+            ->map(fn (Component $component): string => $this->bushingGroupIpl($component))
             ->filter()
             ->unique()
             ->all();
         $groupComponents = Component::query()
             ->where('is_bush', true)
             ->whereIn('manual_id', $manualIds)
-            ->whereIn('bush_ipl_num', $groupIplNumbers)
+            ->where(function ($query) use ($groupIplNumbers): void {
+                $query->whereIn('bush_ipl_num', $groupIplNumbers)
+                    ->orWhereIn('ipl_num', $groupIplNumbers);
+            })
             ->get(['id', 'manual_id', 'ipl_num', 'bush_ipl_num', 'units_assy'])
-            ->groupBy(fn (Component $component): string => (int) $component->manual_id.'|'.trim((string) $component->bush_ipl_num));
+            ->groupBy(fn (Component $component): string =>
+                (int) $component->manual_id.'|'.$this->bushingGroupIpl($component)
+            );
 
         foreach ($orderedGroups as $groupIdentity => $rows) {
             $members = $groupComponents->get($groupIdentity, collect());
             $initial = $members->first(fn (Component $component): bool =>
-                trim((string) $component->ipl_num) === trim((string) $component->bush_ipl_num)
+                trim((string) $component->ipl_num) === $this->bushingGroupIpl($component)
             );
             $maximumQty = max(1, (int) ($initial?->units_assy ?? $members->max('units_assy') ?? 1));
             $orderedQty = (int) $rows->sum('qty');
@@ -671,7 +491,9 @@ class WoBushingController extends Controller
                 continue;
             }
 
-            $groupIpl = trim((string) ($initial?->bush_ipl_num ?? $members->first()?->bush_ipl_num ?? ''));
+            $groupIpl = $members->isNotEmpty()
+                ? $this->bushingGroupIpl($initial ?? $members->first())
+                : trim((string) strrchr($groupIdentity, '|'), '|');
             throw ValidationException::withMessages([
                 'group_bushings' => __('Bushing group :group: total ordered QTY is :ordered. Maximum allowed QTY is :maximum.', [
                     'group' => $groupIpl !== '' ? $groupIpl : $groupIdentity,
@@ -798,7 +620,11 @@ class WoBushingController extends Controller
         // Get all manuals for dropdown
         $manuals = Manual::all();
 
+        $bushingProcessComments = \App\Models\ManualProcess::where('manual_id', $manual_id)
+            ->pluck('process_comment', 'processes_id');
+
         return view('admin.wo_bushings.create', compact(
+            'bushingProcessComments',
             'current_wo',
             'bushings',
             'machiningProcesses',
@@ -1017,7 +843,11 @@ class WoBushingController extends Controller
         // Get all vendors
         $vendors = Vendor::all();
 
+        $bushingProcessComments = \App\Models\ManualProcess::where('manual_id', $manual_id)
+            ->pluck('process_comment', 'processes_id');
+
         return view('admin.wo_bushings.show', compact(
+            'bushingProcessComments',
             'current_wo',
             'bushings',
             'machiningProcesses',
@@ -1089,7 +919,11 @@ class WoBushingController extends Controller
 
         $returnTo = route('tdrs.show', ['id' => $current_wo->id]);
 
+        $bushingProcessComments = \App\Models\ManualProcess::where('manual_id', $manual_id)
+            ->pluck('process_comment', 'processes_id');
+
         return view('admin.wo_bushings.partial', compact(
+            'bushingProcessComments',
             'current_wo',
             'bushings',
             'returnTo',
@@ -1195,7 +1029,11 @@ class WoBushingController extends Controller
         $linesExist = $woBushing->lines->isNotEmpty();
         $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
 
+        $bushingProcessComments = \App\Models\ManualProcess::where('manual_id', $manual_id)
+            ->pluck('process_comment', 'processes_id');
+
         return view('admin.wo_bushings.edit', compact(
+            'bushingProcessComments',
             'current_wo',
             'woBushing',
             'bushings',
@@ -1828,6 +1666,10 @@ class WoBushingController extends Controller
                     abort(422, 'Some selected rows are invalid.');
                 }
 
+                foreach ($rows as $row) {
+                    abort_if($row->batch?->route_number || app(\App\Services\BushingRouteBatches::class)->hasHistory($row) || ($row->batch && app(\App\Services\BushingRouteBatches::class)->hasHistory($row->batch)), 422, 'Route batches are automatic; existing RO batches cannot be regrouped.');
+                }
+
                 $columnKeys = $rows->map(fn (WoBushingProcess $wp) => WoBushingProcessColumnKey::fromProcess($wp->process));
                 if ($columnKeys->unique()->count() !== 1) {
                     abort(422, 'Batch must contain only one process column (header).');
@@ -1863,6 +1705,9 @@ class WoBushingController extends Controller
                 WoBushingBatch::query()
                     ->where('workorder_id', $woBushing->workorder_id)
                     ->whereNull('date_start')
+                    ->whereNull('repair_order')
+                    ->whereNull('legacy_number')
+                    ->whereNull('route_number')
                     ->whereDoesntHave('woBushingProcesses')
                     ->delete();
             });
@@ -1921,6 +1766,10 @@ class WoBushingController extends Controller
 
                 if ($rows->count() !== $ids->count()) {
                     abort(422, 'Some selected rows are invalid.');
+                }
+
+                foreach ($rows as $row) {
+                    abort_if($row->batch?->route_number || app(\App\Services\BushingRouteBatches::class)->hasHistory($row) || ($row->batch && app(\App\Services\BushingRouteBatches::class)->hasHistory($row->batch)), 422, 'Route batches are automatic; existing RO batches cannot be ungrouped.');
                 }
 
                 $batchIds = $rows->pluck('batch_id')->filter()->unique()->values();

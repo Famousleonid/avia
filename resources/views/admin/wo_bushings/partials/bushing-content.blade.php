@@ -19,7 +19,14 @@
     @php
         $machiningProcessName = \App\Models\ProcessName::where('name', 'Machining')->first();
         $stressReliefProcessName = null;
-        $ndtProcessName = \App\Models\ProcessName::where('name', 'NDT-1')->first();
+        $assignedNdtProcessIds = collect($bushData ?? [])
+            ->flatMap(fn ($item) => (array) ($item['processes']['ndt'] ?? []))
+            ->filter()->unique()->values();
+        $ndtProcessName = \App\Models\Process::with('process_name')
+            ->whereIn('id', $assignedNdtProcessIds)->orderBy('id')->get()
+            ->pluck('process_name')
+            ->first(fn ($name) => $name && $name->process_sheet_name === 'NDT'
+                && \App\Models\ProcessName::canPrintProcessForm($name));
         $passivationProcessName = \App\Models\ProcessName::where('name', 'Passivation')->first();
         $cadProcessName = \App\Models\ProcessName::where('name', 'Cad plate')->first();
         $anodizingProcessName = \App\Models\ProcessName::where('name', 'Anodizing')->first();
@@ -66,36 +73,15 @@
             $lineComponentIds[(int) $line->id] = (int) $line->component_id;
         }
 
-        $batchLabelsByProcess = [];
-        foreach ($processAssignments as $lineId => $componentAssignments) {
-            if (!is_array($componentAssignments)) {
-                continue;
-            }
-            foreach ($componentAssignments as $pKey => $assignment) {
-                $bId = (int) ($assignment['batch_id'] ?? 0);
-                if ($bId <= 0) {
-                    continue;
-                }
-                $batchLabelsByProcess[$pKey][$bId] = true;
-            }
-        }
-        foreach ($batchLabelsByProcess as $pKey => $batches) {
-            $ids = array_keys($batches);
-            sort($ids, SORT_NUMERIC);
-            $labels = [];
-            foreach ($ids as $idx => $idVal) {
-                $labels[$idVal] = 'B' . ($idx + 1);
-            }
-            $batchLabelsByProcess[$pKey] = $labels;
-        }
-
+        $batchLabelsByProcess = app(\App\Services\BushingRouteBatches::class)->labels((int) $woBushing->workorder_id);
+        $automaticRoutes = collect($processAssignments)->flatMap(fn ($items) => array_values($items))->contains(fn ($item) => !empty($item['route_number']));
         $sentLabelsByProcess = [];
         $retLabelsByProcess = [];
         foreach ($batchLabelsByProcess as $pKey => $labels) {
             $ids = array_keys($labels);
             sort($ids, SORT_NUMERIC);
             foreach ($ids as $idx => $idVal) {
-                $n = $idx + 1;
+                $n = (int) substr($labels[$idVal], 1);
                 $sentLabelsByProcess[$pKey][(int) $idVal] = 'sent'.$n;
                 $retLabelsByProcess[$pKey][(int) $idVal] = 'Ret('.$n.')';
             }
@@ -350,10 +336,12 @@
                                                 <span class="text-muted small bushing-form-placeholder">{{ __('Form') }}</span>
                                             @endif
                                         </div>
+                                        @if(!$automaticRoutes)
                                         <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
                                                 data-url="{{ $batchCreateUrl }}" data-process-key="{{ $hc['key'] }}">{{ __('Group') }}</button>
                                         <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
                                                 data-url="{{ $batchUngroupUrl }}" data-process-key="{{ $hc['key'] }}">{{ __('Ungroup') }}</button>
+                                        @endif
                                     </div>
                                 @else
                                     <span class="text-muted small bushing-form-placeholder">{{ __('Form') }}</span>

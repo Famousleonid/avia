@@ -5,6 +5,16 @@
     $comp = $current_tdr->component;
     $tdrScopeProcesses = $tdrProcesses->where('tdrs_id', $current_tdr->id);
     $hasTravelerBlock = $tdrScopeProcesses->contains(fn ($p) => (bool) $p->in_traveler);
+    $assignedRoStructureRestricted = auth()->check()
+        && auth()->user()->roleIs(['Technician', 'Team Leader']);
+    $roLockedTravelerGroups = $assignedRoStructureRestricted
+        ? $tdrScopeProcesses
+            ->filter(fn ($p) => (bool) $p->in_traveler && filled(trim((string) $p->repair_order)))
+            ->map(fn ($p) => (int) ($p->traveler_group ?: 1))
+            ->unique()
+            ->values()
+            ->all()
+        : [];
 
     $travelerVisualRowCount = 0;
     foreach ($tdrProcesses as $_tp) {
@@ -41,6 +51,7 @@
     }
     $travelerFormRendered = [];
     $travelerCheckboxRendered = [];
+    $processVisualRowNumber = 0;
     $formRouteExtraParams = !empty($omitFormHeaderDate) ? ['omit_form_header_date' => 1] : [];
 
     // 2c.1 — document templates linked to each TdrProcess (via rule_process_ids).
@@ -144,10 +155,13 @@
         table-layout: fixed;
         min-width: 1100px;
     }
-    .tdr-processes-table col:nth-child(2) {
+    .tdr-processes-table .process-row-number-col {
+        width: 3.25rem !important;
+    }
+    .tdr-processes-table col:nth-child(3) {
         width: 36% !important;
     }
-    .tdr-processes-table col:nth-child(6) {
+    .tdr-processes-table col:nth-child(7) {
         width: 19% !important;
     }
     .tdr-processes-table th,
@@ -159,6 +173,52 @@
     .tdr-processes-table .process-form-col {
         white-space: nowrap;
     }
+    .tdr-processes-table .process-row-number-cell {
+        font-variant-numeric: tabular-nums;
+        padding-left: .35rem !important;
+        padding-right: .35rem !important;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .tdr-processes-table .process-description-summary-trigger {
+        cursor: help;
+        text-decoration: underline dotted rgba(var(--bs-primary-rgb), .65);
+        text-underline-offset: .2rem;
+    }
+    .part-process-fig-summary {
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-info);
+        border-radius: .4rem;
+        box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .35);
+        color: var(--bs-body-color);
+        max-width: calc(100vw - 1.5rem);
+        position: fixed;
+        width: 320px;
+        z-index: 1095;
+    }
+    .part-process-fig-summary__header {
+        align-items: center;
+        border-bottom: 1px solid var(--bs-border-color);
+        display: flex;
+        gap: .5rem;
+        justify-content: space-between;
+        padding: .5rem .65rem;
+    }
+    .part-process-fig-summary__list {
+        max-height: min(280px, 45vh);
+        overflow-y: auto;
+        padding: .35rem .65rem .55rem;
+    }
+    .part-process-fig-summary__row {
+        align-items: center;
+        border-bottom: 1px solid rgba(var(--bs-secondary-rgb), .22);
+        display: flex;
+        justify-content: space-between;
+        padding: .3rem 0;
+    }
+    .part-process-fig-summary__row:last-child {
+        border-bottom: 0;
+    }
     .tdr-processes-table .process-form-controls {
         min-width: 185px;
     }
@@ -169,6 +229,9 @@
     .tdr-processes-table .combined-form-select:disabled {
         cursor: not-allowed;
         opacity: .35;
+    }
+    .process-ro-delete-tooltip > .btn {
+        pointer-events: none;
     }
     .tdr-processes-table .traveler-vendor-select {
         min-width: 112px;
@@ -244,6 +307,7 @@
     <div class="table-wrapper me-3">
         <table class="display table table-sm table-hover align-middle bg-gradient dir-table sortable-table tdr-processes-table">
             <colgroup>
+                <col class="process-row-number-col">{{-- Row number --}}
                 <col style="width: 11%">{{-- Process Name --}}
                 <col style="width: 42%">{{-- Process (поглощает остаток) --}}
                 <col style="width: 17%">{{-- Description --}}
@@ -253,9 +317,15 @@
             </colgroup>
             <thead>
             <tr>
+                <th class="text-primary process-row-number-cell" scope="col">#</th>
                 <th class="text-primary text-center">Process Name</th>
                 <th class="text-primary text-center">Process</th>
-                <th class="text-primary text-center">Description</th>
+                <th class="text-primary text-center process-description-summary-trigger"
+                    data-fig-summary-trigger
+                    tabindex="0"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-label="{{ __('Description: hover or focus to show FIG counts') }}">Description</th>
                 <th class="text-primary text-center">
                     <button type="button" class="btn btn-sm btn-outline-info py-0 px-2" id="btnCreateTraveler">{{ __('Traveler') }}</button>
                 </th>
@@ -295,6 +365,8 @@
                             }
                         }
                         $inTr = (bool) $tdrProcessRow->in_traveler;
+                        $processStructureLocked = $assignedRoStructureRestricted
+                            && filled(trim((string) $tdrProcessRow->repair_order));
                         /* без table-secondary — иначе Bootstrap даёт свой бледный hover */
                         $trClass = $inTr ? ' traveler-block-row traveler-locked' : '';
                     @endphp
@@ -302,7 +374,9 @@
                     @if(!$tdrProcessRow->processName) @continue @endif
 
                     @if($isEc)
+                        @php $processVisualRowNumber++; @endphp
                         <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
+                            <td class="process-row-number-cell">{{ $processVisualRowNumber }}</td>
                             <td class="text-center">{{ $processName }}</td>
                             <td class="ps-2">
                                 @php
@@ -316,11 +390,14 @@
                                 @endphp
                                 {{ !empty($ecProcessLabels) ? implode(', ', $ecProcessLabels) : 'No processes' }}
                             </td>
-                            <td class="text-center">{{ $tdrProcessRow->description ?? '' }}</td>
+                            <td class="text-center process-description-cell">{{ $tdrProcessRow->description ?? '' }}</td>
                             @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$tdrProcessRow->id]); $travelerCheckboxRendered[$tdrProcessRow->id] = true; @endphp
                             @include('admin.tdr-processes.partials.processes-body-traveler-checkbox', ['showTravelerCheckbox' => $showTravelerCheckbox])
                             <td class="text-center process-action-cell">
-                                @if($inTr)
+                                @if($processStructureLocked)
+                                    <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled aria-disabled="true" data-process-ro-locked="edit" title="{{ __('Assigned RO: only Admin or Manager can edit this process.') }}"><i class="bi bi-lock-fill"></i></button>
+                                    @include('admin.tdr-processes.partials.processes-body-ro-delete-lock')
+                                @elseif($inTr)
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled title="{{ __('UnGroup Traveler to edit') }}"><i class="bi bi-pencil-square"></i></button>
                                     <button type="button" class="btn btn-outline-danger btn-sm disabled" disabled title="{{ __('UnGroup Traveler to delete') }}"><i class="bi bi-trash"></i></button>
                                 @elseif($isEcEditable)
@@ -353,7 +430,9 @@
                             @endif
                         </tr>
                     @elseif($isNdtWithPlus)
+                        @php $processVisualRowNumber++; @endphp
                         <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
+                            <td class="process-row-number-cell">{{ $processVisualRowNumber }}</td>
                             <td class="text-center">{{ implode(' / ', $combinedProcessNames) }}</td>
                             <td class="ps-2">
                                 @php
@@ -367,11 +446,14 @@
                                 @endphp
                                 {{ !empty($allProcesses) ? implode(' / ', $allProcesses) : 'No processes' }}@if($tdrProcessRow->ec) ( EC ) @endif
                             </td>
-                            <td class="text-center">{{ $tdrProcessRow->description ?? '' }}</td>
+                            <td class="text-center process-description-cell">{{ $tdrProcessRow->description ?? '' }}</td>
                             @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$tdrProcessRow->id]); $travelerCheckboxRendered[$tdrProcessRow->id] = true; @endphp
                             @include('admin.tdr-processes.partials.processes-body-traveler-checkbox', ['showTravelerCheckbox' => $showTravelerCheckbox])
                             <td class="text-center process-action-cell">
-                                @if($inTr)
+                                @if($processStructureLocked)
+                                    <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled aria-disabled="true" data-process-ro-locked="edit" title="{{ __('Assigned RO: only Admin or Manager can edit this process.') }}"><i class="bi bi-lock-fill"></i></button>
+                                    @include('admin.tdr-processes.partials.processes-body-ro-delete-lock')
+                                @elseif($inTr)
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled><i class="bi bi-pencil-square"></i></button>
                                     <button type="button" class="btn btn-outline-danger btn-sm disabled" disabled><i class="bi bi-trash"></i></button>
                                 @else
@@ -399,17 +481,22 @@
                     @else
                         @if(is_array($processData) && !empty($processData))
                             @foreach($processData as $process)
+                                @php $processVisualRowNumber++; @endphp
                                 <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
+                                    <td class="process-row-number-cell">{{ $processVisualRowNumber }}</td>
                                     <td class="text-center">{{ $processName }}</td>
                                     <td class="ps-2">
                                         @php $proc = $proces->firstWhere('id', $process); @endphp
                                         @if($proc){{ $proc->process }}@if($tdrProcessRow->ec) ( EC ) @endif @endif
                                     </td>
-                                    <td class="text-center">{{ $tdrProcessRow->description ?? '' }}</td>
+                                    <td class="text-center process-description-cell">{{ $tdrProcessRow->description ?? '' }}</td>
                                     @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$tdrProcessRow->id]); $travelerCheckboxRendered[$tdrProcessRow->id] = true; @endphp
                                     @include('admin.tdr-processes.partials.processes-body-traveler-checkbox', ['showTravelerCheckbox' => $showTravelerCheckbox])
                                     <td class="text-center process-action-cell">
-                                        @if($inTr)
+                                        @if($processStructureLocked)
+                                            <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled aria-disabled="true" data-process-ro-locked="edit" title="{{ __('Assigned RO: only Admin or Manager can edit this process.') }}"><i class="bi bi-lock-fill"></i></button>
+                                            @include('admin.tdr-processes.partials.processes-body-ro-delete-lock')
+                                        @elseif($inTr)
                                             <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled><i class="bi bi-pencil-square"></i></button>
                                             <button type="button" class="btn btn-outline-danger btn-sm disabled" disabled><i class="bi bi-trash"></i></button>
                                         @else
@@ -436,14 +523,19 @@
                                 </tr>
                             @endforeach
                         @else
+                            @php $processVisualRowNumber++; @endphp
                             <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
+                                <td class="process-row-number-cell">{{ $processVisualRowNumber }}</td>
                                 <td class="text-center">{{ $processName }}</td>
                                 <td class="ps-2 text-muted">—</td>
-                                <td class="text-center">{{ $tdrProcessRow->description ?? '' }}</td>
+                                <td class="text-center process-description-cell">{{ $tdrProcessRow->description ?? '' }}</td>
                                 @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$tdrProcessRow->id]); $travelerCheckboxRendered[$tdrProcessRow->id] = true; @endphp
                                 @include('admin.tdr-processes.partials.processes-body-traveler-checkbox', ['showTravelerCheckbox' => $showTravelerCheckbox])
                                 <td class="text-center process-action-cell">
-                                    @if($inTr)
+                                    @if($processStructureLocked)
+                                        <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled aria-disabled="true" data-process-ro-locked="edit" title="{{ __('Assigned RO: only Admin or Manager can edit this process.') }}"><i class="bi bi-lock-fill"></i></button>
+                                        @include('admin.tdr-processes.partials.processes-body-ro-delete-lock')
+                                    @elseif($inTr)
                                         <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled><i class="bi bi-pencil-square"></i></button>
                                         <button type="button" class="btn btn-outline-danger btn-sm disabled" disabled><i class="bi bi-trash"></i></button>
                                     @else
@@ -473,6 +565,7 @@
                 @endif
             @endforeach
             <tr class="tdr-process-inline-create-row d-none" data-inline-process-row>
+                <td class="process-row-number-cell"></td>
                 <td>
                     <select class="form-select form-select-sm" data-inline-process-name>
                         <option value="">---</option>
@@ -502,6 +595,7 @@
                 <td></td>
             </tr>
             <tr class="tdr-process-inline-add-row">
+                <td class="process-row-number-cell"></td>
                 <td class="text-start">
                     <button type="button"
                             class="btn btn-outline-info btn-sm"

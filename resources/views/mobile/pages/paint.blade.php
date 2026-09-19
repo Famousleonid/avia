@@ -491,7 +491,7 @@
                                     @endif
                                 </td>
                                 <td class="paint-mobile-date">
-                                    @if($editTp)
+                                    @if($editTp && ($canEditPaintFinish ?? false))
                                         <form method="POST" action="{{ route('tdrprocesses.updateDate', $editTp) }}" class="js-mobile-paint-date-form m-0">
                                             @csrf
                                             @method('PATCH')
@@ -514,7 +514,8 @@
                                             </div>
                                         </form>
                                     @else
-                                        {{ $fmt($row->date_finish) }}
+                                        <input type="hidden" name="date_finish" class="js-mobile-date-real" value="{{ $finishYmd }}">
+                                        <span title="Only Admin or technicians from Never stop`s team can edit the finish date.">{{ $fmt($row->date_finish) }}</span>
                                     @endif
                                 </td>
                             </tr>

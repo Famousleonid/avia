@@ -1228,6 +1228,8 @@ class TdrsTest extends TestCase
             'manual_id' => $manualId,
             'part_number' => '47170-103',
             'name' => 'Original fitting',
+            'assy_part_number' => '47170-3',
+            'assy_ipl_num' => '4-100A',
             'ipl_num' => '4-100',
             'units_assy' => 1,
             'log_card' => true,
@@ -1266,14 +1268,14 @@ class TdrsTest extends TestCase
         $partial->assertOk();
         $html = $partial->getContent();
         $this->assertSame(1, substr_count($html, 'class="lc-assy-group-row"'));
-        $this->assertSame(3, substr_count($html, 'name="lc_selected_component[assy_group_'.$group->id.']"'));
+        $this->assertSame(2, substr_count($html, 'name="lc_selected_component[assy_group_'.$group->id.']"'));
         $partial->assertSee('role="radiogroup"', false);
         $partial->assertSee('data-manual-part-group-option-id="'.$option->id.'"', false);
         $partial->assertSee('47170-103');
         $partial->assertSee('BUSH-47170');
         $partial->assertSee('47170-3');
         $this->assertSame(1, substr_count($html, '>47170-103</strong>'));
-        $this->assertSame(1, substr_count($html, '>BUSH-47170</strong>'));
+        $this->assertFalse(collect($partial->viewData('assyChoiceGroups'))->flatMap(fn ($group) => $group['choices'])->contains('component_id', $member->id));
         $this->assertSame(1, substr_count($html, '>47170-3</strong>'));
 
         $this->actingAs($admin)->postJson(route('log_card.store'), [
@@ -1323,6 +1325,106 @@ class TdrsTest extends TestCase
             $edit->getContent()
         );
         $edit->assertSee('data-assy-part-number="47170-3"', false);
+    }
+
+    public function test_kit_flagged_missing_and_order_new_parts_can_be_saved_unless_overhaul(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $component = Component::create([
+            'manual_id' => $manual->id, 'ipl_num' => '5-95', 'part_number' => 'AE37524-033',
+            'name' => 'Missing kit flagged part', 'kit' => true, 'np' => false,
+        ]);
+        $missing = Code::firstOrCreate(['name' => 'Missing'], ['code' => 'M']);
+        $damaged = Code::firstOrCreate(['name' => 'Damaged'], ['code' => 'DMG']);
+        $orderNew = Necessary::firstOrCreate(['name' => 'Order New']);
+        Condition::firstOrCreate(['name' => 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST'], ['unit' => false]);
+
+        foreach (['Test & inspect', 'Repair', '60M', '96M', 'Overhaul'] as $instruction) {
+            foreach ([$missing, $damaged] as $code) {
+                $workorder = $this->createWorkorder([
+                    'user_id' => $admin->id, 'unit_id' => $unit->id,
+                    'instruction_id' => $this->createInstruction(['name' => $instruction])->id,
+                ]);
+                $picker = $this->actingAs($admin)->getJson(route('api.get-components-by-manual', [
+                    'manual_id' => $manual->id, 'workorder_id' => $workorder->id, 'exclude_kits' => 1,
+                ]))->assertOk();
+                $this->assertSame($instruction !== 'Overhaul', collect($picker->json('components'))->contains('id', $component->id));
+                $response = $this->postJson(route('tdrs.store'), [
+                    'workorder_id' => $workorder->id, 'component_id' => $component->id,
+                    'order_component_id' => $component->id, 'serial_number' => 'NSN',
+                    'assy_serial_number' => ' ', 'codes_id' => $code->id,
+                    'necessaries_id' => $orderNew->id, 'qty' => 1, 'description' => 'WO107979 regression',
+                ]);
+                if ($instruction === 'Overhaul') {
+                    $response->assertUnprocessable()->assertJsonValidationErrors('order_component_id');
+                    $this->assertDatabaseMissing('tdrs', ['workorder_id' => $workorder->id, 'order_component_id' => $component->id]);
+                } else {
+                    $response->assertSuccessful();
+                    $this->assertDatabaseHas('tdrs', [
+                        'workorder_id' => $workorder->id, 'order_component_id' => $component->id, 'codes_id' => $code->id,
+                    ]);
+                    $this->get(route('tdrs.prlForm', $workorder))->assertOk()->assertSee('AE37524-033');
+                }
+            }
+        }
+    }
+
+    public function test_technician_and_team_leader_cannot_delete_tdr_with_any_assigned_process_ro(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $teamLeader = $this->createUserWithRole('Team Leader');
+        $manager = $this->createUserWithRole('Manager');
+        $workorder = $this->createWorkorder(['user_id' => $technician->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'TDR-RO-LOCK-' . uniqid(),
+            'name' => 'TDR RO Lock Component',
+            'ipl_num' => '1-11',
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'TDR RO Lock Process ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'in_traveler' => false,
+            'repair_order' => 'R5678',
+        ]);
+
+        foreach ([$technician, $teamLeader] as $restrictedUser) {
+            $this->flushSession();
+            $this->actingAs($restrictedUser)
+                ->from(route('tdrs.show', ['id' => $workorder->id]))
+                ->delete(route('tdrs.destroy', $tdr->id))
+                ->assertRedirect(route('tdrs.show', ['id' => $workorder->id]))
+                ->assertSessionHas('error', 'A TDR containing a process with an assigned RO can only be deleted by an Admin or Manager.');
+
+            $this->assertDatabaseHas('tdrs', ['id' => $tdr->id]);
+        }
+
+        $this->flushSession();
+        $this->actingAs($technician)
+            ->get(route('tdrs.show', ['id' => $workorder->id]))
+            ->assertOk()
+            ->assertSee('data-tdr-delete-locked="process-ro"', false);
+
+        $this->flushSession();
+        $this->actingAs($manager)
+            ->delete(route('tdrs.destroy', $tdr->id))
+            ->assertRedirect(route('tdrs.show', ['id' => $workorder->id]));
+
+        $this->assertDatabaseMissing('tdrs', ['id' => $tdr->id]);
     }
 
     public function test_log_card_partial_sorts_natural_part_number_and_renders_part_number_gray_ipl_description(): void
@@ -2189,8 +2291,9 @@ class TdrsTest extends TestCase
         $this->attachComponentToIc($icBare, $compBare);
         $this->createParameter($manual, $icBare, ['description' => 'OD']);
 
+        $measurableTdr = null;
         foreach ([$compMeasurable, $compBare] as $c) {
-            Tdr::query()->create([
+            $createdTdr = Tdr::query()->create([
                 'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
                 'workorder_id' => $workorder->id,
                 'component_id' => $c->id,
@@ -2203,6 +2306,10 @@ class TdrsTest extends TestCase
                 'use_tdr' => true,
                 'use_process_forms' => true,
             ]);
+
+            if ($c->is($compMeasurable)) {
+                $measurableTdr = $createdTdr;
+            }
         }
 
         $html = $this->actingAs($admin)->get(route('tdrs.show', ['id' => $workorder->id]))
@@ -2212,6 +2319,51 @@ class TdrsTest extends TestCase
         // Button present for the measurable part, absent for the bare one.
         $this->assertStringContainsString('data-ic-id="' . $icMeasurable->id . '"', $html);
         $this->assertStringNotContainsString('data-ic-id="' . $icBare->id . '"', $html);
+
+        $rowStart = strpos($html, '<tr data-tdr-id="' . $measurableTdr->id . '"');
+        $rowEnd = $rowStart === false ? false : strpos($html, '</tr>', $rowStart);
+        $this->assertNotFalse($rowStart);
+        $this->assertNotFalse($rowEnd);
+        $rowHtml = substr($html, $rowStart, $rowEnd - $rowStart);
+        $processesPosition = strpos($rowHtml, 'data-tdr-action="processes"');
+        $editPosition = strpos($rowHtml, 'data-tdr-action="edit"');
+        $deletePosition = strpos($rowHtml, 'data-tdr-action="delete"');
+        $inspectPosition = strpos($rowHtml, 'data-tdr-action="inspect"');
+
+        $this->assertNotFalse($processesPosition);
+        $this->assertNotFalse($editPosition);
+        $this->assertNotFalse($deletePosition);
+        $this->assertNotFalse($inspectPosition);
+        $this->assertTrue(
+            $processesPosition < $editPosition
+            && $editPosition < $deletePosition
+            && $deletePosition < $inspectPosition,
+            'TDR actions must render as Processes, Edit, Delete, Inspect.'
+        );
+    }
+
+    public function test_fc_doc_button_is_visible_only_to_admin(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $nonAdminUsers = [
+            $this->createUserWithRole('Manager'),
+            $this->createUserWithRole('Team Leader'),
+            $this->createUserWithRole('Technician'),
+        ];
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $this->actingAs($admin)
+            ->get(route('tdrs.show', ['id' => $workorder->id]))
+            ->assertOk()
+            ->assertSee('data-fc-doc-button', false);
+
+        foreach ($nonAdminUsers as $user) {
+            $this->flushSession();
+            $this->actingAs($user)
+                ->get(route('tdrs.show', ['id' => $workorder->id]))
+                ->assertOk()
+                ->assertDontSee('data-fc-doc-button', false);
+        }
     }
 
     public function test_backfill_tdr_conditions_re_derives_condition_from_code(): void
@@ -2506,7 +2658,7 @@ class TdrsTest extends TestCase
     public function test_bushing_prl_and_kit_forms_render_prl_rows(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
 
         $bushingA = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
@@ -2591,13 +2743,13 @@ class TdrsTest extends TestCase
         $bushingResponse->assertSee('const PRINT_SETTINGS_PROFILE = "prl";', false);
         $bushingResponse->assertSee('BUSH-PN-100');
         $bushingResponse->assertSee('BUSH-PN-110');
-        $bushingResponse->assertSee('KIT-BUSH-PN-80');
+        $bushingResponse->assertDontSee('KIT-BUSH-PN-80');
         $this->assertSame(1, substr_count($bushingResponse->getContent(), 'data-prl-bushing-group="1-100"'));
         $this->assertMatchesRegularExpression(
             '/data-prl-bushing-group="1-100".*?<div class="col-1 prl-col-qty[^>]*>.*?data-prl-option-qty="2"[^>]*>2<\/span>.*?data-prl-option-qty="1"[^>]*>1<\/span>/s',
             $bushingResponse->getContent()
         );
-        $this->assertSame(1, substr_count($bushingResponse->getContent(), 'data-prl-crossed-out="1"'));
+        $this->assertSame(0, substr_count($bushingResponse->getContent(), 'data-prl-crossed-out="1"'));
         $bushingResponse->assertSee('<h6>K</h6>', false);
 
         $bushResponse = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
@@ -2606,8 +2758,8 @@ class TdrsTest extends TestCase
         $bushResponse->assertSee('const PRINT_SETTINGS_PROFILE = "prl";', false);
         $bushResponse->assertSee('BUSH-PN-100');
         $bushResponse->assertSee('BUSH-PN-110');
-        $bushResponse->assertSee('KIT-BUSH-PN-80');
-        $this->assertSame(1, substr_count($bushResponse->getContent(), 'data-prl-crossed-out="1"'));
+        $bushResponse->assertDontSee('KIT-BUSH-PN-80');
+        $this->assertSame(0, substr_count($bushResponse->getContent(), 'data-prl-crossed-out="1"'));
         $bushResponse->assertSee('<h6>K</h6>', false);
 
         $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
@@ -2669,7 +2821,7 @@ class TdrsTest extends TestCase
             route('tdrs.stressStd', ['workorder_id' => $workorder->id]),
             route('tdrs.paintStd', ['workorder_id' => $workorder->id]),
         ], false);
-        $showResponse->assertSee('>2</span>', false);
+        $this->assertSame(1, (int) $showResponse->viewData('bushingPrlCount'));
         $bushingResponse->assertSee('`prlForm_print_settings:${PRINT_SETTINGS_PROFILE}`', false);
         $bushingResponse->assertSee('prl-print-paginator.js', false);
         $bushingResponse->assertSee("PRINT_SETTINGS_LAYOUT_VERSION = 'prl-family-height-v3'", false);
@@ -2703,7 +2855,7 @@ class TdrsTest extends TestCase
     public function test_kit_form_repeats_bushing_prl_original_oversize_selection(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
         $manualId = $workorder->unit->manual_id;
         $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
         $damaged = Code::query()->firstOrCreate(['name' => 'Damaged'], ['code' => 'DMG']);
@@ -2805,7 +2957,7 @@ class TdrsTest extends TestCase
     public function test_kit_position_can_be_manually_crossed_out_and_restored_per_component(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
         $manualId = (int) $workorder->unit->manual_id;
 
         $base = Component::query()->create([
@@ -2903,7 +3055,7 @@ class TdrsTest extends TestCase
     public function test_kit_position_remains_manually_controllable_when_part_is_also_in_prl(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
         $manualId = (int) $workorder->unit->manual_id;
         $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
         $damaged = Code::query()->firstOrCreate(['name' => 'Damaged'], ['code' => 'DMG']);
@@ -2962,7 +3114,7 @@ class TdrsTest extends TestCase
     public function test_bushing_prl_prints_all_bushings_crossed_out_when_none_are_ordered(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
 
         Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
@@ -3003,7 +3155,7 @@ class TdrsTest extends TestCase
     public function test_bushing_prl_crosses_out_selected_do_not_order_bushing(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
 
         $ordered = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
@@ -3058,10 +3210,10 @@ class TdrsTest extends TestCase
         );
     }
 
-    public function test_bushing_prl_crosses_out_selected_bushing_already_in_kit(): void
+    public function test_bushing_prl_omits_selected_bushing_already_in_kit(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
 
         $kitBushing = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
@@ -3099,22 +3251,18 @@ class TdrsTest extends TestCase
         $content = $response->getContent();
 
         $response->assertOk();
-        $this->assertMatchesRegularExpression(
-            '/data-prl-component-id="'.$kitBushing->id.'"[^>]*data-prl-part-number-crossed-out="1"[^>]*>BUSH-IN-KIT/s',
-            $content
-        );
+        $response->assertDontSee('BUSH-IN-KIT');
         $this->assertMatchesRegularExpression(
             '/data-prl-component-id="'.$outsideKit->id.'"(?![^>]*data-prl-part-number-crossed-out)[^>]*>BUSH-OUTSIDE-KIT/s',
             $content
         );
-        $response->assertSee('Included in KIT');
-        $response->assertSee('<small class="prl-kit-included-note">Included in KIT</small>', false);
+        $response->assertDontSee('Included in KIT');
     }
 
     public function test_bushing_prl_groups_initial_and_oversize_part_numbers_in_one_cell(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
         $partNumbers = [
             'BUSH-GROUP-INITIAL',
             'BUSH-GROUP-OS-1',
@@ -3178,6 +3326,7 @@ class TdrsTest extends TestCase
         $workorder = $this->createWorkorder([
             'unit_id' => $unit->id,
             'user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
         ]);
 
         $components = collect([
@@ -3194,9 +3343,16 @@ class TdrsTest extends TestCase
                 'ipl_num' => $ipl,
                 'units_assy' => 1,
                 'kit' => true,
-                'kit_prl_choice_group' => 'bearing_spherical_320_321',
+                // Explicit Part Groups replaces the retired legacy field.
             ]);
         });
+
+        $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+            'name' => 'Spherical Bearing', 'type' => 'alternative_pn',
+            'component_ids' => $components->pluck('id')->all(),
+            'default_component_id' => $components->first()->id,
+            'applies_to' => ['prl', 'ndt', 'cad', 'stress', 'paint'],
+        ])->assertOk();
 
         $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
 
@@ -3230,6 +3386,7 @@ class TdrsTest extends TestCase
         $workorder = $this->createWorkorder([
             'unit_id' => $unit->id,
             'user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
         ]);
 
         $components = collect([
@@ -3274,6 +3431,7 @@ class TdrsTest extends TestCase
         $workorder = $this->createWorkorder([
             'unit_id' => $unit->id,
             'user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
         ]);
 
         $parts = collect([
@@ -3289,25 +3447,13 @@ class TdrsTest extends TestCase
             'kit' => true,
         ]));
 
-        $response = $this->actingAs($admin)->patchJson(route('manuals.components.kit-prl-choice-group', ['manual' => $manual]), [
+        $response = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+            'name' => 'Spherical Bearing', 'type' => 'alternative_pn',
             'component_ids' => $parts->pluck('id')->all(),
-            'action' => 'group',
+            'default_component_id' => $parts->first()->id,
+            'applies_to' => ['prl', 'ndt', 'cad', 'stress', 'paint'],
         ]);
-
-        $response->assertOk();
-        $response->assertJson([
-            'success' => true,
-            'updated_count' => 3,
-        ]);
-        $generatedGroup = $response->json('kit_prl_choice_group');
-        $this->assertIsString($generatedGroup);
-        $this->assertMatchesRegularExpression('/^bearing_spherical_[a-z]+_\d{4}$/', $generatedGroup);
-        foreach ($parts as $part) {
-            $this->assertDatabaseHas('components', [
-                'id' => $part->id,
-                'kit_prl_choice_group' => $generatedGroup,
-            ]);
-        }
+        $response->assertOk()->assertJsonPath('success', true);
 
         $csv = implode("\n", [
             'part_number,name,ipl_num,kit',
@@ -3327,17 +3473,16 @@ class TdrsTest extends TestCase
         $this->assertDatabaseHas('components', [
             'id' => $parts->first()->id,
             'name' => 'BEARING, SPHERICAL',
-            'kit_prl_choice_group' => $generatedGroup,
         ]);
 
         $manualResponse = $this->actingAs($admin)->get(route('manuals.show', ['manual' => $manual, 'tab' => 'parts']));
 
         $manualResponse->assertOk();
         $manualResponse->assertDontSee('manual-kit-choice-group-input', false);
-        $manualResponse->assertSee('manual-kit-choice-group-apply', false);
-        $manualResponse->assertSee('manual-part-choice-group-select', false);
-        $manualResponse->assertSee("selectChoiceGroup(groupMarker.closest('tr'))", false);
-        $manualResponse->assertSee('bi-check2', false);
+        $manualResponse->assertDontSee('manual-kit-choice-group-apply', false);
+        $manualResponse->assertSee('manual-part-groups-open', false);
+        $manualResponse->assertDontSee("selectChoiceGroup(groupMarker.closest('tr'))", false);
+        $manualResponse->assertDontSee('manual-part-choice-group-select', false);
         $manualResponse->assertDontSee('>Grouped<', false);
 
         $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));

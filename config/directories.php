@@ -98,6 +98,16 @@ return [
         'order'  => ['scope' => 'asc'],
     ],
 
+    'document_categories' => [
+        'key' => 'document_categories',
+        'title' => 'Document Categories',
+        'model' => \App\Models\DocumentCategory::class,
+        'order' => ['name' => 'asc'],
+        'fields' => [
+            'name' => ['label' => 'Name', 'rules' => ['required', 'string', 'max:100', 'unique:document_categories,name']],
+        ],
+    ],
+
     'process_names' => [
         'key' => 'process_names',
         'title' => 'Process Names',
@@ -105,6 +115,11 @@ return [
         'order' => ['name' => 'asc'],
 
         'fields' => [
+            'sp_sort_order' => [
+                'label' => 'SP order',
+                'type' => 'number',
+                'rules' => ['nullable', 'integer', 'min:0', 'max:99999'],
+            ],
             'name' => [
                 'label' => 'Name',
                 'rules' => ['required','string','max:255'],

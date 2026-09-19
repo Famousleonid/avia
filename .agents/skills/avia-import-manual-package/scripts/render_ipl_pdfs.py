@@ -51,10 +51,15 @@ def main() -> int:
     parser.add_argument("--manual-number", required=True)
     parser.add_argument("--dpi", type=int, default=300)
     parser.add_argument("--manifest-only", action="store_true")
+    parser.add_argument(
+        "--allow-no-workbook",
+        action="store_true",
+        help="Allow a Parts/ASSY-only PDF package without an XLS/XLSX workbook.",
+    )
     args = parser.parse_args()
 
-    if not re.fullmatch(r"\d{2}-\d{2}-\d{2}", args.manual_number.strip()):
-        raise SystemExit("manual number must use NN-NN-NN format")
+    if not re.fullmatch(r"\d{2}-\d{2}-\d{2}(?:\s*[A-Za-z][A-Za-z0-9 .&()/_-]*)?", args.manual_number.strip()):
+        raise SystemExit("manual number must use NN-NN-NN with an optional suffix")
     if args.dpi < 150 or args.dpi > 600:
         raise SystemExit("dpi must be between 150 and 600")
 
@@ -88,7 +93,7 @@ def main() -> int:
 
     if not pdf_by_fig:
         raise SystemExit("no numbered FIG PDFs found (expected names such as 1.pdf)")
-    if not workbooks:
+    if not workbooks and not args.allow_no_workbook:
         raise SystemExit("no .xls/.xlsx workbook found")
 
     pdf_records: list[dict[str, object]] = []

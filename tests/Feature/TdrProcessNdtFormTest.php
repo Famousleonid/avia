@@ -56,6 +56,8 @@ class TdrProcessNdtFormTest extends TestCase
             'tdrs_id' => $tdr->id,
             'process_names_id' => $processName->id,
             'processes' => [$process->id],
+            'description' => 'Fig. 5003',
+            'notes' => 'Existing traveler note',
             'sort_order' => 1,
         ]);
 
@@ -67,6 +69,27 @@ class TdrProcessNdtFormTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('ULTRASOUND AS PER:')
-            ->assertSee($process->process);
+            ->assertSee($process->process)
+            ->assertSee('Fig. 5003');
+
+        $this->actingAs($admin)
+            ->get(route('tdr-processes.editForm', $tdrProcess->id))
+            ->assertOk()
+            ->assertSee('class="process-notes-field d-none"', false)
+            ->assertSee('name="notes"', false)
+            ->assertSee('disabled', false);
+
+        $this->actingAs($admin)
+            ->put(route('tdr-processes.update', $tdrProcess->id), [
+                'tdrs_id' => $tdr->id,
+                'processes' => [[
+                    'process_names_id' => $processName->id,
+                    'process' => [$process->id],
+                ]],
+                'description' => 'Fig. 5003',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('Existing traveler note', $tdrProcess->fresh()->notes);
     }
 }

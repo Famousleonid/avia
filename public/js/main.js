@@ -1026,7 +1026,11 @@ window.hapticTap = function (pattern = 10) {
         const tr = form.closest('tr');
         const userCell = tr?.querySelector('.js-last-user');
         if (userCell && data && (Object.prototype.hasOwnProperty.call(data, 'user_name') || Object.prototype.hasOwnProperty.call(data, 'user'))) {
-            userCell.textContent = data.user_name ?? data.user ?? '';
+            const userName = data.user_name ?? data.user ?? '';
+            userCell.textContent = userName;
+            const tooltip = `<span style='color:#adb5bd'>Date updated by:</span> <span style='color:#0dcaf0;font-weight:500'>${userName || '—'}</span>`;
+            userCell.setAttribute('data-tippy-content', tooltip);
+            if (userCell._tippy) userCell._tippy.setContent(tooltip);
         }
 
         const icon = form.querySelector('.save-indicator');

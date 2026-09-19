@@ -599,7 +599,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $firstPageRows = substr($html, $firstRowsStart, $firstRowsEnd - $firstRowsStart);
 
         $this->assertSame(2, substr_count($html, 'std-page std-page--ndt page data-page'));
-        $this->assertSame(13, substr_count($firstPageRows, 'data-row-ndt std-grid-row" data-row-index'));
+        $this->assertSame(13, preg_match_all('/data-row-ndt std-grid-row\s*" data-row-index/', $firstPageRows));
         $this->assertStringContainsString('manual-row std-grid-row std-grid-row--manual', $firstPageRows);
         $this->assertStringContainsString('NDT-ROWS', $firstPageRows);
         $this->assertStringContainsString('PN-NDT-ROWS-13', $firstPageRows);
@@ -817,7 +817,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertSeeInOrder(['Cat #1', '7', 'RO', '3'], false);
     }
 
-    public function test_spec_process_forms_pack_more_than_three_ndt_entries_into_three_rows(): void
+    public function test_standard_spec_form_lists_ndt_as_process_rows_while_empty_form_keeps_three_ndt_rows(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
@@ -849,6 +849,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         foreach (['A', 'B', 'C', 'D', 'E'] as $index => $suffix) {
             $processName = ProcessName::query()->create([
                 'name' => "NDT Regression {$suffix}",
+                'sp_sort_order' => 50 - $index,
                 'process_sheet_name' => 'NDT',
                 'print_form' => true,
                 'show_in_process_picker' => true,
@@ -862,7 +863,23 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             ]);
         }
 
-        foreach (['tdrs.specProcessForm', 'tdrs.specProcessFormEmp'] as $routeName) {
+        $standard = $this->actingAs($admin)->get(route('tdrs.specProcessForm', $workorder->id));
+        $standard->assertOk();
+        $standard->assertDontSee('data-ndt-row-count', false);
+        $standard->assertDontSee('N.D.T.', false);
+        foreach (['A', 'B', 'C', 'D', 'E'] as $index => $suffix) {
+            $standard->assertSee("NDT Regression {$suffix}");
+            $standard->assertSee("RO-NDT-{$suffix}");
+            $entry = $standard->viewData('processes')->values()->get($index);
+            $this->assertSame($index + 1, $entry['number_line']);
+        }
+        $this->assertCount(5, $standard->viewData('processNames')->filter(fn ($row) => $row->id !== null));
+        $this->assertSame(
+            ['NDT Regression E', 'NDT Regression D', 'NDT Regression C', 'NDT Regression B', 'NDT Regression A'],
+            $standard->viewData('processNames')->filter(fn ($row) => $row->id !== null)->pluck('name')->all()
+        );
+
+        foreach (['tdrs.specProcessFormEmp'] as $routeName) {
             $response = $this->actingAs($admin)->get(route($routeName, $workorder->id));
 
             $response->assertOk();
@@ -873,6 +890,12 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             $response->assertSee('RO-NDT-B, RO-NDT-E', false);
             $response->assertSeeInOrder(['RO-NDT-A, RO-NDT-D', 'RO-NDT-B, RO-NDT-E', 'RO-NDT-C'], false);
         }
+
+        ProcessName::where('name', 'NDT Regression C')->update(['sp_sort_order' => 0]);
+        $withoutZero = $this->get(route('tdrs.specProcessForm', $workorder->id))->assertOk();
+        $withoutZero->assertDontSee('NDT Regression C')->assertDontSee('RO-NDT-C');
+        $withoutZero->assertSee('NDT Regression D')->assertSee('RO-NDT-D');
+        $this->assertSame(4, $withoutZero->viewData('processes')->values()->get(3)['number_line']);
     }
 
     public function test_spec_process_form_uses_one_cat_one_qty_when_unit_part_is_not_in_cat_two(): void
@@ -1827,13 +1850,21 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
                 'part_number' => $partNumber,
                 'name' => $name,
                 'units_assy' => $qty,
-                'kit_prl_choice_group' => 'std_choice_group',
+                // Group membership is stored in Part Groups.
                 'ndt_list' => true,
                 'cad_list' => true,
                 'stress_relief_list' => true,
                 'paint_list' => true,
             ]);
         }
+
+        $parts = Component::where('manual_id', $manual->id)->get();
+        $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+            'name' => 'STD variants', 'type' => 'alternative_pn',
+            'component_ids' => $parts->pluck('id')->all(),
+            'default_component_id' => $parts->first()->id,
+            'applies_to' => ['prl', 'ndt', 'cad', 'stress', 'paint'],
+        ])->assertOk();
 
         foreach ([
             route('tdrs.ndtStd', $workorder->id),
@@ -2475,5 +2506,233 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'component_id' => $component->id,
             'std_type' => StdProcess::STD_NDT,
         ]);
+    }
+
+    public function test_sp_forms_number_repeated_process_name_rows_separately(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '13-180A',
+            'part_number' => 'PN-DOUBLE-CHROME',
+            'name' => 'Double chrome component',
+            'units_assy' => 1,
+        ]);
+        $tdr = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $chromePlating = ProcessName::query()->create([
+            'name' => 'Chrome plating',
+            'process_sheet_name' => 'CHROME',
+            'form_number' => 'SP',
+            'print_form' => true,
+            'show_in_process_picker' => true,
+        ]);
+
+        $lastPrecedingProcessName = null;
+        foreach (range(1, 5) as $sortOrder) {
+            $precedingProcessName = ProcessName::query()->create([
+                'name' => 'Pre-chrome process ' . $sortOrder . ' ' . uniqid(),
+                'process_sheet_name' => 'PRE-CHROME',
+                'form_number' => 'SP',
+                'print_form' => true,
+                'show_in_process_picker' => true,
+            ]);
+
+            TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id,
+                'process_names_id' => $precedingProcessName->id,
+                'processes' => [],
+                'sort_order' => $sortOrder,
+            ]);
+
+            $lastPrecedingProcessName = $precedingProcessName;
+        }
+
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $lastPrecedingProcessName->id,
+            'processes' => [],
+            'sort_order' => 6,
+        ]);
+
+        foreach ([7, 8] as $sortOrder) {
+            TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id,
+                'process_names_id' => $chromePlating->id,
+                'processes' => [],
+                'sort_order' => $sortOrder,
+            ]);
+        }
+
+        foreach (['tdrs.specProcessForm', 'tdrs.specProcessFormEmp'] as $routeName) {
+            $response = $this->actingAs($admin)
+                ->get(route($routeName, $workorder->id));
+
+            $response
+                ->assertOk()
+                ->assertViewHas('processes', function ($rows) use ($tdr, $chromePlating): bool {
+                    return $rows
+                        ->where('tdrs_id', $tdr->id)
+                        ->where('process_name_id', $chromePlating->id)
+                        ->pluck('number_line')
+                        ->values()
+                        ->all() === [6, 7];
+                })
+                ->assertViewHas('processNames', function ($rows) use ($chromePlating): bool {
+                    $chromeRows = $rows->where('id', $chromePlating->id)->values();
+
+                    return $chromeRows->count() === 2
+                        && $chromeRows->pluck('sp_occurrence_index')->all() === [0, 1];
+                })
+                ->assertViewHas('processNames', function ($rows) use ($lastPrecedingProcessName): bool {
+                    return $rows->where('id', $lastPrecedingProcessName->id)->count() === 1;
+                })
+                ->assertViewHas('processes', function ($rows) use ($tdr, $lastPrecedingProcessName): bool {
+                    return $rows
+                        ->where('tdrs_id', $tdr->id)
+                        ->where('process_name_id', $lastPrecedingProcessName->id)
+                        ->pluck('number_line')
+                        ->values()
+                        ->all() === [5, 5];
+                });
+
+            $this->assertSame(2, substr_count(
+                $response->getContent(),
+                '<strong>'.e($chromePlating->name).'</strong>'
+            ));
+        }
+    }
+
+    public function test_sp_forms_split_detail_at_quarantine_and_show_all_repeated_non_chrome_steps(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '13-200A',
+            'part_number' => 'PN-SINGLE-SP-COLUMN',
+            'name' => 'Single-column process component',
+            'units_assy' => 1,
+        ]);
+        $tdr = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+            'serial_number' => 'SN-SINGLE-COLUMN',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $inspect = ProcessName::query()->firstOrCreate(
+            ['name' => 'INSPECT'],
+            [
+                'process_sheet_name' => 'INSPECT',
+                'form_number' => 'SP',
+                'print_form' => true,
+                'show_in_process_picker' => true,
+            ]
+        );
+        $inspect->forceFill(['show_in_process_picker' => true])->save();
+
+        $quarantine = ProcessName::query()->firstOrCreate(
+            ['name' => 'Quarantine'],
+            [
+                'process_sheet_name' => 'QUARANTINE',
+                'form_number' => 'SP',
+                'print_form' => true,
+                'show_in_process_picker' => true,
+            ]
+        );
+        $quarantine->forceFill(['show_in_process_picker' => true])->save();
+
+        $firstFiller = ProcessName::query()->create([
+            'name' => 'SP filler one '.uniqid(),
+            'process_sheet_name' => 'FILLER',
+            'form_number' => 'SP',
+            'print_form' => true,
+            'show_in_process_picker' => true,
+        ]);
+        $secondFiller = ProcessName::query()->create([
+            'name' => 'SP filler two '.uniqid(),
+            'process_sheet_name' => 'FILLER',
+            'form_number' => 'SP',
+            'print_form' => true,
+            'show_in_process_picker' => true,
+        ]);
+        $afterQuarantine = ProcessName::query()->create([
+            'name' => 'SP after quarantine '.uniqid(),
+            'process_sheet_name' => 'AFTER QUARANTINE',
+            'form_number' => 'SP',
+            'print_form' => true,
+            'show_in_process_picker' => true,
+        ]);
+
+        foreach ([
+            1 => $inspect,
+            2 => $firstFiller,
+            3 => $inspect,
+            4 => $secondFiller,
+            5 => $inspect,
+            6 => $quarantine,
+            7 => $afterQuarantine,
+        ] as $sortOrder => $processName) {
+            TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id,
+                'process_names_id' => $processName->id,
+                'processes' => [],
+                'sort_order' => $sortOrder,
+            ]);
+        }
+
+        foreach (['tdrs.specProcessForm', 'tdrs.specProcessFormEmp'] as $routeName) {
+            $response = $this->actingAs($admin)->get(route($routeName, $workorder->id));
+
+            $response
+                ->assertOk()
+                ->assertViewHas('componentChunks', function ($chunks) use ($tdr): bool {
+                    $firstItem = $chunks->first()?->first();
+
+                    return $firstItem !== null
+                        && (int) $firstItem->component->id === (int) $tdr->id
+                        && (int) $firstItem->columns === 2
+                        && $firstItem->hasQuarantine === true
+                        && (int) $firstItem->quarantineNumberLine === 6;
+                });
+
+            $html = $response->getContent();
+            $this->assertSame(2, substr_count($html, 'PN-SINGLE-SP-COLUMN'));
+            $this->assertSame(1, substr_count($html, '<strong>INSPECT</strong>'));
+            $this->assertMatchesRegularExpression(
+                '/spec-process-row-inner(?: filled-data)? spec-process-number-list">\s*1,3,5\s*<\/div>/',
+                $html
+            );
+
+            $this->assertStringContainsString(
+                'data-sp-process-id="'.$afterQuarantine->id.'" data-sp-slot="left" data-sp-number-lines=""',
+                $html
+            );
+            $this->assertStringContainsString(
+                'data-sp-process-id="'.$afterQuarantine->id.'" data-sp-slot="right" data-sp-number-lines="7"',
+                $html
+            );
+        }
     }
 }

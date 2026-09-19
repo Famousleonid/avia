@@ -420,6 +420,41 @@
             line-height: 1.15;
         }
 
+        /* Pass the available page height down to the bushing scroll area. */
+        .tdr-show-card:has(#content-bushing.active) {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+
+        .tdr-show-card:has(#content-bushing.active) > .card-header {
+            flex-shrink: 0;
+        }
+
+        .tdr-show-card:has(#content-bushing.active) > .card-body {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .tdr-show-card:has(#content-bushing.active) #tdrShowTabsHeader {
+            flex-shrink: 0;
+        }
+
+        #tdrShowTabContent:has(#content-bushing.active) {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+
+        #content-bushing {
+            height: 100%;
+            min-height: 0;
+        }
+
+        #bushingTabBody {
+            min-height: 0;
+            overflow: auto;
+        }
+
         #content-part-processes .card {
             height: calc(100dvh - 216px);
             min-height: 0;
@@ -451,7 +486,7 @@
     </style>
 
     @if($current_wo->unit->manuals->builder)
-        <div class="card bg-gradient">
+        <div class="card bg-gradient tdr-show-card">
             {{-- TDR show: link to main, PDF Library, x-paper buttons --}}
             <div class="card-header m-1 shadow">
                 <div class="d-flex text-center align-items-center">
@@ -471,8 +506,8 @@
                             <x-paper-button text="PDF"
                                             color="outline-warning"
                                             class="open-pdf-modal"
-                                            title="{{ __('PDF Library') }}"
-                                            ariaLabel="{{ __('PDF Library') }}"
+                                            title="{{ __('Documents') }}"
+                                            ariaLabel="{{ __('Documents') }}"
                                             data-id="{{ $current_wo->id }}"
                                             data-number="{{ $current_wo->number }}"/>
                             <span id="pdfCountBadge"
@@ -498,6 +533,12 @@
 
                             <div class="me-3 d-flex flex-wrap">
 
+                                <div class="position-relative d-inline-block">
+                                    <x-paper-button text="In-Process Check Sheet"
+                                                    href="{{ route('tdrs.inProcessCheckSheet', ['workorder'=> $current_wo->id]) }}"
+                                                    title="IN-PROCESS CHECK SHEET"
+                                                    target="_blank" color="outline-primary"/>
+                                </div>
                                 <div class="position-relative d-inline-block">
                                     <x-paper-button text="TDR Form"
                                                     href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
@@ -910,7 +951,7 @@
                     <div class="tab-pane fade" id="content-bushing" role="tabpanel">
                         <div class="card bg-gradient h-100">
                             <div class="card-body p-0 w-100" id="bushingTabBody"
-                                 style="min-height: 400px; overflow: visible; padding: 0 !important; max-width: none;">
+                                 style="padding: 0 !important; max-width: none;">
                                 <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
                             </div>
                         </div>

@@ -442,6 +442,7 @@
     @php
         $maxColumnsPerPage = 6;
         $isFirstPage = $loop->first;
+        $pageProcessNames = isset($processNamePages) ? $processNamePages[$loop->index] : $processNames;
         $pageNumber = ($specPageOffset ?? 0) + $loop->iteration;
         $pageTotal = $combinedSpecPageTotal ?? $componentChunks->count();
         $columnSlots = [];
@@ -457,52 +458,8 @@
             $columnSlots[] = ['slot' => 'empty', 'item' => null];
         }
 
-        $ndtRowsBySlot = collect($columnSlots)->map(function ($slotData) use ($ndt_processes) {
-            if ($slotData['slot'] === 'empty') {
-                return collect();
-            }
-
-            $tdr = $slotData['item']->component;
-            $entries = collect($ndt_processes)
-                ->where('tdrs_id', $tdr->id)
-                ->filter(fn ($entry) => $entry['number_line'] !== null)
-                ->values();
-
-            if ($slotData['slot'] !== 'single') {
-                $quarantineNumberLine = $slotData['item']->quarantineNumberLine;
-                if ($quarantineNumberLine === null) {
-                    $entries = collect();
-                } else {
-                    $entries = $entries
-                        ->filter(fn ($entry) => $slotData['slot'] === 'left'
-                            ? $entry['number_line'] <= $quarantineNumberLine
-                            : $entry['number_line'] > $quarantineNumberLine)
-                        ->values();
-                }
-            }
-
-            return collect(range(0, 2))->map(function ($rowIndex) use ($entries) {
-                $rowEntries = $entries->filter(
-                    fn ($entry, $entryIndex) => $entryIndex % 3 === $rowIndex
-                );
-
-                if ($rowEntries->isEmpty()) {
-                    return null;
-                }
-
-                return [
-                    'number_line' => $rowEntries->pluck('number_line')->unique()->implode(','),
-                    'repair_order' => $rowEntries->pluck('repair_order')
-                        ->filter(fn ($value) => trim((string) $value) !== '')
-                        ->unique()
-                        ->implode(', '),
-                ];
-            });
-        });
-        $ndtRowCount = 3;
-        $ndtLabelRowIndex = 1;
     @endphp
-    <div class="container-fluid ">
+    <div class="container-fluid " @if($isSpPreview ?? false) data-sp-preview-page @endif>
         <div class="row">
             <div class="col-1">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
@@ -526,7 +483,7 @@
                         <div class="fs-8 pt-3 text-center" style="width: 30px">qty</div>
                     </div>
                 </div>
-                <div class="col-2 pt-2 border-b text-center"> <strong> W{{$current_wo->number}}</strong></div>
+                <div class="col-2 pt-2 border-b text-center"> <strong>{{ ($isSpPreview ?? false) ? '' : 'W'.$current_wo->number }}</strong></div>
                 <div class="col-md-5"></div>
             </div>
             <div class="d-flex" style="width: 100%; min-height: 43px; position: relative; padding-right: 285px;">
@@ -677,44 +634,8 @@
                 </div>
             </div>
         </div>
-        <div class="spec-process-table-body" data-column-count="{{ count($columnSlots) }}" data-ndt-row-count="{{ $ndtRowCount }}">
-        @for($ndtRowIndex = 0; $ndtRowIndex < $ndtRowCount; $ndtRowIndex++)
-        <div class="row g-0 fs-7 spec-process-data-row">
-            <div class="col-2 {{ $ndtRowIndex === 0 ? 'border-l-t' : ($ndtRowIndex === $ndtRowCount - 1 ? 'border-l-b' : 'border-l') }} ps-1 spec-process-name-cell">
-                <div class="spec-process-name-inner"><strong>{{ $ndtRowIndex === $ndtLabelRowIndex ? 'N.D.T.' : '' }}</strong></div>
-            </div>
-            <div class="col-10">
-                <div class="row g-0">
-                    @foreach($columnSlots as $slotIndex => $slotData)
-                        @php
-                            $ndtEntry = $ndtRowsBySlot[$slotIndex][$ndtRowIndex] ?? null;
-                            $showValue = $ndtEntry !== null;
-                            $ndtNumberLine = '';
-                            $ndtRepairOrder = '';
-                            if ($showValue) {
-                                $ndtNumberLine = (string) $ndtEntry['number_line'];
-                                $ndtRepairOrder = trim((string) ($ndtEntry['repair_order'] ?? ''));
-                            }
-                        @endphp
-                        <div class="col {{ $loop->last ? ($ndtRowIndex === 0 ? 'border-all' : 'border-l-b-r') : ($ndtRowIndex === 0 ? 'border-l-t-b' : 'border-l-b') }} text-center spec-process-row-cell" style="{{ $slotData['slot'] === 'empty' ? 'position: relative' : '' }}">
-                            @if($showValue)
-                                <div class="border-r spec-process-row-inner">{{ $ndtNumberLine }}</div>
-                                @if($ndtRepairOrder !== '')
-                                    <div class="spec-process-ro-value">{{ $ndtRepairOrder }}</div>
-                                @endif
-                            @else
-                                <div class="border-r spec-process-row-inner"></div>
-                                @if($slotData['slot'] === 'empty')
-                                    <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
-                                @endif
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-        @endfor
-        @foreach($processNames as $name)
+        <div class="spec-process-table-body border-t" data-column-count="{{ count($columnSlots) }}">
+        @foreach($pageProcessNames as $name)
             <div class="row g-0 fs-7 spec-process-data-row spec-process-name-row">
                 <div class="col-2 border-l-b ps-1 spec-process-name-cell">
                     <div class="spec-process-name-inner"><strong>{{ $name->name }}</strong></div>
@@ -734,10 +655,14 @@
 
                                     $processForCurrentTdr = collect();
                                     if (isset($processes) && $name->id && $currentTdrId) {
+                                        $occurrenceIndex = max(0, (int) ($name->sp_occurrence_index ?? 0));
                                         $processForCurrentTdr = $processes
                                             ->where('process_name_id', $name->id)
-                                            ->where('tdrs_id', $currentTdrId)
-                                            ->values();
+                                            ->where('tdrs_id', $currentTdrId);
+                                        if ($name->sp_separate_occurrence ?? false) {
+                                            $processForCurrentTdr = $processForCurrentTdr->slice($occurrenceIndex, 1);
+                                        }
+                                        $processForCurrentTdr = $processForCurrentTdr->values();
                                     }
 
                                     if ($processForCurrentTdr->isNotEmpty()) {
@@ -761,9 +686,9 @@
                                     }
                                 }
                             @endphp
-                            <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-process-row-cell" style="position: relative;">
+                            <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-process-row-cell" style="position: relative;" data-sp-process-id="{{ (int) ($name->id ?? 0) }}" data-sp-slot="{{ $slotData['slot'] }}" data-sp-number-lines="{{ $numberLines }}">
                                 @if($numberLines)
-                                    <div class="border-r spec-process-row-inner">{{ $numberLines }}</div>
+                                    <div class="border-r spec-process-row-inner{{ str_contains($numberLines, ',') ? ' spec-process-number-list' : '' }}">{{ $numberLines }}</div>
                                     @if($repairOrderText !== '')
                                         <div class="spec-process-ro-value">{{ $repairOrderText }}</div>
                                     @endif
@@ -797,14 +722,14 @@
     </div>
 
 
-    <footer >
+    <footer @if($isSpPreview ?? false) data-sp-preview-footer @endif>
         <div class="row" style="width: 100%; padding: 10px 10px;">
             <div class="col-4 text-start">
                 {{__("Form #012")}}
             </div>
 
             <div class="col-4 text-center">
-                {{ $pageNumber }} of {{ $pageTotal }}
+                <span @if($isSpPreview ?? false) data-sp-preview-page-number @endif>{{ $pageNumber }} of {{ $pageTotal }}</span>
             </div>
 
             <div class="col-4 text-end pe-4 ">
@@ -816,7 +741,7 @@
 
 
     @if(!$loop->last)
-        <div style="page-break-after: always;"></div>
+        <div style="page-break-after: always;" @if($isSpPreview ?? false) data-sp-preview-break @endif></div>
     @endif
 
 @endforeach

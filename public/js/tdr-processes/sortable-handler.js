@@ -4,6 +4,51 @@
  */
 class SortableHandler {
     /**
+     * Пересчитывает визуальную нумерацию всех строк процессов после сортировки.
+     * Служебные строки Add/Create без data-id в нумерацию не входят.
+     *
+     * @param {HTMLElement} tbody
+     */
+    static renumberVisualRows(tbody) {
+        if (!tbody) return;
+
+        Array.from(tbody.children)
+            .filter(row => row.matches && row.matches('tr[data-id]'))
+            .forEach((row, index) => {
+                const numberCell = row.querySelector('.process-row-number-cell');
+                if (numberCell) numberCell.textContent = String(index + 1);
+            });
+    }
+
+    /**
+     * Собирает порядок именно записей TdrProcess. Состояние кнопок и полей внутри
+     * строки не влияет на участие строки в сортировке.
+     *
+     * @param {HTMLElement} tbody
+     * @returns {Array<{id: string, sort_order: number}>}
+     */
+    static collectProcessOrder(tbody) {
+        const seenIds = new Set();
+
+        return Array.from(tbody.children)
+            .filter(row => row.matches && row.matches('tr[data-id]'))
+            .reduce((order, row) => {
+                const id = row.getAttribute('data-id');
+                if (!id || seenIds.has(id)) {
+                    return order;
+                }
+
+                seenIds.add(id);
+                order.push({
+                    id: id,
+                    sort_order: order.length + 1
+                });
+
+                return order;
+            }, []);
+    }
+
+    /**
      * Инициализирует drag & drop для таблицы процессов
      * @param {string} updateOrderUrl - URL для обновления порядка
      * @param {Function} onOrderUpdated - Callback при успешном обновлении
@@ -19,17 +64,12 @@ class SortableHandler {
             animation: 150,
             ghostClass: 'dragging',
             dragClass: 'dragging',
-            filter: '.disabled', // Исключаем неактивные строки из drag & drop
+            draggable: 'tr[data-id]',
+            filter: 'a, button, input, select, textarea, label, form, [data-process-ro-delete-tooltip]',
+            preventOnFilter: false,
             onEnd: function(evt) {
-                // Получаем новый порядок элементов (исключаем неактивные строки)
-                const newOrder = Array.from(sortable.el.children)
-                    .filter(row => !row.querySelector('.disabled') || !row.querySelector('[aria-disabled="true"]'))
-                    .map((row, index) => {
-                        return {
-                            id: row.getAttribute('data-id'),
-                            sort_order: index + 1
-                        };
-                    });
+                SortableHandler.renumberVisualRows(sortable.el);
+                const newOrder = SortableHandler.collectProcessOrder(sortable.el);
 
                 // Отправляем AJAX запрос для обновления порядка
                 SortableHandler.updateProcessOrder(newOrder, updateOrderUrl, onOrderUpdated);

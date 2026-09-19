@@ -125,6 +125,7 @@
                     $currentPlusProcess = $current_tdr_processes->plus_process ?? '';
                     $currentProcessName = $current_tdr_processes->processName;
                     $isNdtProcess = $currentProcessName && strpos($currentProcessName->name, 'NDT-') === 0;
+                    $processUsesNotes = $currentProcessName && !\App\Models\ProcessName::canPrintProcessForm($currentProcessName);
                     $currentPlusProcessIds = !empty($currentPlusProcess) ? explode(',', $currentPlusProcess) : [];
                 @endphp
                 <form method="POST" action="{{ route('tdr-processes.update', $current_tdr_processes->id) }}" enctype="multipart/form-data" id="editCPForm">
@@ -209,8 +210,10 @@
                                     <div>
                                         <label for="description" class="form-label" style="margin-bottom: -5px">Description</label>
                                         <input type="text" class="form-control" id="description" name="description" value="{{ old('description', $current_tdr_processes->description) }}" placeholder="Enter Description">
-                                        <label for="notes" class="form-label" style="margin-bottom: -5px">Notes</label>
-                                        <input type="text" class="form-control" id="notes" name="notes" value="{{ old('notes', $current_tdr_processes->notes) }}" placeholder="Enter Notes">
+                                        <div class="process-notes-field {{ $processUsesNotes ? '' : 'd-none' }}">
+                                            <label for="notes" class="form-label" style="margin-bottom: -5px">Notes</label>
+                                            <input type="text" class="form-control" id="notes" name="notes" value="{{ old('notes', $current_tdr_processes->notes) }}" placeholder="Enter Notes" @disabled(!$processUsesNotes)>
+                                        </div>
                                     </div>
                                 </div>
                                 </div>

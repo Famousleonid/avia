@@ -64,6 +64,14 @@
             font-size: 1rem;
             line-height: 1.15;
         }
+        .rm-assy-conversion-summary {
+            display: block;
+            margin-top: .2rem;
+            color: var(--bs-info);
+            font-size: 11px;
+            line-height: 1.25;
+        }
+        .rm-assy-conversion-fields[hidden] { display: none !important; }
         .table-scroll-technical-notes table { border-collapse: separate; border-spacing: 0; }
         .table-scroll-technical-notes tbody tr td {
             padding: 0.25rem 0.5rem;
@@ -189,6 +197,12 @@
                             </div>
                         </div>
 
+                        <div id="rmAssemblyScopeStatus" class="alert alert-info py-2 px-3 mb-2 {{ $current_wo->modified_scope_part_group_option_id ? '' : 'd-none' }}">
+                            <strong>{{ __('Effective assembly scope') }}:</strong>
+                            <span data-rm-modified-value>{{ $current_wo->modifiedScopePartGroupOption?->part_number ?: $current_wo->modified }}</span>
+                            <span class="ms-1">({{ __('the received Work Scope remains unchanged') }})</span>
+                        </div>
+
                         @php
                                 $savedData = $current_wo->rm_report ? json_decode($current_wo->rm_report, true) : null;
                                 $savedRecordIds = $savedData['rm_records'] ?? [];
@@ -215,11 +229,24 @@
                                             </thead>
                                             <tbody id="rmRecordsTableBody">
                                             @foreach($rm_reports as $report)
-                                                <tr data-record-id="{{ $report->id }}">
-                                                    <td class="border align-middle">{{ $report->part_description }}</td>
-                                                    <td class="border align-middle">{{ $report->mod_repair }}</td>
-                                                    <td class="border align-middle">{{ $report->description }}</td>
-                                                    <td class="border align-middle">{{ $report->ident_method }}</td>
+                                                @php
+                                                    $sourceAssyLabel = trim((string) $report->sourceAssyOption?->part_number);
+                                                    $targetAssyLabel = trim((string) $report->targetAssyOption?->part_number);
+                                                @endphp
+                                                <tr data-record-id="{{ $report->id }}" data-admin-template="{{ $report->is_admin_template ? 1 : 0 }}"
+                                                    data-changes-assembly-scope="{{ $report->changesAssemblyScope() ? '1' : '0' }}"
+                                                    data-source-assy-label="{{ $sourceAssyLabel }}"
+                                                    data-target-assy-label="{{ $targetAssyLabel }}">
+                                                    <td class="border align-middle">
+                                                        <span data-rm-cell="part-description">{{ $report->part_description }}</span>
+                                                        <small data-admin-template-badge class="text-warning d-block {{ $report->is_admin_template ? '' : 'd-none' }}">{{ __('Protected template') }}</small>
+                                                        <small class="rm-assy-conversion-summary {{ $report->changesAssemblyScope() ? '' : 'd-none' }}" data-rm-conversion-summary>
+                                                            {{ __('ASSY') }} {{ $sourceAssyLabel }} → {{ $targetAssyLabel }}
+                                                        </small>
+                                                    </td>
+                                                    <td class="border align-middle" data-rm-cell="mod-repair">{{ $report->mod_repair }}</td>
+                                                    <td class="border align-middle" data-rm-cell="description">{{ $report->description }}</td>
+                                                    <td class="border align-middle" data-rm-cell="ident-method">{{ $report->ident_method }}</td>
                                                     <td class="border align-middle">
                                                         <div class="form-check">
                                                             <input class="form-check-input record-checkbox" type="checkbox"
@@ -229,12 +256,14 @@
                                                         </div>
                                                     </td>
                                                     <td class="align-middle">
+                                                        @if(! $report->is_admin_template || auth()->user()->roleIs('Admin'))
                                                         <button class="btn btn-sm btn-outline-primary me-1" onclick="window.rmPartialEditRecord({{ $report->id }})" data-bs-toggle="modal" data-bs-target="#editRmRecordModal">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
                                                         <button class="btn btn-sm btn-outline-danger" onclick="window.rmPartialDeleteRecord({{ $report->id }})">
                                                             <i class="fas fa-trash"></i>
                                                         </button>
+                                                        @endif
                                                     </td>
                                                 </tr>
                                             @endforeach
@@ -255,7 +284,7 @@
     </div>
 
     <div class="modal fade" id="addRmRecordModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title">{{ __('ADD Repair OR Modification') }}</h5>
@@ -265,6 +294,14 @@
                     @csrf
                     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                     <div class="modal-body">
+                        @if(auth()->user()->roleIs('Admin'))
+                        <div class="form-check mb-3">
+                            <input type="hidden" name="is_admin_template" value="0">
+                            <input class="form-check-input" type="checkbox" name="is_admin_template" value="1" id="is_admin_template">
+                            <label class="form-check-label" for="is_admin_template">{{ __('Protected template (Admin only)') }}</label>
+                            <small class="d-block text-secondary">{{ __('Always listed first. Everyone can select or deselect it; only Admin can edit or delete it.') }}</small>
+                        </div>
+                        @endif
                         <div class="form-group">
                             <label for="part_description">{{ __('Part Description') }}</label>
                             <input type="text" class="form-control" id="part_description" name="part_description" required>
@@ -286,6 +323,42 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="border rounded p-3 mt-3 rm-assy-conversion-fields" data-assy-conversion-fields hidden>
+                            <div class="text-info fw-semibold mb-2">{{ __('Optional Workorder assembly conversion') }}</div>
+                            <div class="row g-2">
+                                <div class="col-md-12">
+                                    <label for="manual_service_bulletin_id">{{ __('Service Bulletin') }}</label>
+                                    <select class="form-select" id="manual_service_bulletin_id" name="manual_service_bulletin_id">
+                                        <option value="">{{ __('No assembly conversion') }}</option>
+                                        @foreach($serviceBulletins as $bulletin)
+                                            @php
+                                                $bulletinLabel = collect([$bulletin->ac_mfg_service_bulletin_no, $bulletin->oem_service_bulletin_no, $bulletin->description])->map(fn($value) => trim((string) $value))->first(fn($value) => $value !== '') ?: 'SB #'.$bulletin->id;
+                                            @endphp
+                                            <option value="{{ $bulletin->id }}">{{ $bulletinLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="source_assy_option_id">{{ __('Received ASSY') }}</label>
+                                    <select class="form-select" id="source_assy_option_id" name="source_assy_option_id">
+                                        <option value="">—</option>
+                                        @foreach($assyOptions as $option)
+                                            <option value="{{ $option->id }}">{{ $option->part_number }}{{ $option->ipl_num ? ' · IPL '.$option->ipl_num : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="target_assy_option_id">{{ __('Modified ASSY') }}</label>
+                                    <select class="form-select" id="target_assy_option_id" name="target_assy_option_id">
+                                        <option value="">—</option>
+                                        @foreach($assyOptions as $option)
+                                            <option value="{{ $option->id }}">{{ $option->part_number }}{{ $option->ipl_num ? ' · IPL '.$option->ipl_num : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <small class="text-secondary d-block mt-2">{{ __('When this R&M record is selected, new TDRs and process lists use every part from the Modified ASSY. Existing TDR history is preserved.') }}</small>
+                        </div>
                         <div class="form-group mt-3">
                             <label for="mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
                             <input type="text" class="form-control" id="mod_repair_description" name="mod_repair_description" maxlength="250" required>
@@ -305,7 +378,7 @@
     </div>
 
     <div class="modal fade" id="editRmRecordModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title">{{ __('Edit Repair OR Modification') }}</h5>
@@ -317,6 +390,14 @@
                     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                     <input type="hidden" name="record_id" id="edit_record_id">
                     <div class="modal-body">
+                        @if(auth()->user()->roleIs('Admin'))
+                        <div class="form-check mb-3">
+                            <input type="hidden" name="is_admin_template" value="0">
+                            <input class="form-check-input" type="checkbox" name="is_admin_template" value="1" id="edit_is_admin_template">
+                            <label class="form-check-label" for="edit_is_admin_template">{{ __('Protected template (Admin only)') }}</label>
+                            <small class="d-block text-secondary">{{ __('Always listed first. Everyone can select or deselect it; only Admin can edit or delete it.') }}</small>
+                        </div>
+                        @endif
                         <div class="form-group">
                             <label for="edit_part_description">{{ __('Part Description') }}</label>
                             <input type="text" class="form-control" id="edit_part_description" name="part_description" required>
@@ -337,6 +418,42 @@
                                     <label class="form-check-label" for="edit_mod_repair_sb">SB</label>
                                 </div>
                             </div>
+                        </div>
+                        <div class="border rounded p-3 mt-3 rm-assy-conversion-fields" data-assy-conversion-fields hidden>
+                            <div class="text-info fw-semibold mb-2">{{ __('Optional Workorder assembly conversion') }}</div>
+                            <div class="row g-2">
+                                <div class="col-md-12">
+                                    <label for="edit_manual_service_bulletin_id">{{ __('Service Bulletin') }}</label>
+                                    <select class="form-select" id="edit_manual_service_bulletin_id" name="manual_service_bulletin_id">
+                                        <option value="">{{ __('No assembly conversion') }}</option>
+                                        @foreach($serviceBulletins as $bulletin)
+                                            @php
+                                                $bulletinLabel = collect([$bulletin->ac_mfg_service_bulletin_no, $bulletin->oem_service_bulletin_no, $bulletin->description])->map(fn($value) => trim((string) $value))->first(fn($value) => $value !== '') ?: 'SB #'.$bulletin->id;
+                                            @endphp
+                                            <option value="{{ $bulletin->id }}">{{ $bulletinLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="edit_source_assy_option_id">{{ __('Received ASSY') }}</label>
+                                    <select class="form-select" id="edit_source_assy_option_id" name="source_assy_option_id">
+                                        <option value="">—</option>
+                                        @foreach($assyOptions as $option)
+                                            <option value="{{ $option->id }}">{{ $option->part_number }}{{ $option->ipl_num ? ' · IPL '.$option->ipl_num : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="edit_target_assy_option_id">{{ __('Modified ASSY') }}</label>
+                                    <select class="form-select" id="edit_target_assy_option_id" name="target_assy_option_id">
+                                        <option value="">—</option>
+                                        @foreach($assyOptions as $option)
+                                            <option value="{{ $option->id }}">{{ $option->part_number }}{{ $option->ipl_num ? ' · IPL '.$option->ipl_num : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <small class="text-secondary d-block mt-2">{{ __('When this R&M record is selected, new TDRs and process lists use every part from the Modified ASSY. Existing TDR history is preserved.') }}</small>
                         </div>
                         <div class="form-group mt-3">
                             <label for="edit_mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
@@ -397,6 +514,66 @@
         return div.innerHTML;
     }
 
+    function notifyRm(message, type) {
+        if (typeof showNotification === 'function') {
+            showNotification(message, type || 'error');
+        }
+    }
+
+    function responseError(data, fallback) {
+        var errors = data && data.errors ? Object.values(data.errors).flat() : [];
+        return errors.length ? errors[0] : ((data && data.message) || fallback);
+    }
+
+    function setRowConversionData(row, data) {
+        if (!row) return;
+        row.dataset.adminTemplate = data.is_admin_template ? '1' : '0';
+        var badge = row.querySelector('[data-admin-template-badge]');
+        if (!badge) {
+            badge = document.createElement('small');
+            badge.setAttribute('data-admin-template-badge', '');
+            badge.className = 'text-warning d-block';
+            badge.textContent = '{{ __('Protected template') }}';
+            row.cells[0].appendChild(badge);
+        }
+        badge.classList.toggle('d-none', !data.is_admin_template);
+        var tbody = row.parentElement;
+        Array.from(tbody.querySelectorAll('tr[data-record-id]')).sort(function(a, b) {
+            return Number(b.dataset.adminTemplate || 0) - Number(a.dataset.adminTemplate || 0)
+                || Number(a.dataset.recordId) - Number(b.dataset.recordId);
+        }).forEach(function(item) { tbody.appendChild(item); });
+        var changesScope = !!data.changes_assembly_scope;
+        var source = data.source_assy_part_number || '';
+        var target = data.target_assy_part_number || '';
+        row.dataset.changesAssemblyScope = changesScope ? '1' : '0';
+        row.dataset.sourceAssyLabel = source;
+        row.dataset.targetAssyLabel = target;
+        var summary = row.querySelector('[data-rm-conversion-summary]');
+        if (summary) {
+            summary.textContent = changesScope ? '{{ __('ASSY') }} ' + source + ' → ' + target : '';
+            summary.classList.toggle('d-none', !changesScope);
+        }
+    }
+
+    function toggleConversionFields(form) {
+        if (!form) return;
+        var selected = form.querySelector('input[name="mod_repair"]:checked');
+        var panel = form.querySelector('[data-assy-conversion-fields]');
+        if (!panel) return;
+        panel.hidden = !selected || selected.value !== 'SB';
+        if (panel.hidden) {
+            panel.querySelectorAll('select').forEach(function(select) { select.value = ''; });
+        }
+    }
+
+    function bindConversionFieldToggles(form) {
+        if (!form) return;
+        form.querySelectorAll('input[name="mod_repair"]').forEach(function(input) {
+            input.addEventListener('change', function() { toggleConversionFields(form); });
+        });
+        toggleConversionFields(form);
+    }
+
     function updatePreview() {
         var notesEl = document.getElementById('previewTechnicalNotes');
         if (notesEl) notesEl.textContent = technicalNotes.join('\n');
@@ -409,11 +586,10 @@
         checkboxes.forEach(function(cb) {
             var row = cb.closest('tr');
             if (!row) return;
-            var cells = row.querySelectorAll('td');
-            var partDesc = escapeHtml((cells[0] && cells[0].textContent) ? cells[0].textContent.trim() : '');
-            var modRepair = escapeHtml((cells[1] && cells[1].textContent) ? cells[1].textContent.trim() : '');
-            var desc = escapeHtml((cells[2] && cells[2].textContent) ? cells[2].textContent.trim() : '');
-            var identMethod = escapeHtml((cells[3] && cells[3].textContent) ? cells[3].textContent.trim() : '');
+            var partDesc = escapeHtml(row.querySelector('[data-rm-cell="part-description"]')?.textContent.trim() || '');
+            var modRepair = escapeHtml(row.querySelector('[data-rm-cell="mod-repair"]')?.textContent.trim() || '');
+            var desc = escapeHtml(row.querySelector('[data-rm-cell="description"]')?.textContent.trim() || '');
+            var identMethod = escapeHtml(row.querySelector('[data-rm-cell="ident-method"]')?.textContent.trim() || '');
             var tr = document.createElement('tr');
             tr.innerHTML = '<td class="border">' + itemNum + '</td><td class="border">' + partDesc + '</td><td class="border">' + modRepair + '</td><td class="border">' + desc + '</td><td class="border">' + identMethod + '</td>';
             tbody.appendChild(tr);
@@ -426,60 +602,40 @@
         saveTimeout = setTimeout(performSave, DEBOUNCE_MS);
     }
 
+    async function confirmRecordSave(form) {
+        if (typeof window.confirmDialog !== 'function') {
+            notifyRm('{{ __('Confirmation dialog is unavailable. Nothing was saved.') }}', 'error');
+            return false;
+        }
+        var modalElement = form.closest('.modal');
+        var modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal && modalElement.classList.contains('show')) {
+            await new Promise(function(resolve) {
+                modalElement.addEventListener('hidden.bs.modal', resolve, {once: true});
+                modal.hide();
+            });
+        }
+        var confirmed = await window.confirmDialog({title: '{{ __('Save R&M template') }}', message: '{{ __('Save this template for the manual?') }}', okText: '{{ __('Save') }}', cancelText: '{{ __('Cancel') }}'});
+        var confirmation = document.getElementById('globalConfirmModal');
+        if (confirmation && bootstrap.Modal.getInstance(confirmation)?._isTransitioning) {
+            await new Promise(function(resolve) { confirmation.addEventListener('hidden.bs.modal', resolve, {once: true}); });
+        }
+        if (!confirmed && modal) modal.show();
+        return confirmed;
+    }
+
     function rmPartialConfirmDelete(message) {
-        if (typeof window.tdrShowConfirm === 'function') {
-            return window.tdrShowConfirm(message, '{{ __("Delete Confirmation") }}', '{{ __("Delete") }}');
+        if (typeof window.confirmDialog !== 'function') {
+            notifyRm('{{ __('Confirmation dialog is unavailable. Nothing was deleted.') }}', 'error');
+            return Promise.resolve(false);
         }
 
-        return new Promise(function(resolve) {
-            var modal = document.getElementById('rmPartialDeleteConfirmModal');
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.className = 'modal fade';
-                modal.id = 'rmPartialDeleteConfirmModal';
-                modal.tabIndex = -1;
-                modal.innerHTML =
-                    '<div class="modal-dialog modal-dialog-centered">' +
-                        '<div class="modal-content bg-gradient">' +
-                            '<div class="modal-header">' +
-                                '<h5 class="modal-title">{{ __("Delete Confirmation") }}</h5>' +
-                                '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
-                            '</div>' +
-                            '<div class="modal-body"></div>' +
-                            '<div class="modal-footer">' +
-                                '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __("Cancel") }}</button>' +
-                                '<button type="button" class="btn btn-danger" data-rm-confirm-delete>{{ __("Delete") }}</button>' +
-                            '</div>' +
-                        '</div>' +
-                    '</div>';
-                document.body.appendChild(modal);
-            }
-
-            modal.querySelector('.modal-body').textContent = message;
-            var confirmBtn = modal.querySelector('[data-rm-confirm-delete]');
-            var confirmed = false;
-            var instance = bootstrap.Modal.getOrCreateInstance(modal);
-
-            function cleanup() {
-                confirmBtn.removeEventListener('click', onConfirm);
-                modal.removeEventListener('hidden.bs.modal', onHidden);
-            }
-
-            function onConfirm() {
-                confirmed = true;
-                cleanup();
-                instance.hide();
-                resolve(true);
-            }
-
-            function onHidden() {
-                cleanup();
-                resolve(confirmed);
-            }
-
-            confirmBtn.addEventListener('click', onConfirm, { once: true });
-            modal.addEventListener('hidden.bs.modal', onHidden, { once: true });
-            instance.show();
+        return window.confirmDialog({
+            title: '{{ __('Delete Confirmation') }}',
+            message: message,
+            okText: '{{ __('Delete') }}',
+            cancelText: '{{ __('Cancel') }}',
+            danger: true
         });
     }
 
@@ -494,17 +650,66 @@
         formData.append('_method', 'PUT');
         technicalNotes.forEach(function(note, i) { formData.append('notes[' + i + ']', note); });
 
-        fetch(updateUrl, {
+        return fetch(updateUrl, {
             method: 'POST',
             body: formData,
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
             credentials: 'same-origin'
         }).then(function(r) { return r.json().catch(function() { return {}; }); })
         .then(function(data) {
-            if (!data.success && data.message && typeof showNotification === 'function') {
-                showNotification(data.message, 'error');
+            if (!data.success) {
+                notifyRm(responseError(data, '{{ __('Unable to save the R&M selection.') }}'), 'error');
+                return false;
             }
-        }).catch(function() {});
+            var status = document.getElementById('rmAssemblyScopeStatus');
+            var value = status ? status.querySelector('[data-rm-modified-value]') : null;
+            var modification = data.modification || {};
+            if (status) status.classList.toggle('d-none', !modification.target_option_id);
+            if (value) value.textContent = modification.modified || '';
+            return true;
+        }).catch(function() {
+            notifyRm('{{ __('Unable to save the R&M selection.') }}', 'error');
+            return false;
+        });
+    }
+
+    function bindRecordCheckbox(cb) {
+        if (!cb || cb.dataset.rmBound === '1') return;
+        cb.dataset.rmBound = '1';
+        cb.addEventListener('change', async function() {
+            var row = cb.closest('tr');
+            var changedTo = cb.checked;
+            if (row && row.dataset.changesAssemblyScope === '1') {
+                if (typeof window.confirmDialog !== 'function') {
+                    cb.checked = !changedTo;
+                    updatePreview();
+                    notifyRm('{{ __('Confirmation dialog is unavailable. The assembly scope was not changed.') }}', 'error');
+                    return;
+                }
+                var source = row.dataset.sourceAssyLabel || '';
+                var target = row.dataset.targetAssyLabel || '';
+                var confirmed = await window.confirmDialog({
+                    title: changedTo ? '{{ __('Apply assembly conversion?') }}' : '{{ __('Remove assembly conversion?') }}',
+                    message: changedTo
+                        ? '{{ __('New TDRs and process lists will use the modified assembly') }} ' + target + ' {{ __('instead of received assembly') }} ' + source + '. {{ __('Existing TDRs will remain unchanged.') }}'
+                        : '{{ __('New TDRs and process lists will return to the received assembly') }} ' + source + '. {{ __('Existing TDRs will remain unchanged.') }}',
+                    okText: changedTo ? '{{ __('Apply') }}' : '{{ __('Remove') }}',
+                    cancelText: '{{ __('Cancel') }}',
+                    danger: false
+                });
+                if (!confirmed) {
+                    cb.checked = !changedTo;
+                    updatePreview();
+                    return;
+                }
+            }
+
+            updatePreview();
+            if (!await performSave()) {
+                cb.checked = !changedTo;
+                updatePreview();
+            }
+        });
     }
 
     function renderTechnicalNotesTable() {
@@ -563,16 +768,12 @@
         document.getElementById('technicalNoteInput').focus();
     });
 
-    document.querySelectorAll('.record-checkbox').forEach(function(cb) {
-        cb.addEventListener('change', function() {
-            updatePreview();
-            triggerDebouncedSave();
-        });
-    });
+    document.querySelectorAll('.record-checkbox').forEach(bindRecordCheckbox);
 
-    document.getElementById('addRmRecordForm') && document.getElementById('addRmRecordForm').addEventListener('submit', function(e) {
+    document.getElementById('addRmRecordForm') && document.getElementById('addRmRecordForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         var form = this;
+        if (!await confirmRecordSave(form)) return;
         var fd = new FormData(form);
         var submitBtn = form.querySelector('button[type="submit"]');
         var origHtml = submitBtn ? submitBtn.innerHTML : '';
@@ -597,16 +798,19 @@
                 if (tbody) {
                     var tr = document.createElement('tr');
                     tr.setAttribute('data-record-id', d.id);
-                    tr.innerHTML = '<td class="align-middle">' + escapeHtml(d.part_description) + '</td><td class="align-middle">' + escapeHtml(d.mod_repair) + '</td><td class="align-middle">' + escapeHtml(d.description) + '</td><td class="align-middle">' + escapeHtml(d.ident_method || '') + '</td><td class="align-middle"><div class="form-check"><input class="form-check-input record-checkbox" type="checkbox" id="record_' + d.id + '" value="' + d.id + '"><label class="form-check-label" for="record_' + d.id + '">Select</label></div></td><td class="align-middle"><button class="btn btn-sm btn-outline-primary me-1" onclick="window.rmPartialEditRecord(' + d.id + ')" data-bs-toggle="modal" data-bs-target="#editRmRecordModal"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-outline-danger" onclick="window.rmPartialDeleteRecord(' + d.id + ')"><i class="fas fa-trash"></i></button></td>';
+                    tr.innerHTML = '<td class="align-middle"><span data-rm-cell="part-description">' + escapeHtml(d.part_description) + '</span><small class="rm-assy-conversion-summary d-none" data-rm-conversion-summary></small></td><td class="align-middle" data-rm-cell="mod-repair">' + escapeHtml(d.mod_repair) + '</td><td class="align-middle" data-rm-cell="description">' + escapeHtml(d.description) + '</td><td class="align-middle" data-rm-cell="ident-method">' + escapeHtml(d.ident_method || '') + '</td><td class="align-middle"><div class="form-check"><input class="form-check-input record-checkbox" type="checkbox" id="record_' + d.id + '" value="' + d.id + '"><label class="form-check-label" for="record_' + d.id + '">Select</label></div></td><td class="align-middle"><button class="btn btn-sm btn-outline-primary me-1" onclick="window.rmPartialEditRecord(' + d.id + ')" data-bs-toggle="modal" data-bs-target="#editRmRecordModal"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-outline-danger" onclick="window.rmPartialDeleteRecord(' + d.id + ')"><i class="fas fa-trash"></i></button></td>';
                     tbody.appendChild(tr);
-                    tr.querySelector('.record-checkbox').addEventListener('change', function() { updatePreview(); triggerDebouncedSave(); });
+                    setRowConversionData(tr, d);
+                    bindRecordCheckbox(tr.querySelector('.record-checkbox'));
                     updatePreview();
                 }
                 var m = bootstrap.Modal.getInstance(document.getElementById('addRmRecordModal'));
                 if (m) m.hide();
                 form.reset();
-            } else if (res.message && typeof showNotification === 'function') {
-                showNotification(res.message || (res.errors ? JSON.stringify(res.errors) : '') || '{{ __("Error creating record.") }}', 'error');
+                toggleConversionFields(form);
+            } else {
+                bootstrap.Modal.getOrCreateInstance(form.closest('.modal')).show();
+                notifyRm(responseError(res, '{{ __('Error creating record.') }}'), 'error');
             }
         })
         .catch(function() {
@@ -619,9 +823,10 @@
         });
     });
 
-    document.getElementById('editRmRecordForm') && document.getElementById('editRmRecordForm').addEventListener('submit', function(e) {
+    document.getElementById('editRmRecordForm') && document.getElementById('editRmRecordForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         var form = this;
+        if (!await confirmRecordSave(form)) return;
         var url = form.getAttribute('action');
         if (!url) return;
         var fd = new FormData(form);
@@ -642,18 +847,23 @@
                 var d = res.data;
                 var row = document.querySelector('tr[data-record-id="' + d.id + '"]');
                 if (row) {
-                    var cells = row.querySelectorAll('td');
-                    if (cells[0]) cells[0].textContent = d.part_description;
-                    if (cells[1]) cells[1].textContent = d.mod_repair;
-                    if (cells[2]) cells[2].textContent = d.description;
-                    if (cells[3]) cells[3].textContent = d.ident_method || '';
+                    var partCell = row.querySelector('[data-rm-cell="part-description"]');
+                    var modCell = row.querySelector('[data-rm-cell="mod-repair"]');
+                    var descriptionCell = row.querySelector('[data-rm-cell="description"]');
+                    var identCell = row.querySelector('[data-rm-cell="ident-method"]');
+                    if (partCell) partCell.textContent = d.part_description;
+                    if (modCell) modCell.textContent = d.mod_repair;
+                    if (descriptionCell) descriptionCell.textContent = d.description;
+                    if (identCell) identCell.textContent = d.ident_method || '';
+                    setRowConversionData(row, d);
                 }
                 updatePreview();
                 triggerDebouncedSave();
                 var m = bootstrap.Modal.getInstance(document.getElementById('editRmRecordModal'));
                 if (m) m.hide();
-            } else if (res.message && typeof showNotification === 'function') {
-                showNotification(res.message, 'error');
+            } else {
+                bootstrap.Modal.getOrCreateInstance(form.closest('.modal')).show();
+                notifyRm(responseError(res, '{{ __('Error updating record.') }}'), 'error');
             }
         })
         .catch(function() {
@@ -673,12 +883,18 @@
                 if (res.success && res.data) {
                     var r = res.data;
                     document.getElementById('edit_record_id').value = r.id;
+                    var protectedInput = document.getElementById('edit_is_admin_template');
+                    if (protectedInput) protectedInput.checked = !!r.is_admin_template;
                     document.getElementById('edit_part_description').value = r.part_description || '';
                     document.getElementById('edit_mod_repair_description').value = r.description || '';
                     document.getElementById('edit_ident_method').value = r.ident_method || '';
                     document.querySelectorAll('#editRmRecordForm input[name="mod_repair"]').forEach(function(inp) { inp.checked = false; });
                     var modInput = document.getElementById('edit_mod_repair_' + (r.mod_repair || '').toLowerCase());
                     if (modInput) modInput.checked = true;
+                    document.getElementById('edit_manual_service_bulletin_id').value = r.manual_service_bulletin_id || '';
+                    document.getElementById('edit_source_assy_option_id').value = r.source_assy_option_id || '';
+                    document.getElementById('edit_target_assy_option_id').value = r.target_assy_option_id || '';
+                    toggleConversionFields(document.getElementById('editRmRecordForm'));
                     document.getElementById('editRmRecordForm').setAttribute('action', updateRecordUrl.replace(':id', r.id));
                 }
             })
@@ -719,6 +935,8 @@
     };
 
     renderTechnicalNotesTable();
+    bindConversionFieldToggles(document.getElementById('addRmRecordForm'));
+    bindConversionFieldToggles(document.getElementById('editRmRecordForm'));
     updatePreview();
 })();
 </script>

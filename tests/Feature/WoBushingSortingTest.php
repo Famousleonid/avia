@@ -61,7 +61,7 @@ class WoBushingSortingTest extends TestCase
         $response->assertSee('group_bushings[GRP-A][items]', false);
         $response->assertDontSee('[components][]', false);
         $response->assertSee('data-bushing-add-process', false);
-        $response->assertSee(route('processes.create', ['manual_id' => $manualId, 'context' => 'bushing']), false);
+        $response->assertSee(route('processes.create', ['manual_id' => $manualId, 'context' => 'bushing', 'workorder_id' => $workorder->id]));
         $response->assertSee('data-process-name-ids="'.$machining->process_names_id.'"', false);
         $response->assertSee('window.addBushingProcessOption', false);
         $response->assertSee('data-bushing-part-label', false);
@@ -113,6 +113,74 @@ class WoBushingSortingTest extends TestCase
         $this->assertNotNull($line);
         $this->assertSame(2, $line->qty);
         $this->assertSame(0, WoBushingProcess::query()->where('wo_bushing_line_id', $line->id)->count());
+    }
+
+    public function test_standalone_bushing_without_group_uses_own_ipl_and_manual_quantity_limit(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+        $component = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '1-160',
+            'part_number' => '52167-59',
+            'name' => 'Standalone bushing',
+            'bush_ipl_num' => null,
+            'is_bush' => true,
+            'units_assy' => 2,
+        ]);
+        Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '1-170',
+            'part_number' => '52167-60',
+            'name' => 'Another standalone bushing',
+            'bush_ipl_num' => null,
+            'is_bush' => true,
+            'units_assy' => 1,
+        ]);
+
+        $partial = $this->actingAs($admin)->get(route('wo_bushings.partial', $workorder->id));
+        $partial->assertOk();
+        $partial->assertSee('data-group-key="1-160"', false);
+        $partial->assertSee('data-group-key="1-170"', false);
+        $partial->assertDontSee('data-group-key="no_ipl"', false);
+
+        $headers = ['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'];
+        $payload = fn (int $qty): array => [
+            'group_bushings' => [
+                '1-160' => [
+                    'items' => [
+                        $component->id => [
+                            'selected' => '1',
+                            'qty' => (string) $qty,
+                            'need_processes' => '0',
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $this->actingAs($admin)
+            ->withHeaders($headers)
+            ->put(route('wo_bushings.update', $woBushing->id), $payload(2))
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertSame(2, (int) WoBushingLine::query()
+            ->where('wo_bushing_id', $woBushing->id)
+            ->where('component_id', $component->id)
+            ->value('qty'));
+
+        $this->actingAs($admin)
+            ->withHeaders($headers)
+            ->put(route('wo_bushings.update', $woBushing->id), $payload(3))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('group_bushings')
+            ->assertJsonPath(
+                'errors.group_bushings.0',
+                'Bushing group 1-160: total ordered QTY is 3. Maximum allowed QTY is 2.'
+            );
     }
 
     public function test_bushing_group_accepts_mixed_original_and_oversize_up_to_original_qty_and_rejects_excess(): void
@@ -373,12 +441,156 @@ class WoBushingSortingTest extends TestCase
         $bushingForm = $this->actingAs($admin)->get(route('processes.create', [
             'manual_id' => $workorder->unit->manual_id,
             'context' => 'bushing',
+            'workorder_id' => $workorder->id,
         ]));
 
         $bushingForm->assertOk();
         $bushingForm->assertSeeInOrder($allowedNames, false);
         $bushingForm->assertDontSee('>Bake (Stress relief)</option>', false);
         $bushingForm->assertDontSee('>Paint</option>', false);
+    }
+
+    public function test_technician_without_cmm_permission_can_add_bushing_process_for_matching_workorder_with_log(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $technician->id]);
+        $manual = $workorder->unit->manual;
+        $processName = ProcessName::query()->updateOrCreate(
+            ['name' => 'Machining'],
+            [
+                'process_sheet_name' => 'MACHINING',
+                'form_number' => '013',
+                'print_form' => true,
+                'show_in_process_picker' => true,
+            ]
+        );
+        $existing = Process::query()->create([
+            'process_names_id' => $processName->id,
+            'process' => 'Existing machining process for this CMM',
+        ]);
+        ManualProcess::query()->create([
+            'manual_id' => $manual->id,
+            'processes_id' => $existing->id,
+        ]);
+
+        $editorUrl = route('processes.create', [
+            'manual_id' => $manual->id,
+            'context' => 'bushing',
+            'workorder_id' => $workorder->id,
+            'modal' => 1,
+        ]);
+
+        $this->actingAs($technician)
+            ->get($editorUrl)
+            ->assertOk()
+            ->assertSee('Add Bushing Process')
+            ->assertSee('W'.$workorder->number)
+            ->assertSee($manual->number)
+            ->assertSee('name="context" value="bushing"', false)
+            ->assertSee('name="workorder_id" value="'.$workorder->id.'"', false)
+            ->assertDontSee('Manage CMMs');
+
+        $this->actingAs($technician)
+            ->getJson(route('processes.getProcesses', [
+                'manualId' => $manual->id,
+                'processNameId' => $processName->id,
+                'context' => 'bushing',
+                'workorder_id' => $workorder->id,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('canCreateProcess', true)
+            ->assertJsonFragment(['process' => 'Existing machining process for this CMM']);
+
+        $this->actingAs($technician)
+            ->postJson(route('processes.store'), [
+                'manual_id' => $manual->id,
+                'process_names_id' => $processName->id,
+                'process' => 'Technician custom bushing machining process',
+                'context' => 'bushing',
+                'workorder_id' => $workorder->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('process.process', 'Technician custom bushing machining process');
+
+        $process = Process::query()
+            ->where('process_names_id', $processName->id)
+            ->where('process', 'Technician custom bushing machining process')
+            ->firstOrFail();
+
+        $this->assertDatabaseHas('manual_processes', [
+            'manual_id' => $manual->id,
+            'processes_id' => $process->id,
+        ]);
+
+        $activity = Activity::query()
+            ->where('log_name', 'workorder')
+            ->where('subject_type', $workorder::class)
+            ->where('subject_id', $workorder->id)
+            ->where('description', 'Bushing process added to CMM')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($activity);
+        $this->assertSame($technician->id, (int) $activity->causer_id);
+        $this->assertSame('bushing_process_catalog', $activity->properties->get('source'));
+        $this->assertSame($manual->number, $activity->properties->get('manual_number'));
+        $this->assertSame('Machining', $activity->properties->get('process_name'));
+        $this->assertTrue((bool) $activity->properties->get('created_definition'));
+
+        $this->actingAs($technician)
+            ->get(route('workorders.logs-json', $workorder))
+            ->assertOk()
+            ->assertJsonFragment([
+                'label' => 'Bushing Process CMM',
+                'new' => 'Machining: Technician custom bushing machining process',
+            ]);
+    }
+
+    public function test_bushing_process_technician_access_is_bound_to_workorder_cmm_and_allowed_names(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $technician->id]);
+        $otherWorkorder = $this->createWorkorder(['user_id' => $technician->id]);
+        $manual = $workorder->unit->manual;
+        $paint = ProcessName::query()->updateOrCreate(
+            ['name' => 'Paint'],
+            [
+                'process_sheet_name' => 'PAINT',
+                'form_number' => '016',
+                'print_form' => true,
+                'show_in_process_picker' => true,
+            ]
+        );
+
+        $this->actingAs($technician)
+            ->get(route('processes.create', ['manual_id' => $manual->id]))
+            ->assertRedirect(route('manuals.index'));
+
+        $this->actingAs($technician)
+            ->get(route('processes.create', [
+                'manual_id' => $manual->id,
+                'context' => 'bushing',
+                'workorder_id' => $otherWorkorder->id,
+            ]))
+            ->assertStatus(422);
+
+        $this->actingAs($technician)
+            ->postJson(route('processes.store'), [
+                'manual_id' => $manual->id,
+                'process_names_id' => $paint->id,
+                'process' => 'Paint must not enter the bushing process editor',
+                'context' => 'bushing',
+                'workorder_id' => $workorder->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('process_names_id');
+
+        $this->assertDatabaseMissing('processes', [
+            'process_names_id' => $paint->id,
+            'process' => 'Paint must not enter the bushing process editor',
+        ]);
     }
 
     public function test_bushing_processes_allow_machining_without_ndt_and_reset_spinner_on_validation_error(): void
@@ -407,7 +619,7 @@ class WoBushingSortingTest extends TestCase
         $editForm->assertOk();
         $editForm->assertSee('Machining only', false);
         $editForm->assertSee('data-bushing-add-process', false);
-        $editForm->assertSee(route('processes.create', ['manual_id' => $manualId, 'context' => 'bushing']), false);
+        $editForm->assertSee(route('processes.create', ['manual_id' => $manualId, 'context' => 'bushing', 'workorder_id' => $workorder->id]));
         $editForm->assertSee('data-process-name-ids="'.$machining->process_names_id.'"', false);
         $editForm->assertSee('window.addBushingProcessOption', false);
         $editForm->assertSee('data-bushing-part-label', false);
@@ -606,10 +818,9 @@ class WoBushingSortingTest extends TestCase
 
         $form = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
         $form->assertOk();
-        $form->assertDontSee('B1', false);
-        $form->assertSee('BATCH-PN', false);
-        $form->assertSee('LOOSE-PN', false);
-        $form->assertSee('BATCH2-PN', false);
+        $form->assertDontSee('BATCH-PN', false);
+        $form->assertDontSee('LOOSE-PN', false);
+        $form->assertDontSee('BATCH2-PN', false);
     }
 
     public function test_bushing_tab_shows_cad_checkbox_when_cad_instruction_contains_bake(): void
@@ -691,6 +902,7 @@ class WoBushingSortingTest extends TestCase
                 'workorder_id' => $workorder->id,
                 'process_id' => $row['process']->id,
                 'process_column_key' => $row['key'],
+                'date_start' => '2026-09-01',
             ]);
 
             WoBushingProcess::query()->create([
@@ -705,7 +917,7 @@ class WoBushingSortingTest extends TestCase
 
         $form->assertOk();
         $html = $form->getContent();
-        $this->assertSame(1, substr_count($html, 'MERGED-PN'));
+        $this->assertSame(3, substr_count($html, 'MERGED-PN'));
         $this->assertStringContainsString('>MERGED-PN</div>', $html);
         $this->assertStringContainsString('QTY: 2', $html);
         $this->assertStringNotContainsString('MERGED-PN : 2', $html);
@@ -749,6 +961,10 @@ class WoBushingSortingTest extends TestCase
             ]);
         }
 
+        $sentBatch = WoBushingBatch::create(['workorder_id' => $workorder->id, 'process_id' => $machining->id, 'process_column_key' => 'machining', 'date_start' => '2026-09-01']);
+        WoBushingProcess::whereHas('line', fn ($q) => $q->where('wo_bushing_id', $woBushing->id))
+            ->whereHas('process', fn ($q) => $q->where('process_names_id', $machining->process_names_id))->update(['batch_id' => $sentBatch->id]);
+
         $form = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
 
         $form->assertOk();
@@ -781,7 +997,7 @@ class WoBushingSortingTest extends TestCase
         $this->assertSame(7, substr_count($html, 'spec-extra-process-row'));
     }
 
-    public function test_bushing_spec_process_form_ignores_batch_when_grouping_same_part_number(): void
+    public function test_bushing_spec_process_form_separates_sent_batches_with_same_part_number(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
@@ -832,16 +1048,19 @@ class WoBushingSortingTest extends TestCase
             'workorder_id' => $workorder->id,
             'process_id' => $machining->id,
             'process_column_key' => 'machining',
+            'date_start' => '2026-09-01',
         ]);
         $firstNdtBatch = WoBushingBatch::query()->create([
             'workorder_id' => $workorder->id,
             'process_id' => $ndt->id,
             'process_column_key' => 'ndt',
+            'date_start' => '2026-09-01',
         ]);
         $secondNdtBatch = WoBushingBatch::query()->create([
             'workorder_id' => $workorder->id,
             'process_id' => $ndt->id,
             'process_column_key' => 'ndt',
+            'date_start' => '2026-09-01',
         ]);
 
         foreach ([
@@ -864,7 +1083,8 @@ class WoBushingSortingTest extends TestCase
 
         $form->assertOk();
         $html = $form->getContent();
-        $this->assertSame(1, substr_count($html, '1840-0302RS01'));
+        $this->assertSame(3, substr_count($html, '1840-0302RS01'));
+        $this->assertSame(2, substr_count($html, 'QTY: 2'));
         $this->assertStringContainsString('QTY: 4', $html);
         $this->assertStringNotContainsString('1840-0302RS01 : 4', $html);
         $this->assertStringNotContainsString('1840-0302RS01 : 2', $html);
@@ -926,17 +1146,71 @@ class WoBushingSortingTest extends TestCase
             }
         }
 
+        $sentBatch = WoBushingBatch::create(['workorder_id' => $workorder->id, 'process_id' => $ndt->id, 'process_column_key' => 'ndt', 'date_start' => '2026-09-01']);
+        WoBushingProcess::whereHas('line', fn ($q) => $q->where('wo_bushing_id', $woBushing->id))
+            ->whereHas('process', fn ($q) => $q->where('process_names_id', $ndt->process_names_id))->update(['batch_id' => $sentBatch->id]);
+
         $form = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
 
         $form->assertOk();
         $html = $form->getContent();
 
-        $this->assertSame(1, substr_count($html, '<span class="">Bushings </span>'));
+        $this->assertSame(1, substr_count($html, '<span class="spec-batch-title">Bushings'));
         $this->assertSame(1, substr_count($html, '<div class="part-no-data">'));
         $this->assertStringContainsString('ROUTE-PN-01', $html);
         $this->assertStringContainsString('ROUTE-PN-04', $html);
         $this->assertStringContainsString('QTY: 4', $html);
         $this->assertStringNotContainsString('QTY: 1', $html);
+    }
+
+    public function test_ndt4_bushing_batch_prints_when_ndt1_printing_is_disabled(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $wo->unit->manual_id;
+        $ndt1 = $this->attachProcessToManual($manualId, 'NDT-1', 'Unused NDT one');
+        $ndt1->process_name->update(['print_form' => false]);
+        $ndt4 = $this->attachProcessToManual($manualId, 'NDT-4', 'ASTM-E-1417 Level 3 or 4');
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        $batch = WoBushingBatch::create(['workorder_id' => $wo->id, 'process_id' => $ndt4->id, 'process_column_key' => 'ndt']);
+        foreach (['52120-5', '52120-7'] as $index => $pn) {
+            $component = Component::create(['manual_id' => $manualId, 'ipl_num' => '3-'.(180 + $index * 5), 'part_number' => $pn, 'name' => 'Bushing', 'is_bush' => true]);
+            $line = WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id, 'component_id' => $component->id, 'qty' => 2, 'qty_remaining' => 2, 'group_key' => $component->ipl_num, 'sort_order' => $index]);
+            WoBushingProcess::create(['wo_bushing_line_id' => $line->id, 'process_id' => $ndt4->id, 'batch_id' => $batch->id, 'qty' => 2]);
+        }
+        $url = route('wo_bushings.processesForm', ['id' => $bushing->id, 'processNameId' => $ndt4->process_names_id]);
+        $this->actingAs($admin)->get(route('wo_bushings.partial', $wo->id))->assertOk()->assertSee($url, false);
+        $this->get($url.'?'.http_build_query(['bushing_batch_ids' => [$batch->id]]))
+            ->assertOk()->assertSee('52120-5')->assertSee('52120-7')->assertSee('B1')->assertSee('ASTM-E-1417');
+        $ndt4->process_name->update(['print_form' => false]);
+        $this->get(route('wo_bushings.partial', $wo->id))->assertOk()->assertDontSee($url, false);
+        $this->get($url)->assertRedirect();
+    }
+
+    public function test_bushing_pickers_use_comments_from_the_current_manual(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        Component::query()->create([
+            'manual_id' => $manualId, 'ipl_num' => '1-10', 'part_number' => 'COMMENT-BUSH',
+            'name' => 'Bushing', 'bush_ipl_num' => '1-10', 'is_bush' => true, 'units_assy' => 1,
+        ]);
+        $process = $this->attachProcessToManual($manualId, 'Cad plate', 'CAD with comment');
+        ManualProcess::where('manual_id', $manualId)->where('processes_id', $process->id)
+            ->update(['process_comment' => 'Bushings <only> & steel']);
+        $otherWorkorder = $this->createWorkorder(['user_id' => $admin->id]);
+        ManualProcess::create([
+            'manual_id' => $otherWorkorder->unit->manual_id, 'processes_id' => $process->id,
+            'process_comment' => 'Other manual comment',
+        ]);
+        $this->actingAs($admin)->get(route('wo_bushings.partial', $workorder->id))
+            ->assertOk()->assertSee('data-process-comment="Bushings &lt;only&gt; &amp; steel"', false)
+            ->assertDontSee('Other manual comment');
+        $bushing = WoBushing::create(['workorder_id' => $workorder->id]);
+        $this->get(route('wo_bushings.edit', $bushing->id).'?fragment=1')
+            ->assertOk()->assertSee('data-process-comment="Bushings &lt;only&gt; &amp; steel"', false)
+            ->assertDontSee('Other manual comment');
     }
 
     private function attachProcessToManual(int $manualId, string $processName, string $processText): Process

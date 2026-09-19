@@ -105,6 +105,7 @@ class MobileController extends Controller
 
         return view('mobile.pages.paint', [
             'rows' => $rows,
+            'canEditPaintFinish' => $user->canEditPaintFinishDate(),
             'lostParts' => $lostParts,
             'activeTab' => $activeTab,
         ]);

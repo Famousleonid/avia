@@ -204,7 +204,92 @@ resolved to the documented diagnostic SSH host `51.222.203.80`; that host's
 database stopped receiving Quantum rows on `03/Aug/2026` and must not be used
 to diagnose current live sync state.
 
+## 2026-09-08 W107775 R9181 / R9233 production diagnosis
+
+`R9181` is not a Quantum data problem. Production staging contains three
+separate applied RO_DETAIL rows with safety snapshots. Their targets contain
+the expected sent and returned dates. On manually editable process rows such
+as Machining, the Flatpickr alternate input has the `has-finish` class, but the
+dark-theme `.form-control` rule has higher CSS specificity and hides the green
+background. Read-only rows such as Chrome stripping render as spans and remain
+green.
+
+`R9233` has one Quantum source row: `rod:33246`, WO `W107775`, PN `1840-0024`,
+REF `T1`, sent `12/Aug/2026`, no returned date. The current unresolved message
+points to the legacy target `tdr_processes:2418` and says that it has no safety
+snapshot.
+
+The production activity trail confirms this sequence:
+
+1. On `12/Aug/2026 08:30:01`, Quantum wrote `R9233`, vendor 4, and the sent
+   date to 11 process rows (`2418`, `2740`-`2749`). At that moment all 11 rows
+   were members of Traveler 1; the legacy leader/target pointer was row `2418`.
+2. On `03/Sep/2026 10:48:40`, Yosypiv Dmytro ungrouped that Traveler. The
+   operation cleared the sent date and its user field from every member, but
+   intentionally preserved the RO and vendor. This produced the visible blank
+   dates with `R9233` repeated on all 11 process rows.
+3. On `04/Sep/2026 07:37:59`, Voronin Oleg recreated Traveler 1 from only the
+   seven rows `2741`-`2747`. Machining `2418`, Stress Relief `2740`, NDT-6
+   `2748`, and Paint `2749` stayed outside the new Traveler but retained the
+   old RO/vendor values.
+
+The resolver now maps REF `T1` to the recreated seven-row Traveler, while the
+legacy staging record still points to the old leader `2418`. Because the old
+apply predates target snapshots, automatic release is blocked and the row is
+kept `unresolved` for manual review. Do not infer from the repeated RO that
+Quantum supplied several source rows: this incident has only one source row,
+which was expanded across the members of the former Traveler group.
+
+The available audit log records who ungrouped and recreated the Traveler. It
+does not identify who originally placed all 11 processes into Traveler 1.
+
+### R9127 / W107736 / PN 1840-8402
+
+This unresolved row has a different cause from R9233. Quantum source
+`rod:32919` correctly identifies REF `N4`, sent `20/Jul/2026`, returned
+`22/Jul/2026`. It was applied to NDT-4 process `tdr_processes:1892` on
+`20/Jul/2026`, and the returned date was added on `22/Jul/2026 11:16`.
+
+At `22/Jul/2026 13:12:29`, Medvid Vasyl deleted process row `1892`. The audit
+snapshot confirms that the deleted row still contained `R9127`, vendor 6, and
+both Quantum dates. On `05/Sep/2026 08:10:14`, Voronin Oleg created NDT-4 again
+for the same TDR, but this is a new empty row with ID `4742`.
+
+The resolver therefore correctly resolves REF `N4` to current row `4742`,
+while the legacy staging record still points to deleted row `1892`. The old
+apply predates `applied_targets` safety snapshots, so the parser cannot prove
+that it is safe to move/reapply the values and leaves the source row
+`unresolved`. This is a delete-and-recreate identity change, not a Quantum REF
+or date error.
+
 ## Date Mapping
+
+### 2026-09-11 W107855: RO date versus physical dispatch
+
+Production staging last received both lines at 11/Sep/2026 07:23 Toronto:
+R9327 / rod:33536 / REF CP and R9331 / rod:33546 / REF N1, both PN
+52141-1, SN ACR111089. Both payloads contain OUT_DATE 08/Sep/2026,
+returned_date null, QTY_REPAIR=1, QTY_RESERVED=1, QTY_REPAIRED=0.
+Their source/applied hashes match; target rows 3374 and 3378 contain those dates.
+This is not a stalled parser or a wrong-PN assignment.
+
+The user reports that CAD has physically returned and NDT has not been sent.
+Current mapping treats RO_HEADER.OUT_DATE as dispatch without an independent
+shipment event or previous-process-return validation. The latest staged payload
+therefore does not represent the reported physical movement. A RO header date
+must not be treated as proven physical shipment in such cases.
+
+Direct Oracle verification succeeded later in the same diagnosis after explicitly
+setting TNS_ADMIN=C:\oracle\network\admin. Exact RO_DETAIL rows 33536 and 33546
+still have LAST_DELIVERY_DATE=null, SHIP_DATE=null, QTY_REPAIRED=0,
+QTY_RESERVED=1 and QTY_REPAIR=1. Both headers are open (OPEN_FLAG=T), with
+ENTRY_DATE=OUT_DATE=08/Sep/2026. The line last-modified timestamps remain
+08/Sep/2026 11:06:20 and 15:39:53 respectively. Thus the actual Quantum RO
+fields used by the integration agree with staging, not with the reported physical
+CAD receipt / pending NDT dispatch. SHIP_DATE is also null on other lines of both
+ROs and is not yet validated as a replacement dispatch source. Whether a separate
+receipt/shipment record contains the physical event remains unverified. Do not
+invent a return date or clear targets during diagnosis.
 
 Confirmed:
 
@@ -327,8 +412,13 @@ Confirmed bushing batch rule:
 
 ```text
 For bushing P/N values, REF must be B1, B2, ... .
-The number selects the corresponding batch within that bushing process key.
-Example: PN = Machining and REF = B1 targets the first machining bushing batch.
+For automatic horizontal routes (local implementation verified 18/Sep/2026),
+the number selects wo_bushing_batches.route_number within that process key.
+The same route number spans all operations; missing operation numbers are valid.
+Example: Machining B2 targets route_number=2 even if it is the first machining row.
+Legacy batches retain their captured legacy_number; workorders without route metadata
+retain the original per-process positional lookup. Existing RO memberships are protected.
+See docs/bushing-route-batches.md for migration and verification details.
 ```
 
 Examples:
@@ -450,6 +540,76 @@ The W107873 STD row is activity-logged and its R9241 update explicitly records
 the previous RO as null. Therefore an observed R9238 display in the W107873 STD
 cell would require a separate unlogged/display path; it is not the persisted
 result of `rod:33264` in the production database audit.
+
+### 2026-09-09 R9326 / W107679 mixed applied and stale detail
+
+One RO header can contain both a successfully applied row and a later-removed
+detail for the same WO. Confirmed production/Oracle chain:
+
+```text
+Current R9326 / W107679 row:
+  ROD_AUTO_KEY = 33519
+  WOB_AUTO_KEY = 724149
+  PN = 190-70974-005 (Rod)
+  SN = 1464957/004
+  REF = T1
+  staging quantum_ro_lines.id = 3841
+  status = applied
+  target = TDR 979, Traveler 1, four tdr_processes rows
+
+Historical R9326 / W107679 row:
+  ROD_AUTO_KEY = 33518
+  WOB_AUTO_KEY = 724148
+  PN = 190-70954-005 (Cylinder)
+  SN = 1464957/004
+  imported REF = T1
+  first_seen_at = last_seen_at = 04/Sep/2026 13:28:09
+  staging quantum_ro_lines.id = 3839
+  parser result = No Traveler 1 target
+  status changed to dismissed at 04/Sep/2026 13:40:20
+```
+
+Production Nodus has component `190-70954-005` in manual 73, but W107679 has
+no TDR for that component. Its only component TDR is Rod `190-70974-005`, so
+the parser correctly had no Cylinder Traveler 1 target and could not create or
+populate one. The RO apply service populates existing targets; it does not
+create missing TDRs.
+
+Current Oracle state confirms that `RO_DETAIL.ROD_AUTO_KEY = 33518` no longer
+exists. `WO_BOM.WOB_AUTO_KEY = 724148` still exists for W107679 / Cylinder, but
+its current `REF` is null. The staging row is therefore a historical snapshot,
+not a current R9326 detail. The dismiss endpoint used at that time did not write
+an activity-log record, so the responsible user cannot be established from the
+application audit.
+
+For the current Rod line (`ROD_AUTO_KEY = 33519`), Quantum also contains a
+separate W107679 BOM service row:
+
+```text
+WO_BOM.WOB_AUTO_KEY = 703657
+PN / DESCRIPTION = Shot Peening
+ACTIVITY = Repair
+RO_DETAIL link = none
+```
+
+This service BOM row is not the R9326 detail row. R9326 is linked only to the
+Rod BOM row `WOB_AUTO_KEY = 724149`, whose `REF = T1`; neither that RO detail nor
+its header/WO text fields contain `Shot` or `Peen`. The current RO sync reads
+`RO_HEADER + RO_DETAIL + WO_BOM` for the RO detail and does not infer Traveler
+membership from other service BOM rows on the same WO.
+
+Production audit confirms that Traveler 1 for TDR 979 was created on
+04/Sep/2026 with process IDs `1095, 4194, 1097, 4719` (Chrome plating, Chrome
+plating Thin Dens, NDT-4, Passivation). Shot peening process ID `1093` was not
+selected and correctly remains a standalone process with `in_traveler = false`.
+It must not receive R9326.
+
+The separate Quantum Shot Peening BOM row was created on 09/Apr/2026, remains
+incomplete (`ITEM_COMPLETE = F`), has quantity needed 1 / issued 0, and has no
+`REF`, `ROD_LINK`, or linked `RO_DETAIL`. It therefore never enters the current
+RO-only staging query at all. Showing that Quantum has requested this
+standalone process requires a separate WO_BOM process-presence sync; it cannot
+be derived from R9326.
 
 Vendor Tracking presents the staging buffer in two sections:
 

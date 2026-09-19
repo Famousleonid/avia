@@ -393,19 +393,28 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h6 class="modal-title text-info" id="pdfModalLabel">PDF Library - Workorder W<span id="pdfModalWorkorderNumber"></span></h6>
+                <h6 class="modal-title text-info" id="pdfModalLabel">Documents - Workorder W<span id="pdfModalWorkorderNumber"></span></h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div id="pdfUploadForm" class="pdf-upload-panel mb-4" data-no-spinner>
                     <div class="pdf-upload-grid">
+                        <div class="pdf-upload-actions d-flex flex-wrap align-items-center gap-2">
+                            <label class="form-label mb-0" for="pdfUploadCategory">Upload category:</label>
+                            <select id="pdfUploadCategory" class="form-select form-select-sm" style="width:auto;font-size:12px" title="Document category">
+                                @foreach(\App\Models\DocumentCategory::orderBy('name')->get() as $category)
+                                    <option value="{{ $category->key }}" @selected($category->key === 'general')>{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                            <button class="btn btn-outline-secondary d-none" type="button" id="clearPdfFileBtn">Cancel upload</button>
+                        </div>
                         <div>
-                            <label for="pdfFileInput" class="form-label">PDF File</label>
+                            <label for="pdfFileInput" class="form-label">File</label>
                             <label for="pdfFileInput" class="pdf-drop-zone" id="pdfDropZone">
                                 <span class="pdf-drop-icon"><i class="bi bi-file-earmark-pdf"></i></span>
                                 <span class="min-w-0">
-                                    <span class="pdf-drop-title d-block">Drop PDF here or click to upload</span>
-                                    <span class="pdf-drop-meta d-block">The file is saved with its original name. One PDF, max 10MB.</span>
+                                    <span class="pdf-drop-title d-block">Drop PDF or scan here, or click to upload</span>
+                                    <span class="pdf-drop-meta d-block">PDF, JPG/JPEG, PNG or WebP. One file, max 10 MB. Upload starts automatically.</span>
                                     <span class="pdf-selected-file d-block" id="pdfSelectedFile">No file selected</span>
                                     <span class="pdf-upload-progress" id="pdfUploadProgress">
                                         <span class="pdf-upload-progress-track">
@@ -415,29 +424,27 @@
                                     </span>
                                 </span>
                             </label>
-                            <input type="file" class="visually-hidden" id="pdfFileInput" name="pdf" accept="application/pdf,.pdf" required>
+                            <input type="file" class="visually-hidden" id="pdfFileInput" name="pdf" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" required>
                         </div>
-                        <div class="pdf-upload-actions d-flex align-items-center gap-2">
-                            <select id="pdfUploadCategory" class="form-select form-select-sm" style="width:auto;font-size:12px" title="Document category">
-                                <option value="general" selected>General</option>
-                                <option value="ec_approved">EC Approved (OEM)</option>
-                            </select>
-                            <button class="btn btn-outline-secondary d-none" type="button" id="clearPdfFileBtn">Cancel upload</button>
-                        </div>
+
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2 mb-2 ms-1">
-                    <label class="form-label mb-0" for="pdfCategoryFilter" style="font-size:12px">Category:</label>
+                    <label class="form-label mb-0" for="pdfCategoryFilter" style="font-size:12px">Show documents:</label>
                     <select id="pdfCategoryFilter" class="form-select form-select-sm" style="width:auto;font-size:12px">
                         <option value="uploaded" selected>Uploaded only</option>
                         <option value="all">All documents</option>
-                        <option value="general">General</option>
-                        <option value="ec_approved">EC Approved</option>
+                        @foreach(\App\Models\DocumentCategory::withTrashed()->orderBy('name')->get() as $category)
+                            <option value="{{ $category->key }}">{{ $category->name }}{{ $category->trashed() ? ' (removed)' : '' }}</option>
+                        @endforeach
                         <option value="ec_draft">EC Draft (generated)</option>
                         <option value="fc">F&amp;C (generated)</option>
                         <option value="machining">Machining (generated)</option>
                     </select>
                 </div>
+                @if(auth()->user()?->isSystemAdmin())
+                    <a href="{{ route('document_categories.index') }}" target="_blank" rel="noopener" class="small d-inline-block mb-2">Manage document categories</a>
+                @endif
                 <div id="pdfListContainer" class="pdf-library-list"></div>
             </div>
             <div class="modal-footer">
@@ -452,10 +459,11 @@
     <div class="modal-dialog modal-dialog-centered" style="max-width: min(1200px, 92vw); width: min(1200px, 92vw); height: min(85vh, 900px); margin: 1.75rem auto;">
         <div class="modal-content bg-dark d-flex flex-column" style="height: 100%; max-height: min(85vh, 900px); overflow: hidden;">
             <div class="modal-header flex-shrink-0">
-                <h6 class="modal-title text-info" id="pdfViewerModalLabel">PDF Viewer</h6>
+                <h6 class="modal-title text-info" id="pdfViewerModalLabel">Document Viewer</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 flex-grow-1 d-flex flex-column" style="min-height: 0; min-width: 0; overflow: hidden;">
+                <img id="documentViewerImage" class="d-none w-100" alt="Document scan" style="flex:1 1 0; min-height:0; object-fit:contain;">
                 <iframe id="pdfViewerFrame" title="PDF" class="w-100 border-0 flex-grow-1 d-block" src="" style="flex: 1 1 0; min-height: 0; min-width: 0; width: 100%;"></iframe>
             </div>
             <div class="modal-footer flex-shrink-0">
@@ -734,13 +742,13 @@
 
 {{-- Add Processes Modal (iframe) - processes.create from Update Bushings List --}}
 <div class="modal fade" id="addProcessesModal" tabindex="-1" aria-labelledby="addProcessesModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 900px; width: 95%; height: 85vh;">
-        <div class="modal-content bg-gradient" style="height: 85vh;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 760px; width: 96%; height: min(720px, 90vh);">
+        <div class="modal-content bg-gradient" style="height: 100%; max-height: 720px;">
             <div class="modal-header">
                 <h6 class="modal-title text-info" id="addProcessesModalLabel">{{ __('Add Processes') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0 overflow-hidden" style="height: calc(85vh - 60px);">
+            <div class="modal-body p-0 overflow-hidden flex-grow-1" style="min-height: 0;">
                 <iframe id="addProcessesIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
         </div>

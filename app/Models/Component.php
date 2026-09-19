@@ -34,7 +34,6 @@ class Component extends Model implements  hasMedia
         'is_bush',
         'kit',
         'np',
-        'kit_prl_choice_group',
         'kit_e',
         'ndt_list',
         'cad_list',

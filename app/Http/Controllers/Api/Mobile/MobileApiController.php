@@ -1403,6 +1403,9 @@ class MobileApiController extends Controller
             ->where('task_id', $task->id)
             ->first();
 
+        $beforeStart = optional($main?->date_start)->format('Y-m-d');
+        $beforeFinish = optional($main?->date_finish)->format('Y-m-d');
+
         $ignoreRow = $request->exists('ignore_row')
             ? $request->boolean('ignore_row')
             : (bool) ($main?->ignore_row ?? false);
@@ -1422,7 +1425,15 @@ class MobileApiController extends Controller
             $main->general_task_id = $task->general_task_id;
         }
 
-        $main->user_id = $request->user()->id;
+        $dateWasChanged = ($request->exists('date_start')
+                && $beforeStart !== optional($resolved['date_start'])->format('Y-m-d'))
+            || ($request->exists('date_finish')
+                && $beforeFinish !== optional($resolved['date_finish'])->format('Y-m-d'));
+
+        if ($dateWasChanged) {
+            $main->user_id = $request->user()->id;
+        }
+
         $main->date_start = $resolved['date_start'];
         $main->date_finish = $resolved['date_finish'];
         $main->ignore_row = $ignoreRow;
@@ -2600,10 +2611,11 @@ class MobileApiController extends Controller
         // are entered by shop staff, while every other process is supplied by
         // Quantum and must remain read-only even before Quantum has dates.
         $canEdit = (bool) ($process->processName?->allowsManualDateEditing() ?? false);
+        $isPaint = strtolower(trim((string) $process->processName?->name)) === 'paint';
 
         return [
             'can_edit_start' => $canEdit,
-            'can_edit_finish' => $canEdit,
+            'can_edit_finish' => $canEdit && (! $isPaint || ($user?->canEditPaintFinishDate() ?? false)),
             'can_edit_promise' => $canEdit,
         ];
     }

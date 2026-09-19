@@ -110,6 +110,16 @@ class Workorder extends Model implements HasMedia
         return $this->belongsTo(ManualPartGroupOption::class, 'scope_part_group_option_id')->withTrashed();
     }
 
+    public function modifiedScopePartGroupOption()
+    {
+        return $this->belongsTo(ManualPartGroupOption::class, 'modified_scope_part_group_option_id')->withTrashed();
+    }
+
+    public function modifiedScopeRmReport()
+    {
+        return $this->belongsTo(RmReport::class, 'modified_scope_rm_report_id');
+    }
+
     /**
      * Additional manuals come from the primary Manual. The Workorder stores
      * only which of them are disabled in not_used_manual_ids.
@@ -175,6 +185,11 @@ class Workorder extends Model implements HasMedia
         return $this->belongsTo(Instruction::class);
     }
 
+    public function isOverhaul(): bool
+    {
+        return strcasecmp(trim((string) $this->instruction?->name), 'Overhaul') === 0;
+    }
+
     /**
      * Overhaul requires orig (factory) limits; everything else uses wear limits.
      * Instructions: Overhaul → false, Repair/Test & inspect/60M/96M → true.
@@ -201,6 +216,10 @@ class Workorder extends Model implements HasMedia
 
     public function registerMediaConversions(\Spatie\MediaLibrary\MediaCollections\Models\Media $media = null): void
     {
+        // Document scans are shown from their originals, without photo thumbnails.
+        if ($media?->collection_name === 'pdfs') {
+            return;
+        }
         $this->addMediaConversion('thumb')
             ->width(80)
             ->height(80)
@@ -253,6 +272,9 @@ class Workorder extends Model implements HasMedia
                 'scope_type',
                 'scope_component_id',
                 'scope_part_group_option_id',
+                'modified_scope_part_group_option_id',
+                'modified_scope_rm_report_id',
+                'modified',
                 'not_used_manual_ids',
                 'customer_id',
                 'instruction_id',

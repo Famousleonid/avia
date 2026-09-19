@@ -41,6 +41,49 @@ class MainController extends Controller
         return 1;
     }
 
+    public function resolveWorkorderNumber(Request $request)
+    {
+        $data = $request->validate([
+            'number' => ['required', 'string', 'max:20'],
+        ]);
+
+        $value = trim((string) $data['number']);
+        $compact = preg_replace('/[\s#-]+/', '', $value) ?? $value;
+
+        if (preg_match('/^w(?:o)?(\d+)$/i', $compact, $matches) === 1) {
+            $compact = $matches[1];
+        }
+
+        if (preg_match('/^\d{1,10}$/', $compact) !== 1 || (int) $compact < 1) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('Enter a valid workorder number.'),
+            ], 422);
+        }
+
+        // Use the normal Workorder scope: draft WOs cannot be opened through
+        // the /mains/{workorder} route and therefore must not resolve here.
+        $workorder = Workorder::query()
+            ->where('number', (int) $compact)
+            ->first(['id', 'number']);
+
+        if (! $workorder) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('Workorder not found.'),
+            ], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'url' => route('mains.show', $workorder),
+            'workorder' => [
+                'id' => (int) $workorder->id,
+                'number' => (string) $workorder->number,
+            ],
+        ]);
+    }
+
     public function photos(Workorder $workorder)
     {
         $workorder = Workorder::withDrafts()->findOrFail($workorder->id);
@@ -90,6 +133,9 @@ class MainController extends Controller
             ->where('task_id', $task->id)
             ->first();
 
+        $beforeStart = optional($main?->date_start)->format('Y-m-d');
+        $beforeFinish = optional($main?->date_finish)->format('Y-m-d');
+
         $resolved = Main::validateAndResolveDates(
             $data,
             $task,
@@ -105,7 +151,14 @@ class MainController extends Controller
             $main->task_id          = $task->id;
             $main->general_task_id  = $task->general_task_id;
         }
-        $main->user_id          = auth()->id();
+
+        $dateWasChanged = ($hasStart && $beforeStart !== optional($resolved['date_start'])->format('Y-m-d'))
+            || ($hasFinish && $beforeFinish !== optional($resolved['date_finish'])->format('Y-m-d'));
+
+        if ($dateWasChanged) {
+            $main->user_id = auth()->id();
+        }
+
         $main->date_start       = $resolved['date_start'];
         $main->date_finish      = $resolved['date_finish'];
         $main->ignore_row       = $ignoreRow;
@@ -131,6 +184,7 @@ class MainController extends Controller
                 'date_start' => optional($main->date_start)?->format('Y-m-d'),
                 'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
                 'ignore_row' => (bool) $main->ignore_row,
+                'user_name' => $main->user?->selection_name ?? '',
                 'general_task_all_finished' => $this->isGeneralTaskAllFinished(
                     (int) $main->workorder_id,
                     (int) $main->general_task_id
@@ -159,7 +213,9 @@ class MainController extends Controller
             'manual_id' => (int)($current_workorder->unit?->manual_id ?? 0),
         ]);
 
-        $this->syncWaitingApproveMain($current_workorder);
+        if (! $current_workorder->is_draft) {
+            $this->syncWaitingApproveMain($current_workorder);
+        }
 
         $users = User::query()->withoutReviewAccounts()->get()
             ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
@@ -712,7 +768,7 @@ class MainController extends Controller
                 ->where('task_id', $waitingTaskId)
                 ->first();
 
-            if ($main) {
+            if ($main && $main->date_finish !== null) {
                 $main->user_id = null;
                 $main->date_finish = null;
                 $main->save();
@@ -828,6 +884,8 @@ class MainController extends Controller
         $ignoreRow = $request->boolean('ignore_row');
         $hasStart  = $request->has('date_start');
         $hasFinish = $request->has('date_finish');
+        $beforeStart = optional($main->date_start)->format('Y-m-d');
+        $beforeFinish = optional($main->date_finish)->format('Y-m-d');
 
         if ($isRestrictedFinish && !auth()->user()->hasAnyRole('Admin|Manager')) {
             unset($data['date_finish']);
@@ -871,10 +929,16 @@ class MainController extends Controller
             $main->date_finish = $resolved['date_finish'];
         }
 
-        $afterStart  = $main->date_start;
-        $afterFinish = $main->date_finish;
+        $afterStart = optional($main->date_start)->format('Y-m-d');
+        $afterFinish = optional($main->date_finish)->format('Y-m-d');
+        $dateWasChanged = ($hasStart && $beforeStart !== $afterStart)
+            || ($hasFinish && $beforeFinish !== $afterFinish);
 
-        $main->user_id = (empty($afterStart) && empty($afterFinish)) ? null : auth()->id();
+        if ($dateWasChanged) {
+            // user_id belongs only to the latest real date edit. Ignore changes
+            // must not replace it; clearing a date is still a date edit.
+            $main->user_id = auth()->id();
+        }
         $main->ignore_row = $ignoreRow;
 
         $main->save();

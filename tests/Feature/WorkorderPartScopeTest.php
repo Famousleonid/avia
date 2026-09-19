@@ -164,9 +164,7 @@ class WorkorderPartScopeTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('tdrs.kitForm', $workorder->id))
-            ->assertOk()
-            ->assertSee('PARTS REPLACEMENT LIST - KIT')
-            ->assertDontSee('FULL-UNIT-KIT-PART');
+            ->assertRedirect(route('tdrs.prlForm', $workorder->id));
     }
 
     public function test_assy_scope_expands_nested_members_and_honors_form_coverage(): void

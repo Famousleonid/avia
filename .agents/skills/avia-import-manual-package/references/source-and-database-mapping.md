@@ -17,13 +17,22 @@ The CSV/PDF result is canonical for the basic component identity. The workbook s
 
 ## PDF/IPL interpretation
 
+- A FIG PDF may contain duplicate scans of the same printed page. Identify duplicates from the printed page number and table content, not merely from the PDF page index. If exactly one duplicate is visibly crossed out, exclude that entire crossed-out copy and extract only the uncrossed copy. Record the ignored PDF page in the audit. If both copies are uncrossed, both are crossed out, or their active content differs, treat the duplicate as unresolved and ask the user which version is authoritative.
 - `ipl_num = <FIG>-<ITEM>`; keep suffix letters (`1-30A`, `10-91A`).
 - Normalize Unicode dash/minus characters to ASCII `-`.
 - Required fields are `ipl_num`, `part_number`, and `name`.
-- `units_assy` may be numeric or source codes such as `AR`/`RF`; retain the source value.
+- Always populate `units_assy` using the quantity normalization rule below, not the raw letter code.
 - Ignore column headings, page metadata, applicability text, SB pre/post notes, supersession notes, `ATTACHING PARTS`, and `ITEM NOT ILLUSTRATED` markers.
 - The leading rows in each FIG commonly describe the complete assembly/configuration variants and are not detail Parts. In the known template the detail list normally starts at item 10. Verify visually rather than applying a numeric-only rule.
 - Watermarks cross cells and make OCR substitutions likely. All uncertain PN/item/quantity tokens need visual confirmation.
+
+## IPL quantity normalization (confirmed 17/Sep/2026)
+
+- Read the quantity for each IPL row. Retain numeric quantities (for example `2` → `2`, `12` → `12`); do not default all rows to one.
+- A blank value or a value containing letters, including `AR`, `RF`, `REF`, becomes `1` in imported Parts and generated SQL. This supersedes the former instruction to store `AR`/`RF` literally.
+- Keep the original token in the extraction/audit evidence. Visually resolve uncertain OCR before normalization; punctuation-only or ambiguous numeric expressions are review issues, not guessed quantities.
+- `scripts/ipl_quantity.php` implements normalization for the analyzer. Decimal comma is normalized to a dot. The same rule applies to source quantities used for direct/nested ASSY members, without confusing per-parent quantities with workorder totals.
+- Include `units_assy` in new-row SQL and in the reviewed quantity-update plan for matching existing IPL/P/N rows, preserving component IDs. Verify expected quantities in the post-import SELECT audit. This rule does not authorize a retroactive bulk change or rewriting previous handoff SQL.
 
 ## Workbook mapping
 
@@ -32,15 +41,16 @@ Sheet matching is case-insensitive after trimming whitespace.
 | Workbook source | Match rule | AVIA target |
 |---|---|---|
 | `LLP` | normalized PN plus compatible part name | `components.log_card = true` |
-| `NDT`, `NDT (n)` | IPL, then confirm PN | `components.ndt_list = true` |
-| `CAD`, relevant CAD process variants | IPL, then confirm PN | `components.cad_list = true` |
+| `NDT`, `NDT (n)`, `NDT BUSHINGS` | IPL, then confirm PN | `components.ndt_list = true` |
+| `CAD`, `CAD BUSHINGS`/legacy typo `CAD BUHSINGS`, `CAD AIRCO`, and relevant numbered CAD variants | IPL, then confirm PN | `components.cad_list = true` |
 | `PAINT (2)` or `PAINT` | IPL, then confirm PN | `components.paint_list = true` |
 | `PRL`, `PRL<n>` containing the requested base manual | FIG + ITEM, confirm PN, and CODE exactly `KIT` | `components.kit = true` |
 | `SB` | one bulletin row | `manual_service_bulletins` |
+| `IN PROCESS CHECK SHEET` | reviewed manual-specific tasks, stages, references and blank stamp slots | `manual_in_process_check_sheets` — see [in-process-check-sheet.md](in-process-check-sheet.md) |
 
 Do not set KIT for PRL `RECOMMENDED` rows without CODE `KIT`. Do not use PRL section membership alone.
 
-The standard NDT/CAD/Paint rows use IPL in column A, PN in column C, and description in column G (older variants may use I). Cells may contain newline-separated IPLs/PNs. Counts must be either one PN shared by all IPLs or one PN per IPL; otherwise report a structural conflict. A blank FIG carries down from the most recent explicit FIG. If a secondary process sheet starts with bare item numbers, resolve them only when item + PN uniquely identify a component.
+The standard NDT/CAD/Paint rows use IPL in column A, PN in column C, and description in column G (older variants may use I). Cells may contain newline-separated IPLs/PNs. One declared base IPL with several P/N values is valid when the P/N values uniquely resolve to letter-suffixed alternatives of that base item. Otherwise counts must be either one PN shared by all IPLs or one PN per IPL; report any remaining structural conflict. A blank FIG carries down from the most recent explicit FIG. If a secondary process sheet starts with bare item numbers, resolve them only when item + PN uniquely identify a component. Do not treat an internal subcomponent sheet such as `NDT (Shimmy)` as the requested manual's Parts mapping unless it explicitly identifies the requested manual and its rows resolve to that manual's IPL components.
 
 The standard PRL rows use FIG in A, ITEM in B, description in C, PN in D, quantity in E, and CODE in F. FIG carries down through blank cells. Pair newline-separated values by position. Ignore `ALT` helper rows as standalone IPLs. If counts cannot be paired unambiguously, report a conflict.
 
@@ -65,7 +75,7 @@ Normalize PN only for comparison: uppercase, collapse/remove whitespace, normali
 
 Normalize names only for matching: uppercase, collapse punctuation/space, and expand obvious template abbreviations (`ASSY` -> `ASSEMBLY`, `LWR` -> `LOWER`, `UPR` -> `UPPER`). Do not rewrite stored names based on fuzzy matching.
 
-- Same IPL + same normalized PN: existing row wins; do not overwrite basic fields.
+- Same IPL + same normalized PN: preserve the existing ID and unrelated basic fields; reconcile quantity against the normalized IPL quantity in the reviewed SQL plan.
 - Same IPL + different normalized PN: user decision required.
 - Same PN at another IPL: show as a move candidate, never move automatically.
 - Workbook PN differs from canonical CSV PN: report both and use neither silently.

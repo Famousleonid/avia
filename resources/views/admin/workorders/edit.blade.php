@@ -172,6 +172,40 @@
                                         </div>
                                     </div>
 
+                                    @php
+                                        $selectedScopeType = (string) old('scope_type', $workorderScopeSelection['mode']);
+                                        $selectedScopeTargetId = (string) old('scope_target_id', $workorderScopeSelection['target']);
+                                    @endphp
+                                    <div class="row">
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label class="mb-1" for="work_scope_type">Work Scope</label>
+                                            <select name="scope_type"
+                                                    id="work_scope_type"
+                                                    class="form-select @error('scope_type') is-invalid @enderror">
+                                                <option value="full_unit" @selected($selectedScopeType === 'full_unit')>Complete Unit</option>
+                                                <option value="part_assembly" @selected($selectedScopeType === 'part_assembly')>Part / Assembly</option>
+                                            </select>
+                                            @error('scope_type')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                        <div class="form-group col-lg-8 mt-2">
+                                            <label class="mb-1" for="work_scope_target">Received Part / Assembly</label>
+                                            <select id="work_scope_target"
+                                                    name="scope_target_id"
+                                                    class="form-select @error('scope_target_id') is-invalid @enderror"
+                                                    disabled>
+                                                <option value="">Loading…</option>
+                                            </select>
+                                            @error('scope_target_id')
+                                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div id="workScopeLoadState" class="form-text">
+                                                Changing Work Scope rebuilds this Workorder's STD lists and changes the scoped KIT/PRL.
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div class="row">
                                         <div class="form-group col-lg-4 mb-1">
                                             <label class="mb-1" for="instruction_id">Instruction </label>
@@ -244,7 +278,10 @@
                                         </div>
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="customer_po">Modified</label>
-                                            <input type="text" name="modified" id="modified" maxlength="30" value="{{ old('modified', $current_wo->modified) }}" class="form-control @error ('place') is-invalid @enderror" placeholder="">
+                                            <input type="text" name="modified" id="modified" maxlength="30" value="{{ old('modified', $current_wo->modified) }}" class="form-control @error ('modified') is-invalid @enderror" placeholder="" @readonly($current_wo->modified_scope_part_group_option_id)>
+                                            @if($current_wo->modified_scope_part_group_option_id)
+                                                <small class="text-info">{{ __('Controlled by the selected R&M Service Bulletin conversion.') }}</small>
+                                            @endif
                                         </div>
 
                                     </div>
@@ -408,6 +445,169 @@
             const workorderDescriptionInput = document.getElementById('description');
             const cmmSelect = document.getElementById('cmmSelect');
             const unitNameInput = document.getElementById('unitNameInput');
+            const workScopeTypeSelect = document.getElementById('work_scope_type');
+            const workScopeTargetSelect = document.getElementById('work_scope_target');
+            const workScopeLoadState = document.getElementById('workScopeLoadState');
+            const workScopeHint = document.getElementById('workScopeHint');
+            const WORK_SCOPE_OPTIONS_URL = @json(route('workorders.scope-options', $current_wo));
+            const INITIAL_WORK_SCOPE = {
+                type: @json($selectedScopeType),
+                target: @json($selectedScopeTargetId),
+            };
+            const ORIGINAL_WORK_SCOPE = {
+                type: @json($workorderScopeSelection['mode']),
+                target: @json($workorderScopeSelection['target']),
+            };
+            let workScopeTargets = [];
+            let workScopeLoadSequence = 0;
+
+            function normalizedScopeSelection(selection) {
+                const type = String(selection?.type || 'full_unit');
+                return {
+                    type: type,
+                    target: type === 'part_assembly' ? String(selection?.target || '') : '',
+                };
+            }
+
+            function currentWorkScopeSelection() {
+                const type = String(workScopeTypeSelect?.value || 'full_unit');
+                return normalizedScopeSelection({
+                    type: type,
+                    target: String(workScopeTargetSelect?.value || ''),
+                });
+            }
+
+            function workScopeChanged() {
+                return JSON.stringify(currentWorkScopeSelection()) !== JSON.stringify(normalizedScopeSelection(ORIGINAL_WORK_SCOPE));
+            }
+
+            function setScopeSelection(selection) {
+                const normalized = normalizedScopeSelection(selection);
+                workScopeTypeSelect.value = normalized.type;
+                workScopeTargetSelect.dataset.selectedValue = normalized.target;
+            }
+
+            function updateScopeHint() {
+                if (!workScopeHint) return;
+                const type = workScopeTypeSelect.value;
+                if (type === 'full_unit') {
+                    workScopeHint.textContent = 'Work scope: Complete Unit';
+                    return;
+                }
+                const selected = workScopeTargetSelect.options[workScopeTargetSelect.selectedIndex];
+                workScopeHint.textContent = 'Work scope: ' + (selected?.textContent || 'Select linked Part / ASSY');
+            }
+
+            function syncScopeSelection() {
+                workScopeTargetSelect.dataset.selectedValue = String(workScopeTargetSelect.value || '');
+                delete document.getElementById('createForm').dataset.workScopeChangeOk;
+                updateScopeHint();
+                if (workScopeTargetSelect.value) {
+                    workScopeLoadState.classList.remove('text-danger');
+                    workScopeLoadState.textContent = "Changing Work Scope rebuilds this Workorder's STD lists and changes the scoped KIT/PRL.";
+                }
+            }
+
+            function renderWorkScopeTarget() {
+                const type = workScopeTypeSelect.value;
+                const selectedValue = String(workScopeTargetSelect.dataset.selectedValue || '');
+                workScopeTargetSelect.innerHTML = '';
+
+                if (type === 'full_unit') {
+                    workScopeTargetSelect.add(new Option('Entire Unit', '', true, true));
+                    workScopeTargetSelect.disabled = true;
+                } else {
+                    workScopeTargetSelect.add(new Option('Select…', ''));
+                    workScopeTargets.forEach(function (item) {
+                        workScopeTargetSelect.add(new Option(item.label || '', String(item.value || '')));
+                    });
+                    workScopeTargetSelect.value = selectedValue;
+                    workScopeTargetSelect.disabled = false;
+                }
+
+                if (window.jQuery) {
+                    $('#work_scope_target').trigger('change.select2');
+                }
+                updateScopeHint();
+            }
+
+            async function loadWorkScopeOptions(useUnitDefault, selection = null) {
+                const unitId = String(unitSelect.value || '');
+                const sequence = ++workScopeLoadSequence;
+                workScopeTargetSelect.disabled = true;
+                workScopeLoadState.classList.remove('text-danger');
+                workScopeLoadState.textContent = 'Loading Work Scope options…';
+                if (!unitId) {
+                    workScopeTargets = [];
+                    renderWorkScopeTarget();
+                    return;
+                }
+
+                try {
+                    const url = new URL(WORK_SCOPE_OPTIONS_URL, window.location.origin);
+                    url.searchParams.set('unit_id', unitId);
+                    const response = await fetch(url.toString(), {
+                        headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'}
+                    });
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(data?.message || 'Could not load Work Scope options.');
+                    }
+                    if (sequence !== workScopeLoadSequence) return;
+
+                    workScopeTargets = Array.isArray(data.scope_targets) ? data.scope_targets : [];
+                    if (useUnitDefault) {
+                        setScopeSelection({
+                            type: data.unit?.default_scope_mode || 'full_unit',
+                            target: data.unit?.default_scope_target || '',
+                        });
+                        delete document.getElementById('createForm').dataset.workScopeChangeOk;
+                    } else if (selection) {
+                        setScopeSelection(selection);
+                    }
+                    renderWorkScopeTarget();
+                    workScopeLoadState.classList.remove('text-danger');
+                    workScopeLoadState.textContent = "Changing Work Scope rebuilds this Workorder's STD lists and changes the scoped KIT/PRL.";
+                    if (workScopeTypeSelect.value === 'part_assembly'
+                        && workScopeTargetSelect.dataset.selectedValue
+                        && !workScopeTargetSelect.value) {
+                        workScopeLoadState.classList.add('text-danger');
+                        workScopeLoadState.textContent = 'The previous Part scope is no longer available. Select the corresponding ASSY before saving. The Workorder has not been changed.';
+                    }
+                } catch (error) {
+                    if (sequence !== workScopeLoadSequence) return;
+                    workScopeTargets = [];
+                    workScopeTargetSelect.innerHTML = '';
+                    workScopeTargetSelect.add(new Option('Work Scope options unavailable', ''));
+                    workScopeTargetSelect.disabled = true;
+                    workScopeLoadState.textContent = error?.message || 'Could not load Work Scope options.';
+                    workScopeLoadState.classList.add('text-danger');
+                    if (typeof window.notifyError === 'function') {
+                        window.notifyError(workScopeLoadState.textContent);
+                    }
+                }
+            }
+
+            function validateWorkScopeSelection() {
+                const type = workScopeTypeSelect.value;
+                if (type === 'part_assembly' && !workScopeTargetSelect.value) {
+                    return 'Select the Part or Assembly received for this Workorder.';
+                }
+                return '';
+            }
+
+            workScopeTypeSelect.addEventListener('change', function () {
+                workScopeTargetSelect.dataset.selectedValue = '';
+                renderWorkScopeTarget();
+                delete document.getElementById('createForm').dataset.workScopeChangeOk;
+            });
+            workScopeTargetSelect.addEventListener('change', syncScopeSelection);
+            if (window.jQuery) {
+                $('#work_scope_target').on('change.workScope', syncScopeSelection);
+            }
+            unitSelect.addEventListener('change', function () {
+                void loadWorkScopeOptions(true);
+            });
 
             unitSelect.onchange = function () {
                 const selectedOption = this.options[this.selectedIndex];
@@ -443,6 +643,13 @@
                     dropdownAutoWidth: true
                 });
 
+                $('#work_scope_target').select2({
+                    placeholder: 'Search P/N, IPL or name…',
+                    theme: 'bootstrap-5',
+                    allowClear: true,
+                    width: '100%'
+                });
+
                 $('#cmmSelect').on('change', function () {
                     unitNameInput.dataset.userEdited = '';
                     syncUnitNameFromSelectedCmm();
@@ -467,6 +674,8 @@
             $(function () {
                 applyTheme();
             });
+
+            void loadWorkScopeOptions(false, INITIAL_WORK_SCOPE);
 
             function applyTheme() {
                 const isDark = document.documentElement.getAttribute('data-bs-theme');
@@ -832,6 +1041,37 @@
 
             const workorderForm = document.getElementById('createForm');
             workorderForm.addEventListener('submit', async (e) => {
+                const scopeValidationMessage = validateWorkScopeSelection();
+                if (scopeValidationMessage) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                    if (typeof window.notifyError === 'function') window.notifyError(scopeValidationMessage);
+                    return;
+                }
+
+                if (workScopeChanged() && workorderForm.dataset.workScopeChangeOk !== '1') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                    if (typeof window.confirmDialog !== 'function') {
+                        if (typeof window.notifyError === 'function') {
+                            window.notifyError('Confirmation dialog is unavailable. Work Scope was not changed.');
+                        }
+                        return;
+                    }
+                    const confirmed = await window.confirmDialog({
+                        title: 'Change Work Scope?',
+                        message: "This will rebuild this Workorder's STD lists and change which parts appear in KIT/PRL. Continue?",
+                        okText: 'Change Scope',
+                        cancelText: 'Cancel'
+                    });
+                    if (!confirmed) return;
+                    workorderForm.dataset.workScopeChangeOk = '1';
+                    workorderForm.requestSubmit ? workorderForm.requestSubmit() : workorderForm.submit();
+                    return;
+                }
+
                 if (workorderForm.dataset.readyToSubmit === '1') {
                     workorderForm.dataset.readyToSubmit = '';
                     return;
@@ -876,14 +1116,25 @@
                     const msg = 'Workorder has TDR records. Changing Unit (and thus Manual) may cause data inconsistency. Components in TDR may not match the new Manual. Continue?';
                     e.preventDefault();
                     e.stopPropagation();
-                    window.appConfirm(msg).then(function (ok) {
-                        if (!ok) {
-                            if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
-                            return;
+                    if (typeof window.confirmDialog !== 'function') {
+                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                        if (typeof window.notifyError === 'function') {
+                            window.notifyError('Confirmation dialog is unavailable. Unit was not changed.');
                         }
-                        workorderForm.dataset.unitChangeOk = '1';
-                        workorderForm.requestSubmit ? workorderForm.requestSubmit() : workorderForm.submit();
+                        return;
+                    }
+                    const unitChangeConfirmed = await window.confirmDialog({
+                        title: 'Change Workorder Unit?',
+                        message: msg,
+                        okText: 'Change Unit',
+                        cancelText: 'Cancel'
                     });
+                    if (!unitChangeConfirmed) {
+                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                        return;
+                    }
+                    workorderForm.dataset.unitChangeOk = '1';
+                    workorderForm.requestSubmit ? workorderForm.requestSubmit() : workorderForm.submit();
                     return;
                 }
 

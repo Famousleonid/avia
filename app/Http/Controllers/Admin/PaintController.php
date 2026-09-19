@@ -62,6 +62,7 @@ class PaintController extends Controller
             'rows' => $rows,
             'queuedCount' => $queuedCount,
             'canReorderPaint' => $this->canManageQueue($user),
+            'canEditPaintFinish' => $user?->canEditPaintFinishDate() ?? false,
             'lostParts' => $lostParts,
         ]);
     }

@@ -429,7 +429,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 if (
-                    (codeName === 'missing' || necessaryName === 'order new')
+                    @json($current_wo->isOverhaul())
+                    && (codeName === 'missing' || necessaryName === 'order new')
                     && $('#order_component_id option:selected').attr('data-kit') === '1'
                 ) {
                     e.preventDefault();
@@ -1472,7 +1473,8 @@ function initTdrInlineCreate() {
 
         const selectedOrderOption = orderComponentSelect?.options[orderComponentSelect.selectedIndex] || null;
         if (
-            (codeName === 'missing' || necessaryName === 'order new')
+            @json($current_wo->isOverhaul())
+            && (codeName === 'missing' || necessaryName === 'order new')
             && selectedOrderOption?.dataset?.kit === '1'
         ) {
             event.preventDefault();

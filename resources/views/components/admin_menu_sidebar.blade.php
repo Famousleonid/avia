@@ -57,7 +57,10 @@
         && $sidebarUser->can('feature.library.type_of_business');
     $canSeeLegacyLibraryMenu = $sidebarUser
         && $sidebarUser->roleIs(['Admin', 'Manager']);
+    $canManageTravelerNotes = $sidebarUser
+        && $sidebarUser->can('feature.library.traveler_notes');
     $showLibraryMenu = $canSeeLegacyLibraryMenu
+        || $canManageTravelerNotes
         || $canManageLibraryCountries
         || $canManageLibraryBusinessTypes;
 @endphp
@@ -185,6 +188,12 @@
             </li>
             @endif
 
+            @if($canManageTravelerNotes)
+            <li class="nav-item press-spinner">
+                <a href="{{ route('library.traveler-notes.index') }}" class="nav-link {{ request()->routeIs('library.traveler-notes.*') ? 'active' : '' }}"><i class="bi bi-dot"></i><span>Notes Traveler</span></a>
+            </li>
+            @endif
+
             @if($canManageLibraryCountries)
             <li class="nav-item press-spinner">
                 <a href="{{ route('library.countries.index') }}" class="nav-link {{ request()->routeIs('library.countries.*') ? 'active' : '' }}"><i class="bi bi-dot"></i><span>Countries</span></a>
@@ -229,6 +238,11 @@
             @if(auth()->user()->roleIs(['Admin', 'Manager']))
             <li class="nav-item press-spinner">
                 <a href="{{route('process_names.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Process Names</span></a>
+            </li>
+            @endif
+            @if(auth()->user()->isSystemAdmin())
+            <li class="nav-item press-spinner">
+                <a href="{{ route('document_categories.index') }}" class="nav-link"><i class="bi bi-dot"></i><span>Document Categories</span></a>
             </li>
             @endif
 

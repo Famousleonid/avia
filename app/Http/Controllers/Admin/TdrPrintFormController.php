@@ -106,8 +106,9 @@ class TdrPrintFormController extends Controller
             return $tdr;
         });
 
-        $groupCoverage = app(PartGroupCoverageResolver::class)
-            ->coverageForWorkorder($current_wo, \App\Models\ManualPartGroup::SCOPE_PRL);
+        $groupCoverage = $current_wo->isOverhaul()
+            ? app(PartGroupCoverageResolver::class)->coverageForWorkorder($current_wo, \App\Models\ManualPartGroup::SCOPE_PRL)
+            : [];
         $groupOptionComponentIds = ManualPartGroupOption::query()
             ->whereIn('id', collect($groupCoverage)->pluck('option_id')->filter()->unique()->all())
             ->pluck('component_id', 'id');
@@ -213,6 +214,9 @@ class TdrPrintFormController extends Controller
     public function kitForm(Request $request, $id)
     {
         $current_wo = Workorder::findOrFail($id);
+        if (! $current_wo->isOverhaul()) {
+            return redirect()->route('tdrs.prlForm', ['id' => $current_wo->id]);
+        }
         $manualCrossedOutComponentIds = WorkorderKitPrlCrossout::query()
             ->where('workorder_id', $current_wo->id)
             ->pluck('component_id')
@@ -268,6 +272,11 @@ class TdrPrintFormController extends Controller
         ));
     }
 
+    public function countBushingPrlRows(Workorder $workorder): int
+    {
+        return $this->buildBushingPrlRows($workorder)->count();
+    }
+
     private function buildBushingPrlRows(Workorder $workorder)
     {
         $manualId = (int) ($workorder->unit->manual_id ?? 0);
@@ -281,6 +290,12 @@ class TdrPrintFormController extends Controller
                 ->get(),
             $workorder
         );
+        if (! $workorder->isOverhaul()) {
+            // A repair PRL lists only ordered bushings, without struck-out alternatives.
+            $bushingComponents = $bushingComponents->filter(
+                fn (Component $component): bool => $selectedByComponent->has($component->id)
+            )->values();
+        }
         $partGroupCrossouts = $this->partGroupCrossedOutIdentities($workorder);
         $kitBushingCrossouts = $this->kitBushingCrossedOutIdentities($workorder, $manualId);
 
@@ -289,15 +304,16 @@ class TdrPrintFormController extends Controller
             $selectedByComponent,
             'K',
             [
-                // A bushing already supplied in the workorder KIT must stay on
-                // this form for traceability, but cannot be ordered a second time.
+                // Deduct KIT supply before printing any extra bushing quantity.
                 'component_ids' => ($kitBushingCrossouts['component_ids'] ?? [])
                     + ($partGroupCrossouts['component_ids'] ?? []),
                 'part_numbers' => ($kitBushingCrossouts['part_numbers'] ?? [])
                     + ($partGroupCrossouts['part_numbers'] ?? []),
                 'reasons' => ($kitBushingCrossouts['reasons'] ?? [])
                     + ($partGroupCrossouts['reasons'] ?? []),
-            ]
+            ],
+            [],
+            $kitBushingCrossouts
         );
     }
 
@@ -307,7 +323,7 @@ class TdrPrintFormController extends Controller
      */
     private function kitBushingCrossedOutIdentities(Workorder $workorder, int $manualId): array
     {
-        if ($manualId <= 0) {
+        if (! $workorder->isOverhaul() || $manualId <= 0 || $workorder->scope_type === Unit::SCOPE_COMPONENT) {
             return [
                 'component_ids' => [],
                 'part_numbers' => [],
@@ -371,12 +387,14 @@ class TdrPrintFormController extends Controller
         $selectedByComponent,
         string $code,
         array $additionalCrossedOutIdentities = [],
-        array $manualCrossedOutComponentIds = []
+        array $manualCrossedOutComponentIds = [],
+        array $omittedKitSupply = []
     ) {
         $additionalCrossedOutComponentIds = $additionalCrossedOutIdentities['component_ids'] ?? [];
         $additionalCrossedOutPartNumbers = $additionalCrossedOutIdentities['part_numbers'] ?? [];
         $additionalCrossedOutReasons = $additionalCrossedOutIdentities['reasons'] ?? [];
 
+        $bushingGroupKeys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($bushingComponents->pluck('manual_id')->all(), 'prl');
         return $bushingComponents
             ->sort(function (Component $left, Component $right): int {
                 $manualCompare = strnatcasecmp(
@@ -400,8 +418,8 @@ class TdrPrintFormController extends Controller
                     (string) ($right->part_number ?? '')
                 );
             })
-            ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component))
-            ->map(function ($group) use ($selectedByComponent, $code, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $additionalCrossedOutReasons, $manualCrossedOutComponentIds): array {
+            ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component, $bushingGroupKeys))
+            ->map(function ($group) use ($selectedByComponent, $code, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $additionalCrossedOutReasons, $manualCrossedOutComponentIds, $omittedKitSupply): ?array {
                 $components = $group->values();
                 $initial = $components->first(function (Component $component): bool {
                     return trim((string) ($component->ipl_num ?? '')) === trim((string) ($component->bush_ipl_num ?? ''));
@@ -425,6 +443,7 @@ class TdrPrintFormController extends Controller
                 $row['prl_bushing_group'] = $bushIpl !== ''
                     ? $bushIpl
                     : 'component-' . (int) $initial->id;
+                $removedKitOption = false;
                 $row['prl_part_numbers'] = $components
                     ->groupBy(function (Component $component): string {
                         $partNumber = strtoupper(trim((string) ($component->part_number ?? '')));
@@ -433,7 +452,7 @@ class TdrPrintFormController extends Controller
                             ? 'part-number|' . $partNumber
                             : 'component|' . (int) $component->id;
                     })
-                    ->map(function ($partNumberComponents) use ($selectedByComponent, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $additionalCrossedOutReasons, $manualCrossedOutComponentIds): array {
+                    ->map(function ($partNumberComponents) use ($selectedByComponent, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $additionalCrossedOutReasons, $manualCrossedOutComponentIds, $omittedKitSupply, &$removedKitOption): ?array {
                         $component = $partNumberComponents->first();
                         $selectedPartNumberComponents = $partNumberComponents
                             ->filter(fn (Component $candidate): bool => $selectedByComponent->has($candidate->id))
@@ -445,6 +464,15 @@ class TdrPrintFormController extends Controller
                                 return max(1, (int) ($selectedByComponent->get($candidate->id)['qty'] ?? 1));
                             })
                             : null;
+                        $kitQty = $partNumberComponents->max(fn (Component $candidate): int => max(
+                            (int) ($omittedKitSupply['component_ids'][(int) $candidate->id] ?? 0),
+                            (int) ($omittedKitSupply['part_numbers'][$this->normalizePrlPartNumber($candidate->part_number)] ?? 0)
+                        ));
+                        if ($kitQty > 0 && ($optionQty === null || $kitQty >= $optionQty)) {
+                            $removedKitOption = true;
+                            return null;
+                        }
+
                         $coveredQty = $partNumberComponents->max(function (Component $candidate) use ($additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers): int {
                             $partNumber = $this->normalizePrlPartNumber($candidate->part_number);
                             $componentCoverage = $additionalCrossedOutComponentIds[(int) $candidate->id] ?? null;
@@ -471,9 +499,7 @@ class TdrPrintFormController extends Controller
                             'controller_crossed_out' => $controllerCrossedOut,
                             'manual_crossed_out' => $manualCrossedOut,
                             'crossed_out' => $controllerCrossedOut || $manualCrossedOut,
-                            // A partial KIT quantity reduces the extra order. A
-                            // fully covered line keeps its original qty visible
-                            // under the cross-out for auditability.
+                            // Only the quantity still needed is ordered in PRL.
                             'qty' => $remainingQty !== null && $remainingQty > 0 ? $remainingQty : $optionQty,
                             'included_in_kit' => $includedInKit,
                             'crossout_reason' => $partNumberComponents
@@ -482,22 +508,29 @@ class TdrPrintFormController extends Controller
                                 ->first(),
                         ];
                     })
+                    ->filter()
                     ->values()
                     ->all();
                 $row['prl_crossed_out'] = collect($row['prl_part_numbers'])
                     ->every(fn (array $option): bool => ! empty($option['crossed_out']));
+                // Omit empty rows and unused alternatives when KIT supplies
+                // the selected bushing and there is nothing left to order.
+                if ($removedKitOption && $row['prl_crossed_out']) {
+                    return null;
+                }
                 $row['bushing_kit_note'] = collect($row['prl_part_numbers'])
                     ->contains(fn (array $option): bool => ! empty($option['crossed_out']) && ! empty($option['included_in_kit']));
 
                 return $row;
             })
+            ->filter()
             ->values();
     }
 
     private function buildKitPrlRows(Workorder $workorder, array $manualCrossedOutComponentIds = [])
     {
         // A detached received part does not inherit the complete unit's overhaul KIT.
-        if ($workorder->scope_type === Unit::SCOPE_COMPONENT) {
+        if (! $workorder->isOverhaul() || $workorder->scope_type === Unit::SCOPE_COMPONENT) {
             return collect();
         }
 
@@ -516,11 +549,12 @@ class TdrPrintFormController extends Controller
         $regularKitComponents = $kitComponents
             ->reject(fn (Component $component): bool => (bool) $component->is_bush)
             ->values();
+        $partGroupCrossouts = $this->partGroupCrossedOutIdentities($workorder);
 
         $regularRows = $this->buildKitPrlRowsForComponents(
             $regularKitComponents,
             'KIT',
-            [],
+            $partGroupCrossouts,
             $manualCrossedOutComponentIds
         );
         $allKitBushingOptions = $kitBushingComponents->mapWithKeys(
@@ -534,7 +568,7 @@ class TdrPrintFormController extends Controller
             $kitBushingComponents,
             $allKitBushingOptions,
             'KIT',
-            [],
+            $partGroupCrossouts,
             $manualCrossedOutComponentIds
         );
 
@@ -552,8 +586,9 @@ class TdrPrintFormController extends Controller
         $crossedOutPartNumbers = $crossedOutIdentities['part_numbers'] ?? [];
         $crossedOutReasons = $crossedOutIdentities['reasons'] ?? [];
 
+        $groupKeys = app(\App\Services\PartVariantGrouping::class)->componentKeys($components);
         $rows = $components
-            ->groupBy(fn (Component $component): string => KitPrlGrouping::groupKeyForComponent($component))
+            ->groupBy(fn (Component $component): string => KitPrlGrouping::groupKeyForComponent($component, $groupKeys))
             ->map(function ($group) use ($code, $crossedOutComponentIds, $crossedOutPartNumbers, $crossedOutReasons, $manualCrossedOutComponentIds) {
                 /** @var \Illuminate\Support\Collection<int, Component> $group */
                 $sorted = $group->sort(function (Component $left, Component $right): int {
@@ -641,7 +676,7 @@ class TdrPrintFormController extends Controller
 
     private function removeKitSupplyFromPrlRows(Workorder $workorder, $rows)
     {
-        if ($workorder->scope_type === Unit::SCOPE_COMPONENT) {
+        if (! $workorder->isOverhaul() || $workorder->scope_type === Unit::SCOPE_COMPONENT) {
             return collect($rows)->values();
         }
 
@@ -721,6 +756,9 @@ class TdrPrintFormController extends Controller
 
     private function partGroupCrossedOutIdentities(Workorder $workorder): array
     {
+        if (! $workorder->isOverhaul()) {
+            return ['component_ids' => [], 'part_numbers' => [], 'reasons' => []];
+        }
         $coverage = app(PartGroupCoverageResolver::class)
             ->coverageForWorkorder($workorder, \App\Models\ManualPartGroup::SCOPE_PRL);
         $componentIds = collect($coverage)->mapWithKeys(fn (array $item, $componentId): array => [
@@ -1083,7 +1121,8 @@ class TdrPrintFormController extends Controller
                     $obj->group_crossout_reason = trim((string) ($component['group_crossout_reason'] ?? ''));
                     $obj->manual = $component['manual'] ?? (string) ($manual->number ?? '');
                     $obj->eff_code = trim((string) ($component['eff_code'] ?? ''));
-                    $obj->kit_prl_choice_group = trim((string) ($component['kit_prl_choice_group'] ?? ''));
+                    $obj->component_id = (int) ($component['component_id'] ?? 0);
+                    $obj->variant_group_key = $component['variant_group_key'] ?? null;
 
                     return $obj;
                 })->toArray();
@@ -1177,7 +1216,8 @@ class TdrPrintFormController extends Controller
             $component->process_name = (string) ($row['process'] ?? '');
             $component->manual = trim((string) ($row['manual'] ?? '')) ?: null;
             $component->eff_code = trim((string) ($row['eff_code'] ?? ''));
-            $component->kit_prl_choice_group = trim((string) ($row['kit_prl_choice_group'] ?? ''));
+            $component->component_id = (int) ($row['component_id'] ?? 0);
+            $component->variant_group_key = $row['variant_group_key'] ?? null;
             $component->group_covered_qty = (int) ($row['group_covered_qty'] ?? 0);
             $component->group_remaining_qty = (int) ($row['group_remaining_qty'] ?? $component->qty);
             $component->group_crossout_reason = trim((string) ($row['group_crossout_reason'] ?? ''));
@@ -1261,30 +1301,15 @@ class TdrPrintFormController extends Controller
 
     private function stdSuffixVariantGroupKey(\stdClass $component): ?string
     {
-        $manualKey = (int) ($component->manual_id ?? 0) > 0
-            ? 'id:' . (int) $component->manual_id
-            : 'number:' . trim((string) ($component->manual ?? ''));
-        $coverageState = ! empty($component->group_crossed_out) ? 'group-crossed' : 'group-open';
-        $choiceGroup = trim((string) ($component->kit_prl_choice_group ?? ''));
-        if ($choiceGroup !== '') {
-            return implode('|', [
-                'choice',
-                $manualKey,
-                mb_strtolower($choiceGroup),
-                $coverageState,
-            ]);
-        }
-
-        $ipl = trim((string) ($component->ipl_num ?? ''));
-
-        if (! preg_match('/^(\d+[A-Za-z]*-\d+)(?:[A-Za-z]+)?$/', $ipl, $matches)) {
-            return null;
-        }
-
-        $baseIpl = strtoupper((string) ($matches[1] ?? ''));
-        $process = trim((string) ($component->process_name ?? ''));
-
-        return implode('|', [$manualKey, $baseIpl, $process, $coverageState]);
+        return \App\Services\PartVariantGrouping::stdKey([
+            'component_id' => $component->component_id ?? 0,
+            'manual_id' => $component->manual_id ?? 0,
+            'manual' => $component->manual ?? '',
+            'ipl_num' => $component->ipl_num ?? '',
+            'process' => $component->process_name ?? '',
+            'variant_group_key' => $component->variant_group_key ?? null,
+            'group_crossed_out' => $component->group_crossed_out ?? false,
+        ]);
     }
 
     private function initializeCollapsedStdRowValues(\stdClass $component): void
@@ -1547,6 +1572,29 @@ class TdrPrintFormController extends Controller
         }
     }
 
+    public function specProcessFormPreview()
+    {
+        abort_unless(auth()->user()?->roleIs(['Admin', 'Manager']), 403);
+
+        $processNames = $this->prepareSpecialProcessRows(
+            ProcessName::forPicker()->includedInSpForm()->inSpFormOrder()->get(), collect()
+        );
+        $processNamePages = $processNames->chunk(15)->values();
+        $workorder = new Workorder();
+        $workorder->setRelation('user', null);
+
+        return view('admin.tdrs.specProcessForm', [
+            'isSpPreview' => true,
+            'current_wo' => $workorder,
+            'processNames' => $processNames,
+            'processNamePages' => $processNamePages,
+            'processes' => collect(),
+            'componentChunks' => $processNamePages->map(fn () => collect()),
+            'combinedSpecPageTotal' => $processNamePages->count(),
+            'cadSum_ex' => 0,
+        ]);
+    }
+
     public function specProcessForm(Request $request, $id)
     {
         // Загрузка Workorder по ID
@@ -1619,23 +1667,11 @@ class TdrPrintFormController extends Controller
 
         // Получаем ProcessName по этим ID с фильтрами. EC включаем только если showEcInForm
         $processNamesQuery = ProcessName::forPicker()
-            ->whereIn('id', $processNameIds)
-            ->where('name', 'NOT LIKE', '%NDT%');
+            ->whereIn('id', $processNameIds);
         if (!$showEcInForm) {
             $processNamesQuery->where('name', '!=', 'EC');
         }
-        $processNames = $processNamesQuery->limit(20)->get();
-
-        // Дополняем коллекцию до 10 элементов пустыми объектами, если элементов меньше
-        $emptyProcess = new \stdClass();
-        $emptyProcess->id = null;
-        $emptyProcess->name = '';
-        $emptyProcess->process_sheet_name = null;
-        $emptyProcess->form_number = null;
-
-        while ($processNames->count() < 10) {
-            $processNames->push(clone $emptyProcess);
-        }
+        $processNames = $processNamesQuery->includedInSpForm()->inSpFormOrder()->get();
 
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
@@ -1650,6 +1686,8 @@ class TdrPrintFormController extends Controller
             ->with('component')
             ->inDisplayOrder()
             ->get();
+
+        $processNames = $this->prepareSpecialProcessRows($processNames, $tdrs);
 
         // Получаем ID процессов с именем 'EC' для исключения из подсчёта number_line
         $ecProcessIds = ProcessName::where('name', 'LIKE', 'EC')->pluck('id');
@@ -1689,7 +1727,8 @@ class TdrPrintFormController extends Controller
                         $numberLine = null;
                     }
                 } else {
-                    if ($nameId === $prevNameId) {
+                    $separateOccurrence = $this->isSeparatelyListedSpecialProcess($process->processName);
+                    if (! $separateOccurrence && $nameId === $prevNameId) {
                         $numberLine = $prevNumberLine;
                     } else {
                         $lineNumber++;
@@ -1708,24 +1747,9 @@ class TdrPrintFormController extends Controller
                 ]);
             });
         }
-// Получаем все ID процессов, где name содержит 'NDT'
-        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')
-            ->where('show_in_process_picker', true)
-            ->pluck('id');
-
-// Фильтруем коллекцию processes, оставляя только те записи, где process_name_id есть в $ndtIds
-        $ndt_processes = $result->filter(function ($item) use ($ndtIds) {
-            return $ndtIds->contains($item['process_name_id']);
-        })->map(function ($item) {
-            // Преобразуем каждую запись в нужный формат
-            return [
-                'tdrs_id' => $item['tdrs_id'],
-                'number_line' => $item['number_line'],
-                'repair_order' => $item['repair_order'] ?? '',
-            ];
-        });
-
-        // Quarantine: определяем для каждого TDR наличие и number_line
+        // Quarantine is the boundary between two SP Form columns for the same
+        // detail: the first column contains steps through Quarantine, and the
+        // second contains the steps after it.
         $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
         $quarantineByTdr = [];
         if ($quarantineProcessNameId) {
@@ -1734,7 +1758,6 @@ class TdrPrintFormController extends Controller
             }
         }
 
-        // Разбиение по столбцам (макс. 6 на страницу). Детали с Quarantine = 2 столбца.
         $maxColumnsPerPage = 6;
         $componentChunks = collect();
         $currentChunk = collect();
@@ -1765,14 +1788,13 @@ class TdrPrintFormController extends Controller
 
         // Передаем данные в представление
         $spPageCount = max(1, $componentChunks->count());
-        $bushingPageCount = WoBushingLine::where('workorder_id', $current_wo->id)->exists() ? 1 : 0;
+        $bushingPageCount = app(\App\Services\BushingSpecProcessGroups::class)->pageCount($current_wo);
         $combinedSpecPageTotal = $spPageCount + $bushingPageCount;
         $specPageOffset = 0;
 
         return view('admin.tdrs.specProcessForm', [
             'current_wo' => $current_wo,
             'processes' => $result, // Исходная коллекция
-            'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
             'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
             'cadSum' => $cadSum,
             'componentChunks' => $componentChunks,
@@ -1878,17 +1900,6 @@ class TdrPrintFormController extends Controller
             }
         }
 
-        // Дополняем коллекцию до 10 элементов пустыми объектами, если элементов меньше
-        $emptyProcess = new \stdClass();
-        $emptyProcess->id = null;
-        $emptyProcess->name = '';
-        $emptyProcess->process_sheet_name = null;
-        $emptyProcess->form_number = null;
-
-        while ($processNames->count() < 10) {
-            $processNames->push(clone $emptyProcess);
-        }
-
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
@@ -1902,6 +1913,8 @@ class TdrPrintFormController extends Controller
             ->with('component')
             ->inDisplayOrder()
             ->get();
+
+        $processNames = $this->prepareSpecialProcessRows($processNames, $tdrs);
 
         // Получаем ID процессов с именем 'EC' для исключения из подсчёта number_line
         $ecProcessIds = ProcessName::where('name', 'LIKE', 'EC')->pluck('id');
@@ -1933,7 +1946,8 @@ class TdrPrintFormController extends Controller
                         $num = null;
                     }
                 } else {
-                    if ($nameId === $prevNameId) {
+                    $separateOccurrence = $this->isSeparatelyListedSpecialProcess($process->processName);
+                    if (! $separateOccurrence && $nameId === $prevNameId) {
                         $num = $prevNumberLine;
                     } else {
                         $lineNumber++;
@@ -1965,7 +1979,9 @@ class TdrPrintFormController extends Controller
             ];
         });
 
-        // Quarantine: определяем для каждого TDR наличие и number_line
+        // Quarantine is the boundary between two SP Form columns for the same
+        // detail: the first column contains steps through Quarantine, and the
+        // second contains the steps after it.
         $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
         $quarantineByTdr = [];
         if ($quarantineProcessNameId) {
@@ -1974,7 +1990,6 @@ class TdrPrintFormController extends Controller
             }
         }
 
-        // Разбиение по столбцам (макс. 6 на страницу). Детали с Quarantine = 2 столбца.
         $maxColumnsPerPage = 6;
         $componentChunks = collect();
         $currentChunk = collect();
@@ -2010,7 +2025,7 @@ class TdrPrintFormController extends Controller
 
         // Передаем данные в представление
         $spPageCount = max(1, $componentChunks->count());
-        $bushingPageCount = WoBushingLine::where('workorder_id', $current_wo->id)->exists() ? 1 : 0;
+        $bushingPageCount = app(\App\Services\BushingSpecProcessGroups::class)->pageCount($current_wo);
         $combinedSpecPageTotal = $spPageCount + $bushingPageCount;
         $specPageOffset = 0;
 
@@ -2024,6 +2039,55 @@ class TdrPrintFormController extends Controller
             'combinedSpecPageTotal' => $combinedSpecPageTotal,
             'specPageOffset' => $specPageOffset,
         ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
+    }
+
+    /**
+     * Build separate SP Form rows only for repeated Chrome plating operations.
+     *
+     * Other repeated process names keep one row containing all of their
+     * sequence numbers.
+     */
+    private function prepareSpecialProcessRows($processNames, $tdrs)
+    {
+        $rows = $processNames->flatMap(function ($processName) use ($tdrs) {
+            $processNameId = (int) ($processName->id ?? 0);
+            $separateOccurrences = $processNameId > 0
+                && $this->isSeparatelyListedSpecialProcess($processName);
+            $occurrenceCount = $separateOccurrences
+                ? (int) $tdrs
+                    ->map(fn ($tdr) => $tdr->tdrProcesses
+                        ->where('process_names_id', $processNameId)
+                        ->count())
+                    ->max()
+                : 1;
+
+            return collect(range(0, max(1, $occurrenceCount) - 1))
+                ->map(function (int $occurrenceIndex) use ($processName, $separateOccurrences) {
+                    $row = clone $processName;
+                    $row->sp_occurrence_index = $occurrenceIndex;
+                    $row->sp_separate_occurrence = $separateOccurrences;
+
+                    return $row;
+                });
+        })->values();
+
+        while ($rows->count() < 10) {
+            $emptyProcess = new \stdClass();
+            $emptyProcess->id = null;
+            $emptyProcess->name = '';
+            $emptyProcess->process_sheet_name = null;
+            $emptyProcess->form_number = null;
+            $emptyProcess->sp_occurrence_index = 0;
+            $emptyProcess->sp_separate_occurrence = false;
+            $rows->push($emptyProcess);
+        }
+
+        return $rows;
+    }
+
+    private function isSeparatelyListedSpecialProcess($processName): bool
+    {
+        return ProcessName::normalizedNameKey($processName->name ?? null) === 'chromeplating';
     }
 
     public function logCardForm(Request $request, $id)

@@ -480,12 +480,21 @@ class MobileApiTest extends TestCase
             'task_has_start_date' => true,
         ]);
 
+        $initialIgnoreResponse = $this->withMobileToken($user)
+            ->putJson(route('api.mobile.workorders.tasks.dates', [$workorder->id, $task->id]), ['ignore_row' => true]);
+
+        $initialIgnoreResponse->assertOk()
+            ->assertJsonPath('data.main.ignore_row', true)
+            ->assertJsonPath('data.main.user', null);
+
         $this->withMobileToken($user)
             ->putJson(route('api.mobile.workorders.tasks.dates', [$workorder->id, $task->id]), [
                 'date_start' => '2026-07-03',
                 'date_finish' => '2026-07-19',
+                'ignore_row' => false,
             ])
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonPath('data.main.user.id', $user->id);
 
         $ignoreResponse = $this->withMobileToken($user)
             ->putJson(route('api.mobile.workorders.tasks.dates', [$workorder->id, $task->id]), ['ignore_row' => true]);
@@ -504,7 +513,8 @@ class MobileApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.main.date_start', null)
             ->assertJsonPath('data.main.date_finish', null)
-            ->assertJsonPath('data.main.ignore_row', false);
+            ->assertJsonPath('data.main.ignore_row', false)
+            ->assertJsonPath('data.main.user.id', $user->id);
 
         $tasksResponse = $this->withMobileToken($user)
             ->getJson(route('api.mobile.workorders.tasks.index', $workorder->id));

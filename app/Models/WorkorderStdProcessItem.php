@@ -69,7 +69,6 @@ class WorkorderStdProcessItem extends Model
             'qty' => (int) $this->remaining_qty,
             'manual' => $this->manual,
             'eff_code' => StdProcess::normalizeEffCodeForStorage($this->eff_code) ?? '',
-            'kit_prl_choice_group' => trim((string) ($this->component?->kit_prl_choice_group ?? '')),
         ];
     }
 }

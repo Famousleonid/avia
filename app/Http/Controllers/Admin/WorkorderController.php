@@ -18,6 +18,7 @@ use App\Models\Workorder;
 use App\Models\TdrProcess;
 use App\Services\Workorders\DraftWorkorderMatchService;
 use App\Services\Workorders\WorkorderVisibilityService;
+use App\Services\WorkorderScopeService;
 use App\Services\WorkorderStdListProcessesService;
 use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Database\Eloquent\Builder;
@@ -97,6 +98,7 @@ class WorkorderController extends Controller
             'approve_at'     => 'Approve date',
             'approve_name'   => 'Approved by',
             'description'    => 'Description',
+            'bushing_process_catalog' => 'Bushing Process CMM',
             'shipping_shipment_at'        => 'Shipment',
             'shipping_freight_forwarder'  => 'Freight Forwarder',
             'shipping_awb_no'             => 'AWB No.',
@@ -151,6 +153,7 @@ class WorkorderController extends Controller
             'date_finish'    => 'Finish',
             'main_id'        => 'Main ID',
             'bushing_save'   => 'Bushing Save',
+            'bushing_process_catalog' => 'Bushing Process CMM',
         ];
 
         $formatValue = function ($field, $value) use ($unitsMap, $customersMap, $instructionsMap, $usersMap) {
@@ -949,12 +952,13 @@ class WorkorderController extends Controller
         $notUsedManualIds = $workorder->notUsedManualIds();
         $canUpdateWorkorderManuals = auth()->user()?->can('workorders.manageManuals') ?? false;
         $workorderScopeDisplay = $scopeResolver->displayLabelForWorkorder($workorder);
+        $workorderScopeSelection = app(WorkorderScopeService::class)->businessSelectionForWorkorder($workorder);
 
-        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs','canChangeTechnik', 'workorderManualPackage', 'notUsedManualIds', 'canUpdateWorkorderManuals', 'workorderScopeDisplay'));
+        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs','canChangeTechnik', 'workorderManualPackage', 'notUsedManualIds', 'canUpdateWorkorderManuals', 'workorderScopeDisplay', 'workorderScopeSelection'));
 
     }
 
-    public function update(Request $request, Workorder $workorder)
+    public function update(Request $request, Workorder $workorder, WorkorderScopeService $scopeService)
     {
         abort_unless(auth()->user()?->can('workorders.update'), 403);
 
@@ -1086,6 +1090,29 @@ class WorkorderController extends Controller
         }
 
         $oldUnitId = $workorder->unit_id;
+        $oldScope = $scopeService->values($workorder);
+        $submittedScope = null;
+        if ($request->exists('scope_type')) {
+            $selectedUnit = Unit::query()->findOrFail((int) $request->input('unit_id'));
+            $submittedScope = $scopeService->normalizeSelection($request->all(), $selectedUnit, $workorder);
+        }
+
+        if ($workorder->modified_scope_part_group_option_id) {
+            if ((int) $oldUnitId !== (int) $request->input('unit_id')
+                || ($submittedScope !== null && $submittedScope !== $oldScope)) {
+                return back()
+                    ->withErrors([
+                        'scope_type' => __('Deselect the active assembly conversion in Repair & Modification before changing the received Work Scope.'),
+                    ])
+                    ->withInput();
+            }
+
+            // Modified is controlled by the selected R&M SB conversion while
+            // the original received Work Scope remains unchanged.
+            $targetPartNumber = trim((string) $workorder->modifiedScopePartGroupOption?->part_number);
+            $request->merge(['modified' => $targetPartNumber]);
+        }
+
         $overhaulId = Instruction::overhaulId();
         $wasOverhaul = $overhaulId !== null && (int) $workorder->instruction_id === (int) $overhaulId;
         $newInstructionId = (int) $request->instruction_id;
@@ -1094,9 +1121,20 @@ class WorkorderController extends Controller
         $workorder->update($request->except([
             'description',
             'not_used_manual_ids',
+            'scope_type',
+            'scope_target_id',
+            'scope_component_id',
+            'scope_part_group_option_id',
         ]));
 
-        if ((int) $oldUnitId !== (int) $workorder->unit_id) {
+        if ($submittedScope !== null) {
+            // A Unit change snapshots its default scope in the model event. The
+            // explicit Workorder selection on this form must win afterwards.
+            $workorder->forceFill($submittedScope)->save();
+        }
+
+        $scopeChanged = $oldScope !== $scopeService->values($workorder);
+        if ((int) $oldUnitId !== (int) $workorder->unit_id || $scopeChanged) {
             app(WorkorderStdProcessItemsService::class)->rebuild(
                 $workorder->fresh(['unit.manuals', 'instruction'])
             );
@@ -1245,7 +1283,8 @@ class WorkorderController extends Controller
 
             if ($main = $mainQuery->first()) {
                 $main->date_finish = null;
-                $main->user_id = null;
+                // Clearing the approval date is a date edit too: keep its author.
+                $main->user_id = $user->id;
                 $main->save();
             }
         } else {
@@ -1452,7 +1491,8 @@ class WorkorderController extends Controller
                 'fc_document'      => ['kind' => 'fc',         'label' => 'F&C'],
                 'machining_final'  => ['kind' => 'machining',  'label' => 'Machining'],
             ];
-            $uploadLabels = ['ec_approved' => 'EC Approved', 'general' => 'General'];
+            $uploadCategories = \App\Models\DocumentCategory::withTrashed()->orderBy('name')->get();
+            $uploadLabels = $uploadCategories->pluck('name', 'key')->all();
 
             $pdfs = $workorder->getMedia('pdfs')
                 ->map(function ($media) use ($workorder, $genBySource, $uploadLabels) {
@@ -1476,6 +1516,7 @@ class WorkorderController extends Controller
                     'size' => $media->size,
                     'mime_type' => $media->mime_type,
                     'created_at' => $media->created_at->format('Y-m-d H:i:s'),
+                    'display_date' => format_project_date($media->created_at),
                     'kind' => $kind,
                     'kind_label' => $label,
                     // generated documents (EC drawings / F&C / Machining) — hidden unless "Show generated"
@@ -1496,6 +1537,8 @@ class WorkorderController extends Controller
                 'success' => true,
                 'pdfs' => $pdfs,
                 'count' => count($pdfs),
+                'upload_categories' => $uploadCategories->filter(fn ($category) => ! $category->trashed())->values()->map->only(['key', 'name']),
+                'document_categories' => $uploadCategories->map(fn ($category) => ['key' => $category->key, 'name' => $category->name.($category->trashed() ? ' (removed)' : '')]),
             ]);
         } catch (\Throwable $e) {
             Log::error("PDF list failed for workorder $id: {$e->getMessage()}");

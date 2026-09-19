@@ -1547,16 +1547,25 @@ class VendorTrackingTest extends TestCase
         $makeProcess('QA Traveler Two B', 6, true, 2);
         $makeProcess('QA Last Single', 7);
 
-        $this->actingAs($admin)
-            ->get(route('mains.show', $workorder))
+        $mainResponse = $this->actingAs($admin)
+            ->get(route('mains.show', $workorder));
+
+        $mainResponse
             ->assertOk()
             ->assertSeeInOrder([
                 $names['QA First Single']->name,
                 $names['QA Second Single']->name,
                 'Traveler 1',
+                $names['QA Traveler One A']->name,
+                $names['QA Traveler One B']->name,
                 'Traveler 2',
+                $names['QA Traveler Two A']->name,
+                $names['QA Traveler Two B']->name,
                 $names['QA Last Single']->name,
-            ]);
+            ])
+            ->assertSee('data-main-traveler-toggle="main-traveler-' . $tdr->id . '-1"', false)
+            ->assertSee('data-main-traveler-details="main-traveler-' . $tdr->id . '-1"', false)
+            ->assertSee('aria-expanded="false"', false);
 
         $this->actingAs($admin)
             ->get(route('vendor-tracking.index', [
@@ -1775,6 +1784,207 @@ class VendorTrackingTest extends TestCase
         $this->assertSame($workorder->number, $ungroupedProperties['workorder_number']);
         $this->assertSame([2], $ungroupedProperties['traveler_groups']);
         $this->assertEqualsCanonicalizing([$first->id, $second->id], $ungroupedProperties['process_ids']);
+    }
+
+    public function test_technician_and_team_leader_cannot_ungroup_traveler_with_assigned_ro(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $technician = $this->createUserWithRole('Technician');
+        $teamLeader = $this->createUserWithRole('Team Leader');
+        $workorder = $this->createWorkorder(['user_id' => $technician->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'TR-RO-LOCK-' . uniqid(),
+            'name' => 'Traveler RO Lock Component',
+            'ipl_num' => '5-2',
+            'eff_code' => 'ALL',
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Traveler RO Lock Process ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $process = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'in_traveler' => true,
+            'traveler_group' => 1,
+            'repair_order' => 'R1234',
+        ]);
+
+        foreach ([$technician, $teamLeader] as $restrictedUser) {
+            $this->flushSession();
+            $this->actingAs($restrictedUser)
+                ->postJson(route('tdr-processes.traveler-ungroup', ['tdrId' => $tdr->id]), [
+                    'traveler_group' => 1,
+                ])
+                ->assertForbidden()
+                ->assertJsonPath('success', false)
+                ->assertJsonPath('message', 'A Traveler with an assigned RO can only be ungrouped by an Admin or Manager.');
+
+            $this->assertDatabaseHas('tdr_processes', [
+                'id' => $process->id,
+                'in_traveler' => true,
+                'traveler_group' => 1,
+                'repair_order' => 'R1234',
+            ]);
+        }
+
+        $this->flushSession();
+        $this->actingAs($technician)
+            ->get(route('tdr-processes.processesBody', ['tdrId' => $tdr->id]))
+            ->assertOk()
+            ->assertSee('data-traveler-ro-locked="1"', false)
+            ->assertSee('disabled aria-disabled="true"', false);
+
+        $this->flushSession();
+        $this->actingAs($admin)
+            ->postJson(route('tdr-processes.traveler-ungroup', ['tdrId' => $tdr->id]), [
+                'traveler_group' => 1,
+            ])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+    }
+
+    public function test_technician_and_team_leader_cannot_structurally_change_any_process_with_assigned_ro(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $teamLeader = $this->createUserWithRole('Team Leader');
+        $manager = $this->createUserWithRole('Manager');
+        $workorder = $this->createWorkorder(['user_id' => $technician->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'PROCESS-RO-LOCK-' . uniqid(),
+            'name' => 'Process RO Lock Component',
+            'ipl_num' => '5-3',
+            'eff_code' => 'ALL',
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Process RO Lock ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $process = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'in_traveler' => false,
+            'repair_order' => 'R2468',
+        ]);
+
+        foreach ([$technician, $teamLeader] as $restrictedUser) {
+            $this->flushSession();
+            $this->actingAs($restrictedUser)
+                ->get(route('tdr-processes.editForm', ['id' => $process->id]))
+                ->assertForbidden();
+
+            $this->actingAs($restrictedUser)
+                ->get(route('tdr-processes.edit', ['tdr_process' => $process->id]))
+                ->assertForbidden();
+
+            $this->actingAs($restrictedUser)
+                ->putJson(route('tdr-processes.update', ['tdr_process' => $process->id]), [])
+                ->assertForbidden()
+                ->assertJsonPath('message', 'A process with an assigned RO can only be changed by an Admin or Manager.');
+
+            $this->actingAs($restrictedUser)
+                ->deleteJson(route('tdr-processes.destroy', ['tdr_process' => $process->id]), [
+                    'tdrId' => $tdr->id,
+                ])
+                ->assertForbidden()
+                ->assertJsonPath('message', 'A process with an assigned RO can only be deleted by an Admin or Manager.');
+
+            $this->actingAs($restrictedUser)
+                ->postJson(route('tdr-processes.traveler-group', ['tdrId' => $tdr->id]), [
+                    'process_ids' => [$process->id],
+                ])
+                ->assertForbidden()
+                ->assertJsonPath('message', 'A process with an assigned RO can only be grouped by an Admin or Manager.');
+
+            $this->assertDatabaseHas('tdr_processes', [
+                'id' => $process->id,
+                'in_traveler' => false,
+                'repair_order' => 'R2468',
+            ]);
+        }
+
+        $this->flushSession();
+        $this->actingAs($technician)
+            ->get(route('tdr-processes.processesBody', ['tdrId' => $tdr->id]))
+            ->assertOk()
+            ->assertSee('data-process-ro-locked="grouping"', false)
+            ->assertSee('data-process-ro-locked="edit"', false)
+            ->assertSee('data-process-ro-locked="delete"', false)
+            ->assertSee('data-process-ro-delete-tooltip', false)
+            ->assertSee('data-bs-delay=\'{"show":500,"hide":100}\'', false)
+            ->assertSee('Deletion is unavailable because this process has an assigned RO.', false)
+            ->assertDontSee('class="btn btn-outline-primary btn-sm me-2 load-edit-process" data-tdr-process-id="'.$process->id.'"', false)
+            ->assertDontSee('class="btn btn-outline-danger btn-sm ajax-delete-process" data-tdr-process-id="'.$process->id.'"', false);
+
+        $this->flushSession();
+        $this->actingAs($manager)
+            ->get(route('tdr-processes.editForm', ['id' => $process->id]))
+            ->assertOk();
+    }
+
+    public function test_technician_can_reorder_processes_with_assigned_ro(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $technician->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'PROCESS-RO-ORDER-' . uniqid(),
+            'name' => 'Process RO Order Component',
+            'ipl_num' => '5-4',
+            'eff_code' => 'ALL',
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Process RO Order ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $first = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'repair_order' => 'R2468',
+            'sort_order' => 1,
+        ]);
+        $second = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'repair_order' => 'R1357',
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($technician)
+            ->postJson(route('tdr-processes.update-order'), [
+                'process_ids' => [$second->id, $first->id],
+            ])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertSame(1, (int) $second->fresh()->sort_order);
+        $this->assertSame(2, (int) $first->fresh()->sort_order);
     }
 
     public function test_individual_traveler_process_updates_apply_to_whole_group(): void

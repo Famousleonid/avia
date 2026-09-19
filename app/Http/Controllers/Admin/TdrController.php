@@ -576,7 +576,7 @@ class TdrController extends Controller
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
             ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
 
-        if ($request->boolean('exclude_kits')) {
+        if ($current_wo->isOverhaul() && $request->boolean('exclude_kits')) {
             $componentsQuery
                 ->where(function ($query) {
                     $query->where('kit', false)->orWhereNull('kit');
@@ -622,7 +622,7 @@ class TdrController extends Controller
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
             ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
 
-        if ($request->boolean('exclude_kits')) {
+        if ($request->boolean('exclude_kits') && (! $workorder || $workorder->isOverhaul())) {
             $componentsQuery
                 ->where(function ($query) {
                     $query->where('kit', false)->orWhereNull('kit');
@@ -927,7 +927,7 @@ class TdrController extends Controller
                 ]);
             }
 
-            if ($orderComponent?->kit) {
+            if ($workorder->isOverhaul() && $orderComponent?->kit) {
                 throw ValidationException::withMessages([
                     'order_component_id' => __('This part is already included in KIT and must not be duplicated in PRL.'),
                 ]);
@@ -1824,9 +1824,7 @@ class TdrController extends Controller
         ));
         $bushingComponents = $components->filter(fn ($component): bool => (bool) ($component->is_bush ?? false))->values();
         $hasBushings = $bushingComponents->isNotEmpty();
-        $bushingPrlCount = $bushingComponents
-            ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component))
-            ->count();
+        $bushingPrlCount = app(TdrPrintFormController::class)->countBushingPrlRows($current_wo);
         $kitComponents = $this->filterComponentsForUnit(
             Component::query()
                 ->whereIn('manual_id', $current_wo->usedManualIds())
@@ -1834,14 +1832,15 @@ class TdrController extends Controller
                 ->get(),
             $current_wo
         );
-        if ($current_wo->scope_type === Unit::SCOPE_COMPONENT) {
+        if (! $current_wo->isOverhaul() || $current_wo->scope_type === Unit::SCOPE_COMPONENT) {
             $kitComponents = collect();
         }
+        $bushingGroupKeys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($kitComponents->pluck('manual_id')->all(), 'prl');
         $kitPrlCount = $this->countKitPrlGroups(
             $kitComponents->reject(fn (Component $component): bool => (bool) $component->is_bush)
         ) + $kitComponents
             ->filter(fn (Component $component): bool => (bool) $component->is_bush)
-            ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component))
+            ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component, $bushingGroupKeys))
             ->count();
         $stdFormCounts = [
             'ndt' => $this->countStdFormQty($current_wo, StdProcess::STD_NDT),
@@ -1962,6 +1961,15 @@ class TdrController extends Controller
             ->map(fn ($tdrId) => (int) $tdrId)
             ->unique()
             ->values();
+        $roLockedTdrIds = TdrProcess::query()
+            ->whereIn('tdrs_id', $tdrs->pluck('id'))
+            ->whereNotNull('repair_order')
+            ->get(['tdrs_id', 'repair_order'])
+            ->filter(fn (TdrProcess $process): bool => filled(trim((string) $process->repair_order)))
+            ->pluck('tdrs_id')
+            ->map(fn ($tdrId): int => (int) $tdrId)
+            ->unique()
+            ->values();
         $vendors = Vendor::all();
 
         $groupFormTdrs = Tdr::where('workorder_id', $current_wo->id)
@@ -2010,7 +2018,7 @@ class TdrController extends Controller
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'bushingPrlCount', 'kitPrlCount', 'prl_parts', 'prlPartsCount', 'tdrEcIds', 'vendors', 'processGroups', 'totalQty', 'hasTransfers',
+            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'bushingPrlCount', 'kitPrlCount', 'prl_parts', 'prlPartsCount', 'tdrEcIds', 'roLockedTdrIds', 'vendors', 'processGroups', 'totalQty', 'hasTransfers',
             'transfersIncomingGroupsWithMultiple', 'transfersHasOutgoingGroup',
             'hasMissingParts', 'missingCondition', 'missingPartsCount', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs',
             'stdFormCounts', 'spFormColumnsCount', 'bushingSpFormColumnsCount', 'rmFormRowsCount', 'tdrFormRowsCount',
@@ -2321,7 +2329,7 @@ class TdrController extends Controller
             : collect([$tdr]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         // Логируем начало метода
         // Log::info('Начало удаления записи TDR с ID: ' . $id);
@@ -2333,6 +2341,23 @@ class TdrController extends Controller
         $workorderId = $tdr->workorder_id;
         $tdrCodesId = $tdr->codes_id;
         $tdrIdsToDelete = $this->manufactureRowsForDeletion($tdr)->pluck('id')->all();
+
+        $restrictedByAssignedProcessRo = ($request->user()?->roleIs(['Technician', 'Team Leader']) ?? false)
+            && TdrProcess::query()
+                ->whereIn('tdrs_id', $tdrIdsToDelete)
+                ->whereNotNull('repair_order')
+                ->get(['repair_order'])
+                ->contains(fn (TdrProcess $process): bool => filled(trim((string) $process->repair_order)));
+
+        if ($restrictedByAssignedProcessRo) {
+            $message = __('A TDR containing a process with an assigned RO can only be deleted by an Admin or Manager.');
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 403);
+            }
+
+            return back()->with('error', $message);
+        }
 
         // Логируем workorder_id
         // Log::info('Workorder ID: ' . $workorderId);
@@ -2693,7 +2718,7 @@ class TdrController extends Controller
         $groupedQtyByKey = [];
 
         foreach ($rows as $row) {
-            $qty = max(1, (int) ($row['qty'] ?? 1));
+            $qty = ! empty($row['group_crossed_out']) ? 0 : max(1, (int) ($row['qty'] ?? 1));
             $groupKey = $this->stdSuffixVariantCountGroupKey($row);
 
             if ($groupKey === null) {
@@ -2713,32 +2738,14 @@ class TdrController extends Controller
 
     private function stdSuffixVariantCountGroupKey(array $row): ?string
     {
-        $choiceGroup = trim((string) ($row['kit_prl_choice_group'] ?? ''));
-        if ($choiceGroup !== '') {
-            return implode('|', [
-                'choice',
-                trim((string) ($row['manual'] ?? '')),
-                mb_strtolower($choiceGroup),
-            ]);
-        }
-
-        $ipl = trim((string) ($row['ipl_num'] ?? ''));
-
-        if (! preg_match('/^(\d+[A-Za-z]*-\d+)(?:[A-Za-z]+)?$/', $ipl, $matches)) {
-            return null;
-        }
-
-        return implode('|', [
-            trim((string) ($row['manual'] ?? '')),
-            strtoupper((string) ($matches[1] ?? '')),
-            trim((string) ($row['process'] ?? '')),
-        ]);
+        return \App\Services\PartVariantGrouping::stdKey($row);
     }
 
     private function countKitPrlGroups($components): int
     {
+        $keys = app(\App\Services\PartVariantGrouping::class)->componentKeys($components);
         return collect($components)
-            ->groupBy(fn ($component): string => KitPrlGrouping::groupKeyForComponent($component))
+            ->groupBy(fn ($component): string => KitPrlGrouping::groupKeyForComponent($component, $keys))
             ->count();
     }
 
@@ -2797,55 +2804,9 @@ class TdrController extends Controller
 
     private function countBushingSpecProcessColumns(?WoBushing $woBushing): int
     {
-        if (! $woBushing) {
-            return 0;
-        }
-
-        $printableKeys = array_flip([
-            'machining',
-            'stress_relief',
-            'ndt',
-            'passivation',
-            'cad',
-            'anodizing',
-            'xylan',
-        ]);
-
-        $groups = [];
-        $lines = WoBushingLine::query()
-            ->where('workorder_id', $woBushing->workorder_id)
-            ->with(['component:id,part_number', 'processes.process.process_name'])
-            ->get();
-
-        foreach ($lines as $line) {
-            $processSignature = [];
-
-            foreach ($line->processes as $processRow) {
-                $key = WoBushingProcessColumnKey::fromProcess($processRow->process);
-                if (! isset($printableKeys[$key])) {
-                    continue;
-                }
-
-                $processSignature[] = $key . ':' . (int) $processRow->process_id;
-            }
-
-            $processSignature = array_values(array_unique($processSignature));
-            sort($processSignature, SORT_NATURAL);
-
-            if ($processSignature === []) {
-                continue;
-            }
-
-            $partNumber = mb_strtoupper(trim((string) ($line->component?->part_number ?? '')));
-            if ($partNumber === '') {
-                continue;
-            }
-
-            $signature = implode('|', $processSignature);
-            $groups[$signature][$partNumber] = true;
-        }
-
-        return collect($groups)->sum(fn (array $partNumbers): int => (int) ceil(count($partNumbers) / 42));
+        return $woBushing
+            ? count(app(\App\Services\BushingSpecProcessGroups::class)->build($woBushing->workorder))
+            : 0;
     }
 
     private function countRmFormRows(Workorder $workorder): int

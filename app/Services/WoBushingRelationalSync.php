@@ -112,7 +112,10 @@ class WoBushingRelationalSync
         DB::transaction(function () use ($woBushing, $groupBushingsData, $workorderId, $bushDataArray) {
             // До удаления строк: запомнить party/даты по (component_id × колонка шапки), иначе после Update из модалки теряются batch_id и «Grp».
             $preserveByComponent = [];
-            $existingLines = $woBushing->lines()->with(['processes.process.process_name'])->get();
+            $existingLines = $woBushing->lines()->with(['processes.process.process_name', 'processes.batch'])->get();
+            $routeBatches = app(BushingRouteBatches::class);
+            $protectedIds = $routeBatches->protectedLineIds($existingLines);
+            $protectedComponents = $existingLines->whereIn('id', $protectedIds)->pluck('component_id')->all();
             foreach ($existingLines as $oldLine) {
                 $cid = (int) $oldLine->component_id;
                 foreach ($oldLine->processes as $wp) {
@@ -133,7 +136,7 @@ class WoBushingRelationalSync
                 }
             }
 
-            $woBushing->lines()->delete();
+            $woBushing->lines()->whereNotIn('id', $protectedIds)->delete();
 
             $sortOrder = 0;
             foreach ($groupBushingsData as $groupKey => $groupData) {
@@ -142,6 +145,10 @@ class WoBushingRelationalSync
                 }
                 foreach ($this->normalizeGroupRows($groupData) as $rowData) {
                     $componentId = (int) $rowData['component_id'];
+                    if (in_array($componentId, $protectedComponents)) {
+                        $sortOrder++;
+                        continue;
+                    }
                     $qty = (int) $rowData['qty'];
                     $processes = $rowData['processes'];
 
@@ -224,6 +231,7 @@ class WoBushingRelationalSync
                     }
                 }
             }
+            $routeBatches->rebuild($woBushing);
         });
 
         return $bushDataArray;

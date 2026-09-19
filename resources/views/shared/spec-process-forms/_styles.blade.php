@@ -12,6 +12,11 @@
     height: var(--spec-process-row-height);
     width: 30px;
 }
+.spec-process-row-cell .spec-process-number-list {
+    font-size: calc(var(--spec-process-name-font-size) * 0.72) !important;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
+}
 .spec-process-empty-divider {
     position: absolute;
     left: 29px;

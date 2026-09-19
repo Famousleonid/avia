@@ -24,7 +24,8 @@ class WorkorderKitPrlCrossoutController extends Controller
         ]);
 
         $workorder->loadMissing('unit');
-        $belongsToKit = (bool) $component->kit
+        $belongsToKit = $workorder->isOverhaul()
+            && (bool) $component->kit
             && in_array((int) $component->manual_id, $workorder->usedManualIds(), true)
             && $branchRules->allowsComponentForUnit(
                 $workorder->unit,

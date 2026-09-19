@@ -675,17 +675,32 @@
                         @php
                             $component = $slotData['item']?->component ?? null;
                             $currentTdrId = $component ? $component->id : null;
-                            $processForCurrentTdr = $processes
-                                ->where('process_name_id', $name->id)
-                                ->where('tdrs_id', $currentTdrId)
-                                ->values();
+                            $quarantineNumberLine = $slotData['item']?->quarantineNumberLine;
+                            $slot = $slotData['slot'];
+                            $processForCurrentTdr = collect();
+                            if ($name->id && $currentTdrId) {
+                                $occurrenceIndex = max(0, (int) ($name->sp_occurrence_index ?? 0));
+                                $processForCurrentTdr = $processes
+                                    ->where('process_name_id', $name->id)
+                                    ->where('tdrs_id', $currentTdrId);
+                                if ($name->sp_separate_occurrence ?? false) {
+                                    $processForCurrentTdr = $processForCurrentTdr->slice($occurrenceIndex, 1);
+                                }
+                                $processForCurrentTdr = $processForCurrentTdr->values();
+                            }
                             $entries = $processForCurrentTdr->filter(fn($p) => $p['number_line'] !== null);
-                            $numberLines = $entries->pluck('number_line')->unique()->implode(',');
-                            $repairOrderText = $entries->pluck('repair_order')->filter(fn($value) => trim((string) $value) !== '')->unique()->implode(', ');
+                            $visibleEntries = $entries;
+                            if ($slot === 'left' && $quarantineNumberLine !== null) {
+                                $visibleEntries = $entries->filter(fn($p) => $p['number_line'] <= $quarantineNumberLine);
+                            } elseif ($slot === 'right' && $quarantineNumberLine !== null) {
+                                $visibleEntries = $entries->filter(fn($p) => $p['number_line'] > $quarantineNumberLine);
+                            }
+                            $numberLines = $visibleEntries->pluck('number_line')->unique()->implode(',');
+                            $repairOrderText = $visibleEntries->pluck('repair_order')->filter(fn($value) => trim((string) $value) !== '')->unique()->implode(', ');
                         @endphp
-                        <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-process-row-cell">
+                        <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-process-row-cell" data-sp-process-id="{{ (int) ($name->id ?? 0) }}" data-sp-slot="{{ $slotData['slot'] }}" data-sp-number-lines="{{ $numberLines }}">
                             @if($numberLines)
-                                <div class="border-r spec-process-row-inner filled-data">
+                                <div class="border-r spec-process-row-inner filled-data{{ str_contains($numberLines, ',') ? ' spec-process-number-list' : '' }}">
                                     {{ $numberLines }}
                                 </div>
                                 @if($repairOrderText !== '')
