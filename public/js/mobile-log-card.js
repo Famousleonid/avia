@@ -191,12 +191,22 @@
             <input type="radio" class="form-check-input mt-1" name="${key}" value="${payloadAttr(choice)}" ${index === 0 ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
             <span><strong>${escapeHtml(choice.part_number || '—')}</strong> · IPL ${escapeHtml(choice.ipl_num || '—')} · ${escapeHtml(choice.name || '')}</span>
         </label>`).join('');
+        const assemblySelectors = choices.map((choice, index) => {
+            if ((choice.assembly_choices || []).length < 2) return '';
+            return `<label class="mobile-group-assy-choice small mt-2 w-100" data-component-id="${choice.component_id}" ${index === 0 ? '' : 'hidden'}>
+                Select your ASSY
+                <select class="form-select form-select-sm draft-assy-choice" ${disabled ? 'disabled' : ''}>
+                    ${choice.assembly_choices.map(assy => `<option value="${assy.group_id}" ${Number(assy.group_id) === Number(group.group_id) ? 'selected' : ''}>${escapeHtml(assy.ipl_num)} / ${escapeHtml(assy.part_number)}</option>`).join('')}
+                </select>
+            </label>`;
+        }).join('');
         return `<article class="mobile-log-card-row mobile-log-card-draft-choice p-2 mt-2" data-draft-kind="assy" data-group-key="${escapeHtml(group.group_key)}" data-manual-id="${manual.id}" data-group-id="${group.group_id}">
             <div class="d-flex align-items-start justify-content-between gap-2">
-                <span class="fw-semibold min-w-0">${escapeHtml(group.name || 'ASSY group')}</span>
+                <span class="fw-semibold min-w-0">${escapeHtml(choices.some(choice => (choice.assembly_choices || []).length > 1) ? 'Part / ASSY' : (group.name || 'ASSY group'))}</span>
                 ${disabled ? '' : draftPhotoButton()}
             </div>
             <div class="mt-2">${radios}</div>
+            ${assemblySelectors}
             <div class="mt-2"><input type="text" class="form-control form-control-sm draft-serial" maxlength="255" placeholder="Received S/N" ${disabled ? 'disabled' : ''}></div>
         </article>`;
     }
@@ -282,6 +292,12 @@
             row.manual_part_group_id = Number(card.dataset.groupId);
             row.manual_part_group_choice = choice.choice_kind || 'component';
             if (choice.manual_part_group_option_id) row.manual_part_group_option_id = Number(choice.manual_part_group_option_id);
+            const selector = Array.from(card.querySelectorAll('.mobile-group-assy-choice'))
+                .find(label => Number(label.dataset.componentId) === Number(choice.component_id))?.querySelector('select');
+            if (selector && row.manual_part_group_choice === 'component') {
+                row.manual_part_group_id = Number(selector.value);
+                row.assy_selection_explicit = '1';
+            }
         }
         if (choice.assemblies?.length) row.component_assembly_id = Number(choice.assemblies[0].id);
         return row;
@@ -658,6 +674,13 @@
 
     content.addEventListener('change', event => {
         const control = event.target;
+        const draftAssy = control.closest('[data-draft-kind="assy"]');
+        if (draftAssy && control.matches('input[type="radio"]')) {
+            const choice = decodePayload(control.value);
+            draftAssy.querySelectorAll('.mobile-group-assy-choice').forEach(label => {
+                label.hidden = Number(label.dataset.componentId) !== Number(choice.component_id);
+            });
+        }
         if (control.matches('[data-row-variant]')) return void changeVariant(control);
         if (control.matches('[data-row-assembly]')) return void changeAssembly(control);
         if (control.matches('[data-row-field]')) return void saveRowField(control);

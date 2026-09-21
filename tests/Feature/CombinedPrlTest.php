@@ -18,6 +18,139 @@ class CombinedPrlTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    /** @dataProvider sleeveBushingQuantities */
+    public function test_manufacture_sleeve_order_does_not_get_a_crossed_out_bushing_duplicate(?int $bushingQty): void
+    {
+        // Production WO107951: Manufacture 14-5/2821-0000RS20, KIT=0,
+        // is_bush=1, qty=1; originally no separate WoBushingLine.
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
+        $part = Component::create(['manual_id' => $wo->unit->manual_id,
+            'ipl_num' => '14-5', 'part_number' => '2821-0000RS20', 'name' => 'REPAIR SLEEVE',
+            'bush_ipl_num' => '14-5', 'is_bush' => true, 'kit' => false, 'units_assy' => 1]);
+        $tdr = Tdr::create(['workorder_id' => $wo->id, 'component_id' => $part->id,
+            'order_component_id' => $part->id, 'qty' => 1, 'tdr_type' => Tdr::TYPE_MANUFACTURE_ORDER,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id,
+            'codes_id' => Code::firstOrCreate(['name' => 'Manufacture'])->id]);
+        if ($bushingQty !== null) {
+            $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+            WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
+                'component_id' => $part->id, 'qty' => $bushingQty, 'qty_remaining' => $bushingQty, 'do_not_order' => false]);
+        }
+        $response = $this->actingAs($admin)->get(route('tdrs.prlForm', $wo))->assertOk();
+        $rows = collect($response->viewData('ordersParts'));
+        $this->assertCount($bushingQty === 2 ? 2 : 1, $rows);
+        $this->assertSame($tdr->id, $rows->first()->id);
+        $this->assertSame(1, (int) $rows->first()->qty);
+        $this->assertSame($bushingQty === 2 ? 1 : 0,
+            app(\App\Http\Controllers\Admin\TdrPrintFormController::class)->countBushingPrlRows($wo));
+        foreach ($rows as $row) {
+            $this->assertFalse((bool) data_get($row, 'prl_crossed_out', false));
+            $this->assertNotContains(data_get($row, 'codes.code'), ['K', 'KIT']);
+        }
+        if ($bushingQty === 2) {
+            $this->assertSame(1, $rows->last()['qty']);
+            $this->assertSame(1, $rows->last()['prl_part_numbers'][0]['qty']);
+        } else {
+            $this->assertSame(1, substr_count($response->getContent(), '2821-0000RS20'));
+        }
+        $this->assertFalse((bool) $part->fresh()->kit);
+        $this->assertSame(1, (int) $tdr->fresh()->qty);
+    }
+
+    public static function sleeveBushingQuantities(): array
+    {
+        return ['TDR only, WO107951' => [null], 'also selected in Bushings' => [1], 'larger bushing order' => [2]];
+    }
+
+    public function test_tdr_bushing_dedup_keeps_other_variants_and_same_pn_in_other_positions(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
+        $parts = collect();
+        foreach ([['14-5', '14-5', 'SLEEVE'], ['14-6', '14-5', 'SLEEVE-OS'], ['14-10', '14-10', 'SLEEVE']] as [$ipl, $base, $pn]) {
+            $parts->push(Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => $ipl,
+                'part_number' => $pn, 'name' => 'Sleeve', 'bush_ipl_num' => $base,
+                'is_bush' => true, 'kit' => false, 'units_assy' => 2]));
+        }
+        // The ordered component, not the inspected source component, is authoritative.
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[2]->id,
+            'order_component_id' => $parts[0]->id, 'qty' => 1,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id,
+            'codes_id' => Code::firstOrCreate(['name' => 'Manufacture'])->id]);
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        foreach ([$parts[1], $parts[2]] as $part) {
+            WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
+                'component_id' => $part->id, 'qty' => 1, 'qty_remaining' => 1, 'do_not_order' => false]);
+        }
+        $response = $this->actingAs($admin)->get(route('tdrs.prlForm', $wo))->assertOk();
+        $rows = collect($response->viewData('ordersParts'));
+        $this->assertCount(3, $rows);
+        $options = $rows->filter(fn ($row) => is_array($row))->flatMap(fn ($row) => $row['prl_part_numbers']);
+        $this->assertEqualsCanonicalizing([$parts[1]->id, $parts[2]->id], $options->pluck('component_id')->all());
+        foreach ($options as $option) {
+            $this->assertFalse($option['crossed_out']);
+            $this->assertSame(1, $option['qty']);
+        }
+    }
+
+    /** @dataProvider familyOrders */
+    public function test_kit_pays_for_shared_original_oversize_quantity_without_changing_flags(array $quantities): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
+        $parts = collect();
+        foreach ([['14-100', 2, true], ['14-101', 1, false], ['14-102', 1, true]] as [$ipl, $qty, $kit]) {
+            $parts->push(Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => $ipl,
+                'part_number' => 'FAMILY-'.$ipl, 'name' => 'Shoulder bushing', 'bush_ipl_num' => '14-100',
+                'is_bush' => true, 'units_assy' => $qty, 'kit' => $kit]));
+        }
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        foreach ($quantities as $index => $qty) {
+            WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
+                'component_id' => $parts[$index]->id, 'qty' => $qty, 'qty_remaining' => $qty, 'do_not_order' => false]);
+        }
+        $kit = $this->actingAs($admin)->get(route('tdrs.kitForm', $wo))->assertOk();
+        $row = collect($kit->viewData('ordersParts'))->firstWhere('prl_bushing_group', '14-100');
+        $this->assertSame(2, $row['bushing_kit_capacity']);
+        $this->assertCount(3, $row['prl_part_numbers']);
+        $options = collect($row['prl_part_numbers'])->keyBy('component_id');
+        foreach ($parts as $index => $part) {
+            $this->assertSame($quantities[$index] ?? null, $options[$part->id]['qty']);
+            $this->assertSame($quantities !== [] && ! isset($quantities[$index]), $options[$part->id]['crossed_out']);
+        }
+        $extra = $this->get(route('tdrs.prlForm', $wo))->assertOk();
+        $this->assertCount(0, $extra->viewData('ordersParts'));
+        $this->patchJson(route('tdrs.kit-crossouts.update', [$wo, $parts[1]]), ['crossed_out' => true])->assertOk();
+        $this->assertFalse((bool) $parts[1]->fresh()->kit);
+        $this->assertSame('1', (string) $parts[1]->fresh()->units_assy);
+    }
+
+    public static function familyOrders(): array
+    {
+        return ['pending' => [[]], 'two original' => [[0 => 2]], 'two oversize' => [[1 => 2]],
+            'mixed' => [[0 => 1, 1 => 1]], 'one only' => [[1 => 1]]];
+    }
+
+    public function test_identical_pn_in_another_bushing_position_does_not_use_the_kit_family_budget(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        foreach (['14-100' => true, '14-200' => false] as $ipl => $kit) {
+            $part = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => $ipl,
+                'part_number' => 'SHARED-PN', 'name' => 'Bushing', 'bush_ipl_num' => $ipl,
+                'is_bush' => true, 'units_assy' => 2, 'kit' => $kit]);
+            WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
+                'component_id' => $part->id, 'qty' => 2, 'qty_remaining' => 2, 'do_not_order' => false]);
+        }
+        $response = $this->actingAs($admin)->get(route('tdrs.prlForm', $wo))->assertOk();
+        $rows = collect($response->viewData('ordersParts'));
+        $this->assertCount(1, $rows);
+        $this->assertSame('14-200', $rows->first()['prl_bushing_group']);
+        $this->assertSame(2, $rows->first()['prl_part_numbers'][0]['qty']);
+    }
+
     public function test_non_overhaul_prl_preserves_kit_parts_and_quantities_and_has_no_kit_actions(): void
     {
         $admin = $this->createUserWithRole('Admin');

@@ -205,9 +205,17 @@ class WoBushingSortingTest extends TestCase
             'name' => 'Oversize bushing',
             'bush_ipl_num' => '8-250',
             'is_bush' => true,
-            'units_assy' => 2,
+            'units_assy' => 1,
         ]);
         $headers = ['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'];
+        $form = $this->actingAs($admin)->get(route('wo_bushings.edit', $woBushing))->assertOk();
+        $this->assertMatchesRegularExpression('/name="group_bushings\[8-250\]\[items\]\['.$oversize->id.'\]\[qty\]"[^>]*value="2"/s', $form->getContent());
+        $this->withHeaders($headers)->put(route('wo_bushings.update', $woBushing), [
+            'group_bushings' => ['8-250' => ['items' => [
+                $oversize->id => ['selected' => '1', 'qty' => '2', 'need_processes' => '0'],
+            ]]],
+        ])->assertOk();
+        $this->assertSame(2, (int) WoBushingLine::where('wo_bushing_id', $woBushing->id)->where('component_id', $oversize->id)->value('qty'));
         $payload = fn (int $originalQty, int $oversizeQty): array => [
             'group_bushings' => [
                 '8-250' => [

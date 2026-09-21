@@ -833,6 +833,185 @@ class PartGroupsTest extends TestCase
         ]);
     }
 
+    public function test_assy_direct_letter_family_is_covered_without_an_alternative_group(): void
+    {
+        $scopes = ManualPartGroup::validScopes();
+        [$admin, $wo, $member, $group, $option] = $this->bundleFixture($scopes, 1);
+        $member->update(['ipl_num' => '5-70A']);
+        $family = collect([$member]);
+        foreach (['5-70', '5-70B', '5-70C'] as $ipl) {
+            $family->push($this->createPartGroupComponent($member->manual_id, $ipl, 'PN-'.$ipl));
+        }
+        $outsiders = [
+            $this->createPartGroupComponent($member->manual_id, '5-71', $member->part_number),
+            $this->createPartGroupComponent($member->manual_id, '6-70', 'OTHER-FIG'),
+            $this->createPartGroupComponent($this->createManual()->id, '5-70B', 'OTHER-MANUAL'),
+            $this->createPartGroupComponent($member->manual_id, '5-70D', 'BUSH'),
+        ];
+        $outsiders[3]->update(['is_bush' => true]);
+        $flags = ['ndt' => 'ndt_list', 'cad' => 'cad_list', 'stress' => 'stress_relief_list', 'paint' => 'paint_list'];
+        foreach ($family as $part) {
+            $part->update(array_merge(array_fill_keys(array_values($flags), true), ['kit' => true, 'units_assy' => 2]));
+            foreach ($flags as $std => $flag) {
+                StdProcess::query()->updateOrCreate(
+                    ['manual_id' => $part->manual_id, 'component_id' => $part->id, 'std' => $std],
+                    ['process' => '1', 'qty' => 2]
+                );
+            }
+        }
+        $wo->update(['instruction_id' => $this->createOverhaulInstruction()->id]);
+        $selection = WorkorderPartGroupSelection::query()->create([
+            'workorder_id' => $wo->id, 'manual_part_group_id' => $group->id,
+            'manual_part_group_option_id' => $option->id, 'qty' => 1, 'selected_by_user_id' => $admin->id,
+        ]);
+        foreach ([1, 2] as $orderedQty) {
+            $selection->update(['qty' => $orderedQty]);
+            foreach ($scopes as $scope) {
+                $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, $scope);
+                foreach ($family as $part) {
+                    $this->assertSame($orderedQty, $coverage[$part->id]['covered_qty']);
+                }
+                foreach ($outsiders as $part) {
+                    $this->assertArrayNotHasKey($part->id, $coverage);
+                }
+            }
+            foreach ($flags as $std => $flag) {
+                $rows = collect(app(WorkorderStdProcessItemsService::class)->snapshotRowsForWorkorder($wo, $std));
+                foreach ($family as $part) {
+                    $row = $rows->firstWhere('component_id', $part->id);
+                    $this->assertNotNull($row);
+                    $this->assertSame($orderedQty === 2, $row['group_crossed_out']);
+                    $this->assertSame(2 - $orderedQty, $row['qty']);
+                }
+            }
+            $html = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $wo->id]))->assertOk()->getContent();
+            foreach ($family as $part) {
+                $this->assertMatchesRegularExpression('/data-kit-prl-component-id="'.$part->id.'".*?data-kit-prl-controller-crossed-out="'.($orderedQty === 2 ? '1' : '0').'"/s', $html);
+            }
+        }
+        $this->assertSame(1, ManualPartGroup::where('manual_id', $member->manual_id)->count());
+    }
+
+    public function test_nested_assy_letter_family_counts_once_per_position_and_respects_scopes(): void
+    {
+        [$admin, $wo, $member, $child, $childOption] = $this->bundleFixture(['prl', 'ndt'], 2);
+        $variant = $this->createPartGroupComponent($member->manual_id, '1-10A', 'VARIANT');
+        // Existing imports may explicitly list both variants. They are not two parts.
+        $childOption->coverages()->create(['component_id' => $variant->id, 'qty' => 2, 'applies_to' => ['prl', 'ndt']]);
+        $parent = ManualPartGroup::create([
+            'manual_id' => $member->manual_id, 'code' => 'NEST-'.uniqid(), 'name' => 'Parent',
+            'type' => 'assy', 'behavior' => 'bundle', 'applies_to' => ['prl', 'ndt', 'paint'],
+        ]);
+        $parentOption = $parent->options()->create(['part_number' => 'PARENT', 'is_default' => true]);
+        $parentOption->coverages()->create(['covered_manual_part_group_option_id' => $childOption->id, 'qty' => 3, 'applies_to' => ['prl', 'ndt']]);
+        // A distinct, direct occurrence remains additive to the nested assembly.
+        $parentOption->coverages()->create(['component_id' => $member->id, 'qty' => 1, 'applies_to' => ['prl']]);
+        WorkorderPartGroupSelection::create([
+            'workorder_id' => $wo->id, 'manual_part_group_id' => $parent->id,
+            'manual_part_group_option_id' => $parentOption->id, 'qty' => 2, 'selected_by_user_id' => $admin->id,
+        ]);
+        foreach (['prl' => 14, 'ndt' => 12, 'paint' => 0] as $scope => $qty) {
+            $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, $scope);
+            foreach ([$member, $variant] as $part) {
+                $this->assertSame($qty, $coverage[$part->id]['covered_qty'] ?? 0);
+            }
+        }
+    }
+
+    public function test_ordering_assy_from_tdr_covers_a_legacy_nested_letter_group_once(): void
+    {
+        [$admin, $wo, $head, $group, $option] = $this->bundleFixture(['prl', 'ndt'], 1);
+        $option->update(['component_id' => $head->id]);
+        $family = collect(['5-70', '5-70A', '5-70B', '5-70C'])->map(
+            fn ($ipl) => $this->createPartGroupComponent($head->manual_id, $ipl, 'LETTER-'.$ipl)
+        );
+        $alternative = ManualPartGroup::create([
+            'manual_id' => $head->manual_id, 'code' => 'LEGACY-'.uniqid(), 'name' => 'Legacy letters',
+            'type' => 'alternative_pn', 'behavior' => 'choose_one', 'applies_to' => ['prl', 'ndt'],
+        ]);
+        foreach ($family as $part) {
+            $alternative->options()->create(['component_id' => $part->id, 'part_number' => $part->part_number]);
+        }
+        $option->coverages()->create([
+            'covered_manual_part_group_option_id' => $alternative->options()->first()->id,
+            'qty' => 2, 'applies_to' => ['prl', 'ndt'],
+        ]);
+        Tdr::create([
+            'workorder_id' => $wo->id, 'component_id' => $head->id, 'order_component_id' => $head->id,
+            'necessaries_id' => \App\Models\Necessary::firstOrCreate(['name' => 'Order New'])->id, 'qty' => 3,
+        ]);
+        foreach (['prl', 'ndt'] as $scope) {
+            $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, $scope);
+            foreach ($family as $part) {
+                $this->assertSame(6, $coverage[$part->id]['covered_qty']);
+            }
+        }
+        $this->assertSame(4, $alternative->options()->count());
+    }
+
+    public function test_assy_does_not_expand_a_restricted_explicit_letter_subset(): void
+    {
+        [$admin, $wo, $head, $group, $option] = $this->bundleFixture(['prl'], 1);
+        $parts = collect(['5-70A', '5-70B', '5-70C', '5-70D'])->map(
+            fn ($ipl) => $this->createPartGroupComponent($head->manual_id, $ipl, 'CONFIG-'.$ipl)
+        );
+        $restricted = ManualPartGroup::create([
+            'manual_id' => $head->manual_id, 'code' => 'RESTRICTED-'.uniqid(), 'name' => 'A/B only',
+            'type' => 'alternative_pn', 'behavior' => 'choose_one', 'applies_to' => ['prl'],
+        ]);
+        foreach ($parts->take(2) as $part) {
+            $restricted->options()->create(['component_id' => $part->id, 'part_number' => $part->part_number]);
+        }
+        $edge = $option->coverages()->create([
+            'covered_manual_part_group_option_id' => $restricted->options()->first()->id,
+            'qty' => 2, 'applies_to' => ['prl'],
+        ]);
+        WorkorderPartGroupSelection::create([
+            'workorder_id' => $wo->id, 'manual_part_group_id' => $group->id,
+            'manual_part_group_option_id' => $option->id, 'qty' => 1, 'selected_by_user_id' => $admin->id,
+        ]);
+        $resolver = app(PartGroupCoverageResolver::class);
+        $coverage = $resolver->coverageForWorkorder($wo, 'prl');
+        foreach ($parts->take(2) as $part) $this->assertSame(2, $coverage[$part->id]['covered_qty']);
+        foreach ($parts->skip(2) as $part) $this->assertArrayNotHasKey($part->id, $coverage);
+        // Even a directly listed representative must not escape the restriction.
+        $edge->update(['covered_manual_part_group_option_id' => null, 'component_id' => $parts[0]->id]);
+        $coverage = $resolver->coverageForWorkorder($wo, 'prl');
+        foreach ($parts->skip(1) as $part) $this->assertArrayNotHasKey($part->id, $coverage);
+    }
+
+    public function test_log_card_composition_keeps_letter_variants_after_group_retirement(): void
+    {
+        [$admin, $wo, $head, $group, $option] = $this->bundleFixture(['prl'], 1);
+        $parts = collect(['5-70', '5-70A', '5-70B'])->map(
+            fn ($ipl) => $this->createPartGroupComponent($head->manual_id, $ipl, 'LC-'.$ipl)
+        );
+        $other = $this->createPartGroupComponent($head->manual_id, '5-71', 'OTHER');
+        $bush = $this->createPartGroupComponent($head->manual_id, '5-70C', 'BUSH');
+        $bush->update(['is_bush' => true]);
+        $alternative = ManualPartGroup::create([
+            'manual_id' => $head->manual_id, 'code' => 'LC-'.uniqid(), 'name' => 'Letter family',
+            'type' => 'alternative_pn', 'behavior' => 'choose_one', 'applies_to' => ['prl'],
+        ]);
+        foreach ($parts as $part) {
+            $alternative->options()->create(['component_id' => $part->id, 'part_number' => $part->part_number]);
+        }
+        $edge = $option->coverages()->create([
+            'covered_manual_part_group_option_id' => $alternative->options()->first()->id,
+            'qty' => 2, 'applies_to' => ['prl'],
+        ]);
+        $composition = fn () => app(\App\Services\ManualPartGroupCompositionResolver::class)
+            ->componentIdsByGroup(ManualPartGroup::where('manual_id', $head->manual_id)->with('options.coverages')->get());
+        $before = $composition()[$group->id]->sort()->values()->all();
+        $edge->update(['covered_manual_part_group_option_id' => null, 'component_id' => $parts[0]->id]);
+        $alternative->delete();
+        $after = $composition()[$group->id]->sort()->values()->all();
+        $this->assertSame($before, $after);
+        foreach ($parts as $part) $this->assertContains($part->id, $after);
+        $this->assertNotContains($other->id, $after);
+        $this->assertNotContains($bush->id, $after);
+    }
+
     private function bundleFixture(array $scopes, int $memberQty): array
     {
         $admin = $this->createUserWithRole('Admin');

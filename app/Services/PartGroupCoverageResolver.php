@@ -43,6 +43,7 @@ class PartGroupCoverageResolver
         $selected = $this->explicitSelections($workorder, $groups);
         $selected = $this->inferSelectionsFromTdrs($workorder, $groups, $selected);
         $coverage = $this->bushingCoverageFromLines($workorder, $groups) + $automaticCoverage;
+        $iplFamilies = $this->bundleIplFamilies($workorder, $allGroups);
 
         foreach ($selected as $groupId => $selection) {
             /** @var ManualPartGroup|null $group */
@@ -79,7 +80,7 @@ class PartGroupCoverageResolver
                 continue;
             }
 
-            foreach ($option->coverages as $member) {
+            foreach ($this->bundleMembers($option, $scope, $iplFamilies) as $member) {
                 $this->expandBundleMember(
                     $coverage,
                     $member,
@@ -90,7 +91,8 @@ class PartGroupCoverageResolver
                     $option,
                     $allGroups,
                     $optionsById,
-                    [(int) $option->id => true]
+                    [(int) $option->id => true],
+                    $iplFamilies
                 );
             }
         }
@@ -265,6 +267,54 @@ class PartGroupCoverageResolver
         return $coverage;
     }
 
+    /** Ordinary letter variants share a position, never a P/N or another manual. */
+    private function bundleIplFamilies(Workorder $workorder, Collection $groups): array
+    {
+        return $this->bundleIplFamiliesForManuals($workorder->usedManualIds(), $groups);
+    }
+
+    /** Shared by coverage and Log Card composition; explicit subsets stay restricted. */
+    public function bundleIplFamiliesForManuals(array $manualIds, Collection $groups): array
+    {
+        $bushingIds = $groups->where('type', ManualPartGroup::TYPE_OVERSIZE)
+            ->flatMap(fn ($group) => $group->options->pluck('component_id'))->filter()->all();
+        $parts = \App\Models\Component::whereIn('manual_id', $manualIds)
+            ->where('is_bush', false)->whereNotIn('id', $bushingIds)
+            ->get(['id', 'manual_id', 'ipl_num']);
+        $explicitAlternatives = $groups->where('type', ManualPartGroup::TYPE_ALTERNATIVE)
+            ->map(fn ($group) => $group->options->pluck('component_id')->filter()->map(fn ($id) => (int) $id)->all());
+        $families = [];
+        foreach ($parts->groupBy(function ($part): string {
+            $ipl = PartVariantGrouping::iplFamily((string) $part->ipl_num);
+            return $part->manual_id.'|'.($ipl !== '' ? $ipl : 'component-'.$part->id);
+        }) as $family) {
+            $ids = $family->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+            // A deliberately restricted subset (e.g. A/B versus C/D) is not
+            // permission to cross-cover the other configuration's variants.
+            $restricted = $explicitAlternatives->contains(function ($optionIds) use ($ids): bool {
+                $overlap = array_intersect($ids, $optionIds);
+                return $overlap !== [] && count($overlap) < count($ids);
+            });
+            foreach ($ids as $id) {
+                $families[$id] = $restricted ? [$id] : $ids;
+            }
+        }
+        return $families;
+    }
+
+    /** Count directly listed letter variants once per assembly, not once per P/N.
+     * Separate nested assembly occurrences remain additive.
+     */
+    private function bundleMembers(ManualPartGroupOption $option, string $scope, array $families): Collection
+    {
+        return $option->coverages->filter(fn ($member) => $member->appliesTo($scope))
+            ->groupBy(function ($member) use ($families): string {
+                $id = (int) $member->component_id;
+                return isset($families[$id]) ? 'ipl:'.$families[$id][0] : 'member:'.$member->id;
+            })
+            ->map(fn ($members) => $members->sortByDesc('qty')->first())->values();
+    }
+
     private function expandBundleMember(
         array &$coverage,
         $member,
@@ -275,7 +325,8 @@ class PartGroupCoverageResolver
         ManualPartGroupOption $selectedOption,
         Collection $groups,
         Collection $optionsById,
-        array $optionPath
+        array $optionPath,
+        array $iplFamilies
     ): void {
         if (! $member->appliesTo($scope)) {
             return;
@@ -284,14 +335,9 @@ class PartGroupCoverageResolver
         $memberQty = max(1, (int) $member->qty) * max(1, $parentQty);
         $componentId = (int) ($member->component_id ?? 0);
         if ($componentId > 0) {
-            $this->addCoverage(
-                $coverage,
-                $componentId,
-                $memberQty,
-                $reason,
-                $selectedGroup,
-                $selectedOption
-            );
+            foreach ($iplFamilies[$componentId] ?? [$componentId] as $variantId) {
+                $this->addCoverage($coverage, $variantId, $memberQty, $reason, $selectedGroup, $selectedOption);
+            }
 
             return;
         }
@@ -330,20 +376,19 @@ class PartGroupCoverageResolver
         }
 
         if ($coveredGroup->type === ManualPartGroup::TYPE_ALTERNATIVE) {
+            $coveredIds = [];
             foreach ($coveredGroup->options as $alternativeOption) {
                 $alternativeComponentId = (int) ($alternativeOption->component_id ?? 0);
                 if ($alternativeComponentId <= 0) {
                     continue;
                 }
 
-                $this->addCoverage(
-                    $coverage,
-                    $alternativeComponentId,
-                    $memberQty,
-                    $reason,
-                    $selectedGroup,
-                    $selectedOption
-                );
+                foreach ($iplFamilies[$alternativeComponentId] ?? [$alternativeComponentId] as $variantId) {
+                    if (! isset($coveredIds[$variantId])) {
+                        $this->addCoverage($coverage, $variantId, $memberQty, $reason, $selectedGroup, $selectedOption);
+                        $coveredIds[$variantId] = true;
+                    }
+                }
             }
 
             return;
@@ -355,7 +400,7 @@ class PartGroupCoverageResolver
 
         $optionPath[$coveredOptionId] = true;
 
-        foreach ($coveredOption->coverages as $nestedMember) {
+        foreach ($this->bundleMembers($coveredOption, $scope, $iplFamilies) as $nestedMember) {
             $this->expandBundleMember(
                 $coverage,
                 $nestedMember,
@@ -366,7 +411,8 @@ class PartGroupCoverageResolver
                 $selectedOption,
                 $groups,
                 $optionsById,
-                $optionPath
+                $optionPath,
+                $iplFamilies
             );
         }
     }

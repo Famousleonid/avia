@@ -73,6 +73,8 @@ The analyzer supports `.xls` and `.xlsx` through the project's PhpSpreadsheet de
 
 The mapping must follow the reference exactly: LLP -> `log_card`; every relevant `NDT`/`NDT (n)` -> `ndt_list`; `CAD` and relevant CAD process variants -> `cad_list`; `PAINT (n)`/PAINT -> `paint_list`; the `PRL`/`PRL<n>` sheet whose header contains the requested base manual, only where CODE is `KIT` -> `kit`; SB -> `manual_service_bulletins`.
 
+For PRL/KIT, follow the explicit-cell rule in the source mapping reference: a blank CODE (including trailing PRL rows) never authorizes a new KIT flag. Do not invent or carry down KIT codes in extracted data or generated SQL.
+
 ### 4. Reconcile with the actual target manual
 
 Trace the complete chain: manual number -> target manual row -> current components/SB rows -> source Parts -> workbook mappings -> proposed changes.

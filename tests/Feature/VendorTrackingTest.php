@@ -1193,6 +1193,14 @@ class VendorTrackingTest extends TestCase
             'sort_order' => 2,
             'date_start' => '2026-05-25',
         ]);
+        $machiningAtName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Machining (AT)'],
+            ['process_sheet_name' => 'MACHINING', 'form_number' => '018']
+        );
+        $machiningAtProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $machiningAtName->id,
+        ]);
         $ecTdrProcess = TdrProcess::query()->create([
             'tdrs_id' => $tdr->id,
             'process_names_id' => $ecName->id,
@@ -1230,11 +1238,14 @@ class VendorTrackingTest extends TestCase
             ->assertOk()
             ->assertSee(route('tdrprocesses.updateDate', $editableTdrProcess), false)
             ->assertSee(route('tdrprocesses.updateDate', $quarantineTdrProcess), false)
+            ->assertSee(route('tdrprocesses.updateDate', $machiningAtProcess), false)
             ->assertSee(route('workorder_std_processes.updateDate', $stdPaint), false)
             ->assertDontSee(route('tdrprocesses.updateDate', $ecTdrProcess), false)
             ->assertDontSee(route('tdrprocesses.updateDate', $readonlyTdrProcess), false);
 
-        $managerResponse = $this->actingAs($manager)->get(route('mains.show', $workorder));
+        $managerResponse = $this->actingAs($manager)
+            ->withSession(['auth.version' => (int) $manager->auth_version, 'password_hash_web' => $manager->getAuthPassword()])
+            ->get(route('mains.show', $workorder));
 
         $managerResponse
             ->assertOk()

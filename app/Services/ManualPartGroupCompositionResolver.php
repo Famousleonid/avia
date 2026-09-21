@@ -21,9 +21,12 @@ class ManualPartGroupCompositionResolver
             ->flatMap(fn (ManualPartGroup $group) => $group->options)
             ->mapWithKeys(fn ($option): array => [(int) $option->id => (int) $option->manual_part_group_id]);
         $memo = [];
+        $families = app(PartGroupCoverageResolver::class)->bundleIplFamiliesForManuals(
+            $groups->pluck('manual_id')->unique()->all(), $groups
+        );
 
         foreach ($groupsById as $groupId => $group) {
-            $this->resolveGroup((int) $groupId, $groupsById, $optionToGroupId, $memo, []);
+            $this->resolveGroup((int) $groupId, $groupsById, $optionToGroupId, $memo, [], $families);
         }
 
         return $memo;
@@ -41,7 +44,8 @@ class ManualPartGroupCompositionResolver
         Collection $groupsById,
         Collection $optionToGroupId,
         array &$memo,
-        array $visiting
+        array $visiting,
+        array $families
     ): Collection {
         if (isset($memo[$groupId])) {
             return $memo[$groupId];
@@ -66,7 +70,11 @@ class ManualPartGroupCompositionResolver
 
             foreach ($option->coverages as $coverage) {
                 if ((int) ($coverage->component_id ?? 0) > 0) {
-                    $componentIds->push((int) $coverage->component_id);
+                    $id = (int) $coverage->component_id;
+                    $componentIds = $componentIds->merge(
+                        $group->behavior === ManualPartGroup::BEHAVIOR_BUNDLE
+                            ? ($families[$id] ?? [$id]) : [$id]
+                    );
                 }
 
                 $nestedGroupId = (int) ($optionToGroupId->get(
@@ -74,7 +82,7 @@ class ManualPartGroupCompositionResolver
                 ) ?? 0);
                 if ($nestedGroupId > 0) {
                     $componentIds = $componentIds->merge(
-                        $this->resolveGroup($nestedGroupId, $groupsById, $optionToGroupId, $memo, $visiting)
+                        $this->resolveGroup($nestedGroupId, $groupsById, $optionToGroupId, $memo, $visiting, $families)
                     );
                 }
             }

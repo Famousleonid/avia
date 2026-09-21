@@ -7,6 +7,9 @@ use App\Models\Component;
 use App\Models\Workorder;
 use App\Models\WorkorderKitPrlCrossout;
 use App\Services\ManualIplBranchRuleResolver;
+use App\Services\WorkorderPartScopeResolver;
+use App\Support\BushingPrlGrouping;
+use App\Models\Unit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -24,8 +27,19 @@ class WorkorderKitPrlCrossoutController extends Controller
         ]);
 
         $workorder->loadMissing('unit');
+        $available = app(WorkorderPartScopeResolver::class)->filterComponents(
+            Component::whereIn('manual_id', $workorder->usedManualIds())->get(), $workorder
+        )->filter(fn (Component $part): bool => $branchRules->allowsComponentForUnit(
+            $workorder->unit, (string) $part->ipl_num, (int) $part->manual_id
+        ));
+        $familyInKit = (bool) $component->is_bush && BushingPrlGrouping::groups(
+            $available->filter(fn (Component $part): bool => (bool) $part->is_bush)
+        )->contains(fn ($family): bool => $family->contains('id', $component->id)
+            && $family->contains(fn (Component $part): bool => (bool) $part->kit));
         $belongsToKit = $workorder->isOverhaul()
-            && (bool) $component->kit
+            && $workorder->scope_type !== Unit::SCOPE_COMPONENT
+            && $available->contains('id', $component->id)
+            && ((bool) $component->kit || $familyInKit)
             && in_array((int) $component->manual_id, $workorder->usedManualIds(), true)
             && $branchRules->allowsComponentForUnit(
                 $workorder->unit,

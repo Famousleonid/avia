@@ -18,6 +18,7 @@ class ProcessName extends Model
 
     private const MANUAL_DATE_EDITABLE_NAME_KEYS = [
         'machining',
+        'machiningat',
         'machiningec',
         'quarantine',
         'stressrelief',

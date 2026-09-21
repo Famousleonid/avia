@@ -183,6 +183,7 @@
                             data-manual-part-group-id="{{ $item['manual_part_group_id'] ?? '' }}"
                             data-manual-part-group-option-id="{{ $item['manual_part_group_option_id'] ?? '' }}"
                             data-manual-part-group-choice="{{ $item['manual_part_group_choice'] ?? '' }}"
+                            data-assy-selection-explicit="{{ $item['assy_selection_explicit'] ?? '0' }}"
                             data-component-assembly-id="{{ $assemblyId }}"
                             data-assy-part-number="{{ $assyPartNumber }}"
                             data-assy-ipl-num="{{ $assyIplNum }}"

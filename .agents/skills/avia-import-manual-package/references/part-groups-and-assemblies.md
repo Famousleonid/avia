@@ -21,7 +21,13 @@ Read this reference when a manual-package task includes new Part Groups, assembl
 
 ### Alternative P/N
 
-Use `alternative_pn` when several IPL/P/N rows are approved variants of the same functional detail, including letter-suffix or adjacent IPL items. Each variant is one option. Selecting one option covers the other variants for the configured forms.
+Ordinary letter variants of the same IPL position (`5-70`, `5-70A`, `5-70B`, `5-70C`) already form an automatic family within one manual. Do not create a separate `alternative_pn` group solely for those suffixes. For ASSY procurement coverage, add one representative component with the position's quantity; the coverage resolver covers all ordinary letter variants, including inside nested ASSY. Do not list each variant as an additional physical quantity. Bushing Original/Oversize remains a separate explicit family and is excluded from this automatic expansion.
+
+Exception: an explicit Alternative P/N group containing only a subset of an IPL family can encode a configuration restriction (for example A/B versus C/D). Preserve that boundary; suffixes alone do not prove interchangeability across subsets. The bundle resolver disables automatic family expansion for such a position and uses the explicitly nested group's members. Audit before retiring existing groups: compare both procurement coverage and Work Scope quantities, retain history/Log Card/WO references, and exclude nontrivial internal option coverages. Never remove partial-family groups merely because their numeric IPL matches.
+
+Retiring a redundant full-family group also requires verifying Log Card/mobile composition membership, not just cross-outs. Direct family representatives must resolve to the same member IDs as the former nested group, without admitting another configuration or bushings. Check TDR orders for multiple selected variants of one retiring family (explicit choose-one and automatic coverage differ in that case); retain/block such groups until reviewed. Include these checks in the guarded SQL and test the whole raw file, repeat, and rollback on an isolated local database. Deploy both coverage and composition resolvers before the cleanup SQL; database SQL alone cannot establish deployed PHP behavior.
+
+Use `alternative_pn` when different base IPL positions (for example `5-70`, `5-71`, `5-72`) are confirmed by the PDF as variants of the same functional detail. Adjacent numbering alone is not evidence of interchangeability. Each variant is one option. Selecting one option covers the other variants for the configured forms.
 
 Do not use an Alternative P/N group to represent a physical assembly composition or an Original/Oversize bushing family.
 
@@ -48,11 +54,12 @@ Use `assy` for an orderable assembly P/N and its composition.
 - Do not duplicate a child group's internal members as direct parent coverages unless the PDF explicitly lists the same parts directly at the parent level.
 - Reject self-reference and every direct or indirect cycle.
 
-If two complete ASSY P/Ns are alternatives, create one ASSY group for each composition and a separate `alternative_pn` group whose options are the complete ASSY components.
+If two complete ASSY P/Ns are alternatives, keep one ASSY group for each distinct composition. Create a separate `alternative_pn` only when needed to link different base IPL positions, not merely letter suffixes. Automatic letter coverage does not traverse another variant ASSY's different composition: nest the applicable child ASSY explicitly.
 
 ## Ordering and cross-outs
 
 - Selecting an ASSY must cover its ASSY component and every direct and nested member, preventing duplicate ordering of the assembly and its included parts.
+- Ordinary direct IPL-family members share the member quantity, multiplied by the ordered and nested ASSY quantities. Existing directly listed letter variants in the same option are not added together (the resolver uses the largest listed quantity); new imports must use one representative, and conflicting source quantities require review. Distinct occurrences in separate nested branches remain additive. Existing explicit groups and incoming links must not be deleted without a separate reviewed migration.
 - Apply coverage to PRL and the configured STD forms: NDT, CAD, Stress, and Paint. Narrow the forms only when the source explicitly requires it.
 - Alternative P/N is normally choose-one. The bushing Original/Oversize family is the exception that permits mixed quantities up to the required total.
 - A concrete bushing already belonging to an Original/Oversize family must not be added alone to an ASSY; direct the editor to add the complete family.

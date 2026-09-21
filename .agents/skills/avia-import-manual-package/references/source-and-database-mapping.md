@@ -50,6 +50,14 @@ Sheet matching is case-insensitive after trimming whitespace.
 
 Do not set KIT for PRL `RECOMMENDED` rows without CODE `KIT`. Do not use PRL section membership alone.
 
+### PRL KIT explicit-cell rule (confirmed 21/Sep/2026)
+
+- Set a new `components.kit = true` only when that PRL row's actual CODE cell explicitly contains `KIT` (trim whitespace and compare case-insensitively).
+- A blank CODE, including the commonly blank cells at the end of PRL, means no KIT assignment from this row. Any other code also gives no KIT assignment. Never carry `KIT` down from a previous row; only FIG has the carry-down behavior described below.
+- Never invent `KIT` in intermediate extracts, remapping decisions or generated SQL based on a part's name, position in PRL, a neighboring row, customary replacement practice, or membership in an ASSY/KIT group. An approved IPL/P/N remap does not change the source CODE.
+- Retain the actual CODE cell/sheet/row as audit evidence for every newly enabled KIT flag. New Parts with blank CODE remain unchecked unless another correctly matched source PRL row explicitly supplies `KIT` for that same part.
+- Existing true flags remain subject to the preserve-existing rule: report any existing KIT mark not supported by the current PRL separately, not as a new source-supported mark. Clearing old flags requires a scoped reconciliation decision; this rule update alone does not authorize retroactive database or handoff-SQL changes.
+
 The standard NDT/CAD/Paint rows use IPL in column A, PN in column C, and description in column G (older variants may use I). Cells may contain newline-separated IPLs/PNs. One declared base IPL with several P/N values is valid when the P/N values uniquely resolve to letter-suffixed alternatives of that base item. Otherwise counts must be either one PN shared by all IPLs or one PN per IPL; report any remaining structural conflict. A blank FIG carries down from the most recent explicit FIG. If a secondary process sheet starts with bare item numbers, resolve them only when item + PN uniquely identify a component. Do not treat an internal subcomponent sheet such as `NDT (Shimmy)` as the requested manual's Parts mapping unless it explicitly identifies the requested manual and its rows resolve to that manual's IPL components.
 
 The standard PRL rows use FIG in A, ITEM in B, description in C, PN in D, quantity in E, and CODE in F. FIG carries down through blank cells. Pair newline-separated values by position. Ignore `ALT` helper rows as standalone IPLs. If counts cannot be paired unambiguously, report a conflict.

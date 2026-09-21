@@ -379,7 +379,7 @@ class QualityAssuranceController extends Controller
         $componentData = $this->decodeLogCardRows($log_card?->component_data);
         $componentDataOut = $this->decodeLogCardRows($log_card?->component_data_out);
         $identity = app(\App\Services\LogCardAssemblyIdentity::class);
-        $componentData = $identity->cleanRows($componentData);
+        $componentData = $identity->cleanRows($componentData, $workorder);
         $componentDataOut = $identity->cleanRows($componentDataOut);
 
         if ($componentDataOut === [] && $componentData !== []) {

@@ -72,7 +72,7 @@
                        @disabled($logCardTdrReadOnly)>
             </td>
             <td>
-                <div class="small fw-semibold text-info mb-1">{{ $partGroup->name }} · ASSY</div>
+                <div class="small fw-semibold text-info mb-1">{{ $choices->contains(fn ($choice) => count($choice['assembly_choices'] ?? []) > 1) ? __('Part / ASSY') : $partGroup->name.' · ASSY' }}</div>
                 <div class="lc-assy-group-options" role="radiogroup" aria-label="{{ $partGroup->name }}">
                     @foreach($choices as $choice)
                         <label class="lc-assy-group-option">
@@ -101,8 +101,33 @@
                 </div>
             </td>
             <td class="text-start ps-3">
-                <span class="badge text-bg-secondary">ASSY</span>
-                <div class="small text-muted mt-1">{{ __('Select one P/N from this group.') }}</div>
+                @foreach($choices as $choice)
+                    @php
+                        $assemblyChoices = collect($choice['assembly_choices'] ?? []);
+                        $selectedAssemblyGroup = (int) (($savedRow && (int) ($savedRow['component_id'] ?? 0) === (int) $choice['component_id'])
+                            ? ($savedRow['manual_part_group_id'] ?? $partGroup->id) : $partGroup->id);
+                    @endphp
+                    <div class="lc-group-assy-choice {{ $selectedChoiceKey !== (string) $choice['choice_key'] ? 'd-none' : '' }}"
+                         data-component-id="{{ $choice['component_id'] }}">
+                        @if($assemblyChoices->count() > 1)
+                            <label class="small text-muted mb-1" for="lc-assy-{{ $rowGroupKey }}-{{ $choice['component_id'] }}">{{ __('Select your ASSY') }}</label>
+                            <select id="lc-assy-{{ $rowGroupKey }}-{{ $choice['component_id'] }}"
+                                    class="form-select form-select-sm lc-group-assy-select"
+                                    data-component-id="{{ $choice['component_id'] }}" @disabled($logCardTdrReadOnly)>
+                                @foreach($assemblyChoices as $assemblyChoice)
+                                    <option value="{{ $assemblyChoice['group_id'] }}"
+                                            data-assy-part-number="{{ $assemblyChoice['part_number'] }}"
+                                            data-assy-ipl-num="{{ $assemblyChoice['ipl_num'] }}"
+                                            @selected($selectedAssemblyGroup === (int) $assemblyChoice['group_id'])>
+                                        {{ $assemblyChoice['ipl_num'] }} / {{ $assemblyChoice['part_number'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        @else
+                            <span class="small">{{ $choice['assy_ipl_num'] }}{{ $choice['assy_part_number'] ? ' / '.$choice['assy_part_number'] : '—' }}</span>
+                        @endif
+                    </div>
+                @endforeach
             </td>
         </tr>
         @continue

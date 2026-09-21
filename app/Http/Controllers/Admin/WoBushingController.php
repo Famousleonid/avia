@@ -18,6 +18,7 @@ use App\Models\WoBushingProcess;
 use App\Services\WoBushingRelationalSync;
 use App\Services\WorkorderPartScopeResolver;
 use App\Support\WoBushingProcessColumnKey;
+use App\Support\BushingPrlGrouping;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -403,8 +404,9 @@ class WoBushingController extends Controller
                 ->filterComponents($bushings, $workorder);
         }
 
-        return $bushings
-            ->groupBy(fn (Component $component): string => $this->bushingGroupIpl($component))
+        return BushingPrlGrouping::groups($bushings)
+            ->mapWithKeys(fn ($family, string $key): array => [str_starts_with($key, 'part-group|')
+                ? $key : $this->bushingGroupIpl($family->first()) => $family])
             ->sort(function ($leftGroup, $rightGroup): int {
                 $left = $leftGroup->first();
                 $right = $rightGroup->first();
@@ -453,38 +455,27 @@ class WoBushingController extends Controller
             ->get(['id', 'manual_id', 'ipl_num', 'bush_ipl_num', 'units_assy'])
             ->keyBy('id');
 
+        $keys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($components->pluck('manual_id')->all(), 'prl');
         $orderedGroups = $orderedRows
             ->filter(fn (array $row): bool => $components->has($row['component_id']))
-            ->groupBy(function (array $row) use ($components): string {
+            ->groupBy(function (array $row) use ($components, $keys): string {
                 $component = $components->get($row['component_id']);
 
-                return (int) $component->manual_id.'|'.$this->bushingGroupIpl($component);
+                return BushingPrlGrouping::groupKeyForComponent($component, $keys);
             });
 
         $manualIds = $components->pluck('manual_id')->map(fn ($id): int => (int) $id)->unique()->all();
-        $groupIplNumbers = $components
-            ->map(fn (Component $component): string => $this->bushingGroupIpl($component))
-            ->filter()
-            ->unique()
-            ->all();
-        $groupComponents = Component::query()
+        $groupComponents = BushingPrlGrouping::groups(Component::query()
             ->where('is_bush', true)
             ->whereIn('manual_id', $manualIds)
-            ->where(function ($query) use ($groupIplNumbers): void {
-                $query->whereIn('bush_ipl_num', $groupIplNumbers)
-                    ->orWhereIn('ipl_num', $groupIplNumbers);
-            })
-            ->get(['id', 'manual_id', 'ipl_num', 'bush_ipl_num', 'units_assy'])
-            ->groupBy(fn (Component $component): string =>
-                (int) $component->manual_id.'|'.$this->bushingGroupIpl($component)
-            );
+            ->get(['id', 'manual_id', 'ipl_num', 'bush_ipl_num', 'units_assy']));
 
         foreach ($orderedGroups as $groupIdentity => $rows) {
             $members = $groupComponents->get($groupIdentity, collect());
             $initial = $members->first(fn (Component $component): bool =>
                 trim((string) $component->ipl_num) === $this->bushingGroupIpl($component)
             );
-            $maximumQty = max(1, (int) ($initial?->units_assy ?? $members->max('units_assy') ?? 1));
+            $maximumQty = BushingPrlGrouping::capacity($members);
             $orderedQty = (int) $rows->sum('qty');
 
             if ($orderedQty <= $maximumQty) {

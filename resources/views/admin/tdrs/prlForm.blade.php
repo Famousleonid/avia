@@ -874,6 +874,9 @@
                             </div>
                     <div class="col-3 prl-col-desc border-l-b text-center pt-1 align-content-center">
                                 {!! nl2br(e($descriptionDisplay)) !!}
+                                @if($isArray && isset($tdr['bushing_kit_capacity']))
+                                    <div class="small" data-bushing-kit-capacity="{{ $tdr['bushing_kit_capacity'] }}">KIT total: {{ $tdr['bushing_kit_capacity'] }} — Original / Oversize</div>
+                                @endif
                             </div>
                     <div class="col-3 prl-col-part border-l-b text-center pt-2 align-content-center">
                                 @if(!empty($partNumberOptions))

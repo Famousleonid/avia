@@ -925,6 +925,40 @@ class WorkorderActionsTest extends TestCase
         $this->assertSame('AT', $anodizingAt->repair_order);
     }
 
+    public function test_renamed_machining_at_dates_remain_editable_by_technician(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder();
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $name = ProcessName::query()->firstOrCreate(
+            ['name' => 'Machining'],
+            ['process_sheet_name' => 'MACHINING', 'form_number' => '018']
+        );
+        $process = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $name->id,
+            'sort_order' => 1,
+        ]);
+        $name->update(['name' => 'Machining (AT)']);
+        $this->assertTrue($name->allowsManualDateEditing());
+        $this->assertFalse(ProcessName::allowsManualDateEditingForName('Machining (OUT)'));
+        $this->actingAs($technician)
+            ->patchJson(route('tdrprocesses.updateDate', $process), [
+                'date_start' => '2026-05-09',
+                'date_finish' => '2026-05-08',
+            ])
+            ->assertOk()
+            ->assertJsonPath('repair_order', 'AT');
+        $process->refresh();
+        $this->assertSame('2026-05-09', $process->date_start->format('Y-m-d'));
+        $this->assertSame('2026-05-08', $process->date_finish->format('Y-m-d'));
+        $this->assertSame($technician->id, $process->date_start_user_id);
+        $this->assertSame($technician->id, $process->date_finish_user_id);
+    }
+
     public function test_exact_ec_process_dates_can_only_be_edited_by_manager_or_admin(): void
     {
         $technician = $this->createUserWithRole('Technician');

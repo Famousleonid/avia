@@ -685,6 +685,9 @@
                                         }
                                     }
                                 }
+                                if ($numberLines !== '' && \App\Models\ProcessName::normalizedNameKey($name->name ?? null) === 'machiningec') {
+                                    $repairOrderText = 'EC';
+                                }
                             @endphp
                             <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-process-row-cell" style="position: relative;" data-sp-process-id="{{ (int) ($name->id ?? 0) }}" data-sp-slot="{{ $slotData['slot'] }}" data-sp-number-lines="{{ $numberLines }}">
                                 @if($numberLines)
@@ -700,7 +703,7 @@
                                 @endif
                                 @if($numberLines && in_array($name->name ?? '', ['Quarantine', 'INSPECT']))
                                     <div style="height: 22px; width: 30px; position: absolute; right: 45px; top: 0;">AT</div>
-                                @elseif($hasEcProcess)
+                                @elseif($hasEcProcess && $repairOrderText !== 'EC')
                                     <div style="height: 22px; width: 30px; position: absolute; right: 45px; top: 0;">EC</div>
                                 @endif
                             </div>

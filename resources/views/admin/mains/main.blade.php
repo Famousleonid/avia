@@ -1405,6 +1405,11 @@
                                                                             \App\Models\ProcessName::isExactEcName($pr->processName?->name)
                                                                             && $mainCanEditExactEcProcessDates
                                                                         );
+                                                                    $processCanEditFinishDate = $processCanEditDates
+                                                                        && (
+                                                                            \App\Models\ProcessName::normalizedNameKey($pr->processName?->name) !== 'paint'
+                                                                            || (auth()->user()?->canEditPaintFinishDate() ?? false)
+                                                                        );
                                                                 @endphp
 
                                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}"
@@ -1450,7 +1455,7 @@
                                                                     @endif
                                                                 </td>
                                                                 <td class="main-date-cell">
-                                                                    @if($processCanEditDates)
+                                                                    @if($processCanEditFinishDate)
                                                                         <form method="POST"
                                                                               action="{{ route('tdrprocesses.updateDate', $pr) }}"
                                                                               class="js-main-inline-ajax js-ajax"

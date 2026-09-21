@@ -71,6 +71,14 @@ class PaintIndexTest extends TestCase
             $page->assertDontSee('data-date-kind="date_finish"', false);
         }
 
+        $main = $this->get(route('mains.show', $wo))->assertOk();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML($main->getContent());
+        $xpath = new \DOMXPath($dom);
+        $row = '//tr[@data-qa-process-id="' . $process->id . '"]';
+        $this->assertSame(1, $xpath->query($row . '//input[@name="date_start"]')->length);
+        $this->assertSame($allowed ? 1 : 0, $xpath->query($row . '//input[@name="date_finish"]')->length);
+
         $this->patchJson(route('tdrprocesses.updateDate', $process), ['date_start' => '2026-06-02'])->assertOk();
         $response = $this->patchJson(route('tdrprocesses.updateDate', $process), ['date_finish' => '2026-06-04', 'from_paint_index' => 1]);
         if ($allowed) {

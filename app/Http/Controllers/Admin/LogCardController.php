@@ -60,7 +60,7 @@ class LogCardController extends Controller
                 : json_decode($log_card->component_data, true);
         }
         $componentData = is_array($componentData) ? $componentData : [];
-        $componentData = app(LogCardAssemblyIdentity::class)->cleanRows($componentData);
+        $componentData = app(LogCardAssemblyIdentity::class)->cleanRows($componentData, $current_wo);
         $componentData = collect($componentData)
             ->map(function ($row, int $storageIndex) {
                 if (is_array($row)) {
@@ -322,7 +322,8 @@ class LogCardController extends Controller
 
         [$assyChoiceGroups, $assyGroupedComponentIds] = $this->buildLogCardAssyChoiceGroups(
             $manual_id,
-            $components
+            $components,
+            $current_wo
         );
         $regularComponents = $components
             ->reject(fn (Component $component): bool => $assyGroupedComponentIds->contains((int) $component->id))
@@ -507,7 +508,7 @@ class LogCardController extends Controller
      *
      * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
      */
-    private function buildLogCardAssyChoiceGroups(int $manualId, $components): array
+    private function buildLogCardAssyChoiceGroups(int $manualId, $components, Workorder $workorder): array
     {
         $componentsById = $components->keyBy(fn (Component $component): int => (int) $component->id);
         $assignedComponentIds = collect();
@@ -519,12 +520,15 @@ class LogCardController extends Controller
             ->get();
         $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
             ->componentIdsByGroup($allGroups);
-        $groups = $allGroups->where('type', ManualPartGroup::TYPE_ASSY);
+        $groups = app(LogCardAssemblyIdentity::class)->groupsForWorkorder($allGroups, $workorder)
+            ->where('type', ManualPartGroup::TYPE_ASSY);
+        $assemblyChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($allGroups, $components);
 
         $choiceGroups = $groups->map(function (ManualPartGroup $group) use (
             $componentsById,
             $assignedComponentIds,
-            $componentIdsByGroup
+            $componentIdsByGroup,
+            $assemblyChoices
         ): ?array {
             $option = $group->options->first();
             if (! $option) {
@@ -551,7 +555,8 @@ class LogCardController extends Controller
                     $option,
                     $assyComponentId,
                     $assyPartNumber,
-                    $assyIplNumber
+                    $assyIplNumber,
+                    $assemblyChoices
                 ): array {
                     $component = $componentsById->get($componentId);
                     $isAssyPart = $componentId === $assyComponentId;
@@ -568,6 +573,7 @@ class LogCardController extends Controller
                         'assy_part_number' => $isAssyPart ? '' : $assyPartNumber,
                         'assy_ipl_num' => $isAssyPart ? '' : $assyIplNumber,
                         'is_assy_part' => $isAssyPart,
+                        'assembly_choices' => $isAssyPart ? [] : ($assemblyChoices[$componentId] ?? []),
                     ];
                 })
                 ->values();
@@ -733,7 +739,7 @@ class LogCardController extends Controller
                 : json_decode($log_card->component_data, true);
         }
         $componentData = is_array($componentData) ? $componentData : [];
-        $componentData = app(LogCardAssemblyIdentity::class)->cleanRows($componentData);
+        $componentData = app(LogCardAssemblyIdentity::class)->cleanRows($componentData, $current_wo);
 
         $manualIds = collect($componentData)
             ->filter(fn ($row) => is_array($row) && ! empty($row['manual_id']))
@@ -982,7 +988,7 @@ class LogCardController extends Controller
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
         $componentData = json_decode($log_card->component_data, true);
-        $componentData = app(LogCardAssemblyIdentity::class)->cleanRows(is_array($componentData) ? $componentData : []);
+        $componentData = app(LogCardAssemblyIdentity::class)->cleanRows(is_array($componentData) ? $componentData : [], $current_wo);
 
         // Проверяем конкретно компоненты 937, 940 и 981
         $comp937 = Component::find(937);
@@ -1435,7 +1441,7 @@ class LogCardController extends Controller
         }
         unset($row);
 
-        return json_encode(array_values(app(LogCardAssemblyIdentity::class)->cleanRows($rows)), JSON_UNESCAPED_UNICODE);
+        return json_encode(array_values(app(LogCardAssemblyIdentity::class)->cleanRows($rows, $workorder)), JSON_UNESCAPED_UNICODE);
     }
 
     private function validateLogCardComponentData(Request $request, Workorder $workorder): void
@@ -1557,13 +1563,19 @@ class LogCardController extends Controller
             ->with(['options.coverages'])
             ->whereIn('manual_id', $usedManualIds)
             ->get();
-        $assyGroupsById = $compositionGroups
+        $assyGroupsById = app(LogCardAssemblyIdentity::class)->groupsForWorkorder($compositionGroups, $workorder)
             ->whereIn('id', $submittedPartGroupIds)
             ->keyBy('id');
         $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
             ->componentIdsByGroup($compositionGroups);
+        $explicitChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent(
+            $compositionGroups, Component::with('assemblies')->whereIn('id', $componentsById->keys())->get()
+        );
+        $allAssyGroupsById = $compositionGroups->keyBy('id');
         $hasInvalidAssyChoice = collect($decoded)->contains(function ($row) use (
             $assyGroupsById,
+            $allAssyGroupsById,
+            $explicitChoices,
             $componentIdsByGroup,
             $componentsById,
             $usedManualIds
@@ -1574,11 +1586,16 @@ class LogCardController extends Controller
 
             $groupId = (int) ($row['manual_part_group_id'] ?? 0);
             $optionId = (int) ($row['manual_part_group_option_id'] ?? 0);
+            $explicit = app(LogCardAssemblyIdentity::class)->isExplicitSelection($row);
+            if ($explicit && (($row['manual_part_group_choice'] ?? '') !== 'component'
+                || ! collect($explicitChoices[(int) ($row['component_id'] ?? 0)] ?? [])->contains('group_id', $groupId))) {
+                return true;
+            }
             if ($groupId <= 0 && $optionId <= 0) {
                 return false;
             }
 
-            $group = $assyGroupsById->get($groupId);
+            $group = ($explicit ? $allAssyGroupsById : $assyGroupsById)->get($groupId);
             $component = $componentsById->get((int) ($row['component_id'] ?? 0));
             $choice = (string) ($row['manual_part_group_choice'] ?? '');
             if (! $group

@@ -40,6 +40,7 @@ use App\Services\MachiningListingRowsBuilder;
 use App\Services\LogCardTdrAccessService;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\ManualPartGroupCompositionResolver;
+use App\Services\LogCardAssemblyIdentity;
 use App\Services\Media\MobileLandscapePhotoProcessor;
 use App\Services\Media\WorkorderPhotoStorageService;
 use App\Services\MobileReviewAccess;
@@ -333,7 +334,8 @@ class MobileApiController extends Controller
         [$assyGroups, $assyGroupedComponentIds] = $this->mobileLogCardAssyGroups(
             $manualId,
             $components,
-            $componentPayload
+            $componentPayload,
+            $workorder
         );
         $regularComponents = $components
             ->reject(fn (Component $component): bool => $assyGroupedComponentIds->contains((int) $component->id))
@@ -596,6 +598,7 @@ class MobileApiController extends Controller
             'rows.*.manual_part_group_id' => ['nullable', 'integer', 'exists:manual_part_groups,id'],
             'rows.*.manual_part_group_option_id' => ['nullable', 'integer', 'exists:manual_part_group_options,id'],
             'rows.*.manual_part_group_choice' => ['nullable', 'string', 'in:component,assy'],
+            'rows.*.assy_selection_explicit' => ['nullable', 'boolean'],
             'rows.*.unit_index' => ['nullable', 'integer', 'min:1', 'max:999'],
             'rows.*.units_assy' => ['nullable', 'string', 'max:100'],
         ]);
@@ -656,12 +659,14 @@ class MobileApiController extends Controller
             ->map(fn ($id): int => (int) $id)
             ->filter()
             ->unique();
-        $assyGroupsById = $compositionGroups
+        $assyGroupsById = app(LogCardAssemblyIdentity::class)->groupsForWorkorder($compositionGroups, $workorder)
             ->whereIn('id', $submittedPartGroupIds)
             ->keyBy('id');
         $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
             ->componentIdsByGroup($compositionGroups);
         $canonicalRows = [];
+        $explicitChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($compositionGroups, $components);
+        $allAssyGroupsById = $compositionGroups->keyBy('id');
 
         foreach ($inputRows as $inputRow) {
             $component = $components->get((int) $inputRow['component_id']);
@@ -691,7 +696,11 @@ class MobileApiController extends Controller
             $partGroupId = (int) ($inputRow['manual_part_group_id'] ?? 0);
             $partGroupOptionId = (int) ($inputRow['manual_part_group_option_id'] ?? 0);
             $partGroupChoice = (string) ($inputRow['manual_part_group_choice'] ?? '');
-            $partGroup = $assyGroupsById->get($partGroupId);
+            $explicit = app(LogCardAssemblyIdentity::class)->isExplicitSelection($inputRow);
+            abort_if($explicit && ($partGroupChoice !== 'component'
+                || ! collect($explicitChoices[(int) $component->id] ?? [])->contains('group_id', $partGroupId)),
+                422, 'Invalid explicit ASSY selection for this component.');
+            $partGroup = ($explicit ? $allAssyGroupsById : $assyGroupsById)->get($partGroupId);
             $partGroupOption = $partGroup?->options->first();
             if ($partGroupId > 0 || $partGroupOptionId > 0) {
                 abort_unless(
@@ -724,6 +733,7 @@ class MobileApiController extends Controller
                 'reason' => $this->mobileLogCardText($inputRow['reason'] ?? null),
                 'new_serial_number' => $this->mobileLogCardText($inputRow['new_serial_number'] ?? null),
                 'manual_id' => (string) $manualId,
+                'assy_selection_explicit' => $explicit ? '1' : '0',
             ];
             if ($unitIndex > 0) {
                 $row['unit_index'] = (string) $unitIndex;
@@ -801,7 +811,7 @@ class MobileApiController extends Controller
     }
 
     /** @return array{0: Collection, 1: Collection} */
-    private function mobileLogCardAssyGroups(int $manualId, Collection $components, callable $componentPayload): array
+    private function mobileLogCardAssyGroups(int $manualId, Collection $components, callable $componentPayload, Workorder $workorder): array
     {
         $componentsById = $components->keyBy(fn (Component $component): int => (int) $component->id);
         $assignedComponentIds = collect();
@@ -814,13 +824,15 @@ class MobileApiController extends Controller
         $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
             ->componentIdsByGroup($allGroups);
 
-        $groups = $allGroups
+        $assemblyChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($allGroups, $components);
+        $groups = app(LogCardAssemblyIdentity::class)->groupsForWorkorder($allGroups, $workorder)
             ->where('type', ManualPartGroup::TYPE_ASSY)
             ->map(function (ManualPartGroup $group) use (
                 $componentsById,
                 $assignedComponentIds,
                 $componentPayload,
-                $componentIdsByGroup
+                $componentIdsByGroup,
+                $assemblyChoices
             ): ?array {
                 $option = $group->options->first();
                 if (! $option) {
@@ -845,7 +857,8 @@ class MobileApiController extends Controller
                     $option,
                     $assyComponentId,
                     $assyPartNumber,
-                    $assyIplNumber
+                    $assyIplNumber,
+                    $assemblyChoices
                 ): array {
                     $component = $componentsById->get($componentId);
                     $isAssyPart = $componentId === $assyComponentId;
@@ -857,6 +870,7 @@ class MobileApiController extends Controller
                         'assy_part_number' => $isAssyPart ? '' : $assyPartNumber,
                         'assy_ipl_num' => $isAssyPart ? '' : $assyIplNumber,
                         'is_assy_part' => $isAssyPart,
+                        'assembly_choices' => $isAssyPart ? [] : ($assemblyChoices[$componentId] ?? []),
                     ]);
                 })->values();
 
@@ -951,7 +965,9 @@ class MobileApiController extends Controller
             ? $logCard->component_data
             : json_decode((string) $logCard->component_data, true);
 
-        return is_array($rows) ? array_values($rows) : [];
+        return is_array($rows)
+            ? app(LogCardAssemblyIdentity::class)->cleanRows(array_values($rows), $logCard->workorder)
+            : [];
     }
 
     /** Desktop grouping rule: base "FIG-ITEM" prefix of the ipl number. */

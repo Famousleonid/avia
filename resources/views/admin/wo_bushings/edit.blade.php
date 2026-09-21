@@ -186,7 +186,7 @@
                                         $initialBushing = $bushingGroup->first(fn ($candidate) =>
                                             trim((string) $candidate->ipl_num) === trim((string) $candidate->bush_ipl_num)
                                         );
-                                        $groupMaxOrderQty = max(1, (int) ($initialBushing?->units_assy ?? $bushingGroup->max('units_assy') ?? 1));
+                                        $groupMaxOrderQty = \App\Support\BushingPrlGrouping::capacity($bushingGroup);
                                     @endphp
                                     <tr class="bushing-row"
                                         data-group-key="{{ $groupKey }}"
@@ -257,15 +257,17 @@
                                                 @foreach($bushingGroup as $bushing)
                                                     @php
                                                         $existing = $bushDataByComponent->get((int) $bushing->id);
-                                                        $rowQty = $existing['qty'] ?? ($bushing->units_assy ?? 1);
+                                                        $rowQty = $existing['qty'] ?? $groupMaxOrderQty;
                                                     @endphp
                                                     <div>
                                                         <input type="number"
                                                                name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][qty]"
                                                                class="form-control form-control-sm bushing-qty-input"
                                                                min="1"
+                                                               max="{{ $groupMaxOrderQty }}"
                                                                value="{{ $rowQty }}"
-                                                               data-part-qty="{{ $bushing->units_assy ?? 1 }}">
+                                                               title="{{ __('Shared Original/Oversize quantity; split between selected P/Ns if needed.') }}"
+                                                               data-part-qty="{{ $groupMaxOrderQty }}">
                                                     </div>
                                                 @endforeach
                                             </div>
