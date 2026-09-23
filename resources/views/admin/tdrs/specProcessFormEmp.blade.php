@@ -697,7 +697,7 @@
                             }
                             $numberLines = $visibleEntries->pluck('number_line')->unique()->implode(',');
                             $repairOrderText = $visibleEntries->pluck('repair_order')->filter(fn($value) => trim((string) $value) !== '')->unique()->implode(', ');
-                                if ($numberLines !== '' && \App\Models\ProcessName::normalizedNameKey($name->name ?? null) === 'machiningec') {
+                                if ($numberLines !== '' && \App\Models\ProcessName::normalizedNameKey($name->identityName() ?? null) === 'machiningec') {
                                     $repairOrderText = 'EC';
                                 }
                         @endphp

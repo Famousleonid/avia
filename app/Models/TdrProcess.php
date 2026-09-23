@@ -155,7 +155,7 @@ class TdrProcess extends Model
         $pn = $this->processName;
 
         return ($pn->process_sheet_name ?? '') === 'NDT'
-            && str_starts_with((string) ($pn->name ?? ''), 'NDT-')
+            && str_starts_with((string) ($pn->identityName() ?? ''), 'NDT-')
             && trim((string) ($this->plus_process ?? '')) !== '';
     }
 

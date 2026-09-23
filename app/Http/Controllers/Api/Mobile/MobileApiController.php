@@ -599,6 +599,7 @@ class MobileApiController extends Controller
             'rows.*.manual_part_group_option_id' => ['nullable', 'integer', 'exists:manual_part_group_options,id'],
             'rows.*.manual_part_group_choice' => ['nullable', 'string', 'in:component,assy'],
             'rows.*.assy_selection_explicit' => ['nullable', 'boolean'],
+            'rows.*.assy_option_id' => ['nullable', 'integer', 'min:1'],
             'rows.*.unit_index' => ['nullable', 'integer', 'min:1', 'max:999'],
             'rows.*.units_assy' => ['nullable', 'string', 'max:100'],
         ]);
@@ -697,11 +698,15 @@ class MobileApiController extends Controller
             $partGroupOptionId = (int) ($inputRow['manual_part_group_option_id'] ?? 0);
             $partGroupChoice = (string) ($inputRow['manual_part_group_choice'] ?? '');
             $explicit = app(LogCardAssemblyIdentity::class)->isExplicitSelection($inputRow);
+            $explicitChoice = app(LogCardAssemblyIdentity::class)->selectedAssemblyChoice($inputRow, $explicitChoices[(int) $component->id] ?? []);
             abort_if($explicit && ($partGroupChoice !== 'component'
-                || ! collect($explicitChoices[(int) $component->id] ?? [])->contains('group_id', $partGroupId)),
+                || ! $explicitChoice),
                 422, 'Invalid explicit ASSY selection for this component.');
+            abort_if(! $explicit && (int) ($inputRow['assy_option_id'] ?? 0) > 0, 422, 'ASSY selection must be explicit.');
             $partGroup = ($explicit ? $allAssyGroupsById : $assyGroupsById)->get($partGroupId);
-            $partGroupOption = $partGroup?->options->first();
+            $partGroupOption = $explicit
+                ? $partGroup?->options->firstWhere('id', $explicitChoice['option_id'])
+                : $partGroup?->options->first();
             if ($partGroupId > 0 || $partGroupOptionId > 0) {
                 abort_unless(
                     $partGroup
@@ -734,6 +739,7 @@ class MobileApiController extends Controller
                 'new_serial_number' => $this->mobileLogCardText($inputRow['new_serial_number'] ?? null),
                 'manual_id' => (string) $manualId,
                 'assy_selection_explicit' => $explicit ? '1' : '0',
+                'assy_option_id' => $explicit ? (string) $partGroupOption->id : null,
             ];
             if ($unitIndex > 0) {
                 $row['unit_index'] = (string) $unitIndex;
@@ -2627,7 +2633,7 @@ class MobileApiController extends Controller
         // are entered by shop staff, while every other process is supplied by
         // Quantum and must remain read-only even before Quantum has dates.
         $canEdit = (bool) ($process->processName?->allowsManualDateEditing() ?? false);
-        $isPaint = strtolower(trim((string) $process->processName?->name)) === 'paint';
+        $isPaint = strtolower(trim((string) $process->processName?->identityName())) === 'paint';
 
         return [
             'can_edit_start' => $canEdit,

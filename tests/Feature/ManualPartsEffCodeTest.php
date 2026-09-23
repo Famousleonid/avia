@@ -12,6 +12,25 @@ class ManualPartsEffCodeTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_bushing_checkbox_needs_no_initial_and_preserves_legacy_initial(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version,
+            'password_hash_web' => $admin->getAuthPassword()]);
+        foreach ([null, '3-430D'] as $index => $initial) {
+            $part = Component::create(['manual_id' => $manual->id, 'ipl_num' => '3-'.(430 + $index),
+                'part_number' => 'FLAG-'.$index, 'name' => 'Bushing', 'is_bush' => false,
+                'bush_ipl_num' => $initial]);
+            foreach ([true, false, true] as $flag) {
+                $this->patchJson(route('components.updateFlags', $part), ['field' => 'is_bush', 'value' => $flag])
+                    ->assertOk()->assertJsonPath('value', $flag);
+                $this->assertSame($flag, $part->fresh()->is_bush);
+                $this->assertSame($initial, $part->fresh()->bush_ipl_num);
+            }
+        }
+    }
+
     public function test_manual_parts_create_edit_and_table_include_eff_code(): void
     {
         $admin = $this->createUserWithRole('Admin');

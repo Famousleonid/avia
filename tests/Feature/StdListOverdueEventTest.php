@@ -70,6 +70,7 @@ class StdListOverdueEventTest extends TestCase
             'print_form' => false,
             'show_in_process_picker' => true,
         ]);
+        $processName->update(['name' => 'Coating checklist']);
 
         TdrProcess::query()->create([
             'tdrs_id' => $legacyTdr->id,
@@ -246,6 +247,7 @@ class StdListOverdueEventTest extends TestCase
             'print_form' => false,
             'show_in_process_picker' => true,
         ]);
+        $processName->update(['name' => 'Coating checklist']);
 
         $carrierProcess = TdrProcess::query()->create([
             'tdrs_id' => $carrierTdr->id,
@@ -259,7 +261,7 @@ class StdListOverdueEventTest extends TestCase
 
         $message = (new TdrProcessOverdueStartEvent())->message($carrierProcess);
 
-        $this->assertSame('STD Paint List', $message['ui']['process']['name']);
+        $this->assertSame('Coating checklist', $message['ui']['process']['name']);
         $this->assertSame('', $message['ui']['part']['number']);
         $this->assertSame('', $message['ui']['part']['name']);
         $this->assertStringNotContainsString('WASHER, FLAT', $message['text']);
@@ -310,6 +312,7 @@ class StdListOverdueEventTest extends TestCase
             ]
         );
 
+        $travelerProcessName->update(['name' => 'Delivery route']);
         $firstProcessName = ProcessName::query()->create([
             'name' => 'Traveler Source A ' . uniqid(),
             'process_sheet_name' => 'Source A',
@@ -355,12 +358,12 @@ class StdListOverdueEventTest extends TestCase
 
         $this->assertCount(1, $subjects);
         $this->assertSame($travelerProcessName->id, $subjects->first()->processName->id);
-        $this->assertSame('Traveler', $subjects->first()->processName->name);
+        $this->assertSame('Delivery route', $subjects->first()->processName->name);
         $this->assertSame(2, $subjects->first()->traveler_overdue_group_count);
 
         $message = $event->message($subjects->first());
 
-        $this->assertSame('Traveler', $message['ui']['process']['name']);
+        $this->assertSame('Delivery route', $message['ui']['process']['name']);
         $this->assertSame(1, $message['ui']['std_days']);
     }
 

@@ -4,6 +4,88 @@ Canonical history of manual-package work. Read this file before answering whethe
 
 ## Status rules
 
+### 32-11-01RM /68 — production verified — 23/Sep/2026 — agreed import complete, composition exceptions retained
+
+User reported SQL upload. Pinned SELECT-only production postflight17:47:23UTC passed1631/1631 with0failures; expanded boundary audit17:49:40UTC found0exact Component-field differences,1104oldIDs preserved,26restores+31creates,1048active+87archived Parts,138groups/294options/4230coverages. Flags LC30/NDT69/CAD98/Paint36/KIT527; CheckSheet exact JSON/source/content hash verified. All17SB and57legacy rows match baseline exactly; historical FK reference counts (including TDR) unchanged. Approved page10118 exclusions and all126existing-only active Parts retained. Per-FIG production Parts/groups:1=95/11,2=116/0,3=47/0,4=25/14,5=97/30,6=156/9,7=107/4,8=115/17,9=65/9,9A=71/9,10=46/9,11=97/23,12=11/3.
+
+Evidence in run20260923-full:production-postflight.json,production-after-import.json,production-boundary-audit.json,production-verification-report.md. SQL exact hash matches tested artifact; updates restricted to Components manual68/exactIDs, insert targets restricted to that manual's Parts/groups/options/coverages/CheckSheet;0cross-manual links and0DBtriggers on modified tables. No full pre-import snapshot of other manuals exists: do not claim bytewise unchanged whole production DB; boundary evidence and preserved target-history checks support the limited conclusion. Production was read only during this audit.
+
+Both output/manuals-production-journal.html and manuals-production-20260915.html updated for manual68 only, preserving every other manual/progress setting; status "Загрузка ✓; согласованные исключения ASSY". All13 FIG imported-package checks pass, but full installed composition is not certified:145 omitted parent/member entries and excluded FIG6page10118 remain explicit; do not label fully green without these qualifications. Handoff manifest updated toproduction_verified_confirmed_links_only; no repeat import required.
+
+### 32-11-01RM /68 — tested full-package SQL handoff — 23/Sep/2026 — awaiting user import, confirmed-links scope
+
+User approved LLP32 both6-731/6-660B, CAD(BUSHING)29/30 PDF P/N remapping and omission/reporting of ambiguous head-ASSY links (`1 да 2 да`). Final run `storage/app/codex/manual-package-import/32-11-01RM/20260923-full/`; handoff folder `C:/Airplane/32-11-01RM 2801A0000 ERJ170 MLG/`: `32-11-01RM_20260923_v01_import.sql`, `_verify.sql` (SELECT only), `_report.md`. No new schema/DDL/temp tables. Do not mark production complete/green before postflight; conditional composition omissions remain explicit, not a certified complete SB configuration.
+
+922 reviewed PDF Parts:865 active-ID reconciliations,26 exact archived-ID restorations,31 creates. Expected1048 active+87 archived=1135total;126 existing-only active Parts preserved. 138groups=98ASSY+28oversize+12alternative,294options,4230edges. Per-FIG source Parts/groups:1=95/11,2=106/0,3=37/0,4=15/14,5=58/30,6=134/9,7=94/4,8=105/17,9=63/9,9A=63/9,10=44/9,11=97/23,12=11/3. FIG2/3 direct members belong to head groups, not invented standalone assemblies.
+
+XLS-required flags LC23/NDT47/CAD92/Paint25/KIT434; expected minimum final flags with old flags retained30/69/98/36/527. 93existing KIT flags not supported by current mapped PRL remain unchanged and are listed in report. All17SB and57legacy rows preserved exactly. Check Sheet3tasks atstages5/5/7,2blankslots,8legend; XLS SHA256071ea8ba3983501a55d2d7cff76d556eda584e6f6a2a2a97bd42b7fd57d9791b, content SHA256ba0ab872564a2d1667ad645d5cc28dd0b24c535648d1237d882648925d0f9243. Page10118 exception remains unchanged with no new coverage/flags/qty inferred.
+
+Exact raw SQL/comments passed1631SELECTchecks, identical repeat,980coverage quantity/scope cases,98LogCardcomposition cases,7rollback guard scenarios, preservation tests. Isolated scratch DB removed, working DB untouched. Import SHA2565e9f62e1bca19cb398f8d311529d5c9e344c72c7415c50f6e50943705e482bc4; verify SHA256578d67585151d723e5b2c4cae5e6d456fc6f5eaab9d3e3ec01db4be2c63fcc16. Fresh pinned production snapshot23/Sep/2026 16:52:49UTC exactly matches baseline (991active,113archived,0newgroups,17SB,57legacy,0CheckSheet). No production writes or post-import claim. `verify_production.py` prepared for SELECT-only audit after user upload.
+
+### 32-11-01RM /68 — restore/reference audit and lower-group draft — 23/Sep/2026 — partial
+
+Run20260923-full: pinned production read-only schema/FK audit at15:57:13UTC confirms components and57legacy rows unchanged from baseline. `component-plan.json` reconciles922 source Parts:865 active updates,26 exact archived-ID restores,31 creates,1048 expected active rows; no identity conflicts. Restored1-90 ID3779 and5-130 ID2268 have existing TDR references, preserved by ID. All unselected historical rows retained. `groups-draft.json` currently28oversize+12alternative+74ASSY /296edges, not final root composition. Exact legacy references linked where identity matches; incorrect historical legacy P/N retained without using them as authority. Existing-only letter variants excluded from new restricted PDF coverage. User approved six XLS remaps; LLP32 andCAD(BUSHING)29/30 remain pending. Requested confirmation to omit/report ambiguous top-level variant links rather than infer configuration. No database writes, no full SQL handoff, no raw SQL tests yet; status remains partial. See current `review-status.md` and `production-schema-references.json` for evidence.
+
+### 32-11-01RM /68 — all13 FIG row extracts assembled — 23/Sep/2026 — partial
+
+Run20260923-full now contains922 visually reviewed PDF Parts in `parts.csv`, with raw source quantities/indentation/applicability in per-FIG TSV or9A evidence. Counts: FIG1=95,2=106,3=37,4=15,5=58,6=134,7=94,8=105,9=63,9A=63,10=44,11=97,12=11. Analyzer executed for every FIG and aggregate. User additionally approved8-215B/8-320B AS15001-IP→AS15001-1P and9-310B M274262013D→M2742620130D with IDs/history preserved. User approved six specific XLS row mappings in confirmed-decisions.json. Offline workbook reconciliation fixes package-specific sharedFIG9/9A and splitCAD parsing; global analyzer has not been changed. LLP32 and CAD(BUSHING)29/30 approval remains pending. Approved page10118 preservation remains excluded from writes. ASSY graphs, full SQL and raw SQL tests remain unfinished; no DB import or green completion.
+
+Important correction to earlier SB audit: matching byAC+OEM resolves all17 source rows against existingIDs. AC170-32-0021 R2 has distinctOEM recordsIDs2/3; AC170-32-0060 R1 has distinctOEM recordsIDs5/10. Do NOT overwriteIDs3/10 with another source row as the earlier faultyAC-only comparison proposed. All17 metadata rows match exceptID13 AWD date representation43776 versus11/7/2019 (same07/Nov/2019); preserve stored representation. This supersedes the earlier SB-conflict plan, not user data.
+
+### 32-11-01RM /68 — FIG6 excluded-page decision — 23/Sep/2026 — partial
+
+User explicitly answered `как в продакшин` for crossed-out printed page10118 /6.pdf page10, for which no uncrossed replacement is supplied. Preserve existing production data, quantities and relationships for6-735,6-736,6-740,6-750,6-760,6-770,6-780A,6-780B,6-790; do not create new ASSY coverage or infer missing data from that page. Scoped decision persisted in `storage/app/codex/manual-package-import/32-11-01RM/20260923-full/confirmed-decisions.json`. This resolves the source-page question by an approved exclusion, not by certifying its PDF content. No production changes; full SQL handoff remains pending.
+
+### 32-11-01RM /68 — six FIG Parts extracts recorded — 23/Sep/2026 — partial
+
+Run `storage/app/codex/manual-package-import/32-11-01RM/20260923-full/`: manually reviewed per-row source evidence and canonical CSVs now cover FIG1=95, FIG2=106, FIG9A=63, FIG10=44, FIG11=97, FIG12=11 (416 source Parts). `reviewed-parts/*.source.tsv` retains printed page, raw quantity, hierarchy, applicability and notes; FIG9A has separate evidence JSON. `build_reviewed.py` compares these to the pinned23/Sep snapshot without DB writes. FIG1:84 active matches,11 missing/archived candidates (restore audit pending); FIG2:106 matches,10 existing-only REF headers preserved; FIG9A:60 matches,1 approved PN correction,2 archived assembly candidates and8 preserved REF headers; FIG10/11/12:44/97/11 matches and13/16/5 quantity differences respectively. FIG10's2 existing-only repair rows are preserved. No unapproved active PN conflicts in these six extracts. Analyzer executed for each FIG; whole-workbook missing matches in a single-FIG run and known CAD parser limitation remain unresolved package issues, not final validation. FIG3–9 still require canonical row review; all composition graphs and final workbook reconciliation remain pending. No final full SQL, no local/production DB import, no green completion. Existing production counts,17 SB and absent Check Sheet are unchanged from the snapshot; no fresh postflight claimed.
+
+### 32-11-01RM /68 — FIG9A P/N correction approved — 23/Sep/2026 — partial
+
+User confirmed `исправить по PDF`: include9A-310B correction M274262130D→M2742620130D with existingID5198/history preserved in the planned full SQL. Recorded in20260923-full/confirmed-decisions.json andreviewed-parts/9A-evidence.json. This supersedes the pending identity decision below; source9A.csv already contains the PDF number. No production/local DB changes and no final full SQL delivered. Remaining package extraction, graph/workbook reconciliation and tests are unchanged.
+
+### 32-11-01RM /68 — decisions approved, FIG9A Parts transcribed — 23/Sep/2026 — partial
+
+User confirmed `1. по PDF 2. по xls`: approved6-732B→2801-0707 and8-233→1840-0351 preserving IDs/history, plus existingSB170-32-0021 R2 and170-32-0060 R1 metadata fromXLS preserving IDs. Scoped decisions saved in20260923-full/confirmed-decisions.json; no DB writes. FIG9A63Parts visually transcribed with quantities fromprinted10158–10161, `reviewed-parts/9A.csv` and9A-evidence.json. Analyzer run analysis-fig9A:63Parts,24whole-workbook issues (not final flags; knownCAD limitation). Comparison to23/Sep production snapshot:60identity matches with no quantity changes;1newPNconflict9A-310B ID5198 M274262130D→PDF M2742620130D awaiting approval;2archived-only ASSY430A/B require reference-aware restoration;8existing non-orderable REF08configuration headers retained outside imported orderable Parts. Per-FIG group construction and remaining12FIG canonical reviews unfinished; no full SQL or green completion. Prior named decisions no longer pending.
+
+### 32-11-01RM /68 — FIG9A source gap closed — 23/Sep/2026 — partial
+
+Received `//F519/backup4/ScanFolder/20260923082603454.pdf` (4pages,95797bytes,SHA2563e7a891ffe3f6679dcec471cb79958a6a02df9ec65f4765b9e0b845d52617baf). Rendered all four at300DPI and visually reviewed:10157(blank),10158,10159,10160. Previously missing10158/10160 now present; repeated10159 matches original9A.pdf page2 and is counted once. Original9A.pdf supplies10161. Source gap resolved, not full FIG completion. Evidence in `storage/app/codex/manual-package-import/32-11-01RM/20260923-full/supplement-20260923082603454/`; source files unchanged. Confirmed9A-310B P/N M2742620130D qty2 (310A predecessor M274262130D), and350A/B references to10-1A/B. Remaining Parts/quantity/ASSY audit and prior P/N/SB decisions still pending; no SQL handoff or DB writes this step. Earlier missing-page note below is superseded by this entry.
+
+### 32-11-01RM /68 — full-package preparation — 23/Sep/2026 — partial, awaiting source/decisions
+
+User authorized completing the full local package and production SQL handoff. Fresh pinned SELECT snapshot23/Sep/2026 12:12:39UTC confirms991 active/113 archived Parts,0 new groups/options/coverages,57 legacy rows,17 SB,0 Check Sheet. No database writes. Run `storage/app/codex/manual-package-import/32-11-01RM/20260923-full/`:manifest,production snapshot,300-DPI renders and OCR for all95 pages,contact sheets visually inspected across all13 FIG. FIG6 PDF page9/printed10117 is crossed out; use replacement PDF page7/TR32-07. Critical source gap:9A.pdf contains10157(blank),10159,10161 but lacks tables10158/10160; requested from user, do not infer from FIG9 or database. OCR candidates are explicitly unreviewed, not canonical Parts or completion evidence. Fresh workbook diagnostic correctly handles split FIG/ITEM and whitespace PN:84 exact CAD matches,57 missing flags,9 unresolved positions; global analyzer unchanged. Asked confirmation for6-732B2601-0707→2801-0707 and8-2331840-0302RS20→1840-0351 (RS20 belongs8-234), and the two existing SB/XLS conflicts. CAD rows29/30 swap11-80…83/11-90…93 families; production identities agree with PDF. Full Parts/quantity/graph audit, reconciled mappings, SQL generation and local raw SQL tests remain pending. No final full SQL delivered, no change to per-FIG completion/green status. See `review-status.md` for exact continuation state.
+
+### ASSY editor coverage-mode rollback — 22/Sep/2026
+
+User rejected the per-member IPL family/Exact part only UI. Local Blade and controller restored to their pre-feature state; request field is no longer accepted/serialized or submitted. Read-only current production check confirms the column exists and37 exact links have already been imported (`32-21-02/20260922-exact/rollback-production-state.json`); this narrow check is not full import postflight certification. Retained model/resolver/migration compatibility to avoid broadening those links; no database changes or production deploy. Ordinary editing preserves imported false values and new links use default family behavior.49 tests PASS (26/361 PartGroups,23/141 LogCard/Scope/Legacy); local manual54 browser desktop1600x1000/mobile390x844 PASS, no JS errors, no save/delete. A full backend/schema rollback is deferred pending an applicability-based replacement, not falsely reported complete. Do not deploy the old exact_code.zip, which contains the rejected UI; deploy current local project files instead.
+
+### 32-11-01RM /68 — production stage audit — 22/Sep/2026 — partial
+
+User requested status and missing work, not an import. Current pinned production SELECT snapshot at22/Sep/2026 14:39:28UTC:991 active Parts plus113 archived rows;0 Part Groups/options/coverages;57 legacy assembly records;17 SB;0 Check Sheet templates. No production writes. Sources `C:/Airplane/32-11-01RM 2801A0000 ERJ170 MLG/`:13 numbered FIG PDFs (1–12 plus9A),95 pages, `2801_2802A0000-series.xlsx` SHA256071ea8ba3983501a55d2d7cff76d556eda584e6f6a2a2a97bd42b7fd57d9791b. FIG1 header visually confirms32-11-01RM and2801A0000/2802A0000. This is NOT a completed PDF row/quantity/composition audit.
+
+| FIG | PDF pages | Active production Parts | New groups | PDF reconciliation complete |
+|---|---:|---:|---:|---|
+|1|8|84|0|?|
+|2|10|116|0|?|
+|3|4|47|0|?|
+|4|4|25|0|?|
+|5|8|67|0|?|
+|6|14|152|0|?|
+|7|10|100|0|?|
+|8|14|114|0|?|
+|9|6|63|0|?|
+|9A|3|69|0|?|
+|10|4|46|0|?|
+|11|8|97|0|?|
+|12|2|11|0|?|
+
+Production flags:LC29/NDT66/CAD32/Paint32/KIT466. Workbook-vs-active-production diagnostic (inventory CSV explicitly NOT PDF extraction) identifies57 directly mapped missing KIT flags +2 remap-only KIT candidates,2 missing NDT flags9-90A/B; these are candidates pending PDF review, not authorized import. Previously prepared KIT removal for6-490/1840-0081 is not reflected:kit remains1, PRL F456 blank. Existing importer misses split FIG(A)/ITEM(B) CAD layouts and returns0 CAD incorrectly; independent read-only diagnostic resolves80 unique IPL/P/N matches across CAD tabs,53 missing CAD flags,13 unresolved row/item mappings. No parser or flags changed in this status task. Original analyzer issues28 include3 preserved EC/repair IPLs outside its regex, not3 invalid physical parts. Remaining25 workbook matching issues require source review; don't infer missing Parts purely from them.
+
+SB14 rows match;2 substantive mismatches170-32-0021 R2 and170-32-0060 R1 (OEM references/descriptions/applicability);170-32-0088 R1 differs in Excel date representation43776 vs11/7/2019, not automatically a new bulletin. Check Sheet source has3 populated tasks plus2 empty slots, parser issues0; production absent. Existing standalone Check Sheet and KIT-removal handoff files are in source folder but do not complete this package.
+
+Evidence `storage/app/codex/manual-package-import/32-11-01RM/20260922-audit/`:source-manifest.json,production.json,target-active.json,analysis/analysis.json,findings.json,capture.py,prepare_audit.py,summarize.py. Pending:full13-FIG PDF Parts/quantity reconciliation;new ASSY/Original-Oversize graph replacing reliance on legacy links;reviewed workbook mappings including split-column CAD;resolve2 SB conflicts;Check Sheet import;guarded full SQL and postflight. Completion remains partial, no green certification.
+
 ### Green manuals: IPL PDF quantity reconciliation — SQL ready, production pending — 21/Sep/2026
 
 User requested quantity-only SQL for every green manual in the current HTML journal. Completion predicate selected IDs40/41/58/78/91/95. Fresh pinned read-only production capture at21/Sep/2026 18:14:09UTC contains3159 rows including soft-deleted; exact active PDF scope3130,18 additional active rows retained. Immutable PDF SHA256 hashes match original reviewed manifests. Run: `storage/app/codex/manual-package-import/ipl-quantities/20260921/` (`journal-scope.json`, `production.json`, `source-hashes.json`, `final-rows.json`, `visual-quantity-review.json`, `preserved-rows.json`, `packages.json`, `sql-local-test.json`).
@@ -576,6 +658,14 @@ The following per-FIG production counts remain current as of the fresh snapshot;
 
 ## 32-21-02 — partial
 
+### Exact-member support and additive SQL prepared — 22/Sep/2026
+
+Handoff saved and byte-hash checked in `C:/Airplane/32-21-02 ERJ 190 NLG/`: three SQL files, codeZIP (5PHP/Blade files plus migration), README.49feature testsPASS (26PartGroups +23LogCard/Scope/Legacy), browser saved-mode/rerender/desktop1600×1000/mobile390×844PASS,no page errors. Local QA created groups1999/2000 under codex admin; form auto-named them190-70500-401. After explicit user authorization on22/Sep/2026, both were soft-deleted locally with exact ID/code/manual/creator and unused-link guards (`20260922-exact/cleanup_local_qa.php`, PASS). Parts, retained option/coverage history and production unchanged. User deploys code from the local project, not the ZIP; handoff remains schema SQL then updated project code then exact_import.sql (37 links), pending production verification.
+
+Run `storage/app/codex/manual-package-import/32-21-02/20260922-exact/`. Fresh pinned SELECT snapshot22/Sep/2026 13:48:49UTC confirms631activeParts/87groups/3994coverages. Production unchanged. Local code/schema adds per-coverage `expand_ipl_family` (default1 preserves legacy;0 exact IPL only) to procurement coverage, nested composition and Log Card membership; editor round-trips the flag and older clients preserve restrictions. Work Scope already uses exact direct rows, unchanged.
+
+PDF pages10050/10051/10133 visually reconfirmed. Prepared37additive exact links in15existingASSY:33PRE/POST SB06 fastener links for1-5…K (PRE2/4/2,POST1/2/1),4MainFitting links10-30/30B→35 and30A/30C→35A. Isolated raw SQL1137checksPASS,identical repeat,450scope/qty runtime cases,45LogCard compositions,3rollback scenarios; existing1031target-groupedges and allParts/flags/history preserved. Local working manual data not overwritten. Schema migration applied locally; production handoff requires schemaSQL→PHP/Blade copy→dataSQL. Artifacts `32-21-02_20260922_v01_exact_{schema,import,verify}.sql`,codeZIP,README. New links pending user upload and production postflight; do not mark green or count these as deployed. BothHTMLjournal notes updated without changing completion. Remaining FIG8rootTorqueLink/washers,FIG9axle/tube/Cam/seals/SB07,FIG10rootMainFitting variant need configuration evidence; no guessed links.
+
 ### Production upload verified; HTML journal refreshed — 21/Sep/2026
 
 User reported upload. Pinned read-only exact audit at21/Sep/2026 21:09:37UTC: **967/967 PASS, zero differences** (`production-postflight.json`). Fresh full manual snapshot `production-after-import.json`:631 active Parts,1 archived historical row,87 active groups,161 options,3994 coverages,9SB,1exactCheckSheet. All630 PDF identities/quantities and flags verified;607 matched IDs preserved,23newParts,extra1-451B retained. Cam/legacy/history unchanged. No production mutation performed by agent.
@@ -653,6 +743,14 @@ The reviewed PDF set contains 704 Parts: FIG 1A 401, FIG 2A 33, FIG 3 30, FIG 4 
 Production currently has 20 Service Bulletins.
 
 ## 32-21-06 — partial
+
+### W107974 Log Card ASSY option selection — local fix 22/Sep/2026
+
+Local WO463/manual54 reproduces the reported case: component3723, IPL3-425/P/N52103-101 has own ASSY identities52103-1 and52103-3. Group52/M54-F3-PISTON stores these as options145/146 (plus147/52103-1001 belonging to the other bare part). Log Card incorrectly inspected only the first option. Local code now enumerates eligible individual options, requires the technician's choice when ambiguous, and saves `assy_option_id` in the existing Log Card JSON alongside P/N/IPL. No new database column or import SQL. Ordinary and mobile UI tested on local WO463 without saving business data; selection146/52103-3 available, no JS errors. Save/reopen/print, invalid selections, legacy unambiguous requests and QA locks passed28 sequential feature tests. Evidence: `storage/app/codex/log-card-52103-diagnostic.php`, `tests/Feature/LogCardAssemblyIdentityTest.php`; browser screenshots in the current Codex visualization directory (`log-card-piston-desktop.png`, `log-card-piston-mobile-form.png`). Production was not changed or reverified in this task; package/FIG completion status and counts remain unchanged.
+
+### W107990 focused quantity diagnosis — 22/Sep/2026
+
+Pinned production SELECT confirmed WO473/manual54: active3754 IPL3-435A P/N52175-3 and3755 IPL3-430E P/N52120-11SR both have null units_assy. PDF3 page7/printed10045 visually verified:435A=2;430E=AR; original430D/52120-11=2. Deployed create-form and BushingPrlGrouping capacity fall back to1. Explicit oversize group41 contains430D/E, but430D is not is_bush, so the filtered bushing family excludes its quantity2. Group42 alternatives likewise have2 outside the bushing filter. Missing catalog quantity and filtered family allowance are separate issues; do not overwrite430E PDF AR with inferred2. Evidence `storage/app/codex/manual-package-import/32-21-06/20260922-w107990/` production.json,page7.png,report.md. Diagnostic only, no data/code changes; correction remains pending. Manual54 was not in the six-green-manual quantity handoff. Historical full-stage status remains partial.
 
 PDF FIG 1–3, Parts, workbook flags, and 20 Service Bulletins passed production verification. The reviewed result intentionally preserves four existing-only components, so 505 source rows become 509 production Parts. The new group hierarchy was built and production-verified only for FIG 3; FIG 1–2 still require a documented group-composition audit before the whole manual can be called complete.
 

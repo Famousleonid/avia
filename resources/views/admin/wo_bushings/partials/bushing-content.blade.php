@@ -17,7 +17,7 @@
 @endphp
 @if($woBushing && ($linesExist ?? !empty($bushData)))
     @php
-        $machiningProcessName = \App\Models\ProcessName::where('name', 'Machining')->first();
+        $machiningProcessName = \App\Models\ProcessName::whereIdentityNames(\App\Models\ProcessName::BUSHING_MACHINING_NAMES)->orderBy('id')->first();
         $stressReliefProcessName = null;
         $assignedNdtProcessIds = collect($bushData ?? [])
             ->flatMap(fn ($item) => (array) ($item['processes']['ndt'] ?? []))
@@ -27,10 +27,10 @@
             ->pluck('process_name')
             ->first(fn ($name) => $name && $name->process_sheet_name === 'NDT'
                 && \App\Models\ProcessName::canPrintProcessForm($name));
-        $passivationProcessName = \App\Models\ProcessName::where('name', 'Passivation')->first();
-        $cadProcessName = \App\Models\ProcessName::where('name', 'Cad plate')->first();
-        $anodizingProcessName = \App\Models\ProcessName::where('name', 'Anodizing')->first();
-        $xylanProcessName = \App\Models\ProcessName::where('name', 'Xylan coating')->first();
+        $passivationProcessName = \App\Models\ProcessName::whereIdentityName('Passivation')->first();
+        $cadProcessName = \App\Models\ProcessName::whereIdentityName('Cad plate')->first();
+        $anodizingProcessName = \App\Models\ProcessName::whereIdentityName('Anodizing')->first();
+        $xylanProcessName = \App\Models\ProcessName::whereIdentityName('Xylan coating')->first();
         $hasMachiningData = $hasStressReliefData = $hasNdtData = $hasPassivationData = $hasCadData = $hasAnodizingData = $hasXylanData = false;
         foreach ($bushData ?? [] as $bushItem) {
             if (!empty($bushItem['processes']['machining'])) {
@@ -62,11 +62,9 @@
             }
         }
         if (!$stressReliefProcessName) {
-            $stressReliefProcessName = \App\Models\ProcessName::where('name', 'Bake (Stress relief)')->first()
-                ?? \App\Models\ProcessName::where('name', 'Stress Relief')->first();
+            $stressReliefProcessName = \App\Models\ProcessName::whereIdentityName('Bake (Stress relief)')->first()
+                ?? \App\Models\ProcessName::whereIdentityName('Stress Relief')->first();
         }
-        $batchCreateUrl = route('wo_bushings.batches.create', $woBushing);
-        $batchUngroupUrl = route('wo_bushings.batches.ungroup', $woBushing);
 
         $lineComponentIds = [];
         foreach (($woBushing?->lines ?? collect()) as $line) {
@@ -74,7 +72,6 @@
         }
 
         $batchLabelsByProcess = app(\App\Services\BushingRouteBatches::class)->labels((int) $woBushing->workorder_id);
-        $automaticRoutes = collect($processAssignments)->flatMap(fn ($items) => array_values($items))->contains(fn ($item) => !empty($item['route_number']));
         $sentLabelsByProcess = [];
         $retLabelsByProcess = [];
         foreach ($batchLabelsByProcess as $pKey => $labels) {
@@ -112,8 +109,8 @@
             white-space: normal;
         }
         table.bushing-view-table thead.wo-bush-thead .bushing-process-subhead th {
-            height: 96px;
-            min-height: 96px;
+            height: 48px;
+            min-height: 48px;
             padding-top: .5rem !important;
             padding-bottom: .5rem !important;
         }
@@ -197,7 +194,7 @@
         .bushing-view-table .bushing-form-row {
             flex-wrap: nowrap !important;
             justify-content: stretch !important;
-            margin-bottom: .35rem;
+            margin-bottom: 0;
             min-height: 28px;
             width: 100%;
         }
@@ -219,8 +216,6 @@
             line-height: 1.05;
         }
         .bushing-view-table .form-btn,
-        .bushing-view-table thead .js-bushing-create-batch,
-        .bushing-view-table thead .js-bushing-ungroup-batch,
         .bushing-view-table .js-bushing-batch-label {
             font-size: 12px !important;
             line-height: 1.15;
@@ -231,11 +226,6 @@
             line-height: 1.05;
             min-height: 18px;
             padding: .12rem .18rem !important;
-        }
-        .bushing-view-table thead .js-bushing-create-batch,
-        .bushing-view-table thead .js-bushing-ungroup-batch {
-            padding-top: .24rem !important;
-            padding-bottom: .24rem !important;
         }
         .bushing-subcol-batch, .bushing-subcol-form { vertical-align: middle; }
         .bushing-view-table thead.wo-bush-thead tr:first-child th {
@@ -336,12 +326,6 @@
                                                 <span class="text-muted small bushing-form-placeholder">{{ __('Form') }}</span>
                                             @endif
                                         </div>
-                                        @if(!$automaticRoutes)
-                                        <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
-                                                data-url="{{ $batchCreateUrl }}" data-process-key="{{ $hc['key'] }}">{{ __('Group') }}</button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
-                                                data-url="{{ $batchUngroupUrl }}" data-process-key="{{ $hc['key'] }}">{{ __('Ungroup') }}</button>
-                                        @endif
                                     </div>
                                 @else
                                     <span class="text-muted small bushing-form-placeholder">{{ __('Form') }}</span>

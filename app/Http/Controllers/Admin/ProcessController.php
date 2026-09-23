@@ -21,7 +21,7 @@ use App\Services\ProcessAccessGuard;
 class ProcessController extends Controller
 {
     private const BUSHING_PROCESS_NAMES = [
-        'Machining',
+        ...ProcessName::BUSHING_MACHINING_NAMES,
         'Stress Relief',
         'NDT-1',
         'NDT-4',
@@ -65,9 +65,9 @@ class ProcessController extends Controller
         if ($bushingContext) {
             $processNameOrder = array_flip(self::BUSHING_PROCESS_NAMES);
             $processNames = ProcessName::forPicker()
-                ->whereIn('name', self::BUSHING_PROCESS_NAMES)
+                ->whereIdentityNames(self::BUSHING_PROCESS_NAMES)
                 ->get()
-                ->sortBy(fn (ProcessName $processName): int => $processNameOrder[$processName->name] ?? PHP_INT_MAX)
+                ->sortBy(fn (ProcessName $processName): int => $processNameOrder[$processName->identityName()] ?? PHP_INT_MAX)
                 ->values();
         } else {
             $processNames = ProcessName::forPicker()->orderBy('name')->get();
@@ -111,14 +111,14 @@ class ProcessController extends Controller
                 return $this->denyDecision($request, $decision, route('tdrs.show', $workorder->id));
             }
 
-            if (! in_array($processName->name, self::BUSHING_PROCESS_NAMES, true)) {
+            if (! in_array($processName->identityName(), self::BUSHING_PROCESS_NAMES, true)) {
                 throw ValidationException::withMessages([
                     'process_names_id' => 'This process name is not available for bushings.',
                 ]);
             }
         }
 
-        if ($processName->name === ProcessName::SYSTEM_TRAVELER_NAME) {
+        if ($processName->identityName() === ProcessName::SYSTEM_TRAVELER_NAME) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
@@ -258,7 +258,7 @@ class ProcessController extends Controller
         if ($processNameId) {
             $processName = ProcessName::find((int) $processNameId);
             if ($processName) {
-                if ($bushingContext && ! in_array($processName->name, self::BUSHING_PROCESS_NAMES, true)) {
+                if ($bushingContext && ! in_array($processName->identityName(), self::BUSHING_PROCESS_NAMES, true)) {
                     return response()->json([
                         'success' => false,
                         'message' => 'This process name is not available for bushings.',
@@ -273,9 +273,9 @@ class ProcessController extends Controller
         // Для всех вариантов Machining ('Machining', 'Machining (EC)', 'Machining (Blend)')
         // показываем одинаковые existingProcesses
         $machiningProcessNameIds = [];
-        $machiningEC = ProcessName::where('name', 'Machining (EC)')->first();
-        $machining = ProcessName::where('name', 'Machining')->first();
-        $machiningBlend = ProcessName::where('name', 'Machining (Blend)')->first();
+        $machiningEC = ProcessName::whereIdentityName('Machining (EC)')->first();
+        $machining = ProcessName::whereIdentityName('Machining')->first();
+        $machiningBlend = ProcessName::whereIdentityName('Machining (Blend)')->first();
 
         if ($machiningEC) {
             $machiningProcessNameIds[] = $machiningEC->id;
@@ -286,8 +286,12 @@ class ProcessController extends Controller
         if ($machiningBlend) {
             $machiningProcessNameIds[] = $machiningBlend->id;
         }
+        $machiningAtIds = ProcessName::whereIdentityNames(ProcessName::BUSHING_MACHINING_NAMES)->pluck('id')->all();
+        $machiningProcessNameIds = $bushingContext
+            ? $machiningAtIds
+            : array_values(array_unique(array_merge($machiningProcessNameIds, $machiningAtIds)));
 
-        $isMachiningProcess = in_array((int)$processNameId, $machiningProcessNameIds);
+        $isMachiningProcess = ! $bushingContext && in_array((int)$processNameId, $machiningProcessNameIds);
 
         // Получаем ID процессов, которые уже связаны с данным manual_id
         $existingProcessIds = DB::table('manual_processes')

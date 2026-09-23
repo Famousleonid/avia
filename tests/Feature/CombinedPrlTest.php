@@ -37,7 +37,7 @@ class CombinedPrlTest extends TestCase
             WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
                 'component_id' => $part->id, 'qty' => $bushingQty, 'qty_remaining' => $bushingQty, 'do_not_order' => false]);
         }
-        $response = $this->actingAs($admin)->get(route('tdrs.prlForm', $wo))->assertOk();
+        $response = $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])->get(route('tdrs.prlForm', $wo))->assertOk();
         $rows = collect($response->viewData('ordersParts'));
         $this->assertCount($bushingQty === 2 ? 2 : 1, $rows);
         $this->assertSame($tdr->id, $rows->first()->id);
@@ -95,7 +95,7 @@ class CombinedPrlTest extends TestCase
     }
 
     /** @dataProvider familyOrders */
-    public function test_kit_pays_for_shared_original_oversize_quantity_without_changing_flags(array $quantities): void
+    public function test_kit_pays_for_shared_original_oversize_quantity_without_changing_flags(array $quantities, bool $groupOnly = false): void
     {
         $admin = $this->createUserWithRole('Admin');
         $wo = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
@@ -105,13 +105,24 @@ class CombinedPrlTest extends TestCase
                 'part_number' => 'FAMILY-'.$ipl, 'name' => 'Shoulder bushing', 'bush_ipl_num' => '14-100',
                 'is_bush' => true, 'units_assy' => $qty, 'kit' => $kit]));
         }
+        if ($groupOnly) {
+            $group = \App\Models\ManualPartGroup::create(['manual_id' => $wo->unit->manual_id,
+                'code' => 'BUSH-TEST', 'name' => 'Bushing', 'type' => 'oversize',
+                'behavior' => 'choose_one', 'applies_to' => ['ndt']]);
+            foreach ($parts as $index => $part) {
+                $part->update(['is_bush' => false, 'bush_ipl_num' => null]);
+                $group->options()->create(['component_id' => $part->id, 'part_number' => $part->part_number,
+                    'ipl_num' => $part->ipl_num, 'option_kind' => $index === 0 ? 'original' : 'oversize',
+                    'sort_order' => $index]);
+            }
+        }
         $bushing = WoBushing::create(['workorder_id' => $wo->id]);
         foreach ($quantities as $index => $qty) {
             WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
                 'component_id' => $parts[$index]->id, 'qty' => $qty, 'qty_remaining' => $qty, 'do_not_order' => false]);
         }
         $kit = $this->actingAs($admin)->get(route('tdrs.kitForm', $wo))->assertOk();
-        $row = collect($kit->viewData('ordersParts'))->firstWhere('prl_bushing_group', '14-100');
+        $row = collect($kit->viewData('ordersParts'))->firstWhere('prl_bushing_group', $groupOnly ? 'component-'.$parts[0]->id : '14-100');
         $this->assertSame(2, $row['bushing_kit_capacity']);
         $this->assertCount(3, $row['prl_part_numbers']);
         $options = collect($row['prl_part_numbers'])->keyBy('component_id');
@@ -129,7 +140,7 @@ class CombinedPrlTest extends TestCase
     public static function familyOrders(): array
     {
         return ['pending' => [[]], 'two original' => [[0 => 2]], 'two oversize' => [[1 => 2]],
-            'mixed' => [[0 => 1, 1 => 1]], 'one only' => [[1 => 1]]];
+            'mixed' => [[0 => 1, 1 => 1]], 'one only' => [[1 => 1]], 'group without flags' => [[1 => 2], true]];
     }
 
     public function test_identical_pn_in_another_bushing_position_does_not_use_the_kit_family_budget(): void

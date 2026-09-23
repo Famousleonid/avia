@@ -12,6 +12,7 @@ class WoBushingLine extends Model
         'wo_bushing_id',
         'workorder_id',
         'component_id',
+        'codes_id',
         'qty',
         'qty_remaining',
         'do_not_order',
@@ -21,6 +22,7 @@ class WoBushingLine extends Model
 
     protected $casts = [
         'qty' => 'integer',
+        'codes_id' => 'integer',
         'qty_remaining' => 'integer',
         'do_not_order' => 'boolean',
         'sort_order' => 'integer',
@@ -44,5 +46,10 @@ class WoBushingLine extends Model
     public function processes(): HasMany
     {
         return $this->hasMany(WoBushingProcess::class, 'wo_bushing_line_id');
+    }
+
+    public function codes(): BelongsTo
+    {
+        return $this->belongsTo(Code::class, 'codes_id');
     }
 }

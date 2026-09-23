@@ -37,6 +37,7 @@ class TdrProcessNdtFormTest extends TestCase
             'print_form' => true,
             'show_in_process_picker' => true,
         ]);
+        $processName->update(['name' => 'Ultrasonic inspection ' . $suffix]);
         $process = Process::query()->create([
             'process_names_id' => $processName->id,
             'process' => 'Refer to SB NDT-7-' . $suffix,
@@ -61,7 +62,7 @@ class TdrProcessNdtFormTest extends TestCase
             'sort_order' => 1,
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])
             ->get(route('tdr-processes.show', [
                 'tdr_process' => $tdrProcess->id,
                 'process_id' => $process->id,
@@ -72,7 +73,7 @@ class TdrProcessNdtFormTest extends TestCase
             ->assertSee($process->process)
             ->assertSee('Fig. 5003');
 
-        $this->actingAs($admin)
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])
             ->get(route('tdr-processes.editForm', $tdrProcess->id))
             ->assertOk()
             ->assertSee('class="process-notes-field d-none"', false)

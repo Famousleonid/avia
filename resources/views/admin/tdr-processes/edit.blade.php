@@ -104,7 +104,7 @@
         }
     </style>
 
-    <div class="container mt-3 bg-gradient" style="width: 850px">
+    <div class="container mt-3 bg-gradient" style="width: 850px; max-width: 100%;">
         <div class="card bg-gradient">
             <div class="card-header">
                 <div class="d-flex justify-content-between">
@@ -124,7 +124,7 @@
                     // Определяем переменные для использования в форме
                     $currentPlusProcess = $current_tdr_processes->plus_process ?? '';
                     $currentProcessName = $current_tdr_processes->processName;
-                    $isNdtProcess = $currentProcessName && strpos($currentProcessName->name, 'NDT-') === 0;
+                    $isNdtProcess = $currentProcessName && strpos($currentProcessName->identityName(), 'NDT-') === 0;
                     $processUsesNotes = $currentProcessName && !\App\Models\ProcessName::canPrintProcessForm($currentProcessName);
                     $currentPlusProcessIds = !empty($currentPlusProcess) ? explode(',', $currentPlusProcess) : [];
                 @endphp
@@ -137,8 +137,8 @@
                     <!-- Контейнер для строк с процессами -->
                     <div id="processes-container" data-manual-id="{{ $current_tdr->workorder->unit->manual_id ?? '' }}">
                         <div class="process-row mb-3">
-                            <div class="row" >
-                                <div class="col-md-3" style="width: 200px">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-3">
                                     <label for="process_names">Process Name:</label>
                                     <select name="processes[0][process_names_id]" class="form-control select2-process" required>
                                         <option value=""></option>
@@ -149,7 +149,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-5">
+                                <div class="col-12 col-md-6">
                                     <label for="process">Processes (Specification):</label>
                                     <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal" data-bs-target="#addProcessModal">
                                         <img src="{{ asset('img/plus.png') }}" alt="+" style="width: 20px;">
@@ -198,7 +198,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-12 col-md-3">
 {{--                                    <label for="ec">EC:</label>--}}
                                     <div class="form-check mt-2" id="ec-checkbox-container" style="display: none;">
                                         <input type="checkbox" name="processes[0][ec]" value="1" class="form-check-input" id="ec_edit"
@@ -208,19 +208,20 @@
                                         </label>
                                     </div>
                                     <div>
-                                        <label for="description" class="form-label" style="margin-bottom: -5px">Description</label>
-                                        <input type="text" class="form-control" id="description" name="description" value="{{ old('description', $current_tdr_processes->description) }}" placeholder="Enter Description">
                                         <div class="process-notes-field {{ $processUsesNotes ? '' : 'd-none' }}">
                                             <label for="notes" class="form-label" style="margin-bottom: -5px">Notes</label>
                                             <input type="text" class="form-control" id="notes" name="notes" value="{{ old('notes', $current_tdr_processes->notes) }}" placeholder="Enter Notes" @disabled(!$processUsesNotes)>
                                         </div>
                                     </div>
                                 </div>
-                                </div>
                             </div>
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="description" class="form-label">{{ __('Description') }}</label>
+                        <textarea class="form-control" id="description" name="description" rows="6" maxlength="255" placeholder="{{ __('Enter Description') }}">{{ old('description', $current_tdr_processes->description) }}</textarea>
+                    </div>
                     <div class="text-end mb-3 me-4">
                         <button type="submit" class="btn btn-outline-primary mt-3" id="updateButton">{{ __('Update') }}</button>
                         <a href="{{ route('tdr-processes.processes', ['tdrId' => $current_tdr->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
@@ -264,6 +265,7 @@
                 ndtProcessNamesData: @json($ndtProcessNames->keyBy('id')),
                 ecEligibleProcessNameIds: @json($ecEligibleProcessNameIds ?? []),
                 processNamesData: @json($processNames->keyBy('id')),
+        machiningEcProcessNameIds: @json(\App\Models\ProcessName::identityIds('Machining (EC)')),
                 currentProcesses: @json(\App\Models\TdrProcess::normalizeStoredProcessIds($current_tdr_processes->processes))
             };
             if (window.TdrProcessEditForm) TdrProcessEditForm.init(config);

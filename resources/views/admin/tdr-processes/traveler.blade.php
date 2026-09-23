@@ -253,7 +253,7 @@
                                         @php
                                             // Скрываем только служебную строку ProcessName «EC» (companion к Machining).
                                             // «Machining (EC)» и «только EC» (standalone_ec_only) в traveler остаются.
-                                            $isCompanionEcRow = ($processName === 'EC' && !($processes->standalone_ec_only ?? false));
+                                            $isCompanionEcRow = ($processes->processName->hasIdentity('EC') && !($processes->standalone_ec_only ?? false));
                                         @endphp
                                         @if(!$isCompanionEcRow)
                                         <tr data-id="{{ $processes->id }}">

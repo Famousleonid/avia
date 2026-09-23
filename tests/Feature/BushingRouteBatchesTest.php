@@ -42,6 +42,9 @@ class BushingRouteBatchesTest extends TestCase
         $this->assertCount(2, $groups);
         $this->assertSame([5, 1], array_column($groups, 'total_qty'));
         $this->assertSame(['Machining', 'NDT', 'Passivation', 'CAD'], $groups[0]['processes']);
+        foreach ([$m, $n1, $n4, $p, $c] as $process) {
+            $process->process_name->update(['name' => 'Renamed operation '.$process->process_names_id]);
+        }
         $service->rebuild($bushing);
         $this->assertSame($labels, $service->labels($wo->id));
         // NDT B2 is looked up by route, including gaps in a particular operation.
@@ -96,5 +99,44 @@ class BushingRouteBatchesTest extends TestCase
             ->get(route('wo_bushings.specProcessForm', $bushing->id))->assertOk();
         $response->assertSee('B13')->assertSee('4 of 4');
         $this->assertSame(3, substr_count($response->getContent(), '<div class="container-fluid" data-process-table-rows-max='));
+    }
+
+    public function test_removed_draft_is_cleaned_and_readdition_reuses_trailing_number(): void
+    {
+        $wo = $this->createWorkorder();
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        $n = $this->process('NDT-4'); $m = $this->process('Machining');
+        $service = app(BushingRouteBatches::class);
+        $kept = $this->line($bushing, [$n]);
+        $removed = $this->line($bushing, [$n, $m]);
+        $service->rebuild($bushing);
+        $oldIds = $removed->processes()->pluck('batch_id');
+        $removed->delete();
+        $service->rebuild($bushing);
+        $this->assertSame(0, WoBushingBatch::whereIn('id', $oldIds)->count());
+        $added = $this->line($bushing, [$n, $m]);
+        $service->rebuild($bushing);
+        $this->assertSame([2, 2], $added->processes()->get()->map(fn ($row) => (int) $row->batch->route_number)->all());
+        $this->assertSame(1, (int) $kept->processes()->first()->batch->route_number);
+        // A changed draft route can also leave an operation empty during rebuild itself.
+        $added->processes()->where('process_id', $m->id)->delete();
+        $service->rebuild($bushing);
+        $this->assertSame(0, WoBushingBatch::where('workorder_id', $wo->id)->whereDoesntHave('woBushingProcesses')->count());
+    }
+
+    public function test_empty_batches_with_history_or_tracking_data_survive_cleanup(): void
+    {
+        $wo = $this->createWorkorder();
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        $m = $this->process('Machining');
+        $ids = [];
+        foreach ([['repair_order' => 'R123'], ['date_start' => '2026-09-01'], ['date_finish' => '2026-09-02'], ['date_promise' => '2026-09-03'], ['working_steps_count' => 2], []] as $index => $attributes) {
+            $batch = WoBushingBatch::create(array_merge(['workorder_id' => $wo->id, 'process_id' => $m->id, 'process_column_key' => 'machining', 'route_number' => $index + 1], $attributes));
+            $ids[] = $batch->id;
+        }
+        $batch->machiningWorkSteps()->create(['step_index' => 1, 'description' => 'Existing work']);
+        app(BushingRouteBatches::class)->rebuild($bushing);
+        $this->assertSame(count($ids), WoBushingBatch::whereIn('id', $ids)->count());
+        $this->assertSame(1, $batch->machiningWorkSteps()->count());
     }
 }

@@ -687,15 +687,19 @@
 @include('admin.tdrs.partials.component-inspection-modals')
 
 {{-- Edit Tdr Process Modal (iframe, like Add Process) --}}
+<style>
+    /* Keep the background assistant from covering form actions on small screens. */
+    body:has(#editTdrProcessModal.show) #aiAssistantWidget { visibility: hidden; }
+</style>
 <div class="modal fade" id="editTdrProcessModal" tabindex="-1" aria-labelledby="editTdrProcessModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" style="max-width: 880px; width: 95%; height: 80vh;">
+    <div class="modal-dialog modal-lg" style="max-width: 880px; width: 95%; height: 80vh; margin-left: auto; margin-right: auto;">
         <div class="modal-content bg-gradient" style="height: 80vh;">
             <div class="modal-header">
                 <h6 class="modal-title text-info" id="editTdrProcessModalLabel">{{ __('Edit Part Process') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
-                <iframe id="editTdrProcessIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            <div class="modal-body p-0 overflow-hidden d-flex" style="min-height: 0;">
+                <iframe id="editTdrProcessIframe" title="{{ __('Edit Part Process') }}" src="about:blank" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
             </div>
         </div>
     </div>

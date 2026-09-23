@@ -92,7 +92,7 @@
 
 </head>
 <body class="fade-page">
-<div class="app-container">
+<div class="app-container @yield('app-container-class')">
 
     <div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
         <span class="visually-hidden">Loading...</span>

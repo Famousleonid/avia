@@ -40,6 +40,6 @@
     </div>
 
     <div class="col-2 text-end version-info pe-5 me-5" >
-        <b>Version</b> 2.4.0
+        <b>Version</b> 2.5.0
     </div>
 </footer>

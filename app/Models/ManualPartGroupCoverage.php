@@ -13,6 +13,7 @@ class ManualPartGroupCoverage extends Model
         'covered_manual_part_group_option_id',
         'legacy_component_assembly_id',
         'qty',
+        'expand_ipl_family',
         'applies_to',
     ];
 
@@ -21,6 +22,7 @@ class ManualPartGroupCoverage extends Model
         'covered_manual_part_group_option_id' => 'integer',
         'legacy_component_assembly_id' => 'integer',
         'qty' => 'integer',
+        'expand_ipl_family' => 'boolean',
         'applies_to' => 'array',
     ];
 
@@ -47,5 +49,11 @@ class ManualPartGroupCoverage extends Model
     public function appliesTo(string $scope): bool
     {
         return in_array($scope, $this->applies_to ?: ManualPartGroup::validScopes(), true);
+    }
+
+    /** Missing on pre-migration rows means legacy family behavior. */
+    public function expandsIplFamily(): bool
+    {
+        return $this->expand_ipl_family ?? true;
     }
 }

@@ -61,10 +61,11 @@
                 <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px; line-height: 1.1">
                     @foreach($process_components ?? [] as $component_process)
                         @if($component_process->id == ($proc->id ?? $proc))
-                            <span @if(strlen($component_process->process) > 40) class="process-text-long" @endif>
-                                {!! nl2br(e(format_process_number($component_process->process))) !!}
-                                @if(isset($data['description']) && $data['description'])<br><span>{{ $data['description'] }}</span>@endif
-                            </span>
+                            @include('shared.process-forms._process-text', [
+                                'text' => $component_process->process,
+                                'comment' => isset($processCommentFor) ? $processCommentFor($component_process->id, $comp->manual_id) : '',
+                                'description' => $data['description'] ?? '',
+                            ])
                         @endif
                     @endforeach
                 </div>
@@ -88,10 +89,12 @@
                 <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px">
                     @foreach($process_components ?? [] as $component_process)
                         @if($component_process->id == $process)
-                            <span @if(strlen($component_process->process) > 25) class="process-text-long" @endif>
-                                {!! nl2br(e(format_process_number($component_process->process))) !!}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif
-                                @if($component->description)<br><span>{{ $component->description }}</span>@endif
-                            </span>
+                            @include('shared.process-forms._process-text', [
+                                'text' => $component_process->process,
+                                'comment' => isset($processCommentFor) ? $processCommentFor($component_process->id, $component->tdr->component->manual_id) : '',
+                                'description' => $component->description ?? '',
+                                'showRequirementStar' => method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [],
+                            ])
                         @endif
                     @endforeach
                 </div>

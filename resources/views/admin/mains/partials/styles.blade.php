@@ -662,6 +662,17 @@
         color: #146c43;
     }
 
+    /* Filled dates in every Main section must outrank the theme's generic control rule. */
+    .form-control.finish-input.has-finish {
+        border-color: rgba(25, 135, 84, .55);
+        background-color: rgba(25, 135, 84, .1);
+        color: #d1e7dd;
+    }
+
+    html[data-bs-theme="light"] .form-control.finish-input.has-finish {
+        color: #146c43;
+    }
+
     .main-readonly-ro.is-empty,
     .main-readonly-date.is-empty {
         color: transparent;
@@ -857,6 +868,77 @@
         min-width: 0;
     }
 
+    .dir-top-cell.main-parts-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) max-content;
+        column-gap: .5rem;
+        align-items: center;
+        padding-right: 14px;
+    }
+    .main-parts-summary-button { grid-column: 2; grid-row: 1; }
+    .main-parts-summary-opened { grid-column: 1; grid-row: 2; }
+    .main-parts-summary-paint { grid-column: 2; grid-row: 2; }
+    .main-prl-dialog tr.prl-complete .received-qty,
+    .main-prl-dialog tr.prl-complete .po-no-select,
+    .main-prl-dialog tr.prl-complete .po-no-input,
+    .main-prl-dialog tr.prl-complete .received-date + input {
+        background-color: var(--prl-complete-bg, #243e37) !important;
+        border-color: rgba(25, 135, 84, .55) !important;
+    }
+    html[data-bs-theme="light"] .main-prl-dialog { --prl-complete-bg: #d1e7dd; }
+    .main-prl-dialog .po-no-select option {
+        background-color: #263849;
+        color: #e7edf3;
+    }
+    .main-prl-dialog .po-no-select option:checked { background-color: #2563a6; color: #fff; }
+    .main-prl-dialog .po-no-select { border-color: #819bb5; }
+    .main-prl-dialog .po-no-select:focus { border-color: #7dd3fc; box-shadow: 0 0 0 2px rgba(125, 211, 252, .3); }
+    .main-prl-dialog .main-prl-filters { flex: 0 0 auto; }
+    .main-prl-dialog tr[hidden] { display: none !important; }
+    html[data-bs-theme="dark"] .main-prl-dialog .po-no-select { color-scheme: dark; }
+    html[data-bs-theme="light"] .main-prl-dialog .po-no-select { color-scheme: light; }
+    .main-prl-dialog { width: calc(100% - 2rem); max-width: 1100px; }
+    .main-prl-dialog .modal-content { height: calc(100dvh - 3.5rem); max-height: calc(100dvh - 3.5rem); min-height: 0; }
+    .main-prl-dialog .modal-header { gap: 14px; flex-wrap: wrap; padding: 12px 16px; }
+    .main-prl-dialog .modal-title { font-size: 16px; white-space: nowrap; }
+    .main-prl-dialog .main-prl-counts { font-size: 16px; white-space: nowrap; }
+    .main-prl-dialog .main-prl-filters { display: flex; gap: 12px; margin-left: auto !important; font-size: 16px; }
+    .main-prl-dialog .main-prl-total-count { color: #fff; font-weight: 700; }
+    .main-prl-dialog .main-prl-green-count { color: #4ade80; font-weight: 700; }
+    .main-prl-dialog .main-prl-counts.is-pending .main-prl-green-count { color: #ff6b6b; }
+    .main-prl-dialog .main-prl-kit { font-size: 10px; padding: 2px 4px; vertical-align: middle; }
+    .main-prl-dialog .main-prl-filters .form-check { margin-right: 0; white-space: nowrap; }
+    .main-prl-dialog .modal-header .btn-close { margin: 0; }
+    .main-prl-dialog .main-prl-search-bar { display: flex; justify-content: center; flex: 0 0 auto; }
+    .main-prl-dialog .main-prl-search { flex: 1 1 180px; width: 180px; min-width: 140px; max-width: 480px; }
+    .main-prl-dialog .modal-body { min-height: 0; overflow: auto; }
+    .main-prl-table-wrap { width: 100%; }
+    .main-prl-dialog .po-no-container { display: flex; flex-wrap: nowrap; align-items: center; gap: .35rem; min-width: 220px; }
+    .main-prl-dialog .po-no-select { flex: 0 0 115px; min-width: 0; }
+    .main-prl-dialog .po-no-input { flex: 1 1 100px; min-width: 90px; width: 100px; }
+    .main-prl-dialog .po-no-input::placeholder,
+    .main-prl-dialog .received-date + input::placeholder {
+        color: #435364 !important;
+        opacity: 1;
+    }
+    .main-prl-table-wrap table { min-width: 800px; margin-bottom: 0; }
+    .main-prl-dialog .main-prl-crossed > td:nth-child(-n+4) { text-decoration: line-through; opacity: .65; }
+    .main-prl-dialog .main-prl-multiline { white-space: pre-line; }
+    .main-prl-dialog .dir-table .main-prl-qty { width: 66px; min-width: 66px; text-align: center; white-space: nowrap; }
+    .main-prl-dialog .received-qty { width: 48px; min-width: 48px; text-align: center; padding-left: 2px; padding-right: 2px; appearance: textfield; }
+    .main-prl-dialog .received-qty::-webkit-inner-spin-button,
+    .main-prl-dialog .received-qty::-webkit-outer-spin-button { appearance: none; margin: 0; }
+    .main-prl-dialog .dir-table td,
+    .main-prl-dialog .dir-table th { padding: 3px 8px; }
+    .main-prl-dialog .form-control,
+    .main-prl-dialog .form-select {
+        min-height: 26px;
+        height: 26px;
+        padding-top: 2px;
+        padding-bottom: 2px;
+        line-height: 20px;
+    }
+
     .dir-top-line {
         display: flex;
         align-items: baseline;
@@ -894,10 +976,17 @@
     }
 
     .dir-top-parts-btn {
-        --bs-btn-padding-y: .06rem;
+        --bs-btn-padding-y: .12rem;
         --bs-btn-padding-x: .45rem;
-        --bs-btn-font-size: .7rem;
+        --bs-btn-font-size: .875rem;
     }
+    .main-parts-summary-button { gap: .35rem; }
+    .main-parts-count { font-size: .95rem; font-weight: 600; color: #fff; }
+    .main-parts-count .main-parts-ordered { color: #fff; }
+    .main-parts-count .main-parts-received { color: #4ade80; }
+    .main-parts-count.is-complete,
+    .main-parts-count.is-complete .main-parts-ordered,
+    .main-parts-count.is-complete .main-parts-received { color: #4ade80; }
 
 
     #addBtn.btn-success {

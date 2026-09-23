@@ -62,10 +62,11 @@
                         }
                     @endphp
                     @if($procText)
-                        <span @if(strlen($procText) > 40) class="process-text-long" @endif>
-                            {!! nl2br(e(format_process_number($procText))) !!}
-                            @if(isset($data['description']) && $data['description'])<br><span>{{ $data['description'] }}</span>@endif
-                        </span>
+                        @include('shared.process-forms._process-text', [
+                            'text' => $procText,
+                            'comment' => isset($processCommentFor) ? $processCommentFor($proc->id ?? $proc, $comp->manual_id) : '',
+                            'description' => $data['description'] ?? '',
+                        ])
                     @endif
                 </div>
                 <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">{{ $ep->qty ?? $data['qty'] ?? 1 }}</div>
@@ -106,10 +107,12 @@
                         }
                     @endphp
                     @if($procText)
-                        <span @if(strlen($procText) > 25) class="process-text-long" @endif>
-                            {!! nl2br(e(format_process_number($procText))) !!}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif
-                            @if($component->description)<br><span>{{ $component->description }}</span>@endif
-                        </span>
+                        @include('shared.process-forms._process-text', [
+                            'text' => $procText,
+                            'comment' => isset($processCommentFor) ? $processCommentFor($process, $component->tdr->component->manual_id) : '',
+                            'description' => $component->description ?? '',
+                            'showRequirementStar' => method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [],
+                        ])
                     @endif
                 </div>
                 <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">{{ $component->tdr->qty }}</div>

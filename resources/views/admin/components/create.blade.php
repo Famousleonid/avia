@@ -266,14 +266,8 @@
             const bushIPLContainer = document.getElementById('bush_ipl_container');
             const bushIPLInput = document.getElementById('bush_ipl_num');
 
-            if (isBushCheckbox.checked) {
-                bushIPLContainer.style.display = 'block';
-                bushIPLInput.required = true;
-            } else {
-                bushIPLContainer.style.display = 'none';
-                bushIPLInput.required = false;
-                bushIPLInput.value = '';
-            }
+            bushIPLContainer.style.display = 'none';
+            bushIPLInput.required = false;
         }
 
 

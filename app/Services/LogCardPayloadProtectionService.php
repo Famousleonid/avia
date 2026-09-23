@@ -24,6 +24,7 @@ class LogCardPayloadProtectionService
         'manual_part_group_option_id',
         'manual_part_group_choice',
         'assy_selection_explicit',
+        'assy_option_id',
         'unit_index',
         'units_assy',
     ];

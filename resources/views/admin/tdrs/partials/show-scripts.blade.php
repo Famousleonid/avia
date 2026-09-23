@@ -749,6 +749,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (row.dataset.manualPartGroupOptionId) item.manual_part_group_option_id = row.dataset.manualPartGroupOptionId;
             if (row.dataset.manualPartGroupChoice) item.manual_part_group_choice = row.dataset.manualPartGroupChoice;
             item.assy_selection_explicit = row.dataset.assySelectionExplicit || '0';
+            item.assy_option_id = row.dataset.assyOptionId || '';
             if (row.dataset.componentAssemblyId) item.component_assembly_id = row.dataset.componentAssemblyId;
             if (row.dataset.assyPartNumber) item.assy_part_number = row.dataset.assyPartNumber;
             if (row.dataset.assyIplNum) item.assy_ipl_num = row.dataset.assyIplNum;
@@ -843,6 +844,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (componentInput.dataset.unitIndex) row.unit_index = componentInput.dataset.unitIndex;
             if (componentInput.dataset.unitsAssy) row.units_assy = componentInput.dataset.unitsAssy;
             if (componentInput.classList.contains('lc-assy-group-radio')) {
+                row.assy_option_id = '';
                 row.assy_selection_explicit = '0';
                 row.manual_part_group_id = componentInput.dataset.manualPartGroupId || '';
                 row.manual_part_group_choice = componentInput.dataset.partGroupChoice || 'component';
@@ -860,13 +862,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 if (assySelect && row.manual_part_group_choice === 'component') {
                     var selectedAssy = assySelect.options[assySelect.selectedIndex];
-                    row.manual_part_group_id = assySelect.value;
+                    row.manual_part_group_id = selectedAssy.dataset.groupId || '';
+                    row.assy_option_id = assySelect.value;
                     row.assy_selection_explicit = '1';
                     row.assy_part_number = selectedAssy.dataset.assyPartNumber || '';
                     row.assy_ipl_num = selectedAssy.dataset.assyIplNum || '';
                 }
             } else {
                 row.assy_selection_explicit = '0';
+                row.assy_option_id = '';
                 delete row.manual_part_group_id;
                 delete row.manual_part_group_choice;
                 delete row.manual_part_group_option_id;
@@ -1862,7 +1866,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (process.process_comment) {
                                 var comment = document.createElement('span');
                                 comment.className = 'tdr-process-inline-option-comment';
-                                comment.textContent = ' (' + process.process_comment + ')';
+                                comment.textContent = process.process_comment;
                                 text.appendChild(comment);
                             }
 

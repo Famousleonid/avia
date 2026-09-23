@@ -30,6 +30,12 @@ return [
 
     'disks' => [
 
+        'android_builds' => [
+            'driver' => 'local',
+            'root' => storage_path('app/android-builds'),
+            'visibility' => 'private',
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app'),

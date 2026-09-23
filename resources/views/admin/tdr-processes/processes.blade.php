@@ -373,7 +373,7 @@
 
     @php
         // Определяем ID для EC (один раз в начале файла для оптимизации)
-        $ecProcessNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+        $ecProcessNameId = \App\Models\ProcessName::whereIdentityName('EC')->value('id');
         $processGroupsForGroupFormsModal = collect($processGroups ?? [])->filter(function ($g) {
             return (int) ($g['count'] ?? 0) > 1;
         })->all();
@@ -497,7 +497,7 @@
                             <tbody id="sortable-tbody">
                             @php
                                 // Определяем ID для EC (один раз в начале)
-                                $ecProcessNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+                                $ecProcessNameId = \App\Models\ProcessName::whereIdentityName('EC')->value('id');
                             @endphp
                             @foreach($tdrProcesses as $processes)
                                 @if($processes->tdrs_id == $current_tdr->id)
@@ -531,7 +531,7 @@
                                         $combinedProcessNames = [];
                                         $combinedProcessDescriptions = [];
 
-                                        if (strpos($processName, 'NDT-') === 0 && !empty($processes->plus_process)) {
+                                        if (strpos($processes->processName?->identityName() ?? '', 'NDT-') === 0 && !empty($processes->plus_process)) {
                                             $isNdtWithPlus = true;
                                             // Добавляем основной NDT процесс
                                             $combinedProcessNames[] = $processName;
@@ -540,7 +540,7 @@
                                             $plusProcessIds = explode(',', $processes->plus_process);
                                             foreach ($plusProcessIds as $plusProcessId) {
                                                 $plusProcessName = \App\Models\ProcessName::find(trim($plusProcessId));
-                                                if ($plusProcessName && strpos($plusProcessName->name, 'NDT-') === 0) {
+                                                if ($plusProcessName && strpos($plusProcessName->identityName(), 'NDT-') === 0) {
                                                     $combinedProcessNames[] = $plusProcessName->name;
                                                 }
                                             }

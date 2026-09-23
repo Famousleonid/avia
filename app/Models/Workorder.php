@@ -494,7 +494,7 @@ class Workorder extends Model implements HasMedia
                 })->whereHas('process', function ($proc) {
                     $proc->join('process_names', 'process_names.id', '=', 'processes.process_names_id')
                         ->whereRaw(
-                            'INSTR(LOWER(TRIM(CONCAT(COALESCE(process_names.name, ""), " ", COALESCE(processes.process, "")))), ?) > 0',
+                            'INSTR(LOWER(TRIM(CONCAT(COALESCE(process_names.identity_name, ""), " ", COALESCE(processes.process, "")))), ?) > 0',
                             ['machining']
                         );
                 });

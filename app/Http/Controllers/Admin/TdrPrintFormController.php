@@ -48,9 +48,12 @@ class TdrPrintFormController extends Controller
     private const PROCESS_TYPE_LOG = 'log';
 
     public function prlForm(Request $request, $id){
-        // Загрузка Workorder по ID
         $current_wo = Workorder::findOrFail($id);
+        return $this->renderPrlForm($current_wo, $this->prlRows($current_wo));
+    }
 
+    public function prlRows(Workorder $current_wo)
+    {
         // Получаем данные о manual_id, связанном с этим Workorder
         $manual_id = $current_wo->unit->manual_id;
 
@@ -199,7 +202,7 @@ class TdrPrintFormController extends Controller
         // Pass all rows to the shared client-side paginator. It measures the
         // final print-width DOM and fills each Letter page by actual height.
 
-        return $this->renderPrlForm($current_wo, $ordersParts);
+        return $ordersParts;
     }
 
     public function bushingPrlForm(Request $request, $id)
@@ -263,14 +266,14 @@ class TdrPrintFormController extends Controller
         if (! $current_wo->isOverhaul()) {
             return redirect()->route('tdrs.prlForm', ['id' => $current_wo->id]);
         }
-        $manualCrossedOutComponentIds = WorkorderKitPrlCrossout::query()
-            ->where('workorder_id', $current_wo->id)
-            ->pluck('component_id')
-            ->mapWithKeys(fn ($componentId): array => [(int) $componentId => true])
-            ->all();
-        $ordersParts = $this->buildKitPrlRows($current_wo, $manualCrossedOutComponentIds);
+        return $this->renderPrlForm($current_wo, $this->kitRows($current_wo), 'PARTS REPLACEMENT LIST - KIT', false, 'kit', true);
+    }
 
-        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST - KIT', false, 'kit', true);
+    public function kitRows(Workorder $workorder)
+    {
+        $crossouts = WorkorderKitPrlCrossout::where('workorder_id', $workorder->id)
+            ->pluck('component_id')->mapWithKeys(fn ($id) => [(int) $id => true])->all();
+        return $this->buildKitPrlRows($workorder, $crossouts);
     }
 
     private function renderPrlForm(
@@ -293,7 +296,7 @@ class TdrPrintFormController extends Controller
         $manuals = Manual::where('id', $manual_id)
             ->with('builder')
             ->get();
-        $ordersParts = collect($ordersParts)->values();
+        $ordersParts = app(\App\Services\WorkorderPartsList::class)->forPrint($current_wo, collect($ordersParts)->values());
         $uniqueManuals = $ordersParts->map(function ($tdr) {
             return is_array($tdr) ? ($tdr['manual'] ?? null) : ($tdr->manual ?? null);
         })->filter(function ($manual) {
@@ -340,7 +343,7 @@ class TdrPrintFormController extends Controller
         $bushingComponents = $this->filterComponentsForUnit(
             Component::query()
                 ->where('manual_id', $manualId)
-                ->where('is_bush', true)
+                ->bushingCandidates()
                 ->with('manual:id,number')
                 ->get(),
             $workorder
@@ -393,7 +396,7 @@ class TdrPrintFormController extends Controller
         $kitBushings = $this->filterComponentsForUnit(
             Component::query()
                 ->where('manual_id', $manualId)
-                ->where('is_bush', true)
+                ->bushingCandidates()
                 ->get(),
             $workorder
         );
@@ -428,6 +431,7 @@ class TdrPrintFormController extends Controller
                 $query->where('workorder_id', $workorder->id)
                     ->orWhereHas('woBushing', fn ($woBushing) => $woBushing->where('workorder_id', $workorder->id));
             })
+            ->with('codes')
             ->whereHas('component')
             ->where('do_not_order', false)
             ->orderBy('sort_order')
@@ -436,6 +440,8 @@ class TdrPrintFormController extends Controller
             ->groupBy('component_id')
             ->map(function ($lines): array {
                 return [
+                    'codes_id' => $lines->first()->codes_id,
+                    'code' => $lines->first()->codes?->code ?? '',
                     'qty' => $lines->sum(fn (WoBushingLine $line): int => max(1, (int) ($line->qty ?? 1))),
                 ];
             });
@@ -453,7 +459,7 @@ class TdrPrintFormController extends Controller
         $additionalCrossedOutPartNumbers = $additionalCrossedOutIdentities['part_numbers'] ?? [];
         $additionalCrossedOutReasons = $additionalCrossedOutIdentities['reasons'] ?? [];
 
-        $bushingGroupKeys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($bushingComponents->pluck('manual_id')->all(), 'prl');
+        $bushingGroupKeys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($bushingComponents->pluck('manual_id')->all(), 'bushing');
         return $bushingComponents
             ->sort(function (Component $left, Component $right): int {
                 $manualCompare = strnatcasecmp(
@@ -478,7 +484,15 @@ class TdrPrintFormController extends Controller
                 );
             })
             ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component, $bushingGroupKeys))
-            ->map(function ($group) use ($selectedByComponent, $code, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $additionalCrossedOutReasons, $manualCrossedOutComponentIds, $omittedKitSupply): ?array {
+            ->flatMap(function ($group) use ($selectedByComponent, $code) {
+                if ($code === 'KIT') return [$group];
+                $selected = $group->filter(fn ($part) => $selectedByComponent->has($part->id));
+                $byCode = $selected->groupBy(fn ($part) => $selectedByComponent->get($part->id)['codes_id'] ?? 'none');
+                if ($byCode->count() <= 1) return [$group];
+                $alternatives = $group->reject(fn ($part) => $selectedByComponent->has($part->id));
+                return $byCode->values()->map(fn ($parts, $index) => $index === 0 ? $parts->concat($alternatives) : $parts)->all();
+            })
+            ->map(function ($group) use ($selectedByComponent, $code, $additionalCrossedOutComponentIds, $additionalCrossedOutPartNumbers, $additionalCrossedOutReasons, $manualCrossedOutComponentIds, $omittedKitSupply, $bushingGroupKeys): ?array {
                 $components = $group->values();
                 $initial = $components->first(function (Component $component): bool {
                     return trim((string) ($component->ipl_num ?? '')) === trim((string) ($component->bush_ipl_num ?? ''));
@@ -496,11 +510,13 @@ class TdrPrintFormController extends Controller
                 $kitAllocation = $code === 'KIT' ? BushingPrlGrouping::kitAllocation($components, $selectedByComponent) : [];
                 $bushIpl = trim((string) ($initial->bush_ipl_num ?? ''));
                 $row = $this->makePrlArrayRow($displayComponent, $qty);
+                $row['receipt_key'] = strtolower($code === 'KIT' ? 'kit-bush:' : 'prl-bush:').hash('sha256', BushingPrlGrouping::groupKeyForComponent($initial, $bushingGroupKeys).'|'.($code === 'KIT' ? 'KIT' : ($selectedByComponent->get($displayComponent->id)['codes_id'] ?? 'none')));
                 $row['component']['ipl_num'] = $bushIpl !== ''
                     ? $bushIpl
                     : (string) ($initial->ipl_num ?? '');
                 $row['sort_ipl_num'] = $row['component']['ipl_num'];
-                $row['codes'] = ['code' => $code];
+                $row['codes'] = ['code' => $code !== '' ? $code
+                    : ($selectedByComponent->get($displayComponent->id)['code'] ?? '')];
                 if ($code === 'KIT') {
                     $row['bushing_kit_capacity'] = $qty;
                 }
@@ -614,14 +630,14 @@ class TdrPrintFormController extends Controller
             $workorder
         );
         $allBushings = $this->filterComponentsForUnit(
-            Component::whereIn('manual_id', $manualIds)->where('is_bush', true)->with('manual:id,number')->get(),
+            Component::whereIn('manual_id', $manualIds)->bushingCandidates()->with('manual:id,number')->get(),
             $workorder
         );
         $kitBushingComponents = BushingPrlGrouping::groups($allBushings)
             ->filter(fn ($family): bool => $family->contains(fn (Component $part): bool => (bool) $part->kit))
             ->flatten(1)->values();
         $regularKitComponents = $kitComponents
-            ->reject(fn (Component $component): bool => (bool) $component->is_bush)
+            ->whereNotIn('id', $allBushings->pluck('id'))
             ->values();
         $partGroupCrossouts = $this->partGroupCrossedOutIdentities($workorder);
 
@@ -656,7 +672,7 @@ class TdrPrintFormController extends Controller
         $groupKeys = app(\App\Services\PartVariantGrouping::class)->componentKeys($components);
         $rows = $components
             ->groupBy(fn (Component $component): string => KitPrlGrouping::groupKeyForComponent($component, $groupKeys))
-            ->map(function ($group) use ($code, $crossedOutComponentIds, $crossedOutPartNumbers, $crossedOutReasons, $manualCrossedOutComponentIds) {
+            ->map(function ($group, $groupKey) use ($code, $crossedOutComponentIds, $crossedOutPartNumbers, $crossedOutReasons, $manualCrossedOutComponentIds) {
                 /** @var \Illuminate\Support\Collection<int, Component> $group */
                 $sorted = $group->sort(function (Component $left, Component $right): int {
                     $iplCompare = StdProcess::compareIplValues(
@@ -674,6 +690,7 @@ class TdrPrintFormController extends Controller
                 $qty = $sorted->max(fn (Component $component): int => max(1, (int) ($component->units_assy ?? 1)));
 
                 $row = $this->makePrlArrayRow($representative, max(1, (int) $qty));
+                $row['receipt_key'] = 'kit:'.hash('sha256', (string) $groupKey);
                 $row['sort_ipl_num'] = (string) ($representative->ipl_num ?? '');
                 $row['component']['ipl_num'] = $sorted
                     ->pluck('ipl_num')
@@ -886,12 +903,12 @@ class TdrPrintFormController extends Controller
         $usedManuals = $this->usedManualsForWorkorder($current_wo);
 
         // Получаем ID process names для NDT
-        $processNames = ProcessName::whereIn('name', [
+        $processNames = ProcessName::whereIdentityNames([
             'NDT-1',
             'NDT-4',
             'Eddy Current Test',
             'BNI'
-        ])->pluck('id', 'name');
+        ])->pluck('id', 'identity_name');
 
         // Извлекаем ID по именам
         $ndt_ids = [
@@ -982,7 +999,7 @@ class TdrPrintFormController extends Controller
 
 
             // Получаем ID process names для CAD
-            $processNames = ProcessName::whereIn('name', ['Cad plate'])->pluck('id', 'name');
+            $processNames = ProcessName::whereIdentityNames(['Cad plate'])->pluck('id', 'identity_name');
 
             if (!isset($processNames['Cad plate'])) {
                 throw new \RuntimeException('CAD process name not found');
@@ -1063,7 +1080,7 @@ class TdrPrintFormController extends Controller
                     'cad_processes' => $cad_processes,
                     'form_number' => $form_number,
                     'manuals' => $usedManuals,
-                    'process_name' => ProcessName::where('name', 'Cad plate')->first(),
+                    'process_name' => ProcessName::whereIdentityName('Cad plate')->first(),
                     'cadSum' => $cadSum,
                 ] + $cad_ids);
 
@@ -1545,7 +1562,7 @@ class TdrPrintFormController extends Controller
             }
 
             // Получаем ID process names для Stress (Bake Stress Realive)
-            $processNames = ProcessName::where('id', 3)->pluck('id', 'name');
+            $processNames = ProcessName::where('id', 3)->pluck('id', 'identity_name');
 
             if (!$processNames->count()) {
                 throw new \RuntimeException('Stress process name not found');
@@ -1675,7 +1692,7 @@ class TdrPrintFormController extends Controller
         $ndtSums = $this->calcNdtSums($id);
         $cadSum = $this->calcCadSums($id);
 
-        $proNameId = ProcessName::where('name', 'Cad plate')->value('id');
+        $proNameId = ProcessName::whereIdentityName('Cad plate')->value('id');
 
         $cadSum_ex = \App\Models\ExtraProcess::where('workorder_id', $current_wo->id)
             ->whereRaw("JSON_SEARCH(processes, 'one', CAST(? AS CHAR), NULL, '$[*].process_name_id') IS NOT NULL",[(string)$proNameId]
@@ -1702,8 +1719,8 @@ class TdrPrintFormController extends Controller
 
         // EC в шапке: есть «только EC» (standalone_ec_only) ИЛИ старое правило (один EC на TDR без Machining/RIL)
         // Companion EC (Machining+RIL+EC) — в шапке EC не дублируем
-        $ecProcessNameId = ProcessName::where('name', 'EC')->value('id');
-        $ecEligibleIds = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
+        $ecProcessNameId = ProcessName::whereIdentityName('EC')->value('id');
+        $ecEligibleIds = ProcessName::whereIdentityNames(['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
         $showEcInForm = false;
         $tdrsForEcCheck = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
@@ -1736,7 +1753,7 @@ class TdrPrintFormController extends Controller
         $processNamesQuery = ProcessName::forPicker()
             ->whereIn('id', $processNameIds);
         if (!$showEcInForm) {
-            $processNamesQuery->where('name', '!=', 'EC');
+            $processNamesQuery->whereIdentityName('EC', '!=');
         }
         $processNames = $processNamesQuery->includedInSpForm()->inSpFormOrder()->get();
 
@@ -1757,7 +1774,7 @@ class TdrPrintFormController extends Controller
         $processNames = $this->prepareSpecialProcessRows($processNames, $tdrs);
 
         // Получаем ID процессов с именем 'EC' для исключения из подсчёта number_line
-        $ecProcessIds = ProcessName::where('name', 'LIKE', 'EC')->pluck('id');
+        $ecProcessIds = ProcessName::whereIdentityName('EC', 'LIKE')->pluck('id');
 
         // Создаем коллекцию для результата
         $result = collect();
@@ -1817,7 +1834,7 @@ class TdrPrintFormController extends Controller
         // Quarantine is the boundary between two SP Form columns for the same
         // detail: the first column contains steps through Quarantine, and the
         // second contains the steps after it.
-        $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
+        $quarantineProcessNameId = ProcessName::whereIdentityName('Quarantine')->value('id');
         $quarantineByTdr = [];
         if ($quarantineProcessNameId) {
             foreach ($result->where('process_name_id', $quarantineProcessNameId) as $item) {
@@ -1883,7 +1900,7 @@ class TdrPrintFormController extends Controller
         $ndtSums = $this->calcNdtSums($id);
         $cadSum = $this->calcCadSums($id);
 
-        $proNameId = ProcessName::where('name', 'Cad plate')->value('id');
+        $proNameId = ProcessName::whereIdentityName('Cad plate')->value('id');
 
         $cadSum_ex = \App\Models\ExtraProcess::where('workorder_id', $current_wo->id)
             ->whereRaw("JSON_SEARCH(processes, 'one', CAST(? AS CHAR), NULL, '$[*].process_name_id') IS NOT NULL",[(string)$proNameId]
@@ -1900,8 +1917,8 @@ class TdrPrintFormController extends Controller
             $current_wo
         );
 
-        $ecProcessNameIdEmp = ProcessName::where('name', 'EC')->value('id');
-        $ecEligibleIdsEmp = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
+        $ecProcessNameIdEmp = ProcessName::whereIdentityName('EC')->value('id');
+        $ecEligibleIdsEmp = ProcessName::whereIdentityNames(['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
         $showEcInFormEmp = false;
         $tdrsForEcCheckEmp = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
@@ -1932,9 +1949,9 @@ class TdrPrintFormController extends Controller
         // Получаем ProcessName по этим ID с фильтрами, ограничиваем до 20 элементов
         $processNamesQueryEmp = ProcessName::forPicker()
             ->whereIn('id', $processNameIds)
-            ->where('name', 'NOT LIKE', '%NDT%');
+            ->whereIdentityName('%NDT%', 'NOT LIKE');
         if (! $showEcInFormEmp) {
-            $processNamesQueryEmp->where('name', '!=', 'EC');
+            $processNamesQueryEmp->whereIdentityName('EC', '!=');
         }
         $processNames = $processNamesQueryEmp
             ->limit(20)
@@ -1945,10 +1962,10 @@ class TdrPrintFormController extends Controller
         if ($processNames->isEmpty()) {
             $defaultNames = ['Machining', 'Bake (Stress relief)', 'Cad plate', 'Chrome plate'];
             $processNames = ProcessName::forPicker()
-                ->whereIn('name', $defaultNames)
-                ->orderByRaw("FIELD(name, 'Machining', 'Bake (Stress relief)', 'Cad plate', 'Chrome plate')")
+                ->whereIdentityNames($defaultNames)
+                ->orderByRaw("FIELD(identity_name, 'Machining', 'Bake (Stress relief)', 'Cad plate', 'Chrome plate')")
                 ->get();
-            $paint = ProcessName::forPicker()->where('name', 'LIKE', 'Paint%')->first();
+            $paint = ProcessName::forPicker()->whereIdentityName('Paint%', 'LIKE')->first();
             if ($paint) {
                 $processNames->push($paint);
             }
@@ -1957,9 +1974,8 @@ class TdrPrintFormController extends Controller
                 $fallbackNames = ['Machining', 'Stress Relief', 'Cad Plate', 'Chrome Plate', 'Paint'];
                 $processNames = collect();
                 foreach ($fallbackNames as $n) {
-                    $obj = new \stdClass();
+                    $obj = new ProcessName(['name' => $n]);
                     $obj->id = null;
-                    $obj->name = $n;
                     $obj->process_sheet_name = null;
                     $obj->form_number = null;
                     $processNames->push($obj);
@@ -1984,12 +2000,12 @@ class TdrPrintFormController extends Controller
         $processNames = $this->prepareSpecialProcessRows($processNames, $tdrs);
 
         // Получаем ID процессов с именем 'EC' для исключения из подсчёта number_line
-        $ecProcessIds = ProcessName::where('name', 'LIKE', 'EC')->pluck('id');
+        $ecProcessIds = ProcessName::whereIdentityName('EC', 'LIKE')->pluck('id');
 
         // Создаем коллекцию для результата (как в specProcessForm)
         $result = collect();
-        $ecNameId = ProcessName::where('name', 'EC')->value('id');
-        $ecElig = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
+        $ecNameId = ProcessName::whereIdentityName('EC')->value('id');
+        $ecElig = ProcessName::whereIdentityNames(['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
         foreach ($tdrs as $tdr) {
             $groupedProcesses = $tdr->tdrProcesses;
             $procs = $groupedProcesses;
@@ -2033,7 +2049,7 @@ class TdrPrintFormController extends Controller
             });
         }
 
-        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')
+        $ndtIds = ProcessName::whereIdentityName('%NDT%', 'LIKE')
             ->where('show_in_process_picker', true)
             ->pluck('id');
         $ndt_processes = $result->filter(function ($item) use ($ndtIds) {
@@ -2049,7 +2065,7 @@ class TdrPrintFormController extends Controller
         // Quarantine is the boundary between two SP Form columns for the same
         // detail: the first column contains steps through Quarantine, and the
         // second contains the steps after it.
-        $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
+        $quarantineProcessNameId = ProcessName::whereIdentityName('Quarantine')->value('id');
         $quarantineByTdr = [];
         if ($quarantineProcessNameId) {
             foreach ($result->where('process_name_id', $quarantineProcessNameId) as $item) {
@@ -2154,7 +2170,7 @@ class TdrPrintFormController extends Controller
 
     private function isSeparatelyListedSpecialProcess($processName): bool
     {
-        return ProcessName::normalizedNameKey($processName->name ?? null) === 'chromeplating';
+        return ProcessName::normalizedNameKey($processName->identityName() ?? null) === 'chromeplating';
     }
 
     public function logCardForm(Request $request, $id)
@@ -2562,6 +2578,7 @@ class TdrPrintFormController extends Controller
                 $group = $selection->group;
 
                 return [
+                    'receipt_key' => 'selection:'.$selection->id,
                     'manual' => $group->manual?->number,
                     'component' => [
                         'id' => $option->component_id,

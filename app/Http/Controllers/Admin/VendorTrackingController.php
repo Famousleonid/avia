@@ -462,7 +462,7 @@ class VendorTrackingController extends Controller
         $tdrRawRows = TdrProcess::query()
             ->with([
                 'vendor:' . $this->vendorSelectColumns(),
-                'processName:id,name',
+                'processName:id,name,identity_name',
                 'tdr:id,workorder_id,component_id,serial_number,assy_serial_number',
                 'tdr.workorder:id,number,customer_id',
                 'tdr.workorder.customer:id,name',
@@ -679,7 +679,7 @@ class VendorTrackingController extends Controller
     private function stdProcessNameIds(): Collection
     {
         return \App\Models\ProcessName::query()
-            ->whereIn('name', array_values(WorkorderStdListProcessesService::NAME_BY_KEY))
+            ->whereIdentityNames(array_values(WorkorderStdListProcessesService::NAME_BY_KEY))
             ->pluck('id');
     }
 
@@ -688,7 +688,7 @@ class VendorTrackingController extends Controller
         return WorkorderStdProcess::query()
             ->with([
                 'vendor:' . $this->vendorSelectColumns(),
-                'processName:id,name',
+                'processName:id,name,identity_name',
                 'workorder:id,number,customer_id',
                 'workorder.customer:id,name',
             ])
@@ -755,7 +755,7 @@ class VendorTrackingController extends Controller
         return TdrProcess::query()
             ->with([
                 'vendor:' . $this->vendorSelectColumns(),
-                'processName:id,name',
+                'processName:id,name,identity_name',
                 'tdr:id,workorder_id,component_id,serial_number,assy_serial_number',
                 'tdr.workorder:id,number,customer_id',
                 'tdr.workorder.customer:id,name',
@@ -1315,7 +1315,7 @@ class VendorTrackingController extends Controller
         return WoBushingProcess::query()
             ->with([
                 'vendor:' . $this->vendorSelectColumns(),
-                'process.process_name:id,name',
+                'process.process_name:id,name,identity_name',
                 'line:id,workorder_id,component_id,qty',
                 'line.workorder:id,number,customer_id',
                 'line.workorder.customer:id,name',
@@ -1354,7 +1354,7 @@ class VendorTrackingController extends Controller
         return WoBushingBatch::query()
             ->with([
                 'vendor:' . $this->vendorSelectColumns(),
-                'process.process_name:id,name',
+                'process.process_name:id,name,identity_name',
                 'workorder:id,number,customer_id',
                 'workorder.customer:id,name',
                 'woBushingProcesses.line.component:id,part_number,ipl_num,name',

@@ -50,9 +50,18 @@
 
     // ===== 3. API частей =====
     const PartsApi = {
-        saveField: function (tdrsId, field, value, workorderNumber) {
+        saveField: async function (tdrsId, field, value, workorderNumber) {
             const csrfToken = TokenUtils.getCsrfToken();
-            const url = '{{ route("tdrs.updatePartField", ":id") }}'.replace(':id', tdrsId);
+            const url = @json(route('workorders.part-receipt.update', $current_workorder));
+            if (field === 'po_num' && value === 'Customer') {
+                if (typeof window.confirmDialog !== 'function') {
+                    showNotification('Confirmation is unavailable. Reload the page.', 'error');
+                    PartsAppearance.restore(tdrsId, field);
+                    return {success: false};
+                }
+                const approved = await window.confirmDialog({title: 'Part Replacement List', message: 'Save "Customer"?', highlightText: 'Customer', okText: 'Save', cancelText: 'Cancel'});
+                if (!approved) { PartsAppearance.restore(tdrsId, field); return {success: false}; }
+            }
 
             return fetch(url, {
                 method: 'POST',
@@ -61,6 +70,7 @@
                     'X-CSRF-TOKEN': csrfToken
                 },
                 body: JSON.stringify({
+                    row_key: tdrsId,
                     field: field,
                     value: value
                 })
@@ -68,49 +78,21 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        PartsAppearance.markSaved(tdrsId, field, value);
                         if (field === 'received') {
                             PartsCounter.updateReceivedCount(workorderNumber);
                         }
                         return data;
                     }
-                    throw new Error('Save failed');
+                    showNotification(data.message || 'Save failed', 'error');
+                    throw new Error(data.message || 'Save failed');
                 })
                 .catch(error => {
                     console.error('Error saving field:', error);
-                    throw error;
+                    PartsAppearance.restore(tdrsId, field);
+                    showNotification(error.message || 'Save failed', 'error');
+                    return {success: false};
                 });
-        }
-    };
-
-    // ===== 4. API transfers =====
-    const TransferApi = {
-        createTransfer: function (tdrsId, workorderNumber, sourceWorkorderNumber) {
-            const csrfToken = TokenUtils.getCsrfToken();
-            const url = '{{ route("transfers.create", ":id") }}'.replace(':id', tdrsId);
-
-            return fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify({
-                    workorder_number: workorderNumber,
-                    source_workorder_number: sourceWorkorderNumber
-                })
-            }).then(response => response.json());
-        },
-
-        deleteByTdr: function (tdrsId) {
-            const csrfToken = TokenUtils.getCsrfToken();
-            const url = '{{ route("transfers.deleteByTdr", ":id") }}'.replace(':id', tdrsId);
-
-            return fetch(url, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken
-                }
-            }).then(response => response.json());
         }
     };
 
@@ -124,96 +106,257 @@
             let receivedQty = 0;
 
             rows.forEach(function (row) {
-                const receivedInput = row.querySelector('.received-date');
-                if (receivedInput && receivedInput.value) {
-                    receivedQty += DomUtils.getQtyFromRow(row);
+                if (row.classList.contains('prl-complete')) {
+                    receivedQty += 1;
                 }
             });
 
             const receivedSpan = DomUtils.getReceivedCounter(workorderNumber);
             if (receivedSpan) {
                 receivedSpan.textContent = receivedQty;
+                const orderedSpan = document.getElementById('orderedRows' + workorderNumber);
+                receivedSpan.closest('.main-parts-count')?.classList.toggle('is-complete', Number(orderedSpan?.textContent) === receivedQty);
             }
+        }
+    };
+
+    const TransferPicker = {
+        row: null,
+        choices: [],
+        init: function () {
+            this.el = document.getElementById('logCardTransferModal');
+            this.source = document.getElementById('logCardTransferSource');
+            this.select = document.getElementById('logCardTransferPart');
+            this.status = document.getElementById('logCardTransferStatus');
+            this.loadButton = document.getElementById('logCardTransferLoad');
+            this.saveButton = document.getElementById('logCardTransferSave');
+            this.cancelButton = document.getElementById('logCardTransferCancel');
+            this.formLink = document.getElementById('logCardTransferForm');
+            this.loadButton.addEventListener('click', () => this.load());
+            this.source.addEventListener('input', () => { this.select.replaceChildren(); this.saveButton.disabled = true; });
+            this.source.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); this.load(); } });
+            this.select.addEventListener('change', () => { this.saveButton.disabled = !this.select.value; });
+            this.saveButton.addEventListener('click', () => this.save());
+            this.cancelButton.addEventListener('click', () => this.cancel());
+            this.el.addEventListener('hidden.bs.modal', e => {
+                if (e.target === this.el) bootstrap.Modal.getOrCreateInstance(this.row.closest('.modal')).show();
+            });
+            document.addEventListener('click', e => {
+                const button = e.target.closest('.prl-transfer-details');
+                if (button) this.open(button.closest('tr'));
+            });
+        },
+        open: function (row) {
+            this.row = row;
+            this.key = row.querySelector('[data-tdrs-id]').dataset.tdrsId;
+            this.source.value = (row.dataset.savedPo || '').replace(/^Transfer from WO\s*/, '');
+            if (!(row.dataset.savedPo || '').startsWith('Transfer from WO')) this.source.value = '';
+            this.select.replaceChildren(); this.choices = []; this.saveButton.disabled = true;
+            const existing = Boolean(row.dataset.transferId);
+            this.cancelButton.classList.toggle('d-none', !existing);
+            this.formLink.classList.toggle('d-none', !existing);
+            if (existing) this.formLink.href = @json(route('transfers.transferForm', ':id')).replace(':id', row.dataset.transferId);
+            this.source.disabled = existing; this.loadButton.disabled = existing;
+            this.status.textContent = existing ? 'Transfer already recorded. Cancel it before choosing another source.' : '';
+            document.getElementById('logCardTransferTarget').textContent = 'To w' + @json((string) $current_workorder->number) + ' — ' + row.cells[2].innerText.trim() + ' — QTY ' + row.cells[3].innerText.trim();
+            const parent = row.closest('.modal');
+            const hideParent = () => bootstrap.Modal.getOrCreateInstance(parent).hide();
+            // Bootstrap ignores hide() while the opening transition is running.
+            parent.addEventListener('shown.bs.modal', hideParent, {once: true});
+            parent.addEventListener('hidden.bs.modal', () => {
+                parent.removeEventListener('shown.bs.modal', hideParent);
+                bootstrap.Modal.getOrCreateInstance(this.el).show();
+            }, {once: true});
+            hideParent();
+        },
+        request: async function (method, url, body) {
+            const response = await fetch(url, {method, headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': TokenUtils.getCsrfToken()}, ...(body ? {body: JSON.stringify(body)} : {})});
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || Object.values(data.errors || {}).flat().join(' ') || 'Transfer failed');
+            return data;
+        },
+        load: async function () {
+            if (this.row.dataset.transferId) return;
+            this.loadButton.disabled = true; this.saveButton.disabled = true; this.select.replaceChildren();
+            this.status.textContent = 'Loading…';
+            try {
+                const query = new URLSearchParams({row_key: this.key, source_number: this.source.value.trim()});
+                const data = await this.request('GET', @json(route('workorders.log-card-transfer.sources', $current_workorder)) + '?' + query);
+                this.choices = data.parts;
+                for (const part of this.choices) {
+                    const option = new Option(part.ipl + ' | ' + part.part_number + ' | S/N: ' + (part.serial_number || '—') + ' | Available: ' + part.available + ' / Required: ' + part.required, part.token);
+                    option.disabled = !part.can_transfer;
+                    this.select.add(option);
+                }
+                this.select.selectedIndex = -1;
+                this.status.textContent = this.choices.length ? 'Select the Log Card part to transfer.' : 'No matching Log Card parts in this workorder.';
+            } catch (error) { this.status.textContent = error.message; }
+            finally { this.loadButton.disabled = false; }
+        },
+        confirm: async function (message, danger = false) {
+            if (typeof window.confirmDialog !== 'function') { this.status.textContent = 'Confirmation is unavailable. Reload the page.'; return false; }
+            return window.confirmDialog({title: 'Transfer', message, okText: danger ? 'Cancel transfer' : 'Create transfer', cancelText: 'Back', danger});
+        },
+        save: async function () {
+            const part = this.choices.find(p => p.token === this.select.value);
+            if (!part) return;
+            this.saveButton.disabled = true;
+            try {
+                if (!await this.confirm('Transfer ' + part.part_number + ' / S/N ' + (part.serial_number || '—') + ', QTY ' + part.required + ', from w' + this.source.value.trim() + ' to w' + @json((string) $current_workorder->number) + '?')) return;
+                const data = await this.request('POST', @json(route('workorders.log-card-transfer.store', $current_workorder)), {row_key: this.key, source_number: this.source.value.trim(), source_token: part.token});
+                this.row.dataset.transferId = data.transfer_id;
+                PartsAppearance.markSaved(this.key, 'po_num', data.po_num);
+                PartsAppearance.restore(this.key, 'po_num');
+                this.row.querySelector('.prl-transfer-details').style.display = 'block';
+                bootstrap.Modal.getOrCreateInstance(this.el).hide();
+            } catch (error) { this.status.textContent = error.message; }
+            finally { this.saveButton.disabled = false; }
+        },
+        cancel: async function () {
+            this.cancelButton.disabled = true;
+            try {
+                if (!await this.confirm('Cancel this transfer and clear its PO and receipt date? Log Cards will not change.', true)) return;
+                await this.request('DELETE', @json(route('workorders.log-card-transfer.destroy', $current_workorder)), {row_key: this.key});
+                this.row.dataset.transferId = '';
+                PartsAppearance.markSaved(this.key, 'po_num', ''); PartsAppearance.markSaved(this.key, 'received', '');
+                PartsAppearance.restore(this.key, 'po_num'); PartsAppearance.restore(this.key, 'received');
+                this.row.querySelector('.prl-transfer-details').style.display = 'none';
+                bootstrap.Modal.getOrCreateInstance(this.el).hide();
+            } catch (error) { this.status.textContent = error.message; }
+            finally { this.cancelButton.disabled = false; }
+        }
+    };
+
+    const PartsAppearance = {
+        restore: function (tdrsId, field) {
+            const input = document.querySelector('.main-prl-dialog [data-tdrs-id="' + tdrsId + '"]');
+            const row = input?.closest('tr');
+            if (!row) return;
+            if (field === 'received_qty') {
+                row.querySelector('.received-qty').value = row.querySelector('.received-qty').dataset.savedQty || '';
+            } else if (field === 'received') {
+                const date = row.querySelector('.received-date');
+                date._flatpickr.setDate(row.dataset.savedReceived || '', false, 'Y-m-d');
+            } else {
+                const value = row.dataset.savedPo || '';
+                const select = row.querySelector('.po-no-select');
+                const number = row.querySelector('.po-no-input');
+                select.value = value === 'Customer' ? 'Customer' : value.startsWith('Transfer from WO') ? 'Transfer from WO' : 'INPUT';
+                number.value = select.value === 'INPUT' ? value : '';
+                number.style.display = select.value === 'INPUT' ? 'block' : 'none';
+            }
+            PartsAppearance.refresh(row);
+            PartsCounter.updateReceivedCount(input.dataset.workorderNumber);
+        },
+        markSaved: function (tdrsId, field, value) {
+            if (field === 'received_qty') {
+                const qty = document.querySelector('.received-qty[data-tdrs-id="' + tdrsId + '"]');
+                qty.dataset.savedQty = String(value ?? '');
+                PartsAppearance.refresh(qty.closest('tr'));
+                return;
+            }
+            const input = document.querySelector('.main-prl-dialog [data-tdrs-id="' + tdrsId + '"].' + (field === 'received' ? 'received-date' : 'po-no-input'));
+            if (!input) return;
+            const row = input.closest('tr');
+            row.dataset[field === 'received' ? 'savedReceived' : 'savedPo'] = String(value || '').trim();
+            PartsAppearance.refresh(row);
+        },
+        refresh: function (row) {
+            const select = row.querySelector('.po-no-select');
+            const number = row.querySelector('.po-no-input').value.trim();
+            const date = row.querySelector('.received-date').value;
+            const savedPo = row.dataset.savedPo || '';
+            const poComplete = select.value === 'INPUT'
+                ? Boolean(number) && number === savedPo
+                : Boolean(select.value) && savedPo.startsWith(select.value);
+            const qty = row.querySelector('.received-qty');
+            const quantityComplete = qty.value !== '' && qty.value === qty.dataset.savedQty && Number(qty.value) === DomUtils.getQtyFromRow(row);
+            row.classList.toggle('prl-complete', quantityComplete && poComplete && Boolean(date) && date === row.dataset.savedReceived);
+            const modal = row.closest('.modal');
+            PartsAppearance.updateStatusCount(modal);
+            PartsAppearance.filterRow(row);
+            const workorderNumber = row.querySelector('[data-workorder-number]')?.dataset.workorderNumber;
+            if (workorderNumber) PartsCounter.updateReceivedCount(workorderNumber);
+        },
+        updateStatusCount: function (modal) {
+            if (!modal) return;
+            const pending = modal.querySelector('.main-prl-filter:checked')?.value === 'pending';
+            const received = modal.querySelectorAll('tbody tr.prl-complete').length;
+            modal.querySelector('.main-prl-counts').classList.toggle('is-pending', pending);
+            modal.querySelector('.main-prl-status-label').textContent = pending ? 'Pending' : 'Received';
+            modal.querySelector('.main-prl-green-count').textContent = pending ? modal.querySelectorAll('tbody tr').length - received : received;
+        },
+        filterRow: function (row) {
+            const modal = row.closest('.modal');
+            const filter = modal?.querySelector('.main-prl-filter:checked')?.value || 'all';
+            const query = (modal?.querySelector('.main-prl-search')?.value || '').trim().toLocaleLowerCase();
+            const matchesSearch = !query || [0, 1, 2].some(index => row.cells[index].textContent.toLocaleLowerCase().includes(query));
+            const complete = row.classList.contains('prl-complete');
+            row.hidden = !matchesSearch || (filter === 'received' ? !complete : filter === 'pending' ? complete : false);
+        },
+        init: function () {
+            document.querySelectorAll('.main-prl-search').forEach(input => {
+                input.addEventListener('input', () => {
+                    const modal = input.closest('.modal');
+                    modal.querySelectorAll('tbody tr').forEach(row => PartsAppearance.filterRow(row));
+                    modal.querySelector('.modal-body').scrollTop = 0;
+                });
+            });
+            document.querySelectorAll('.main-prl-dialog .received-qty').forEach(input => {
+                input.addEventListener('input', () => PartsAppearance.refresh(input.closest('tr')));
+                input.addEventListener('change', () => {
+                    if (!input.checkValidity()) {
+                        input.reportValidity();
+                        PartsAppearance.restore(input.dataset.tdrsId, 'received_qty');
+                        return;
+                    }
+                    if (input.value !== input.dataset.savedQty) PartsApi.saveField(input.dataset.tdrsId, 'received_qty', input.value, input.dataset.workorderNumber);
+                });
+            });
+            document.querySelectorAll('.main-prl-filter').forEach(input => {
+                input.addEventListener('change', () => {
+                    input.closest('.modal').querySelectorAll('tbody tr').forEach(row => PartsAppearance.filterRow(row));
+                    PartsAppearance.updateStatusCount(input.closest('.modal'));
+                    input.closest('.modal').querySelector('.modal-body').scrollTop = 0;
+                });
+            });
+            document.querySelectorAll('.main-prl-dialog .received-date').forEach(input => {
+                if (typeof flatpickr !== 'undefined' && !input._flatpickr) {
+                    flatpickr(input, {
+                        dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/M/Y',
+                        locale: 'en', allowInput: true, disableMobile: true,
+                        onReady: function (_, __, fp) {
+                            fp.altInput.classList.remove('received-date');
+                            fp.altInput.placeholder = 'dd/Mmm/yyyy';
+                        }
+                    });
+                }
+                PartsAppearance.markSaved(input.dataset.tdrsId, 'received', input.value);
+            });
+            document.querySelectorAll('.main-prl-dialog .po-no-select').forEach(select => {
+                const value = select.value === 'INPUT' ? DomUtils.getPoNoInput(select).value : (select.dataset.savedPo || select.value);
+                PartsAppearance.markSaved(select.dataset.tdrsId, 'po_num', value);
+            });
         }
     };
 
     // ===== 6. Управление полем PO NO =====
     const PoNoManager = {
-        setReceivedToday: function (selectElement, tdrsId, workorderNumber) {
-            const row = selectElement.closest('tr');
-            const receivedInput = row ? row.querySelector('.received-date') : null;
-            if (!receivedInput) return;
-
-            if (receivedInput.value) return;
-
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            const dateStr = `${yyyy}-${mm}-${dd}`;
-
-            receivedInput.value = dateStr;
-            PartsApi.saveField(tdrsId, 'received', dateStr, workorderNumber);
-        },
-
         handleSelectChange: function (selectElement) {
-            const tdrsId         = selectElement.getAttribute('data-tdrs-id');
-            const workorderNumber = selectElement.getAttribute('data-workorder-number');
-            const value          = selectElement.value;
-            const prevValue      = selectElement.dataset.prevValue || '';
-            const input          = DomUtils.getPoNoInput(selectElement);
-
-            if (value === 'INPUT') {
+            const row = selectElement.closest('tr');
+            const key = selectElement.dataset.tdrsId;
+            const input = DomUtils.getPoNoInput(selectElement);
+            if (selectElement.value === 'Transfer from WO' || row.dataset.transferId) {
+                PartsAppearance.restore(key, 'po_num');
+                TransferPicker.open(row);
+                return;
+            }
+            if (selectElement.value === 'INPUT') {
                 PoNoManager.showInput(input);
-            } else if (value === 'Transfer from WO') {
-                PoNoManager.hideInput(input);
-
-                const targetWo = prompt('Enter source Work Order number (from which to transfer part):', '');
-                if (!targetWo) {
-                    selectElement.value = prevValue;
-                    return;
-                }
-
-                TransferApi.createTransfer(tdrsId, workorderNumber, targetWo)
-                    .then(data => {
-                        if (!data?.success) {
-                            showNotification(data?.message || 'Failed to create transfer', 'error');
-                            selectElement.value = prevValue;
-                            return;
-                        }
-                        const specialValues = ['Customer', 'Transfer from WO'];
-                        const saveValue     = specialValues.includes(value) ? value : '';
-                        const fullValue     = `${saveValue} ${targetWo}`;
-                        return PartsApi.saveField(tdrsId, 'po_num', fullValue, workorderNumber)
-                            .then(() => {
-                                PoNoManager.setReceivedToday(selectElement, tdrsId, workorderNumber);
-                            });
-                    })
-                    .catch(err => {
-                        console.error('Transfer create error:', err);
-                        showNotification('Error creating transfer', 'error');
-                        selectElement.value = prevValue;
-                    });
+                PartsAppearance.refresh(row);
             } else {
                 PoNoManager.hideInput(input);
-                const specialValues = ['Customer', 'Transfer from WO'];
-                const saveValue     = specialValues.includes(value) ? value : '';
-
-                const deletePromise = prevValue === 'Transfer from WO'
-                    ? TransferApi.deleteByTdr(tdrsId)
-                    : Promise.resolve();
-
-                deletePromise
-                    .then(() => PartsApi.saveField(tdrsId, 'po_num', saveValue, workorderNumber))
-                    .then(() => {
-                        if (value !== 'Customer') {
-                            PoNoManager.setReceivedToday(selectElement, tdrsId, workorderNumber);
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Transfer delete error:', err);
-                        showNotification('Error deleting transfer', 'error');
-                    });
+                PartsApi.saveField(key, 'po_num', selectElement.value, selectElement.dataset.workorderNumber);
             }
         },
 
@@ -238,11 +381,7 @@
 
             PoNoDebounceManager.debounceSave(tdrsId, workorderNumber, value);
 
-            const row           = inputElement.closest('tr');
-            const selectElement = row ? row.querySelector('.po-no-select') : null;
-            if (row && selectElement) {
-                PoNoManager.setReceivedToday(selectElement, tdrsId, workorderNumber);
-            }
+
         }
     };
 
@@ -278,6 +417,7 @@
     // ===== 9. Обработчики событий =====
     const EventHandlers = {
         handleChange: function (e) {
+            if (e.target.matches('.po-no-select, .received-date')) PartsAppearance.refresh(e.target.closest('tr'));
             if (e.target.classList.contains('po-no-select')) {
                 PoNoManager.handleSelectChange(e.target);
             } else if (e.target.classList.contains('received-date')) {
@@ -293,6 +433,7 @@
 
         handleInput: function (e) {
             if (e.target.classList.contains('po-no-input')) {
+                PartsAppearance.refresh(e.target.closest('tr'));
                 PoNoManager.handleInputChange(e.target);
             }
         },
@@ -322,6 +463,8 @@
 
         initModalButtons: function () {
             document.addEventListener('DOMContentLoaded', function () {
+                PartsAppearance.init();
+                TransferPicker.init();
                 document.querySelectorAll('[data-bs-target^="#partsModal"]').forEach(function (button) {
                     button.addEventListener('click', function () {
                         EventHandlers.handleModalOpen(this);

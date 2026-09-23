@@ -27,9 +27,9 @@ class BackfillWorkorderStdProcesses extends Command
         $singleWorkorderId = $this->option('workorder');
 
         $processNamesByName = ProcessName::query()
-            ->whereIn('name', array_values(WorkorderStdListProcessesService::NAME_BY_KEY))
+            ->whereIdentityNames(array_values(WorkorderStdListProcessesService::NAME_BY_KEY))
             ->get()
-            ->keyBy('name');
+            ->keyBy(fn ($processName) => $processName->identityName());
 
         if ($processNamesByName->isEmpty()) {
             $this->warn('STD List process names not found.');

@@ -705,10 +705,8 @@ class ComponentController extends Controller
             $validated['field'] => (bool) $validated['value'],
         ];
 
-        if ($validated['field'] === 'is_bush') {
-            $updates['bush_ipl_num'] = $request->boolean('value')
-                ? ($validated['bush_ipl_num'] ?? null)
-                : null;
+        if ($validated['field'] === 'is_bush' && $request->exists('bush_ipl_num')) {
+            $updates['bush_ipl_num'] = $validated['bush_ipl_num'] ?? null;
         }
 
         $component->forceFill($updates)->save();

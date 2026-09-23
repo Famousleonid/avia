@@ -1304,7 +1304,7 @@ class TdrController extends Controller
 
         if (count($ndtTdrIds) >= 2) {
             $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->where('print_form', true)->first()
-                ?? ProcessName::where('name', 'like', 'NDT-%')->orderBy('id')->first();
+                ?? ProcessName::whereIdentityName('NDT-%', 'like')->orderBy('id')->first();
             if ($ndtProcessName) {
                 $ndtComponents = [];
                 $partsQty = 0;
@@ -1717,10 +1717,10 @@ class TdrController extends Controller
 
         // Обработка NDT формы (если нужно)
         if ($processName->process_sheet_name == 'NDT') {
-            $processNames = ProcessName::whereIn('name', [
+            $processNames = ProcessName::whereIdentityNames([
                 'NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8',
                 'Eddy Current Test', 'BNI'
-            ])->where('print_form', true)->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'identity_name');
 
             $ndt_ids = [
                 'ndt1_name_id' => $processNames['NDT-1'] ?? null,
@@ -1822,7 +1822,7 @@ class TdrController extends Controller
                 ->get(),
             $current_wo
         ));
-        $bushingComponents = $components->filter(fn ($component): bool => (bool) ($component->is_bush ?? false))->values();
+        $bushingComponents = BushingPrlGrouping::candidates($components);
         $hasBushings = $bushingComponents->isNotEmpty();
         $bushingPrlCount = app(TdrPrintFormController::class)->countBushingPrlRows($current_wo);
         $kitComponents = $this->filterComponentsForUnit(
@@ -1835,11 +1835,12 @@ class TdrController extends Controller
         if (! $current_wo->isOverhaul() || $current_wo->scope_type === Unit::SCOPE_COMPONENT) {
             $kitComponents = collect();
         }
-        $bushingGroupKeys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($kitComponents->pluck('manual_id')->all(), 'prl');
+        $kitBushingIds = BushingPrlGrouping::candidates($kitComponents)->pluck('id');
+        $bushingGroupKeys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($kitComponents->pluck('manual_id')->all(), 'bushing');
         $kitPrlCount = $this->countKitPrlGroups(
-            $kitComponents->reject(fn (Component $component): bool => (bool) $component->is_bush)
+            $kitComponents->whereNotIn('id', $kitBushingIds)
         ) + $kitComponents
-            ->filter(fn (Component $component): bool => (bool) $component->is_bush)
+            ->whereIn('id', $kitBushingIds)
             ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component, $bushingGroupKeys))
             ->count();
         $stdFormCounts = [
@@ -1949,7 +1950,7 @@ class TdrController extends Controller
             ->get();
 
         $ecRelatedProcessNameIds = ProcessName::query()
-            ->whereIn('name', ['EC', 'Machining (EC)', 'Machining(EC)'])
+            ->whereIdentityNames(['EC', 'Machining (EC)', 'Machining(EC)'])
             ->pluck('id');
         $tdrEcIds = TdrProcess::query()
             ->whereIn('tdrs_id', $tdrs->pluck('id'))
@@ -2138,7 +2139,7 @@ class TdrController extends Controller
         $codes = Code::all();
         $necessaries = Necessary::all();
         $manuals = Manual::all();
-        $canReplaceTdrComponent = (bool) (Auth::user()?->roleIs('Admin') ?? false);
+        $canReplaceTdrComponent = (bool) (Auth::user()?->can('feature.tdrs.replace_component') ?? false);
         $components = collect();
 
         if ($canReplaceTdrComponent && $current_tdr->workorder?->unit?->manual_id) {
@@ -2189,7 +2190,7 @@ class TdrController extends Controller
             return redirect()->back()->withErrors(['tdr' => $message]);
         }
 
-        $canReplaceTdrComponent = (bool) ($request->user()?->roleIs('Admin') ?? false);
+        $canReplaceTdrComponent = (bool) ($request->user()?->can('feature.tdrs.replace_component') ?? false);
 
         // Валидация входных данных
         $rules = [
@@ -2547,31 +2548,13 @@ class TdrController extends Controller
      */
     public function updatePartField(Request $request, $id)
     {
-        $request->validate([
-            'field' => 'required|in:po_num,received',
-            'value' => 'nullable|string'
-        ]);
-
+        \App\Services\PartReceiptAudit::authorize();
         $tdr = Tdr::findOrFail($id);
-
-        $field = $request->input('field');
-        $value = $request->input('value');
-
-        // Если поле received и значение пустое, устанавливаем null
-        if ($field === 'received' && empty($value)) {
-            $tdr->received = null;
-        } else {
-            $tdr->$field = $value;
-        }
-
-        $tdr->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Field updated successfully'
-        ]);
+        $request->merge(['row_key' => 'tdr:'.$tdr->id]);
+        return app(WorkorderPartReceiptController::class)->update(
+            $request, Workorder::findOrFail($tdr->workorder_id), app(\App\Services\WorkorderPartsList::class)
+        );
     }
-
     /**
      * Четыре процесса STD List (имена из WorkorderStdListProcessesService) в выборке —
      * только если воркордер Overhaul (как main / Paint).
@@ -2587,7 +2570,7 @@ class TdrController extends Controller
         $query->where(function ($q) use ($stdNames) {
             $q->whereDoesntHave('processName')
                 ->orWhereHas('processName', function ($pn) use ($stdNames) {
-                    $pn->whereNotIn('name', $stdNames);
+                    $pn->whereNotIdentityNames($stdNames);
                 });
         });
     }
@@ -2787,7 +2770,7 @@ class TdrController extends Controller
 
     private function countSpecProcessFormColumns(Workorder $workorder): int
     {
-        $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
+        $quarantineProcessNameId = ProcessName::whereIdentityName('Quarantine')->value('id');
 
         return Tdr::where('workorder_id', $workorder->id)
             ->where('use_process_forms', true)

@@ -106,6 +106,8 @@
                         $assemblyChoices = collect($choice['assembly_choices'] ?? []);
                         $selectedAssemblyGroup = (int) (($savedRow && (int) ($savedRow['component_id'] ?? 0) === (int) $choice['component_id'])
                             ? ($savedRow['manual_part_group_id'] ?? $partGroup->id) : $partGroup->id);
+                        $selectedAssemblyOption = $savedRow && (int) ($savedRow['component_id'] ?? 0) === (int) $choice['component_id']
+                            ? (int) ($savedRow['assy_option_id'] ?? 0) : 0;
                     @endphp
                     <div class="lc-group-assy-choice {{ $selectedChoiceKey !== (string) $choice['choice_key'] ? 'd-none' : '' }}"
                          data-component-id="{{ $choice['component_id'] }}">
@@ -114,11 +116,15 @@
                             <select id="lc-assy-{{ $rowGroupKey }}-{{ $choice['component_id'] }}"
                                     class="form-select form-select-sm lc-group-assy-select"
                                     data-component-id="{{ $choice['component_id'] }}" @disabled($logCardTdrReadOnly)>
+                                <option value="">{{ __('Select your ASSY') }}</option>
                                 @foreach($assemblyChoices as $assemblyChoice)
-                                    <option value="{{ $assemblyChoice['group_id'] }}"
+                                    <option value="{{ $assemblyChoice['option_id'] }}"
+                                            data-group-id="{{ $assemblyChoice['group_id'] }}"
                                             data-assy-part-number="{{ $assemblyChoice['part_number'] }}"
                                             data-assy-ipl-num="{{ $assemblyChoice['ipl_num'] }}"
-                                            @selected($selectedAssemblyGroup === (int) $assemblyChoice['group_id'])>
+                                            @selected($selectedAssemblyOption > 0
+                                                ? $selectedAssemblyOption === (int) $assemblyChoice['option_id']
+                                                : ($savedRow && $selectedAssemblyGroup === (int) $assemblyChoice['group_id'] && ($savedRow['assy_part_number'] ?? '') === $assemblyChoice['part_number']))>
                                         {{ $assemblyChoice['ipl_num'] }} / {{ $assemblyChoice['part_number'] }}
                                     </option>
                                 @endforeach

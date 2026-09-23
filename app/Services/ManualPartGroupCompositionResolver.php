@@ -72,7 +72,7 @@ class ManualPartGroupCompositionResolver
                 if ((int) ($coverage->component_id ?? 0) > 0) {
                     $id = (int) $coverage->component_id;
                     $componentIds = $componentIds->merge(
-                        $group->behavior === ManualPartGroup::BEHAVIOR_BUNDLE
+                        $group->behavior === ManualPartGroup::BEHAVIOR_BUNDLE && $coverage->expandsIplFamily()
                             ? ($families[$id] ?? [$id]) : [$id]
                     );
                 }

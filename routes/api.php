@@ -115,7 +115,12 @@ Route::prefix('mobile')->name('api.mobile.')
     ->group(fn () => $registerMobileClientRoutes(MobileApiController::class));
 
 Route::prefix('android')->name('api.android.')
-    ->group(fn () => $registerMobileClientRoutes(AndroidApiController::class));
+    ->group(function () use ($registerMobileClientRoutes) {
+        $registerMobileClientRoutes(AndroidApiController::class);
+        Route::get('/public/download/{filename}', [AndroidApiController::class, 'downloadBuild'])
+            ->where('filename', 'aviatechnik-v[0-9]+(?:\.[0-9]+)*\.apk')
+            ->name('public.download');
+    });
 
 Route::prefix('quantum')->name('api.quantum.')->group(function () {
     Route::get('/ro-sync/state', [QuantumRoSyncController::class, 'state'])->name('ro-sync.state');

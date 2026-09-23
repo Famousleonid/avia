@@ -110,9 +110,9 @@ class WorkorderStdListProcessesService
         }
 
         $processNames = ProcessName::query()
-            ->whereIn('name', array_values(self::NAME_BY_KEY))
+            ->whereIdentityNames(array_values(self::NAME_BY_KEY))
             ->get()
-            ->keyBy('name');
+            ->keyBy(fn ($processName) => $processName->identityName());
 
         $out = collect();
         foreach (self::NAME_BY_KEY as $key => $name) {

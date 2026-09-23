@@ -37,15 +37,18 @@ class LogCardProtectionTest extends TestCase
         ];
 
         $this->actingAs($technician)
+            ->withSession(['auth.version' => (int) $technician->auth_version, 'password_hash_web' => $technician->getAuthPassword()])
             ->putJson(route('log_card.update', $logCard), $payload)
             ->assertStatus(423);
         $this->actingAs($manager)
+            ->withSession(['auth.version' => (int) $manager->auth_version, 'password_hash_web' => $manager->getAuthPassword()])
             ->putJson(route('log_card.update', $logCard), $payload)
             ->assertStatus(423);
 
         $this->assertSame('OLD-SN', $this->rows($logCard)[0]['serial_number']);
 
         $this->actingAs($qa)
+            ->withSession(['auth.version' => (int) $qa->auth_version, 'password_hash_web' => $qa->getAuthPassword()])
             ->putJson(route('log_card.update', $logCard), $payload)
             ->assertOk();
 
@@ -58,6 +61,7 @@ class LogCardProtectionTest extends TestCase
             'serial_number' => 'SUPER-ADMIN-SN',
         ]]);
         $this->actingAs($superAdmin)
+            ->withSession(['auth.version' => (int) $superAdmin->auth_version, 'password_hash_web' => $superAdmin->getAuthPassword()])
             ->putJson(route('log_card.update', $logCard), $payload)
             ->assertOk();
         $this->assertSame('SUPER-ADMIN-SN', $this->rows($logCard)[0]['serial_number']);

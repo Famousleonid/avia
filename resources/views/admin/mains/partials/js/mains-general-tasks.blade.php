@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
             if (src._flatpickr) return;
-            if (src.disabled) return;
+            // Disabled dates still need the formatted altInput; Flatpickr preserves disabled.
             const isLocked = src.hasAttribute('data-fp-locked');
 
             flatpickr(src, {
@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 onChange(selectedDates, dateStr, instance) {
 
-                    if (src.hasAttribute('data-fp-locked')) return; // 🔒 не сабмитим
+                    if (src.disabled || src.hasAttribute('data-fp-locked')) return; // 🔒 не сабмитим
 
                     const filled = String(dateStr || '').trim() !== '';
                     if (src.classList.contains('finish-input')) {
@@ -513,4 +513,29 @@ document.addEventListener('submit', function (e) {
     if (indicator) indicator.classList.add('d-none');
 });
 
+// Bushing batch dates use the same record as the Bushing Processes status badges.
+document.addEventListener('submit', async function (event) {
+    const form = event.target.closest('form[data-bushing-batch-dates]');
+    if (!form) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const input = form.querySelector('input[data-fp]');
+    const restore = () => {
+        input._flatpickr?.setDate(input.dataset.original || '', false, 'Y-m-d');
+        const filled = String(input.dataset.original || '') !== '';
+        input.classList.toggle('has-finish', filled);
+        input._flatpickr?.altInput?.classList.toggle('has-finish', filled);
+        window.refreshWoBushingStripCounts?.(form);
+    };
+    if (typeof window.confirmDialog !== 'function') {
+        restore();
+        window.notifyError?.('Confirmation dialog is unavailable. Date was not saved.');
+        return;
+    }
+    if (!await window.confirmDialog({title: 'Machining', message: 'Save this batch date?', okText: 'Save'})) {
+        restore();
+        return;
+    }
+    await window.ajaxSubmit(form);
+}, true);
 </script>

@@ -42,7 +42,7 @@ class TdrProcessController extends Controller
     private function getEcProcessNameId()
     {
         if ($this->ecProcessNameId === null) {
-            $this->ecProcessNameId = ProcessName::where('name', 'EC')->value('id');
+            $this->ecProcessNameId = ProcessName::whereIdentityName('EC')->value('id');
         }
         return $this->ecProcessNameId;
     }
@@ -53,9 +53,9 @@ class TdrProcessController extends Controller
     private function getMachiningProcessNameId()
     {
         if ($this->machiningProcessNameId === null) {
-            $machiningEC = ProcessName::where('name', 'Machining (EC)')->first();
-            $machining = ProcessName::where('name', 'Machining')->first();
-            $machiningBlend = ProcessName::where('name', 'Machining (Blend)')->first();
+            $machiningEC = ProcessName::whereIdentityName('Machining (EC)')->first();
+            $machining = ProcessName::whereIdentityName('Machining')->first();
+            $machiningBlend = ProcessName::whereIdentityName('Machining (Blend)')->first();
 
             if ($machiningEC) {
                 $this->machiningProcessNameId = $machiningEC->id;
@@ -79,7 +79,7 @@ class TdrProcessController extends Controller
         if ($machiningId) {
             $ids[] = $machiningId;
         }
-        $ril = ProcessName::where('name', 'RIL')->first();
+        $ril = ProcessName::whereIdentityName('RIL')->first();
         if ($ril) {
             $ids[] = $ril->id;
         }
@@ -95,7 +95,7 @@ class TdrProcessController extends Controller
             return false;
         }
 
-        return ProcessName::where('id', $processNamesId)->where('name', 'Machining (EC)')->exists();
+        return ProcessName::where('id', $processNamesId)->whereIdentityName('Machining (EC)')->exists();
     }
 
     private function allCatalogProcessesHaveProcessNames(array $processIds): bool
@@ -231,13 +231,10 @@ class TdrProcessController extends Controller
 
         // Передаем данные в представление
         // Получаем все NDT процессы для дополнительного выбора
-        $ndtProcessNames = ProcessName::where(function($query) {
-            $query->where('name', 'like', 'NDT-%')
-                  ->orWhereIn('name', ['NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8']);
-        })->get();
+        $ndtProcessNames = ProcessName::whereIdentityName('NDT-%', 'like')->get();
 
         $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
-        $ecProcessNameId = ProcessName::where('name', 'EC')->value('id');
+        $ecProcessNameId = ProcessName::whereIdentityName('EC')->value('id');
 
         return view('admin.tdr-processes.createProcesses', compact(
             'current_tdr',
@@ -494,7 +491,7 @@ class TdrProcessController extends Controller
             // Если это EC-eligible процесс (Machining/RIL) с отмеченным чекбоксом 'EC'
             if ($isEcEligible && $ecValue) {
                 // 1. Проверяем наличие ProcessName с name = 'EC'
-                $ecProcessName = ProcessName::where('name', 'EC')->first();
+                $ecProcessName = ProcessName::whereIdentityName('EC')->first();
 
                 // Если нет - создаем запись
                 if (!$ecProcessName) {
@@ -849,12 +846,12 @@ class TdrProcessController extends Controller
             ->where('print_form', true)
             ->where(function ($query) {
                 $query->where('process_sheet_name', 'NDT')
-                    ->orWhereIn('name', ['Eddy Current Test', 'BNI']);
+                    ->orWhere(fn ($aliases) => $aliases->whereIdentityNames(['Eddy Current Test', 'BNI']));
             })
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'identity_name']);
 
         foreach ($processNames as $name) {
-            $field = $this->ndtFormFieldForName($name->name);
+            $field = $this->ndtFormFieldForName($name->identityName());
 
             if ($field !== null && $ids[$field] === null) {
                 $ids[$field] = $name->id;
@@ -864,7 +861,7 @@ class TdrProcessController extends Controller
         // Prefer the exact process assigned to this form when aliases share
         // the same NDT number.
         if ($currentProcessName !== null) {
-            $field = $this->ndtFormFieldForName($currentProcessName->name);
+            $field = $this->ndtFormFieldForName($currentProcessName->identityName());
 
             if ($field !== null) {
                 $ids[$field] = $currentProcessName->id;
@@ -1577,7 +1574,7 @@ class TdrProcessController extends Controller
         }
 
         $current_tdr->loadMissing(['workorder:id,number', 'component:id,part_number']);
-        $processes->loadMissing('processName:id,name');
+        $processes->loadMissing('processName:id,name,identity_name');
         $beforeRows = $processes->map(static fn (TdrProcess $process): array => [
             'id' => (int) $process->id,
             'process_name' => (string) ($process->processName?->name ?? ''),
@@ -1670,7 +1667,7 @@ class TdrProcessController extends Controller
 
         $current_tdr->loadMissing(['workorder:id,number', 'component:id,part_number']);
         $processes = (clone $query)
-            ->with('processName:id,name')
+            ->with('processName:id,name,identity_name')
             ->orderBy('id')
             ->get();
 
@@ -1799,7 +1796,7 @@ class TdrProcessController extends Controller
         })->get();
 
         // Получаем все NDT process names для дополнительного селекта
-        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
+        $ndtProcessNames = ProcessName::whereIdentityName('NDT-%', 'like')->get();
 
         $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
 
@@ -1835,7 +1832,7 @@ class TdrProcessController extends Controller
             ->whereNotNull('process_names_id')
             ->whereHas('process_name')
             ->get();
-        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
+        $ndtProcessNames = ProcessName::whereIdentityName('NDT-%', 'like')->get();
         $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
 
         $vars = compact('current_tdr', 'current_wo', 'current_tdr_processes', 'processNames', 'processes', 'ndtProcessNames', 'ecEligibleProcessNameIds');
@@ -1972,7 +1969,7 @@ class TdrProcessController extends Controller
         // Обрабатываем plus_process: если это NDT процесс, сохраняем дополнительные NDT process_names_id
         $plusProcess = null;
         $processName = ProcessName::find($processData['process_names_id']);
-        if ($processName && strpos($processName->name, 'NDT-') === 0) {
+        if ($processName && strpos($processName->identityName(), 'NDT-') === 0) {
             $plusProcess = $processData['plus_process'] ?? null;
         }
 
@@ -3334,7 +3331,7 @@ class TdrProcessController extends Controller
     {
         $tdrProcess->loadMissing('processName');
 
-        return ProcessName::isExactEcName($tdrProcess->processName?->name);
+        return ProcessName::isExactEcName($tdrProcess->processName?->identityName());
     }
 
     private function userCanEditExactEcProcessDates(): bool

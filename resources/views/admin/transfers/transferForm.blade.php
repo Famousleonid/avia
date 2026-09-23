@@ -448,9 +448,9 @@
                 </thead>
                 <tbody>
                 <tr>
-                    <td style="height: 60px">{{ optional($transfer->component)->assy_ipl_num ?: optional($transfer->component)->ipl_num ?: '—' }}</td>
+                    <td style="height: 60px">{{ $transfer->ipl_num ?: optional($transfer->component)->assy_ipl_num ?: optional($transfer->component)->ipl_num ?: '—' }}</td>
                     <td>{{ optional($transfer->component)->name ?: '—' }}</td>
-                    <td>{{ optional($transfer->component)->assy_part_number ?: optional($transfer->component)->part_number ?: '—' }}</td>
+                    <td>{{ $transfer->part_number ?: optional($transfer->component)->assy_part_number ?: optional($transfer->component)->part_number ?: '—' }}@if($transfer->source_log_row_key)<br>QTY: {{ $transfer->qty }}@endif</td>
                     <td>{{ $transfer->component_sn ?? '—' }}</td>
                     <td>VISUAL</td>
                     <td>FITS & CLEARANCES</td>

@@ -9,6 +9,7 @@ class Transfer extends Model
 {
     use HasFactory;
     protected $fillable = [
+        'receipt_row_key', 'source_log_card_id', 'source_log_row_key', 'source_log_token', 'qty', 'part_number', 'ipl_num',
         'tdr_id',
         'workorder_id',
         'workorder_source',

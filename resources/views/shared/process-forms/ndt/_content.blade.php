@@ -23,7 +23,7 @@
             <div class="col-1 fs-7">#1</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt1_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt1_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt1_name_id]->process))) !!}</span>
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt1_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt1_name_id]->id) : '', 'description' => ''])
                 @endif
             </div>
         </div>
@@ -32,7 +32,7 @@
             <div class="col-1 fs-7">#4</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt4_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt4_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt4_name_id]->process))) !!}</span>
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt4_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt4_name_id]->id) : '', 'description' => ''])
                 @endif
             </div>
         </div>
@@ -41,7 +41,7 @@
             <div class="col-1 fs-7">#7</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt7_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt7_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt7_name_id]->process))) !!}</span>
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt7_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt7_name_id]->id) : '', 'description' => ''])
                 @endif
             </div>
         </div>
@@ -51,7 +51,7 @@
             <div class="col-1 fs-7">#2</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt2_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt2_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt2_name_id]->process))) !!}</span>
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt2_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt2_name_id]->id) : '', 'description' => ''])
                 @endif
             </div>
         </div>
@@ -59,7 +59,7 @@
             <div class="col-1 fs-7">#5</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt5_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt5_name_id]->process) > 25) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt5_name_id]->process))) !!}</span>
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt5_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt5_name_id]->id) : '', 'description' => ''])
                 @endif
             </div>
         </div>
@@ -67,7 +67,7 @@
             <div class="col-1 fs-7">#8</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt8_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt8_name_id]->process) > 25) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt8_name_id]->process))) !!}</span>
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt8_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt8_name_id]->id) : '', 'description' => ''])
                 @endif
             </div>
         </div>
@@ -77,7 +77,7 @@
             <div class="col-1 fs-7">#3</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt3_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt3_name_id]->process) > 20) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt3_name_id]->process))) !!}</span>
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt3_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt3_name_id]->id) : '', 'description' => ''])
                 @endif
             </div>
         </div>
@@ -86,7 +86,7 @@
             <div class="col-1 fs-7 text-end">#6</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt6_name_id ?? null]))
-                    <span @if(strlen($ndt_processes_by_id[$ndt6_name_id]->process) > 40) class="process-text-long" @endif>{!! nl2br(e(format_process_number($ndt_processes_by_id[$ndt6_name_id]->process))) !!}</span>
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt6_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt6_name_id]->id) : '', 'description' => ''])
                 @endif
             </div>
         </div>
@@ -119,28 +119,28 @@
         @foreach($ndt_components as $component)
             @php
                 $pn = $component->processName;
-                if ($pn->name === 'Eddy Current Test') {
+                if ($pn->identityName() === 'Eddy Current Test') {
                     $processNumbers = ['6'];
-                } elseif ($pn->name === 'BNI') {
+                } elseif ($pn->identityName() === 'BNI') {
                     $processNumbers = ['5'];
-                } elseif (strpos($pn->name, 'NDT-') === 0) {
-                    $processNumbers = [substr($pn->name, 4)];
+                } elseif (strpos($pn->identityName(), 'NDT-') === 0) {
+                    $processNumbers = [substr($pn->identityName(), 4)];
                 } else {
-                    $processNumbers = [substr($pn->name, -1)];
+                    $processNumbers = [substr($pn->identityName(), -1)];
                 }
                 if ($component->plus_process) {
                     $plusProcessIds = explode(',', $component->plus_process);
                     foreach ($plusProcessIds as $plusProcessId) {
                         $plusProcessName = \App\Models\ProcessName::find($plusProcessId);
                         if ($plusProcessName) {
-                            if ($plusProcessName->name === 'Eddy Current Test') {
+                            if ($plusProcessName->identityName() === 'Eddy Current Test') {
                                 $processNumbers[] = '6';
-                            } elseif ($plusProcessName->name === 'BNI') {
+                            } elseif ($plusProcessName->identityName() === 'BNI') {
                                 $processNumbers[] = '5';
-                            } elseif (strpos($plusProcessName->name, 'NDT-') === 0) {
-                                $processNumbers[] = substr($plusProcessName->name, 4);
+                            } elseif (strpos($plusProcessName->identityName(), 'NDT-') === 0) {
+                                $processNumbers[] = substr($plusProcessName->identityName(), 4);
                             } else {
-                                $processNumbers[] = substr($plusProcessName->name, -1);
+                                $processNumbers[] = substr($plusProcessName->identityName(), -1);
                             }
                         }
                     }
@@ -155,7 +155,7 @@
                 </div>
                 <div class="col-3 border-l-b details-row text-center" style="min-height: 32px; height: auto; line-height: 1; flex-direction: column">
                     <span>{{ $component->tdr->component->name }}</span>
-                    @if($component->description)<span>{{ $component->description }}</span>@endif
+                    @if($component->description)<span class="process-description">{{ $component->description }}</span>@endif
                 </div>
                 <div class="col-2 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ implode(' / ', $processNumbers) }}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif</div>
                 <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ $component->tdr->qty }}</div>
@@ -171,7 +171,8 @@
                 $processNumbers = isset($data['combined_ndt_number']) && $data['combined_ndt_number'] !== '' ? $data['combined_ndt_number'] : '';
                 if ($processNumbers === '' && isset($data['process_name']) && $data['process_name']) {
                     $pn = $data['process_name'];
-                    $pnName = is_object($pn) ? ($pn->name ?? null) : (is_array($pn) ? ($pn['name'] ?? null) : null);
+                    $pnModel = $pn instanceof \App\Models\ProcessName ? $pn : \App\Models\ProcessName::find(data_get($pn, 'id'));
+                    $pnName = $pnModel?->identityName();
                     if ($pnName !== null) {
                         if (strpos($pnName, 'NDT-') === 0) {
                             $processNumbers = substr($pnName, 4);

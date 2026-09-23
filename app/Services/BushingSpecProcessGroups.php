@@ -38,7 +38,7 @@ class BushingSpecProcessGroups
         return $labels;
     }
 
-    /** Automatic routes share one column; legacy sent operation batches retain their columns. */
+    /** One column per route; legacy operations are joined by their exact batch membership. */
     public function build(Workorder $workorder): array
     {
         $labelMap = self::LABELS;
@@ -54,7 +54,8 @@ class BushingSpecProcessGroups
             ->with([
                 'component',
                 'processes.process.process_name',
-                'processes.batch',
+                'processes.batch' => fn ($query) => $query->withCount('machiningWorkSteps'),
+                'processes' => fn ($query) => $query->withCount('machiningWorkSteps'),
             ])
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -94,15 +95,30 @@ class BushingSpecProcessGroups
             ))));
             $partNumber = trim((string) $component->part_number);
             $sentBatches = $line->processes
-                ->filter(fn ($row) => $row->batch && ($row->batch->route_number || $row->batch->date_start)
+                ->filter(fn ($row) => $row->batch && ($row->batch->route_number || app(BushingRouteBatches::class)->hasHistory($row->batch) || app(BushingRouteBatches::class)->hasHistory($row))
                     && (int) $row->batch->workorder_id === (int) $workorder->id
                     && isset($labelMap[WoBushingProcessColumnKey::fromProcess($row->process)]))
-                ->groupBy(fn ($row) => $row->batch->route_number ? 'route:'.$row->batch->route_number : 'legacy:'.$row->batch_id);
-            foreach ($sentBatches as $batchId => $batchRows) {
-                $batch = $batchRows->first()->batch;
+                ->groupBy(function ($row) use ($line) {
+                    if ($row->batch->route_number) return 'route:'.$row->batch->route_number;
+                    // Same P/N or B label alone does not prove the same physical shipment.
+                    // Keep differing operation quantities separate (partial shipments).
+                    $memberships = $line->processes->filter(fn ($process) => $process->batch
+                        && !$process->batch->route_number
+                        && (int) $process->batch->workorder_id === (int) $line->workorder_id)
+                        ->pluck('batch_id')->unique()->sort()->values()->all();
+                    $quantities = $line->processes->filter(fn ($process) => $process->batch
+                        && !$process->batch->route_number
+                        && (app(BushingRouteBatches::class)->hasHistory($process->batch)
+                            || app(BushingRouteBatches::class)->hasHistory($process)))
+                        ->pluck('qty')->unique();
+                    return 'legacy:'.implode(',', $memberships)
+                        .($quantities->count() > 1 ? ':partial:'.$row->qty : '');
+                });
+            foreach ($sentBatches as $routeKey => $batchRows) {
+                $batch = $batchRows->sortBy('batch_id')->first()->batch;
                 $batchId = $batch->id;
                 $batchKey = $this->batchKey($batch);
-                $signature = ($batch->route_number ? 'route:'.$batch->route_number : 'legacy:'.$batchId) . ':' . $processSignature;
+                $signature = $routeKey . ':' . $processSignature;
 
                 if (! isset($groupBuckets[$signature])) {
                     $groupBuckets[$signature] = [
@@ -218,7 +234,9 @@ class BushingSpecProcessGroups
             $leftProcessOrder = $left['process_order'] ?? ($sortOrder[$left['process_key'] ?? ''] ?? 999);
             $rightProcessOrder = $right['process_order'] ?? ($sortOrder[$right['process_key'] ?? ''] ?? 999);
 
-            return strcmp($left['sent_at'], $right['sent_at'])
+            // Historical columns stay first; newly added automatic routes append after them.
+            return (!empty($left['route_number']) <=> !empty($right['route_number']))
+                ?: strcmp($left['sent_at'], $right['sent_at'])
                 ?: (($left['route_number'] ?? $left['batch_id']) <=> ($right['route_number'] ?? $right['batch_id']))
                 ?: ($leftOrder <=> $rightOrder)
                 ?: ($leftProcessOrder <=> $rightProcessOrder)

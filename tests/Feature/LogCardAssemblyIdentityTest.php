@@ -51,7 +51,7 @@ class LogCardAssemblyIdentityTest extends TestCase
             [$groups] = $method->invoke($controller, $part->manual_id, collect([$part]), $wo);
             $this->assertCount(1, $groups);
             $this->assertSame($scope->part_number, $groups[0]['choices'][0]['assy_part_number']);
-            $this->actingAs($admin)->get(route('log_card.partial', $wo))->assertOk()->assertSee($scope->part_number);
+            $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])->get(route('log_card.partial', $wo))->assertOk()->assertSee($scope->part_number);
 
             $mobile = app(\App\Http\Controllers\Api\Mobile\MobileApiController::class);
             $mobileMethod = new \ReflectionMethod($mobile, 'mobileLogCardAssyGroups');
@@ -105,6 +105,57 @@ class LogCardAssemblyIdentityTest extends TestCase
             'assy_selection_explicit' => '1'];
         $this->actingAs($admin)->postJson(route('log_card.store'), ['workorder_id' => $wo->id, 'component_data' => json_encode([$row])])->assertStatus(422);
         $this->assertNull(LogCard::where('workorder_id', $wo->id)->first());
+    }
+
+    public function test_technician_selects_specific_option_in_one_assy_group_and_selection_survives(): void
+    {
+        [, $wo, $part, $first, $second] = $this->scopedMainFitting();
+        $second->update(['manual_part_group_id' => $first->manual_part_group_id]);
+        $tech = $this->createUserWithRole('Technician');
+        $response = $this->actingAs($tech)->withSession(['auth.version' => (int) $tech->auth_version, 'password_hash_web' => $tech->getAuthPassword()])->get(route('log_card.partial', $wo))->assertOk();
+        $response->assertSee('Select your ASSY')->assertSee('value="'.$second->id.'"', false);
+        $row = ['component_id' => (string) $part->id, 'manual_id' => (string) $part->manual_id,
+            'manual_part_group_choice' => 'component', 'manual_part_group_id' => (string) $first->manual_part_group_id,
+            'assy_selection_explicit' => '1', 'serial_number' => 'BARE-SN', 'assy_serial_number' => 'ASSY-SN'];
+        $this->postJson(route('log_card.store'), ['workorder_id' => $wo->id, 'component_data' => json_encode([$row])])->assertStatus(422);
+        $row['assy_option_id'] = (string) $second->id;
+        $this->postJson(route('log_card.store'), ['workorder_id' => $wo->id, 'component_data' => json_encode([$row])])->assertOk();
+        $log = LogCard::where('workorder_id', $wo->id)->firstOrFail();
+        $saved = json_decode($log->component_data, true)[0];
+        $this->assertSame($part->part_number, $saved['part_number']);
+        $this->assertSame($second->part_number, $saved['assy_part_number']);
+        $this->assertSame((string) $second->id, $saved['assy_option_id']);
+        $this->get(route('log_card.partial', $wo).'?edit=1')->assertOk()->assertSee($second->part_number);
+        $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertSee($second->part_number);
+        $this->putJson(route('log_card.update', $log), ['workorder_id' => $wo->id, 'component_data' => json_encode([$saved])])->assertOk();
+        $this->assertSame($second->part_number, json_decode($log->fresh()->component_data, true)[0]['assy_part_number']);
+        $mobileResponse = $this->putJson(route('mobile.log-card.update', $wo->id), ['rows' => [$row]]);
+        $this->assertSame(200, $mobileResponse->status(), $mobileResponse->getContent());
+        $this->assertSame($second->part_number, collect(json_decode($log->fresh()->component_data,true))->firstWhere('component_id',(string)$part->id)['assy_part_number']);
+        $row['assy_option_id'] = 999999;
+        $this->putJson(route('log_card.update', $log), ['workorder_id' => $wo->id, 'component_data' => json_encode([$row])])->assertStatus(422);
+    }
+
+    public function test_legacy_group_only_choice_resolves_unique_second_option_and_rejects_wrong_first(): void
+    {
+        [$admin, $wo, $part, $first, $second] = $this->scopedMainFitting();
+        $second->update(['manual_part_group_id' => $first->manual_part_group_id]);
+        $part->assemblies()->where('assy_part_number', $first->part_number)->delete();
+        $part->update(['assy_part_number' => null]);
+        $row = ['component_id' => (string) $part->id, 'manual_id' => (string) $part->manual_id,
+            'manual_part_group_choice' => 'component', 'manual_part_group_id' => (string) $first->manual_part_group_id,
+            'assy_selection_explicit' => '1'];
+        $this->actingAs($admin)->postJson(route('log_card.store'), [
+            'workorder_id' => $wo->id, 'component_data' => json_encode([$row]),
+        ])->assertOk();
+        $log = LogCard::where('workorder_id', $wo->id)->firstOrFail();
+        $saved = json_decode($log->component_data, true)[0];
+        $this->assertSame($second->part_number, $saved['assy_part_number']);
+        $this->assertSame((string) $second->id, $saved['assy_option_id']);
+        $row['assy_option_id'] = (string) $first->id;
+        $this->putJson(route('log_card.update', $log), [
+            'workorder_id' => $wo->id, 'component_data' => json_encode([$row]),
+        ])->assertStatus(422);
     }
 
     public function test_mobile_template_and_store_accept_explicit_own_assembly(): void

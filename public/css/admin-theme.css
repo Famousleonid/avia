@@ -796,3 +796,10 @@ html[data-bs-theme="dark"] .select2-container--default .select2-selection__choic
     border: 1px solid var(--dir-input-border) !important;
     border-radius: 0.25rem !important;
 }
+.process-choice-label,
+.process-options .form-check-label,
+.ndt-plus-process-options .form-check-label {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+.process-choice-comment { display: block; white-space: pre-line; color: #ffc107; }

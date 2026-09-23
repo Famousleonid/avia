@@ -58,6 +58,16 @@ return [
         'allow_is_admin' => false,
     ],
 
+    'tdrs.replace_component' => [
+        'label' => 'Replace Part in TDR inspection',
+        'group' => 'Capabilities',
+        'managed' => false,
+        'roles' => ['Admin'],
+        // Slava Y (Yushkevich Viacheslav). Grant this action, not the Admin role.
+        'user_ids' => [31],
+        'allow_is_admin' => false,
+    ],
+
     'library.traveler_notes' => [
         'label' => 'Notes Traveler',
         'group' => 'Library',

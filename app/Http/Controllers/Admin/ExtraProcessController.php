@@ -74,7 +74,7 @@ class ExtraProcessController extends Controller
             ->first();
 
         // Получаем все NDT process names для дополнительного селекта
-        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->orderBy('name')->get();
+        $ndtProcessNames = ProcessName::whereIdentityName('NDT-%', 'like')->orderBy('name')->get();
 
         return view('admin.extra_processes.create_processes', compact(
             'current_wo',
@@ -202,7 +202,7 @@ class ExtraProcessController extends Controller
 
                         // Если это NDT процесс с дополнительными NDT, добавляем поля
                         $processName = ProcessName::find($processNameId);
-                        if ($processName && strpos($processName->name, 'NDT-') === 0) {
+                        if ($processName && strpos($processName->identityName(), 'NDT-') === 0) {
                             if (isset($processData['plus_process_names']) && !empty($processData['plus_process_names'])) {
                                 $processObject['plus_process_names'] = $processData['plus_process_names'];
                                 $processObject['plus_process_ids'] = $processData['plus_process_ids'] ?? [];
@@ -388,7 +388,7 @@ class ExtraProcessController extends Controller
 
                             // Если это NDT процесс с дополнительными NDT, добавляем поля
                             $processName = ProcessName::find($processNameId);
-                            if ($processName && strpos($processName->name, 'NDT-') === 0) {
+                            if ($processName && strpos($processName->identityName(), 'NDT-') === 0) {
                                 if (isset($processData['plus_process_names']) && !empty($processData['plus_process_names'])) {
                                     $processObject['plus_process_names'] = $processData['plus_process_names'];
                                     $processObject['plus_process_ids'] = $processData['plus_process_ids'] ?? [];
@@ -840,12 +840,12 @@ class ExtraProcessController extends Controller
         // Обработка NDT формы (если нужно)
         if ($processName->process_sheet_name == 'NDT') {
             // Получаем ID process names одним запросом
-            $processNames = ProcessName::whereIn('name', [
+            $processNames = ProcessName::whereIdentityNames([
                 'NDT-1',
                 'NDT-4',
                 'Eddy Current Test',
                 'BNI'
-            ])->where('print_form', true)->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'identity_name');
 
             // Извлекаем ID по именам
             $ndt_ids = [
@@ -862,14 +862,14 @@ class ExtraProcessController extends Controller
 
             // Функция для извлечения номера NDT из имени процесса
             $getNdtNumber = function($processName) {
-                if (strpos($processName->name, 'NDT-') === 0) {
-                    return substr($processName->name, 4);
-                } elseif ($processName->name === 'Eddy Current Test') {
+                if (strpos($processName->identityName(), 'NDT-') === 0) {
+                    return substr($processName->identityName(), 4);
+                } elseif ($processName->identityName() === 'Eddy Current Test') {
                     return '6';
-                } elseif ($processName->name === 'BNI') {
+                } elseif ($processName->identityName() === 'BNI') {
                     return '5';
                 }
-                return substr($processName->name, -1);
+                return substr($processName->identityName(), -1);
             };
 
             // Группируем NDT процессы по компонентам для объединения номеров
@@ -1088,7 +1088,7 @@ class ExtraProcessController extends Controller
         })->get();
 
         // Получаем все NDT process names для дополнительного селекта
-        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->orderBy('name')->get();
+        $ndtProcessNames = ProcessName::whereIdentityName('NDT-%', 'like')->orderBy('name')->get();
 
         return view('admin.extra_processes.edit', compact(
             'current_wo',
@@ -1180,7 +1180,7 @@ class ExtraProcessController extends Controller
                             ];
 
                             // Если это NDT процесс с дополнительными NDT, добавляем поля
-                            if ($processName && strpos($processName->name, 'NDT-') === 0) {
+                            if ($processName && strpos($processName->identityName(), 'NDT-') === 0) {
                                 if (isset($processData['plus_process_names']) && !empty($processData['plus_process_names'])) {
                                     $updatedProcess['plus_process_names'] = $processData['plus_process_names'];
                                     $updatedProcess['plus_process_ids'] = $processData['plus_process_ids'] ?? [];
@@ -1278,7 +1278,7 @@ class ExtraProcessController extends Controller
                             ];
 
                             // Если это NDT процесс с дополнительными NDT, добавляем поля
-                            if ($processName && strpos($processName->name, 'NDT-') === 0) {
+                            if ($processName && strpos($processName->identityName(), 'NDT-') === 0) {
                                 if (isset($processData['plus_process_names']) && !empty($processData['plus_process_names'])) {
                                     $processObject['plus_process_names'] = $processData['plus_process_names'];
                                     $processObject['plus_process_ids'] = $processData['plus_process_ids'] ?? [];
@@ -1370,12 +1370,12 @@ class ExtraProcessController extends Controller
         // Обработка NDT формы (если нужно)
         if ($processName->process_sheet_name == 'NDT') {
             // Получаем ID process names одним запросом
-            $processNames = ProcessName::whereIn('name', [
+            $processNames = ProcessName::whereIdentityNames([
                 'NDT-1',
                 'NDT-4',
                 'Eddy Current Test',
                 'BNI'
-            ])->where('print_form', true)->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'identity_name');
 
             // Извлекаем ID по именам
             $ndt_ids = [
@@ -1392,14 +1392,14 @@ class ExtraProcessController extends Controller
 
             // Функция для извлечения номера NDT из имени процесса
             $getNdtNumber = function($processName) {
-                if (strpos($processName->name, 'NDT-') === 0) {
-                    return substr($processName->name, 4);
-                } elseif ($processName->name === 'Eddy Current Test') {
+                if (strpos($processName->identityName(), 'NDT-') === 0) {
+                    return substr($processName->identityName(), 4);
+                } elseif ($processName->identityName() === 'Eddy Current Test') {
                     return '6';
-                } elseif ($processName->name === 'BNI') {
+                } elseif ($processName->identityName() === 'BNI') {
                     return '5';
                 }
-                return substr($processName->name, -1);
+                return substr($processName->identityName(), -1);
             };
 
             // Получаем все NDT process_name_ids для группировки

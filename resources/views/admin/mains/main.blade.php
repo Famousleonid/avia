@@ -470,10 +470,8 @@
                                                     <span class="dir-top-v">{{ $manualValue }}</span>
                                                 </div>
                                             </div>
-                                            <div class="dir-top-cell">
-                                                <div class="dir-top-line align-items-center">
-                                                    <span class="dir-top-k">Parts:</span>
-                                                    <span class="dir-top-v dir-top-v-fit">Ordered: {{ $orderedQty ?? 0 }} | Received: {{ $receivedQty ?? 0 }}</span>
+                                            <div class="dir-top-cell main-parts-summary">
+                                                <div class="dir-top-line align-items-center main-parts-summary-button">
                                                     @unless($isDraftMain)
                                                     <button type="button"
                                                             class="btn btn-success btn-sm ms-0 dir-top-parts-btn"
@@ -483,10 +481,13 @@
                                                         Parts
                                                     </button>
                                                     @endunless
+                                                    <span class="dir-top-v main-parts-count {{ ($orderedQty ?? 0) == ($receivedQty ?? 0) ? 'is-complete' : '' }}" title="Total IPL rows / rows with receipt source and received date">(<span class="main-parts-ordered" id="orderedRows{{ $current_workorder->number }}">{{ $orderedQty ?? 0 }}</span>/<span class="main-parts-received" id="receivedQty{{ $current_workorder->number }}">{{ $receivedQty ?? 0 }}</span>)</span>
                                                 </div>
-                                                <div class="dir-top-line">
+                                                <div class="dir-top-line main-parts-summary-opened">
                                                     <span class="dir-top-k">Opened:</span>
                                                     <span class="dir-top-v">{{ $openedValue }}</span>
+                                                </div>
+                                                <div class="dir-top-line main-parts-summary-paint">
                                                     <span class="dir-top-v text-white"> <span class="text-info">Paint queue: &nbsp;</span> {{ ($current_workorder->paint_queue_order+1) ?? '—' }}</span>
                                                 </div>
                                             </div>
@@ -915,9 +916,7 @@
                                                                                             </colgroup>
                                                                                             <thead>
                                                                                             <tr>
-                                                                                                <th class="wo-bush-col-part">Part №</th>
-                                                                                                <th class="wo-bush-col-ipl text-center">IPL</th>
-                                                                                                <th class="wo-bush-col-process">{{ __('Process') }}</th>
+                                                                                                <th colspan="3">{{ __('Bushings / Process') }}</th>
                                                                                                 <th class="text-center wo-bush-col-qty">Qty</th>
                                                                                                 <th class="wo-bush-col-ro">RO</th>
                                                                                                 <th class="text-center wo-bush-col-dt">Sent</th>
@@ -925,31 +924,18 @@
                                                                                             </tr>
                                                                                             </thead>
                                                                                             <tbody>
-                                                                                            @php
-                                                                                                $batchGroupLabels = [];
-                                                                                                $batchGroupCounter = 1;
-                                                                                            @endphp
                                                                                             @foreach($row['batches'] as $batch)
                                                                                                 @if(!empty($batch['is_batch']))
                                                                                                     @php
                                                                                                         $batchCollapseId = 'woBushBatchCollapse_gt'.$gt->id.'_'.$row['process_group_key'].'_b'.$batch['id'];
                                                                                                         $batchLineCount = count($batch['line_items'] ?? []);
-                                                                                                        $currentBatchId = (int) ($batch['id'] ?? 0);
-                                                                                                        if ($currentBatchId > 0) {
-                                                                                                            if (!isset($batchGroupLabels[$currentBatchId])) {
-                                                                                                                $batchGroupLabels[$currentBatchId] = 'Grp '.$batchGroupCounter;
-                                                                                                                $batchGroupCounter++;
-                                                                                                            }
-                                                                                                            $batchGroupLabel = $batchGroupLabels[$currentBatchId];
-                                                                                                        } else {
-                                                                                                            $batchGroupLabel = 'Grp';
-                                                                                                        }
+                                                                                                        $batchGroupLabel = $batch['batch_label'] ?? 'B';
                                                                                                         $batchQtySum = collect($batch['line_items'] ?? [])->sum(fn ($i) => (int) ($i['qty'] ?? 0));
                                                                                                         if ($batchQtySum === 0 && isset($batch['qty'])) {
                                                                                                             $batchQtySum = (int) $batch['qty'];
                                                                                                         }
                                                                                                     @endphp
-                                                                                                    <tr class="wo-bush-batch-row">
+                                                                                                    <tr class="wo-bush-batch-row" data-bush-line-qty="{{ $batchQtySum }}" data-bush-finished="{{ !empty($batch['date_finish']) ? 1 : 0 }}">
                                                                                                         <td colspan="3"
                                                                                                             class="small align-middle wo-bush-batch-toggle user-select-none"
                                                                                                             style="cursor: pointer;"
@@ -973,10 +959,28 @@
                                                                                                             <span class="main-readonly-ro {{ $batchRoDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $batchRoDisplay }}</span>
                                                                                                         </td>
                                                                                                         <td class="align-middle text-center wo-bush-col-dt px-1" onclick="event.stopPropagation();">
-                                                                                                            <span class="main-readonly-date {{ $batchStartDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $batchStartDisplay }}</span>
+                                                                                                            @if($row['process_group_key'] === 'machining')
+    <form method="POST" action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}" class="js-main-inline-ajax js-ajax" data-bushing-batch-dates data-no-spinner>
+        @csrf
+        @method('PATCH')
+        <input type="text" name="date_start" class="form-control form-control-sm js-start finish-input {{ !empty($batch['date_start']) ? 'has-finish' : '' }}"
+               data-original="{{ optional($batch['date_start'])->format('Y-m-d') }}" value="{{ optional($batch['date_start'])->format('Y-m-d') }}" placeholder="..." data-fp>
+    </form>
+@else
+    <span class="main-readonly-date {{ $batchStartDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $batchStartDisplay }}</span>
+@endif
                                                                                                         </td>
                                                                                                         <td class="align-middle text-center wo-bush-col-dt px-1" onclick="event.stopPropagation();">
-                                                                                                            <span class="main-readonly-date {{ $batchFinishDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $batchFinishDisplay }}</span>
+                                                                                                            @if($row['process_group_key'] === 'machining')
+    <form method="POST" action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}" class="js-main-inline-ajax js-ajax" data-bushing-batch-dates data-no-spinner>
+        @csrf
+        @method('PATCH')
+        <input type="text" name="date_finish" class="form-control form-control-sm js-finish finish-input {{ !empty($batch['date_finish']) ? 'has-finish' : '' }}"
+               data-original="{{ optional($batch['date_finish'])->format('Y-m-d') }}" value="{{ optional($batch['date_finish'])->format('Y-m-d') }}" placeholder="..." data-fp>
+    </form>
+@else
+    <span class="main-readonly-date {{ $batchFinishDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $batchFinishDisplay }}</span>
+@endif
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                     <tr class="collapse" id="{{ $batchCollapseId }}">
@@ -1231,6 +1235,7 @@
                                             @php
                                                 $prs = $tdr->tdrProcesses->filter(function ($p) {
                                                     return $p->processName
+                                                        && \App\Models\ProcessName::normalizedNameKey($p->processName->identityName()) !== 'inspect'
                                                         && optional($p->processName)->show_in_process_picker !== false
                                                         && !((bool) ($p->ignore_row ?? false));
                                                 });
@@ -1402,12 +1407,12 @@
                                                                     $processFinishDisplay = $mainReadonlyDate($pr->date_finish);
                                                                     $processCanEditDates = (bool) ($pr->processName?->allowsManualDateEditing() ?? false)
                                                                         || (
-                                                                            \App\Models\ProcessName::isExactEcName($pr->processName?->name)
+                                                                            \App\Models\ProcessName::isExactEcName($pr->processName?->identityName())
                                                                             && $mainCanEditExactEcProcessDates
                                                                         );
                                                                     $processCanEditFinishDate = $processCanEditDates
                                                                         && (
-                                                                            \App\Models\ProcessName::normalizedNameKey($pr->processName?->name) !== 'paint'
+                                                                            \App\Models\ProcessName::normalizedNameKey($pr->processName?->identityName()) !== 'paint'
                                                                             || (auth()->user()?->canEditPaintFinishDate() ?? false)
                                                                         );
                                                                 @endphp

@@ -457,7 +457,8 @@
         @endif
     </div>
 
-    <script>
+    @include('admin.wo_bushings.partials.replacement-code-assets')
+<script>
         async function clearForm() {
             if (await window.appConfirm('{{__("Are you sure you want to clear all data?")}}')) {
                 document.getElementById('bushings-form').reset();

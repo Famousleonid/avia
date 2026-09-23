@@ -613,6 +613,7 @@ window.notifyWarn    = (msg, ms) => window.notify(msg, 'warning', ms ?? 6000);
 window.confirmDialog = function ({
                                      title = 'Confirm',
                                      message = 'Are you sure?',
+                                     highlightText = '',
                                      okText = 'OK',
                                      cancelText = 'Cancel',
                                      danger = false
@@ -650,6 +651,14 @@ window.confirmDialog = function ({
 
         titleEl.textContent = title;
         bodyEl.textContent = message;
+        if (highlightText && message.includes(highlightText)) {
+            const index = message.indexOf(highlightText);
+            const highlight = document.createElement('span');
+            highlight.className = 'text-info';
+            highlight.textContent = highlightText;
+            bodyEl.replaceChildren(document.createTextNode(message.slice(0, index)), highlight,
+                document.createTextNode(message.slice(index + highlightText.length)));
+        }
         cancelBtn.textContent = cancelText;
         okBtn.textContent = okText;
 
@@ -880,7 +889,7 @@ window.hapticTap = function (pattern = 10) {
                 const lineQty = Number.isFinite(q) && q > 0 ? q : 0;
                 t += lineQty;
                 const inp = tr.querySelector('input[name="date_finish"]');
-                const hasFinish = inp && String(inp.value || '').trim() !== '';
+                const hasFinish = inp ? String(inp.value || '').trim() !== '' : tr.dataset.bushFinished === '1';
                 if (hasFinish) f += lineQty;
             });
 
@@ -966,7 +975,7 @@ window.hapticTap = function (pattern = 10) {
             return false;
         }
 
-        const table = form?.closest?.('.main-std-processes-block table, .main-parts-processes-block table');
+        const table = form?.closest?.('.main-std-processes-block table, .main-parts-processes-block table, .wo-bushings-list table');
         if (!table) return false;
 
         const tr = form.closest('tr');
@@ -1351,3 +1360,15 @@ window.hapticTap = function (pattern = 10) {
 
 
 })();
+// Shared specification label for process selectors (text is never treated as HTML).
+window.renderProcessChoiceLabel = function (label, process) {
+    if (!label) return;
+    label.classList.add('process-choice-label');
+    label.textContent = process.process || '';
+    if (process.process_comment) {
+        const comment = document.createElement('span');
+        comment.className = 'process-choice-comment';
+        comment.textContent = process.process_comment;
+        label.appendChild(comment);
+    }
+};

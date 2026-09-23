@@ -334,7 +334,7 @@ class ManualController extends Controller
         // Processes: процессы руководства с подгруженным именем, сортировка по ProcessName (abc)
         $manualProcesses = ManualProcess::where('manual_id', $cmm->id)
             ->whereDoesntHave('process.process_name', function ($query) {
-                $query->where('name', ProcessName::SYSTEM_TRAVELER_NAME);
+                $query->whereIdentityName(ProcessName::SYSTEM_TRAVELER_NAME);
             })
             ->with(['process.process_name', 'lockedBy'])
             ->get()
@@ -488,7 +488,7 @@ class ManualController extends Controller
 
         $dimManualProcesses = \App\Models\ManualProcess::where('manual_id', $cmm->id)
             ->whereDoesntHave('process.process_name', function ($query) {
-                $query->where('name', ProcessName::SYSTEM_TRAVELER_NAME);
+                $query->whereIdentityName(ProcessName::SYSTEM_TRAVELER_NAME);
             })
             ->with('process.process_name')
             ->get()

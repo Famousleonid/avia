@@ -170,10 +170,15 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .data-page .data-row > div:first-child,
 .table-header .row > div:first-child { line-height: 1.1; }
 .details-cell { display: flex; justify-content: center; align-items: center; }
+.data-row { align-items: stretch; break-inside: avoid; }
+.process-cell { min-width: 0; height: auto; overflow-wrap: anywhere; padding-top: 4px; padding-bottom: 4px; }
+.process-cell > span { min-width: 0; max-width: 100%; }
+.process-content { display: block; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.process-comment, .process-description { display: block; white-space: pre-line; }
 .parent { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; width: 100%; font-size: var(--ndt-process-font-size, 16px); }
 .parent > div { padding: 0 5px; }
 .ndt-process-row { min-height: 26px; line-height: 1; }
-.ndt-process-row-tall { height: 30px; }
+.ndt-process-row-tall { min-height: 30px; }
 .ndt-process-row-cmm { height: 56px; }
 .ndt-process-label { min-height: 26px; }
 .print-settings-modal .form-label { font-weight: 500; margin-bottom: 0.5rem; }

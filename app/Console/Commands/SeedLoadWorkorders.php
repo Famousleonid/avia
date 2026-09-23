@@ -103,7 +103,7 @@ class SeedLoadWorkorders extends Command
     {
         $customers = Customer::query()->pluck('id')->all();
         $instructions = Instruction::query()->pluck('id')->all();
-        $processNameIds = ProcessName::query()->pluck('id', 'name');
+        $processNameIds = ProcessName::query()->pluck('id', 'identity_name');
         $generalTasks = GeneralTask::query()->orderBy('sort_order')->orderBy('id')->get(['id', 'name']);
         $tasks = Task::query()->orderBy('general_task_id')->orderBy('id')->get(['id', 'name', 'general_task_id', 'task_has_start_date']);
 
@@ -636,7 +636,7 @@ class SeedLoadWorkorders extends Command
             ->where('serial_number', 'like', "{$prefix}-TDR-%")
             ->get();
 
-        $ecProcessId = ProcessName::query()->where('name', 'EC')->value('id');
+        $ecProcessId = ProcessName::query()->whereIdentityName('EC')->value('id');
         $processRecords = [];
 
         foreach ($tdrs as $tdr) {

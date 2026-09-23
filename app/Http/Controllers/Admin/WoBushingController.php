@@ -44,7 +44,7 @@ class WoBushingController extends Controller
 
         $woBushing->load([
             'lines.component:id,ipl_num,part_number',
-            'lines.processes.process.process_name:id,name',
+            'lines.processes.process.process_name:id,name,identity_name',
         ]);
 
         $rows = [];
@@ -71,6 +71,7 @@ class WoBushingController extends Controller
                 'component_id' => (int) $line->component_id,
                 'ipl' => (string) ($line->component?->ipl_num ?? ''),
                 'part_number' => (string) ($line->component?->part_number ?? ''),
+                'codes_id' => $line->codes_id,
                 'qty' => (int) $line->qty,
                 'do_not_order' => (bool) $line->do_not_order,
                 'processes' => $processes,
@@ -176,7 +177,7 @@ class WoBushingController extends Controller
 
     private function countTdrSpecProcessPages(Workorder $workorder): int
     {
-        $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
+        $quarantineProcessNameId = ProcessName::whereIdentityName('Quarantine')->value('id');
         $columns = Tdr::where('workorder_id', $workorder->id)
             ->where('use_process_forms', true)
             ->with('tdrProcesses:id,tdrs_id,process_names_id')
@@ -219,30 +220,14 @@ class WoBushingController extends Controller
      */
     private function bushingProcessNameIdsByField(): array
     {
-        $processNameIdsByName = ProcessName::query()
-            ->whereIn('name', array_merge(
-                ['Machining', 'Passivation', 'Cad plate', 'Anodizing', 'Xylan coating'],
-                self::stressReliefProcessNames(),
-                self::bushingNdtProcessNames()
-            ))
-            ->pluck('id', 'name');
-
         return [
-            'machining' => array_values(array_filter([(int) ($processNameIdsByName['Machining'] ?? 0)])),
-            'stress_relief' => collect(self::stressReliefProcessNames())
-                ->map(fn (string $name): int => (int) ($processNameIdsByName[$name] ?? 0))
-                ->filter()
-                ->values()
-                ->all(),
-            'ndt' => collect(self::bushingNdtProcessNames())
-                ->map(fn (string $name): int => (int) ($processNameIdsByName[$name] ?? 0))
-                ->filter()
-                ->values()
-                ->all(),
-            'passivation' => array_values(array_filter([(int) ($processNameIdsByName['Passivation'] ?? 0)])),
-            'cad' => array_values(array_filter([(int) ($processNameIdsByName['Cad plate'] ?? 0)])),
-            'anodizing' => array_values(array_filter([(int) ($processNameIdsByName['Anodizing'] ?? 0)])),
-            'xylan' => array_values(array_filter([(int) ($processNameIdsByName['Xylan coating'] ?? 0)])),
+            'machining' => ProcessName::identityIds(ProcessName::BUSHING_MACHINING_NAMES),
+            'stress_relief' => ProcessName::identityIds(self::stressReliefProcessNames()),
+            'ndt' => ProcessName::identityIds(self::bushingNdtProcessNames()),
+            'passivation' => ProcessName::identityIds('Passivation'),
+            'cad' => ProcessName::identityIds('Cad plate'),
+            'anodizing' => ProcessName::identityIds('Anodizing'),
+            'xylan' => ProcessName::identityIds('Xylan coating'),
         ];
     }
 
@@ -326,7 +311,7 @@ class WoBushingController extends Controller
         foreach ($lines as $line) {
             $lineId = (int) $line->id;
             foreach ($line->processes as $wp) {
-                $name = $wp->process?->process_name?->name;
+                $name = $wp->process?->process_name?->identityName();
                 $code = $wp->process?->process;
                 $key = $this->resolveProcessKey($name, $code);
                 if ($key === 'other') {
@@ -370,7 +355,7 @@ class WoBushingController extends Controller
     private function bushingGroupsForManual(int $manualId, ?Workorder $workorder = null)
     {
         $bushings = Component::where('manual_id', $manualId)
-            ->where('is_bush', 1)
+            ->bushingCandidates()
             ->get()
             ->sort(function (Component $left, Component $right): int {
                 $iplCompare = StdProcess::compareIplValues(
@@ -425,6 +410,28 @@ class WoBushingController extends Controller
      *
      * @param  array<string, array<string, mixed>>  $groupBushingsData
      */
+    private function validateBushingReplacementCodes(array $groups): void
+    {
+        $validCodes = \App\Models\Code::whereNotNull('code')->where('code', '!=', '')->pluck('id')->all();
+        foreach ($groups as $key => $group) {
+            if (!is_array($group)) continue;
+            $selected = [];
+            if (isset($group['items'])) {
+                foreach ($group['items'] as $id => $item) {
+                    if (!empty($item['selected'])) $selected[$id] = $item['codes_id'] ?? null;
+                }
+            } else {
+                foreach ($group['components'] ?? [] as $id) $selected[$id] = $group['codes'][$id] ?? null;
+            }
+            foreach ($selected as $id => $code) {
+                if (!$code || !in_array((int) $code, $validCodes)) {
+                    $ipl = Component::whereKey($id)->value('ipl_num') ?: $id;
+                    throw ValidationException::withMessages(['group_bushings' => 'Select a replacement code for bushing '.$ipl.' before saving.']);
+                }
+            }
+        }
+    }
+
     private function validateBushingGroupOrderQuantities(array $groupBushingsData): void
     {
         $orderedRows = collect($groupBushingsData)
@@ -451,11 +458,11 @@ class WoBushingController extends Controller
 
         $components = Component::query()
             ->whereKey($orderedRows->pluck('component_id')->unique()->all())
-            ->where('is_bush', true)
+            ->bushingCandidates()
             ->get(['id', 'manual_id', 'ipl_num', 'bush_ipl_num', 'units_assy'])
             ->keyBy('id');
 
-        $keys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($components->pluck('manual_id')->all(), 'prl');
+        $keys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($components->pluck('manual_id')->all(), 'bushing');
         $orderedGroups = $orderedRows
             ->filter(fn (array $row): bool => $components->has($row['component_id']))
             ->groupBy(function (array $row) use ($components, $keys): string {
@@ -466,7 +473,7 @@ class WoBushingController extends Controller
 
         $manualIds = $components->pluck('manual_id')->map(fn ($id): int => (int) $id)->unique()->all();
         $groupComponents = BushingPrlGrouping::groups(Component::query()
-            ->where('is_bush', true)
+            ->bushingCandidates()
             ->whereIn('manual_id', $manualIds)
             ->get(['id', 'manual_id', 'ipl_num', 'bush_ipl_num', 'units_assy']));
 
@@ -515,6 +522,13 @@ class WoBushingController extends Controller
         $outside = $componentIds->first(fn (int $id): bool =>
             ! app(WorkorderPartScopeResolver::class)->allowsComponent($workorder, $id)
         );
+        $eligible = Component::query()->whereKey($componentIds)
+            ->where('manual_id', $workorder->unit->manual_id)->bushingCandidates()->pluck('id');
+        if ($componentIds->diff($eligible)->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'group_bushings' => __('A selected part is not a bushing or a member of a Bushing group.'),
+            ]);
+        }
         if ($outside !== null) {
             throw ValidationException::withMessages([
                 'group_bushings' => __('A selected bushing is outside this workorder Work Scope.'),
@@ -546,7 +560,7 @@ class WoBushingController extends Controller
 
         // Get processes for each process type for this manual
         $machiningProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Machining');
+                $query->whereIdentityNames(ProcessName::BUSHING_MACHINING_NAMES);
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -555,7 +569,7 @@ class WoBushingController extends Controller
             ->get();
 
         $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
-                $query->whereIn('name', self::stressReliefProcessNames());
+                $query->whereIdentityNames(self::stressReliefProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -564,7 +578,7 @@ class WoBushingController extends Controller
             ->get();
 
         $ndtProcesses = Process::whereHas('process_name', function($query) {
-                $query->whereIn('name', self::bushingNdtProcessNames());
+                $query->whereIdentityNames(self::bushingNdtProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -573,7 +587,7 @@ class WoBushingController extends Controller
             ->get();
 
         $passivationProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Passivation');
+                $query->whereIdentityName('Passivation');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -582,7 +596,7 @@ class WoBushingController extends Controller
             ->get();
 
         $cadProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Cad plate');
+                $query->whereIdentityName('Cad plate');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -591,7 +605,7 @@ class WoBushingController extends Controller
             ->get();
 
         $anodizingProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Anodizing');
+                $query->whereIdentityName('Anodizing');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -600,7 +614,7 @@ class WoBushingController extends Controller
             ->get();
 
         $xylanProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Xylan coating');
+                $query->whereIdentityName('Xylan coating');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -643,11 +657,14 @@ class WoBushingController extends Controller
             'group_bushings.*.items.*.selected' => 'nullable|boolean',
             'group_bushings.*.items.*.qty' => 'nullable|integer|min:1',
             'group_bushings.*.items.*.do_not_order' => 'nullable|boolean',
+            'group_bushings.*.items.*.codes_id' => 'nullable|integer|exists:codes,id',
+            'group_bushings.*.codes.*' => 'nullable|integer|exists:codes,id',
         ]);
 
         $workorderId = $request->workorder_id;
         $groupBushingsData = $request->group_bushings ?? [];
         $workorder = Workorder::findOrFail($workorderId);
+        $this->validateBushingReplacementCodes($groupBushingsData);
         $this->validateBushingComponentsInScope($workorder, $groupBushingsData);
         $this->validateBushingGroupOrderQuantities($groupBushingsData);
 
@@ -763,7 +780,7 @@ class WoBushingController extends Controller
 
         // Get processes for each process type for this manual
         $machiningProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Machining');
+                $query->whereIdentityNames(ProcessName::BUSHING_MACHINING_NAMES);
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -772,7 +789,7 @@ class WoBushingController extends Controller
             ->get();
 
         $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
-                $query->whereIn('name', self::stressReliefProcessNames());
+                $query->whereIdentityNames(self::stressReliefProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -781,7 +798,7 @@ class WoBushingController extends Controller
             ->get();
 
         $ndtProcesses = Process::whereHas('process_name', function($query) {
-                $query->whereIn('name', self::bushingNdtProcessNames());
+                $query->whereIdentityNames(self::bushingNdtProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -790,7 +807,7 @@ class WoBushingController extends Controller
             ->get();
 
         $passivationProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Passivation');
+                $query->whereIdentityName('Passivation');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -799,7 +816,7 @@ class WoBushingController extends Controller
             ->get();
 
         $cadProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Cad plate');
+                $query->whereIdentityName('Cad plate');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -808,7 +825,7 @@ class WoBushingController extends Controller
             ->get();
 
         $anodizingProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Anodizing');
+                $query->whereIdentityName('Anodizing');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -817,7 +834,7 @@ class WoBushingController extends Controller
             ->get();
 
         $xylanProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Xylan coating');
+                $query->whereIdentityName('Xylan coating');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -871,31 +888,31 @@ class WoBushingController extends Controller
 
         $bushings = $this->bushingGroupsForWorkorder($current_wo);
 
-        $machiningProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Machining'))
+        $machiningProcesses = Process::whereHas('process_name', fn($q) => $q->whereIdentityNames(ProcessName::BUSHING_MACHINING_NAMES))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
-        $stressReliefProcesses = Process::whereHas('process_name', fn($q) => $q->whereIn('name', self::stressReliefProcessNames()))
+        $stressReliefProcesses = Process::whereHas('process_name', fn($q) => $q->whereIdentityNames(self::stressReliefProcessNames()))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
-        $ndtProcesses = Process::whereHas('process_name', fn($q) => $q->whereIn('name', self::bushingNdtProcessNames()))
+        $ndtProcesses = Process::whereHas('process_name', fn($q) => $q->whereIdentityNames(self::bushingNdtProcessNames()))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
-        $passivationProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Passivation'))
+        $passivationProcesses = Process::whereHas('process_name', fn($q) => $q->whereIdentityName('Passivation'))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
-        $cadProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Cad plate'))
+        $cadProcesses = Process::whereHas('process_name', fn($q) => $q->whereIdentityName('Cad plate'))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
-        $anodizingProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Anodizing'))
+        $anodizingProcesses = Process::whereHas('process_name', fn($q) => $q->whereIdentityName('Anodizing'))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
-        $xylanProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Xylan coating'))
+        $xylanProcesses = Process::whereHas('process_name', fn($q) => $q->whereIdentityName('Xylan coating'))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
@@ -954,7 +971,7 @@ class WoBushingController extends Controller
 
         // Get processes for each process type for this manual
         $machiningProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Machining');
+                $query->whereIdentityNames(ProcessName::BUSHING_MACHINING_NAMES);
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -963,7 +980,7 @@ class WoBushingController extends Controller
             ->get();
 
         $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
-                $query->whereIn('name', self::stressReliefProcessNames());
+                $query->whereIdentityNames(self::stressReliefProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -972,7 +989,7 @@ class WoBushingController extends Controller
             ->get();
 
         $ndtProcesses = Process::whereHas('process_name', function($query) {
-                $query->whereIn('name', self::bushingNdtProcessNames());
+                $query->whereIdentityNames(self::bushingNdtProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -981,7 +998,7 @@ class WoBushingController extends Controller
             ->get();
 
         $passivationProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Passivation');
+                $query->whereIdentityName('Passivation');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -990,7 +1007,7 @@ class WoBushingController extends Controller
             ->get();
 
         $cadProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Cad plate');
+                $query->whereIdentityName('Cad plate');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -999,7 +1016,7 @@ class WoBushingController extends Controller
             ->get();
 
         $anodizingProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Anodizing');
+                $query->whereIdentityName('Anodizing');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -1008,7 +1025,7 @@ class WoBushingController extends Controller
             ->get();
 
         $xylanProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Xylan coating');
+                $query->whereIdentityName('Xylan coating');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -1019,11 +1036,17 @@ class WoBushingController extends Controller
         $woBushing->load('lines');
         $linesExist = $woBushing->lines->isNotEmpty();
         $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
+        $editState = $this->woBushingSync->editState($woBushing);
+        $historyLines = $editState['lines']->whereIn('id', $editState['protected']);
+        $draftToken = $editState['token'];
+        $bushData = array_values(array_filter($bushData,
+            fn ($row) => !in_array($row['line_id'] ?? 0, $editState['protected'])));
 
         $bushingProcessComments = \App\Models\ManualProcess::where('manual_id', $manual_id)
             ->pluck('process_comment', 'processes_id');
 
         return view('admin.wo_bushings.edit', compact(
+            'historyLines', 'draftToken',
             'bushingProcessComments',
             'current_wo',
             'woBushing',
@@ -1051,17 +1074,24 @@ class WoBushingController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
+            'draft_token' => 'nullable|string|size:64',
             'group_bushings' => 'array',
             'group_bushings.*.items.*.selected' => 'nullable|boolean',
             'group_bushings.*.items.*.qty' => 'nullable|integer|min:1',
             'group_bushings.*.items.*.do_not_order' => 'nullable|boolean',
+            'group_bushings.*.items.*.codes_id' => 'nullable|integer|exists:codes,id',
+            'group_bushings.*.codes.*' => 'nullable|integer|exists:codes,id',
         ]);
 
         $woBushing = WoBushing::findOrFail($id);
         $workorder = $woBushing->workorder ?: Workorder::findOrFail($woBushing->workorder_id);
         $groupBushingsData = $request->group_bushings ?? [];
+        $this->validateBushingReplacementCodes($groupBushingsData);
         $this->validateBushingComponentsInScope($workorder, $groupBushingsData);
-        $this->validateBushingGroupOrderQuantities($groupBushingsData);
+        $draftToken = $request->input('draft_token');
+        if ($draftToken === null && $this->woBushingSync->editState($woBushing)['protected']) {
+            throw ValidationException::withMessages(['group_bushings' => __('Reopen the bushing list. Historical rows cannot be edited.')]);
+        }
         $before = $this->bushingSnapshot($woBushing);
 
         if (empty($groupBushingsData)) {
@@ -1087,7 +1117,7 @@ class WoBushingController extends Controller
         $bushDataArray = $this->woBushingSync->buildBushDataArrayFromGroups($groupBushingsData);
         $payloadSummary = $this->payloadBushingSummary($bushDataArray);
 
-        if (empty($bushDataArray)) {
+        if (empty($bushDataArray) && $draftToken === null) {
             $this->logBushingSaveResult(
                 $workorder,
                 'update',
@@ -1108,7 +1138,22 @@ class WoBushingController extends Controller
         }
 
         try {
-            $this->woBushingSync->syncFromGroupBushings($woBushing, $groupBushingsData);
+            $this->woBushingSync->syncFromGroupBushings($woBushing, $groupBushingsData, $draftToken,
+                function ($historyLines) use ($groupBushingsData, $draftToken) {
+                    $combined = $groupBushingsData;
+                    if ($draftToken !== null) {
+                        foreach ($combined as &$group) {
+                            foreach ($group['items'] ?? [] as $componentId => $item) {
+                                $group['items'][$componentId]['do_not_order'] = false;
+                            }
+                        }
+                        unset($group);
+                        foreach ($historyLines as $line) {
+                            $combined[] = ['items' => [$line->component_id => ['selected' => 1, 'qty' => $line->qty]]];
+                        }
+                    }
+                    $this->validateBushingGroupOrderQuantities($combined);
+                });
             $woBushing->refresh();
             $after = $this->bushingSnapshot($woBushing);
             $this->logBushingSaveResult(
@@ -1202,7 +1247,7 @@ class WoBushingController extends Controller
         ];
 
         $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
-        $processKey = $this->resolveProcessKey($processName->name, $processName->process_sheet_name);
+        $processKey = $this->resolveProcessKey($processName->identityName(), $processName->process_sheet_name);
         $batchLabelsByProcess = $this->batchLabelsByProcessForWorkorder((int) $current_wo->id);
         $batchMetaByComponentAndProcess = [];
         $lineComponentIds = $woBushing->lines()
@@ -1291,12 +1336,12 @@ class WoBushingController extends Controller
         };
 
         if ($processName->process_sheet_name == 'NDT') {
-            $processNames = ProcessName::whereIn('name', [
+            $processNames = ProcessName::whereIdentityNames([
                 'NDT-1',
                 'NDT-4',
                 'Eddy Current Test',
                 'BNI'
-            ])->where('print_form', true)->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'identity_name');
 
             $ndt_ids = [
                 'ndt1_name_id' => $processNames['NDT-1'] ?? null,
@@ -1310,14 +1355,14 @@ class WoBushingController extends Controller
                 ->get();
 
             $getNdtNumber = function($processName) {
-                if (strpos($processName->name, 'NDT-') === 0) {
-                    return substr($processName->name, 4);
-                } elseif ($processName->name === 'Eddy Current Test') {
+                if (strpos($processName->identityName(), 'NDT-') === 0) {
+                    return substr($processName->identityName(), 4);
+                } elseif ($processName->identityName() === 'Eddy Current Test') {
                     return '6';
-                } elseif ($processName->name === 'BNI') {
+                } elseif ($processName->identityName() === 'BNI') {
                     return '5';
                 }
-                return substr($processName->name, -1);
+                return substr($processName->identityName(), -1);
             };
 
             $tableData = [];
@@ -1406,8 +1451,9 @@ class WoBushingController extends Controller
                         $processes = $bushItem['processes'];
                         $processId = null;
 
-                        switch ($processName->name) {
+                        switch ($processName->identityName()) {
                             case 'Machining':
+                            case 'Machining (AT)':
                                 $processId = data_get($processes, 'machining');
                                 break;
                             case 'Bake (Stress relief)':
@@ -1475,7 +1521,7 @@ class WoBushingController extends Controller
         $bushingPageCount = max(1, (int) ceil(max(1, count($processGroups)) / 6));
         $combinedSpecPageTotal = $spPageOffset + $bushingPageCount;
 
-        $processNames = ProcessName::whereIn('name', [
+        $processNames = ProcessName::whereIdentityNames([
             'Machining',
             'Bake (Stress relief)',
             'NDT-1',
@@ -1521,7 +1567,7 @@ class WoBushingController extends Controller
 
         // Get processes for each process type for the current manual (not the selected one)
         $machiningProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Machining');
+                $query->whereIdentityNames(ProcessName::BUSHING_MACHINING_NAMES);
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);
@@ -1530,7 +1576,7 @@ class WoBushingController extends Controller
             ->get();
 
         $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
-                $query->whereIn('name', self::stressReliefProcessNames());
+                $query->whereIdentityNames(self::stressReliefProcessNames());
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);
@@ -1539,7 +1585,7 @@ class WoBushingController extends Controller
             ->get();
 
         $ndtProcesses = Process::whereHas('process_name', function($query) {
-                $query->whereIn('name', self::bushingNdtProcessNames());
+                $query->whereIdentityNames(self::bushingNdtProcessNames());
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);
@@ -1548,7 +1594,7 @@ class WoBushingController extends Controller
             ->get();
 
         $passivationProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Passivation');
+                $query->whereIdentityName('Passivation');
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);
@@ -1557,7 +1603,7 @@ class WoBushingController extends Controller
             ->get();
 
         $cadProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Cad plate');
+                $query->whereIdentityName('Cad plate');
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);
@@ -1566,7 +1612,7 @@ class WoBushingController extends Controller
             ->get();
 
         $anodizingProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Anodizing');
+                $query->whereIdentityName('Anodizing');
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);
@@ -1575,7 +1621,7 @@ class WoBushingController extends Controller
             ->get();
 
         $xylanProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Xylan coating');
+                $query->whereIdentityName('Xylan coating');
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);

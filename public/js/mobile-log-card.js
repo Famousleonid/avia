@@ -6,8 +6,6 @@
 
     const content = document.getElementById('mobileLogCardContent');
     const status = document.getElementById('mobileLogCardStatus');
-    const gallery = document.getElementById('mobileLogCardGallery');
-    const photoCount = document.getElementById('mobileLogCardPhotoCount');
     const photoInput = document.getElementById('mobileLogCardPhotoInput');
     const recognitionPanel = document.getElementById('mobileLogCardRecognition');
     const recognitionMeta = document.getElementById('mobileLogCardRecognitionMeta');
@@ -196,7 +194,8 @@
             return `<label class="mobile-group-assy-choice small mt-2 w-100" data-component-id="${choice.component_id}" ${index === 0 ? '' : 'hidden'}>
                 Select your ASSY
                 <select class="form-select form-select-sm draft-assy-choice" ${disabled ? 'disabled' : ''}>
-                    ${choice.assembly_choices.map(assy => `<option value="${assy.group_id}" ${Number(assy.group_id) === Number(group.group_id) ? 'selected' : ''}>${escapeHtml(assy.ipl_num)} / ${escapeHtml(assy.part_number)}</option>`).join('')}
+                    <option value="">Select your ASSY</option>
+                    ${choice.assembly_choices.map(assy => `<option value="${assy.option_id}" data-group-id="${assy.group_id}">${escapeHtml(assy.ipl_num)} / ${escapeHtml(assy.part_number)}</option>`).join('')}
                 </select>
             </label>`;
         }).join('');
@@ -249,7 +248,7 @@
 
         const readOnly = templateResponses.some(template => template.read_only);
         if (readOnly) setStatus(templateResponses.find(template => template.read_only)?.read_only_message || 'Log Card is read only.', 'warning');
-        else setStatus('Review each P/N and enter S/N, or photograph the nameplate.', 'info');
+        else setStatus('');
 
         const sections = templateResponses.map(template => {
             const manual = template.manual || { id: '', label: 'Manual' };
@@ -257,13 +256,14 @@
             (template.assy_groups || []).forEach(group => items.push(renderAssyGroup(group, manual, readOnly)));
             (template.groups || []).forEach(group => items.push(renderRegularGroup(group, manual, readOnly)));
             (template.separate || []).forEach(choice => items.push(renderSeparate(choice, manual, readOnly)));
+            if (!items.length) return '';
             return `<section class="mb-3">
-                ${items.join('') || '<div class="small text-white-50 px-2 py-3">No Log Card components in this manual.</div>'}
+                ${items.join('')}
             </section>`;
         }).join('');
 
-        content.innerHTML = `${sections || '<div class="alert alert-secondary mt-2">No components are enabled for Log Card.</div>'}
-            ${readOnly ? '' : '<button type="button" class="btn btn-success w-100 mb-3" data-create-log-card><i class="bi bi-card-checklist me-1"></i>Create Log Card</button>'}`;
+        content.innerHTML = `${sections}
+            ${readOnly || !sections ? '' : '<button type="button" class="btn btn-success w-100 mb-3" data-create-log-card><i class="bi bi-card-checklist me-1"></i>Create Log Card</button>'}`;
     }
 
     function decodePayload(value) {
@@ -295,7 +295,8 @@
             const selector = Array.from(card.querySelectorAll('.mobile-group-assy-choice'))
                 .find(label => Number(label.dataset.componentId) === Number(choice.component_id))?.querySelector('select');
             if (selector && row.manual_part_group_choice === 'component') {
-                row.manual_part_group_id = Number(selector.value);
+                row.manual_part_group_id = Number(selector.selectedOptions[0]?.dataset.groupId || 0);
+                row.assy_option_id = Number(selector.value);
                 row.assy_selection_explicit = '1';
             }
         }
@@ -415,7 +416,6 @@
         setBusy(true);
         try {
             const response = await request(app.dataset.photoUrl, 'POST', form);
-            updateGallery(response.photos || []);
             if (photoShouldRecognize) {
                 showRecognition(response.recognition || {}, response.photo || null, response.recognition_error || '');
                 notify(response.message || 'Photo read by Avi. Confirm to save it.', response.recognition_error ? 'warning' : 'success');
@@ -428,19 +428,6 @@
             if (photoShouldRecognize) showRecognitionUploadError(error.message);
         } finally {
             setBusy(false);
-        }
-    }
-
-    function updateGallery(photos) {
-        photoCount.textContent = String(photos.length);
-        gallery.innerHTML = photos.length
-            ? photos.map(photo => `<a href="${escapeHtml(photo.big_url)}" data-fancybox="mobile-log-card-photos">
-                <img src="${escapeHtml(photo.thumb_url)}" class="mobile-log-card-thumb" alt="${escapeHtml(photo.alt || 'Log Card photo')}">
-            </a>`).join('')
-            : '<span class="small text-white-50" data-empty-gallery>No Log Card photos yet.</span>';
-        if (window.Fancybox) {
-            window.Fancybox.unbind('[data-fancybox="mobile-log-card-photos"]');
-            window.Fancybox.bind('[data-fancybox="mobile-log-card-photos"]', {});
         }
     }
 
@@ -559,8 +546,7 @@
         form.append('recognize', '0');
         appendPhotoContext(form);
 
-        const response = await request(app.dataset.photoUrl, 'POST', form);
-        updateGallery(response.photos || []);
+        await request(app.dataset.photoUrl, 'POST', form);
         pendingRecognitionFile = null;
     }
 
@@ -686,7 +672,6 @@
         if (control.matches('[data-row-field]')) return void saveRowField(control);
     });
 
-    document.querySelector('[data-photo-only]')?.addEventListener('click', () => startPhoto(null, false));
     document.querySelector('[data-apply-recognition]')?.addEventListener('click', applyRecognition);
     document.querySelector('[data-retake-recognition]')?.addEventListener('click', retakeRecognitionPhoto);
     document.querySelector('[data-swap-recognized-numbers]')?.addEventListener('click', swapRecognizedNumbers);

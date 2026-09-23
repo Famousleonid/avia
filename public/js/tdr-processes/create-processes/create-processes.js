@@ -169,7 +169,8 @@
                         data.existingProcesses.forEach(process => {
                             const div = document.createElement('div');
                             div.classList.add('form-check');
-                            div.innerHTML = `<input type="checkbox" name="processes[${rowIndex}][process][]" value="${process.id}" class="form-check-input"><label class="form-check-label">${process.process}</label>`;
+                            div.innerHTML = `<input type="checkbox" name="processes[${rowIndex}][process][]" value="${process.id}" class="form-check-input"><label class="form-check-label"></label>`;
+                            window.renderProcessChoiceLabel(div.querySelector('label'), process);
                             processOptionsContainer.appendChild(div);
                             hasProcesses = true;
                         });
@@ -242,7 +243,8 @@
                         processes.forEach(process => {
                             const div = document.createElement('div');
                             div.classList.add('form-check');
-                            div.innerHTML = `<input type="checkbox" name="processes[${rowIndex}][ndt_plus_processes][]" value="${process.id}" class="form-check-input ndt-plus-process-checkbox" data-ndt-process-name-id="${processNameId}"><label class="form-check-label">${process.process}</label>`;
+                            div.innerHTML = `<input type="checkbox" name="processes[${rowIndex}][ndt_plus_processes][]" value="${process.id}" class="form-check-input ndt-plus-process-checkbox" data-ndt-process-name-id="${processNameId}"><label class="form-check-label"></label>`;
+                            window.renderProcessChoiceLabel(div.querySelector('label'), process);
                             ndtPlusOptionsContainer.appendChild(div);
                         });
                     }
@@ -360,7 +362,8 @@
                         (data.availableProcesses || []).forEach(process => {
                             const div = document.createElement('div');
                             div.className = 'form-check';
-                            div.innerHTML = `<input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}"><label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>`;
+                            div.innerHTML = `<input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}"><label class="form-check-label" for="modal_process_${process.id}"></label>`;
+                            window.renderProcessChoiceLabel(div.querySelector('label'), process);
                             container.appendChild(div);
                         });
                         if (!container.children.length) container.innerHTML = '<div class="text-muted">No available processes</div>';

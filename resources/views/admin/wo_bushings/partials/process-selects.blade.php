@@ -5,7 +5,8 @@
     .bushing-process-line .select2-selection__rendered { line-height: 26px !important; }
     .bushing-process-dropdown { font-size: .75rem; }
     .bushing-process-dropdown .select2-results__option { white-space: normal; overflow-wrap: anywhere; }
-    .bushing-process-comment { color: #ffc107; }
+    .bushing-process-label { white-space: pre-line; overflow-wrap: anywhere; }
+    .bushing-process-comment { color: #ffc107; display: block; white-space: pre-line; }
 </style>
 <script>
     window.initBushingProcessSelects = function(form) {
@@ -18,9 +19,9 @@
         var $ = window.jQuery;
         function renderProcess(data) {
             if (!data.id) return data.text;
-            var label = $('<span>').text(data.text.trim());
+            var label = $('<span class="bushing-process-label">').text((data.element?.textContent || data.text).trim());
             var comment = (data.element?.dataset.processComment || '').trim();
-            if (comment) label.append($('<span class="bushing-process-comment">').text(' (' + comment + ')'));
+            if (comment) label.append($('<span class="bushing-process-comment">').text(comment));
             return label;
         }
         $(form).find('.bushing-process-control').each(function() {
@@ -31,7 +32,7 @@
                 minimumResultsForSearch: 8,
                 dropdownParent: $(form.closest('.modal') || document.body),
                 templateResult: renderProcess,
-                templateSelection: renderProcess
+                templateSelection: function(data) { return data.text; }
             }).on('select2:open', function() {
                 var instance = $(select).data('select2');
                 var dropdown = instance.$dropdown.find('.select2-dropdown');
@@ -45,8 +46,8 @@
                     var width = select.getBoundingClientRect().width;
                     Array.from(select.options).forEach(function(option) {
                         var comment = (option.dataset.processComment || '').trim();
-                        var text = option.text.trim() + (comment ? ' (' + comment + ')' : '');
-                        width = Math.max(width, context.measureText(text).width + 40);
+                        var lines = (option.textContent.trim() + '\n' + comment).split(/\r?\n/);
+                        lines.forEach(function(line) { width = Math.max(width, context.measureText(line).width + 40); });
                     });
                     width = Math.min(Math.ceil(width), document.documentElement.clientWidth - 24);
                     dropdown.css('width', width + 'px');

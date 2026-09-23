@@ -1,7 +1,43 @@
 @extends('mobile.master')
 
+@section('app-container-class', 'mobile-log-card-shell')
+
 @section('style')
     <style>
+        .app-container.mobile-log-card-shell {
+            height: 100dvh;
+            min-height: 0;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
+        }
+
+        .mobile-log-card-shell > .app-content {
+            flex: 1 1 0;
+            overflow: hidden;
+        }
+
+        .mobile-log-card-shell > .app-footer-spacer { display: none; }
+
+        .mobile-log-card-heading { min-width: 0; }
+        .mobile-log-card-title { flex: 0 0 auto; }
+        .mobile-log-card-unit { min-width: 0; }
+
+        @media (orientation: landscape) {
+            .app-container.mobile-log-card-shell {
+                padding-left: calc(16px + env(safe-area-inset-left, 0px));
+                padding-right: calc(16px + env(safe-area-inset-right, 0px));
+            }
+
+            .mobile-log-card-heading {
+                display: flex;
+                align-items: baseline;
+                gap: .75rem;
+            }
+
+            .mobile-log-card-unit { flex: 1 1 auto; }
+        }
+
         .mobile-log-card-page {
             height: 100%;
             min-height: 0;
@@ -12,7 +48,6 @@
         }
 
         .mobile-log-card-header,
-        .mobile-log-card-gallery,
         .mobile-log-card-actions {
             flex: 0 0 auto;
         }
@@ -23,8 +58,10 @@
             overflow-y: auto;
             overscroll-behavior-y: contain;
             -webkit-overflow-scrolling: touch;
-            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+            padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
         }
+
+        #mobileLogCardStatus:empty { display: none; }
 
         .mobile-log-card-row {
             background: #2b3035;
@@ -35,22 +72,6 @@
         .mobile-log-card-row.is-photo-target {
             border-color: #0dcaf0;
             box-shadow: 0 0 0 1px rgba(13, 202, 240, .35);
-        }
-
-        .mobile-log-card-gallery-track {
-            display: flex;
-            gap: .45rem;
-            overflow-x: auto;
-            scrollbar-width: thin;
-        }
-
-        .mobile-log-card-thumb {
-            width: 54px;
-            height: 54px;
-            flex: 0 0 54px;
-            object-fit: cover;
-            border: 1px solid #6c757d;
-            border-radius: .45rem;
         }
 
         .mobile-log-card-field-label {
@@ -65,10 +86,11 @@
         }
 
         .mobile-log-card-review-modal .modal-dialog {
-            width: min(720px, calc(100% - 1rem));
+            width: min(720px, calc(100% - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
             height: calc(100dvh - 1rem);
             max-width: none;
             margin: .5rem auto;
+            margin-left: max(calc(1rem + env(safe-area-inset-left, 0px)), calc((100% - 720px) / 2));
         }
 
         .mobile-log-card-review-modal .modal-content {
@@ -178,38 +200,17 @@
          data-photo-url="{{ route('mobile.log-card.photo.store', $workorder) }}">
 
         <header class="mobile-log-card-header border-bottom border-info px-3 py-2">
-            <div class="d-flex align-items-center justify-content-between gap-2">
-                <div class="min-w-0">
-                    <div class="fw-bold fs-5 text-info">WO {{ $workorder->number }} · Log Card</div>
-                    <div class="small text-white-50 text-truncate">
-                        {{ $workorder->unit?->part_number ?? '—' }} · {{ $workorder->unit?->name ?? '—' }}
-                    </div>
+            <div class="mobile-log-card-heading">
+                <div class="mobile-log-card-title fw-bold fs-5 text-info">WO {{ $workorder->number }} · Log Card</div>
+                <div class="mobile-log-card-unit small text-white-50 text-truncate">
+                    {{ $workorder->unit?->part_number ?? '—' }} · {{ $workorder->unit?->name ?? '—' }}
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-info text-nowrap" data-photo-only>
-                    <i class="bi bi-camera me-1"></i>Photo only
-                </button>
             </div>
         </header>
 
-        <section class="mobile-log-card-gallery border-bottom border-secondary px-3 py-2">
-            <div class="d-flex align-items-center justify-content-between mb-1">
-                <span class="small text-info">Log Card Photos</span>
-                <span id="mobileLogCardPhotoCount" class="badge bg-secondary">{{ count($logCardPhotos) }}</span>
-            </div>
-            <div id="mobileLogCardGallery" class="mobile-log-card-gallery-track">
-                @forelse($logCardPhotos as $photo)
-                    <a href="{{ $photo['big_url'] }}" data-fancybox="mobile-log-card-photos">
-                        <img src="{{ $photo['thumb_url'] }}" class="mobile-log-card-thumb" alt="{{ $photo['alt'] }}">
-                    </a>
-                @empty
-                    <span class="small text-white-50" data-empty-gallery>No Log Card photos yet.</span>
-                @endforelse
-            </div>
-        </section>
-
         <div id="mobileLogCardStatus" class="px-3 pt-2"></div>
 
-        <main id="mobileLogCardContent" class="mobile-log-card-scroll px-2 pb-3">
+        <main id="mobileLogCardContent" class="mobile-log-card-scroll px-2">
             <div class="text-center text-white-50 py-5">
                 <span class="spinner-border spinner-border-sm me-2"></span>Loading Log Card…
             </div>

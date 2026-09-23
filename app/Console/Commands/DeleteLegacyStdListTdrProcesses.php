@@ -26,7 +26,7 @@ class DeleteLegacyStdListTdrProcesses extends Command
         $singleWorkorderId = $this->option('workorder');
 
         $processNameIds = ProcessName::query()
-            ->whereIn('name', array_values(WorkorderStdListProcessesService::NAME_BY_KEY))
+            ->whereIdentityNames(array_values(WorkorderStdListProcessesService::NAME_BY_KEY))
             ->pluck('id');
 
         if ($processNameIds->isEmpty()) {

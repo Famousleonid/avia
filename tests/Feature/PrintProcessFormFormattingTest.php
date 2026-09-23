@@ -9,6 +9,19 @@ use Tests\TestCase;
 
 class PrintProcessFormFormattingTest extends TestCase
 {
+    public function test_process_form_preserves_multiline_specification_comment_and_description_as_text(): void
+    {
+        $html = view('shared.process-forms._process-text', [
+            'text' => "Specification <literal>\n11111\n222222",
+            'comment' => "Steel parts.\n<Second line>",
+            'description' => "Fig. 6010\nZone 2",
+        ])->render();
+        $this->assertStringContainsString("Specification &lt;literal&gt;<br />\n11111<br />\n222222", $html);
+        $this->assertStringContainsString("class=\"process-comment\">Steel parts.\n&lt;Second line&gt;", $html);
+        $this->assertStringContainsString("class=\"process-description\">Fig. 6010\nZone 2", $html);
+        $this->assertStringNotContainsString('<literal>', $html);
+    }
+
     public function test_process_form_header_grows_for_a_wrapped_workorder_description(): void
     {
         $unit = (new Unit())->forceFill([

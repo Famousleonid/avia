@@ -373,7 +373,7 @@ class ActivityLogController extends Controller
                         'conditions:id,name',
                         'necessaries:id,name',
                     ]),
-                'processName:id,name',
+                'processName:id,name,identity_name',
             ])
             ->get(['id', 'tdrs_id', 'process_names_id'])
             ->mapWithKeys(function (TdrProcess $tdrProcess) {
@@ -395,7 +395,7 @@ class ActivityLogController extends Controller
             ->whereIn('id', array_unique($idBuckets['workorder_std_process_id']))
             ->with([
                 'workorder' => fn ($query) => $query->withTrashed()->select(['id', 'number']),
-                'processName:id,name',
+                'processName:id,name,identity_name',
                 'vendor:id,name',
             ])
             ->get(['id', 'workorder_id', 'std_type', 'process_name_id', 'vendor_id', 'repair_order'])

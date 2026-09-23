@@ -16,7 +16,7 @@ final class WoBushingProcessColumnKey
         }
 
         return self::resolve(
-            trim((string) $process->process_name->name),
+            trim((string) $process->process_name->identityName()),
             trim((string) ($process->process ?? ''))
         );
     }

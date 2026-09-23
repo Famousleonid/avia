@@ -21,7 +21,7 @@ return new class extends Migration
                     continue;
                 }
                 $p = Process::query()->find($row->process_id);
-                $key = WoBushingProcessColumnKey::fromProcess($p);
+                $key = WoBushingProcessColumnKey::resolve((string) $p?->process_name?->name, (string) $p?->process);
                 DB::table('wo_bushing_batches')->where('id', $row->id)->update(['process_column_key' => $key]);
             }
         });

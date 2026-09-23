@@ -32,8 +32,8 @@ class WorkorderKitPrlCrossoutController extends Controller
         )->filter(fn (Component $part): bool => $branchRules->allowsComponentForUnit(
             $workorder->unit, (string) $part->ipl_num, (int) $part->manual_id
         ));
-        $familyInKit = (bool) $component->is_bush && BushingPrlGrouping::groups(
-            $available->filter(fn (Component $part): bool => (bool) $part->is_bush)
+        $familyInKit = BushingPrlGrouping::groups(
+            BushingPrlGrouping::candidates($available)
         )->contains(fn ($family): bool => $family->contains('id', $component->id)
             && $family->contains(fn (Component $part): bool => (bool) $part->kit));
         $belongsToKit = $workorder->isOverhaul()

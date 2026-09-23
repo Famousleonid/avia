@@ -1373,9 +1373,20 @@ class LogCardController extends Controller
             $partGroupChoice = (string) ($row['manual_part_group_choice'] ?? '');
             $isPartGroupChoice = in_array($partGroupChoice, ['component', 'assy'], true);
             $partGroup = $partGroupsById->get((int) ($row['manual_part_group_id'] ?? 0));
+            // Older clients submit only the group. Resolve the same unique option
+            // accepted by validation instead of silently reverting to its first option.
+            if ($component && $partGroup && app(LogCardAssemblyIdentity::class)->isExplicitSelection($row)
+                && (int) ($row['assy_option_id'] ?? 0) <= 0) {
+                $groups = ManualPartGroup::with('options.coverages')->where('manual_id', $component->manual_id)->get();
+                $choices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($groups, collect([$component]));
+                $selected = app(LogCardAssemblyIdentity::class)->selectedAssemblyChoice($row, $choices[$componentId] ?? []);
+                $row['assy_option_id'] = (string) ($selected['option_id'] ?? '');
+            }
             $partGroupOption = $partGroupChoice === 'assy'
                 ? $partGroupOptionsById->get((int) ($row['manual_part_group_option_id'] ?? 0))
-                : $partGroup?->options?->first();
+                : ((int) ($row['assy_option_id'] ?? 0) > 0
+                    ? $partGroup?->options?->firstWhere('id', (int) $row['assy_option_id'])
+                    : $partGroup?->options?->first());
 
             if ($partGroupChoice === 'assy' && $partGroupOption?->group?->type === ManualPartGroup::TYPE_ASSY) {
                 $row['manual_part_group_id'] = (string) $partGroupOption->manual_part_group_id;
@@ -1588,7 +1599,10 @@ class LogCardController extends Controller
             $optionId = (int) ($row['manual_part_group_option_id'] ?? 0);
             $explicit = app(LogCardAssemblyIdentity::class)->isExplicitSelection($row);
             if ($explicit && (($row['manual_part_group_choice'] ?? '') !== 'component'
-                || ! collect($explicitChoices[(int) ($row['component_id'] ?? 0)] ?? [])->contains('group_id', $groupId))) {
+                || ! app(LogCardAssemblyIdentity::class)->selectedAssemblyChoice($row, $explicitChoices[(int) ($row['component_id'] ?? 0)] ?? []))) {
+                return true;
+            }
+            if (! $explicit && (int) ($row['assy_option_id'] ?? 0) > 0) {
                 return true;
             }
             if ($groupId <= 0 && $optionId <= 0) {

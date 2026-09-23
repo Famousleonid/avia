@@ -15,6 +15,30 @@
 if (typeof window.processesFormScriptInitialized === 'undefined') {
     window.processesFormScriptInitialized = true;
 
+    // Multiline specifications use space otherwise occupied by blank writing rows.
+    function restoreProcessBlankRows() {
+        document.querySelectorAll('[data-hidden-for-process-height]').forEach(row => {
+            row.classList.remove('print-hide-row');
+            row.removeAttribute('data-hidden-for-process-height');
+        });
+    }
+    function fitProcessBlankRows() {
+        restoreProcessBlankRows();
+        document.querySelectorAll('.form-page-block').forEach(block => {
+            const pageHeight = parseFloat(getComputedStyle(block).minHeight);
+            if (!Number.isFinite(pageHeight) || pageHeight <= 0) return;
+            const blanks = Array.from(block.querySelectorAll('.empty-row')).reverse();
+            for (const row of blanks) {
+                if (block.getBoundingClientRect().height <= pageHeight + 1) break;
+                if (row.classList.contains('print-hide-row')) continue;
+                row.dataset.hiddenForProcessHeight = '1';
+                row.classList.add('print-hide-row');
+            }
+        });
+    }
+    window.addEventListener('beforeprint', fitProcessBlankRows);
+    window.addEventListener('afterprint', restoreProcessBlankRows);
+
     const PRINT_SETTINGS_KEY = '{{ $storageKey }}';
     const IS_TRAVEL_FORM = @json($isTravelForm);
     const PRINT_SETTINGS_LAYOUT_VERSION = IS_TRAVEL_FORM ? 'travel-form-v2' : 'process-form-v2';

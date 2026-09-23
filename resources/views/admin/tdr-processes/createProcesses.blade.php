@@ -193,7 +193,7 @@
                                             <option value="{{ $processName->id }}"
                                                     data-process-id="{{ $processName->id }}"
                                                     {{-- Примеры использования id в Blade @if --}}
-                                                    @if($processName->id == 1)
+                                                    @if($processName->hasIdentity('NDT-1'))
                                                         data-is-special="true"
                                                     @elseif($processName->id >= 5 && $processName->id <= 10)
                                                         data-is-range="true"
@@ -390,8 +390,7 @@
             if (processNameId === undefined || processNameId === null || processNameId === '') {
                 return false;
             }
-            const p = processNamesData[String(processNameId)] || processNamesData[processNameId];
-            return p && p.name === 'Machining (EC)';
+            return @json(\App\Models\ProcessName::identityIds('Machining (EC)')).includes(Number(processNameId));
         }
 
         // Получаем все NDT process_names_id для проверки
@@ -516,7 +515,7 @@
             @foreach ($processNames as $processName)
                 optionsHtml += `<option value="{{ $processName->id }}"
                     data-process-id="{{ $processName->id }}"
-                    @if($processName->id == 1)
+                    @if($processName->hasIdentity('NDT-1'))
                         data-is-special="true"
                     @elseif($processName->id >= 5 && $processName->id <= 10)
                         data-is-range="true"

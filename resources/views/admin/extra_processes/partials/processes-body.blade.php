@@ -89,7 +89,7 @@
                             $isCombinedNdt = false;
                             $combinedProcessNames = [];
                             $combinedProcessDescriptions = [];
-                            if ($processName && strpos($processName->name, 'NDT-') === 0 && isset($processItem['plus_process_names']) && !empty($processItem['plus_process_names'])) {
+                            if ($processName && strpos($processName->identityName(), 'NDT-') === 0 && isset($processItem['plus_process_names']) && !empty($processItem['plus_process_names'])) {
                                 $isCombinedNdt = true;
                                 $combinedProcessNames[] = $processName->name;
                                 $combinedProcessDescriptions[] = $process->process ?? '';

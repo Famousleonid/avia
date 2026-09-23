@@ -1,7 +1,7 @@
 {{-- Partial: Part Processes body (table + modals) for modal --}}
 {{-- Requires: $current_tdr, $current_wo, $tdrProcesses, $proces, $vendors, $ecEligibleProcessNameIds --}}
 @php
-    $ecProcessNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+    $ecProcessNameId = \App\Models\ProcessName::whereIdentityName('EC')->value('id');
     $comp = $current_tdr->component;
     $tdrScopeProcesses = $tdrProcesses->where('tdrs_id', $current_tdr->id);
     $hasTravelerBlock = $tdrScopeProcesses->contains(fn ($p) => (bool) $p->in_traveler);
@@ -24,7 +24,7 @@
         $_processData = \App\Models\TdrProcess::normalizeStoredProcessIds($_tp->processes);
         $_processName = $_tp->processName->name;
         $_isEc = ($ecProcessNameId !== null && (int) $_tp->process_names_id === (int) $ecProcessNameId);
-        $_isNdtWithPlus = strpos($_processName, 'NDT-') === 0 && ! empty($_tp->plus_process);
+        $_isNdtWithPlus = strpos($_tp->processName?->identityName() ?? '', 'NDT-') === 0 && ! empty($_tp->plus_process);
         if ($_isEc) {
             if ((bool) $_tp->in_traveler) {
                 $travelerVisualRowCount++;
@@ -168,6 +168,17 @@
     .tdr-processes-table td {
         overflow-wrap: anywhere;
     }
+    .tdr-processes-table tbody td:nth-child(3) {
+        white-space: normal !important;
+    }
+    /* Preserve user line breaks, not the indentation of the Blade template. */
+    .tdr-processes-table .process-cell-text {
+        display: block;
+        white-space: pre-line;
+    }
+    .tdr-processes-table .process-description-cell {
+        white-space: pre-line !important;
+    }
     .tdr-processes-table .process-action-col,
     .tdr-processes-table .process-action-cell,
     .tdr-processes-table .process-form-col {
@@ -277,9 +288,11 @@
     }
     .tdr-process-inline-option span {
         min-width: 0;
+        white-space: pre-line;
     }
     .tdr-process-inline-option-comment {
         color: #ffc107;
+        display: block;
     }
 </style>
 
@@ -354,12 +367,12 @@
                         $canPrintForm = \App\Models\ProcessName::canPrintProcessForm($tdrProcessRow->processName);
                         $isNdtWithPlus = false;
                         $combinedProcessNames = [];
-                        if (strpos($processName, 'NDT-') === 0 && !empty($tdrProcessRow->plus_process)) {
+                        if (strpos($tdrProcessRow->processName?->identityName() ?? '', 'NDT-') === 0 && !empty($tdrProcessRow->plus_process)) {
                             $isNdtWithPlus = true;
                             $combinedProcessNames[] = $processName;
                             foreach (explode(',', $tdrProcessRow->plus_process) as $plusProcessId) {
                                 $plusProcessName = \App\Models\ProcessName::find(trim($plusProcessId));
-                                if ($plusProcessName && strpos($plusProcessName->name, 'NDT-') === 0) {
+                                if ($plusProcessName && strpos($plusProcessName->identityName(), 'NDT-') === 0) {
                                     $combinedProcessNames[] = $plusProcessName->name;
                                 }
                             }
@@ -388,7 +401,7 @@
                                         }
                                     }
                                 @endphp
-                                {{ !empty($ecProcessLabels) ? implode(', ', $ecProcessLabels) : 'No processes' }}
+                                <span class="process-cell-text">{{ !empty($ecProcessLabels) ? implode(', ', $ecProcessLabels) : 'No processes' }}</span>
                             </td>
                             <td class="text-center process-description-cell">{{ $tdrProcessRow->description ?? '' }}</td>
                             @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$tdrProcessRow->id]); $travelerCheckboxRendered[$tdrProcessRow->id] = true; @endphp
@@ -444,7 +457,7 @@
                                         }
                                     }
                                 @endphp
-                                {{ !empty($allProcesses) ? implode(' / ', $allProcesses) : 'No processes' }}@if($tdrProcessRow->ec) ( EC ) @endif
+                                <span class="process-cell-text">{{ !empty($allProcesses) ? implode(' / ', $allProcesses) : 'No processes' }}@if($tdrProcessRow->ec) ( EC ) @endif</span>
                             </td>
                             <td class="text-center process-description-cell">{{ $tdrProcessRow->description ?? '' }}</td>
                             @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$tdrProcessRow->id]); $travelerCheckboxRendered[$tdrProcessRow->id] = true; @endphp
@@ -487,7 +500,7 @@
                                     <td class="text-center">{{ $processName }}</td>
                                     <td class="ps-2">
                                         @php $proc = $proces->firstWhere('id', $process); @endphp
-                                        @if($proc){{ $proc->process }}@if($tdrProcessRow->ec) ( EC ) @endif @endif
+                                        <span class="process-cell-text">@if($proc){{ $proc->process }}@if($tdrProcessRow->ec) ( EC ) @endif @endif</span>
                                     </td>
                                     <td class="text-center process-description-cell">{{ $tdrProcessRow->description ?? '' }}</td>
                                     @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$tdrProcessRow->id]); $travelerCheckboxRendered[$tdrProcessRow->id] = true; @endphp

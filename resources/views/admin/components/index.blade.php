@@ -1187,11 +1187,9 @@
                         const setErrors = (messages) => drawerHelpers.setErrors(errorsBox, messages);
 
                         const syncBush = () => {
-                            const checked = !!isBush?.checked;
-                            bushContainer?.classList.toggle('d-none', !checked);
+                            bushContainer?.classList.add('d-none');
                             if (bushInput) {
-                                bushInput.required = checked;
-                                if (!checked) bushInput.value = '';
+                                bushInput.required = false;
                             }
                         };
 
@@ -1295,11 +1293,9 @@
                         const assemblyManager = drawerHelpers.makeAssemblyManager(assemblyRows, assemblyTemplate, 'edit_drawer');
 
                         const syncBush = () => {
-                            const checked = !!isBush?.checked;
-                            bushContainer?.classList.toggle('d-none', !checked);
+                            bushContainer?.classList.add('d-none');
                             if (bushInput) {
-                                bushInput.required = checked;
-                                if (!checked) bushInput.value = '';
+                                bushInput.required = false;
                             }
                         };
 
@@ -1549,43 +1545,6 @@
 
                         async function updateComponentFlag(input) {
                             const previous = !input.checked;
-                            let bushIplNum = input.dataset.bushIplNum || '';
-
-                            if (input.dataset.field === 'is_bush') {
-                                if (input.checked) {
-                                    const entered = typeof window.inputDialog === 'function'
-                                        ? await window.inputDialog({
-                                            title: '{{ __('Initial Bushing IPL Number') }}',
-                                            message: '{{ __('Enter initial bushing IPL number.') }} {{ __('For example:') }} 1-230A',
-                                            value: bushIplNum,
-                                            okText: '{{ __('Save') }}',
-                                            cancelText: '{{ __('Cancel') }}',
-                                            pattern: '^\\d+-\\d+[A-Za-z]?$',
-                                            invalidMessage: '{{ __('Initial Bushing IPL Number format is invalid.') }}',
-                                        })
-                                        : null;
-                                    if (entered === null) {
-                                        input.checked = previous;
-                                        return;
-                                    }
-                                    bushIplNum = entered.trim();
-                                } else {
-                                    if (bushIplNum && typeof window.confirmDialog === 'function') {
-                                        const confirmed = await window.confirmDialog({
-                                            title: '{{ __('Clear Bushing IPL?') }}',
-                                            message: '{{ __('The entered Initial Bushing IPL Number will be cleared.') }}',
-                                            okText: '{{ __('Clear') }}',
-                                            cancelText: '{{ __('Cancel') }}',
-                                            danger: true,
-                                        });
-                                        if (!confirmed) {
-                                            input.checked = previous;
-                                            return;
-                                        }
-                                    }
-                                    bushIplNum = '';
-                                }
-                            }
 
                             input.disabled = true;
 
@@ -1594,10 +1553,6 @@
                                     field: input.dataset.field,
                                     value: input.checked ? 1 : 0,
                                 };
-
-                                if (input.dataset.field === 'is_bush') {
-                                    payload.bush_ipl_num = bushIplNum;
-                                }
 
                                 const response = await fetch(input.dataset.url, {
                                     method: 'PATCH',

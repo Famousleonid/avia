@@ -234,24 +234,6 @@ class ManualPartGroupController extends Controller
             $this->assertNoNestedGroupCycle($manual, $partGroup, $includedOptions->pluck('manual_part_group_id')->map(fn ($id): int => (int) $id)->all());
         }
 
-        if ($data['type'] === ManualPartGroup::TYPE_OVERSIZE) {
-            $bushings = Component::query()->whereIn('id', $componentIds)->get(['id', 'ipl_num', 'bush_ipl_num', 'is_bush']);
-            $bushIplValues = $bushings
-                ->map(fn (Component $component): string => mb_strtoupper(trim((string) $component->bush_ipl_num)))
-                ->filter()
-                ->unique();
-            $hasOriginal = $bushings->contains(fn (Component $component): bool =>
-                trim((string) $component->ipl_num) !== ''
-                && strcasecmp(trim((string) $component->ipl_num), trim((string) $component->bush_ipl_num)) === 0
-            );
-            if ($bushings->contains(fn (Component $component): bool => ! $component->is_bush)
-                || $bushIplValues->count() !== 1
-                || ! $hasOriginal) {
-                throw ValidationException::withMessages([
-                    'component_ids' => 'A bushing group must contain one original and its oversizes linked by the same Initial Bushing IPL Number.',
-                ]);
-            }
-        }
         if (! empty($data['manual_service_bulletin_id']) && ! $manual->serviceBulletins()->whereKey($data['manual_service_bulletin_id'])->exists()) {
             throw ValidationException::withMessages(['manual_service_bulletin_id' => 'The Service Bulletin must belong to this manual.']);
         }
@@ -271,6 +253,8 @@ class ManualPartGroupController extends Controller
                 ? $group->options()->get()->keyBy(fn (ManualPartGroupOption $option): int => (int) $option->component_id)
                 : collect();
             $keptOptionIds = [];
+            $originalComponentId = $existing->whereIn('component_id', $data['component_ids'])
+                ->firstWhere('option_kind', 'original')?->component_id ?? $data['component_ids'][0];
 
             foreach ($data['component_ids'] as $index => $componentId) {
                 $component = $components->get($componentId);
@@ -282,7 +266,7 @@ class ManualPartGroupController extends Controller
                     'part_number' => (string) $component->part_number,
                     'ipl_num' => (string) $component->ipl_num,
                     'option_kind' => $group->type === ManualPartGroup::TYPE_OVERSIZE
-                        ? (strcasecmp(trim((string) $component->ipl_num), trim((string) $component->bush_ipl_num)) === 0 ? 'original' : 'oversize')
+                        ? ((int) $originalComponentId === (int) $componentId ? 'original' : 'oversize')
                         : 'alternate',
                     'is_default' => (int) ($data['default_component_id'] ?? $data['component_ids'][0]) === $componentId,
                     'sort_order' => $index,

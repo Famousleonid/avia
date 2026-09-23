@@ -553,7 +553,7 @@
                                         <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
                                     @endif
                                 @endif
-                                @if($numberLines && in_array($name->name ?? '', ['Quarantine', 'INSPECT']))
+                                @if($numberLines && $name->hasIdentity(['Quarantine', 'INSPECT']))
                                     <div style="height: 22px; width: 30px; position: absolute; right: 45px; top: 0;">AT</div>
                                 @elseif($hasEcProcess)
                                     <div style="height: 22px; width: 30px; position: absolute; right: 45px; top: 0;">EC</div>

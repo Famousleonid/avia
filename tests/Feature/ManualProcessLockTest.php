@@ -184,7 +184,10 @@ class ManualProcessLockTest extends TestCase
         $manual->permittedUsers()->attach($user->id);
         [$processName, $manualProcess] = $this->createManualProcessFixture($manual->id);
 
-        $page = $this->actingAs($user)->get(route('manuals.show', [
+        $page = $this->actingAs($user)->withSession([
+            'auth.version' => (int) $user->auth_version,
+            'password_hash_web' => $user->getAuthPassword(),
+        ])->get(route('manuals.show', [
             'manual' => $manual->id,
             'tab' => 'processes',
         ]));
@@ -201,20 +204,23 @@ class ManualProcessLockTest extends TestCase
         $page->assertDontSee("if (specificationCell) specificationCell.textContent = updated.process || '';", false);
 
         $response = $this->actingAs($user)->putJson(route('manual_processes.update', $manualProcess), [
-            'process' => 'Updated in modal',
-            'process_comment' => 'Saved without reloading the manual page',
+            'process' => "Updated in modal\n11111\n222222",
+            'process_comment' => "Steel parts.\nSecond comment line",
         ]);
 
         $response->assertOk();
         $response->assertJsonPath('success', true);
         $response->assertJsonPath('manual_process.id', $manualProcess->id);
-        $response->assertJsonPath('manual_process.process', 'Updated in modal');
-        $response->assertJsonPath('manual_process.process_comment', 'Saved without reloading the manual page');
+        $response->assertJsonPath('manual_process.process', "Updated in modal\n11111\n222222");
+        $response->assertJsonPath('manual_process.process_comment', "Steel parts.\nSecond comment line");
         $response->assertJsonPath('manual_process.process_name', $processName->name);
         $this->assertDatabaseHas('manual_processes', [
             'id' => $manualProcess->id,
-            'process_comment' => 'Saved without reloading the manual page',
+            'process_comment' => "Steel parts.\nSecond comment line",
         ]);
+        $this->assertSame("Updated in modal\n11111\n222222", $manualProcess->fresh()->process->process);
+        $this->getJson(route('processes.getProcesses', ['processNameId' => $processName->id, 'manualId' => $manual->id]))
+            ->assertOk()->assertJsonFragment(['process_comment' => "Steel parts.\nSecond comment line"]);
     }
 
     public function test_authenticated_user_without_manual_access_can_browse_process_catalog(): void

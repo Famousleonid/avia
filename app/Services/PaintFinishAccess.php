@@ -13,7 +13,7 @@ class PaintFinishAccess
         }
 
         foreach ($processes as $process) {
-            if (strtolower(trim((string) $process->processName?->name)) !== 'paint') {
+            if (strtolower(trim((string) $process->processName?->identityName())) !== 'paint') {
                 continue;
             }
 

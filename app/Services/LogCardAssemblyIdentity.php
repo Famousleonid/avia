@@ -22,23 +22,41 @@ class LogCardAssemblyIdentity
         $members = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups);
         $choices = [];
         foreach ($groups->where('type', ManualPartGroup::TYPE_ASSY) as $group) {
-            $option = $group->options->first();
-            if (! $option) {
-                continue;
-            }
-            foreach ($components as $component) {
-                if ((int) $component->id !== (int) $option->component_id
-                    && ($members[$group->id] ?? collect())->contains((int) $component->id)
-                    && $this->hasOwnAssembly($component, (string) $option->part_number)) {
-                    $choices[(int) $component->id][] = [
-                        'group_id' => (int) $group->id,
-                        'part_number' => (string) $option->part_number,
-                        'ipl_num' => (string) $option->ipl_num,
-                    ];
+            foreach ($group->options as $option) {
+                $optionMembers = $members[$group->id] ?? collect();
+                if ($group->options->count() > 1) {
+                    $specificGroup = clone $group;
+                    $specificGroup->setRelation('options', collect([$option]));
+                    $specificMembers = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup(
+                        $groups->map(fn ($candidate) => $candidate->id === $group->id ? $specificGroup : $candidate)
+                    );
+                    $optionMembers = $specificMembers[$group->id] ?? collect();
+                }
+                foreach ($components as $component) {
+                    if ((int) $component->id !== (int) $option->component_id
+                        && $optionMembers->contains((int) $component->id)
+                        && $this->hasOwnAssembly($component, (string) $option->part_number)) {
+                        $choices[(int) $component->id][] = [
+                            'group_id' => (int) $group->id,
+                            'option_id' => (int) $option->id,
+                            'part_number' => (string) $option->part_number,
+                            'ipl_num' => (string) $option->ipl_num,
+                        ];
+                    }
                 }
             }
         }
         return $choices;
+    }
+
+    /** Resolve a technician's choice; group-only legacy requests are valid only if unambiguous. */
+    public function selectedAssemblyChoice(array $row, array $choices): ?array
+    {
+        $matches = collect($choices)->where('group_id', (int) ($row['manual_part_group_id'] ?? 0));
+        if ((int) ($row['assy_option_id'] ?? 0) > 0) {
+            $matches = $matches->where('option_id', (int) $row['assy_option_id']);
+        }
+        return $matches->count() === 1 ? $matches->first() : null;
     }
 
     /** Incoming Log Card follows the received WO scope, not a later R&M conversion. */

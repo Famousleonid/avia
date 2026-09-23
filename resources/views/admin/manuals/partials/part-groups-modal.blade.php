@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', function () {
             : (isKit()
                 ? '{{ __('Select ordinary parts here; include complete ASSY groups below.') }}'
                 : (type.value === 'oversize'
-                    ? '{{ __('Select one original bushing and its oversizes with the same Initial Bushing IPL Number.') }}'
+                    ? '{{ __('Add the original bushing first, followed by its oversizes. The Bushing checkbox is not required.') }}'
                     : '{{ __('All selected P/Ns are variants of one detail.') }}'));
         updateSuggestedGroupName();
         renderMembers();

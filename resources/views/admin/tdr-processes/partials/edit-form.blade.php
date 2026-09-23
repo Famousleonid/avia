@@ -1,9 +1,16 @@
 {{-- Edit form partial for modal (AJAX load) --}}
 <style>
-    #editTdrProcessModalBody .select2-selection--single { min-height: 38px; }
-    #editTdrProcessModalBody .select2-container { width: 100% !important; }
+    .part-process-editor .select2-selection--single { min-height: 38px; }
+    .part-process-editor .select2-container { width: 100% !important; }
+    .part-process-editor .card { min-height: calc(100dvh - 32px); }
+    .part-process-editor .card-body,
+    .part-process-editor form { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    .part-process-editor .row > div { min-width: 0; }
+    .part-process-editor .process-options { overflow-wrap: anywhere; }
+    .part-process-editor .process-description-field { display: flex; flex-direction: column; flex: 1; }
+    .part-process-editor textarea { min-height: 160px; flex: 1; resize: vertical; }
 </style>
-<div class="p-2">
+<div class="p-2 part-process-editor">
     <div class="card bg-gradient">
         <div class="card-header">
             <div class="d-flex justify-content-between">
@@ -16,7 +23,7 @@
             @php
                 $currentPlusProcess = $current_tdr_processes->plus_process ?? '';
                 $currentProcessName = $current_tdr_processes->processName;
-                $isNdtProcess = $currentProcessName && strpos($currentProcessName->name, 'NDT-') === 0;
+                $isNdtProcess = $currentProcessName && strpos($currentProcessName->identityName(), 'NDT-') === 0;
                 $processUsesNotes = $currentProcessName && !\App\Models\ProcessName::canPrintProcessForm($currentProcessName);
                 $currentPlusProcessIds = !empty($currentPlusProcess) ? explode(',', $currentPlusProcess) : [];
             @endphp
@@ -28,8 +35,8 @@
 
                 <div id="processes-container" data-manual-id="{{ $current_tdr->workorder->unit->manual_id ?? '' }}">
                     <div class="process-row mb-3">
-                        <div class="row">
-                            <div class="col-md-3" style="width: 200px">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-3">
                                 <label for="process_names">Process Name:</label>
                                 <select name="processes[0][process_names_id]" class="form-control select2-process" required>
                                     <option value=""></option>
@@ -40,7 +47,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-5">
+                            <div class="col-12 col-md-6">
                                 <label for="process">Processes (Specification):</label>
                                 <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal" data-bs-target="#addProcessModal">
                                     <img src="{{ asset('img/plus.png') }}" alt="+" style="width: 20px;">
@@ -75,8 +82,8 @@
                                     <div class="ndt-plus-process-options mt-2"></div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                @if($currentProcessName && $currentProcessName->name === 'EC' && $current_tdr_processes->standalone_ec_only)
+                            <div class="col-12 col-md-3">
+                                @if($currentProcessName && $currentProcessName->hasIdentity('EC') && $current_tdr_processes->standalone_ec_only)
                                     <input type="hidden" name="processes[0][standalone_ec_only]" value="1">
                                 @endif
                                 <div class="form-check mt-2" id="ec-checkbox-container" style="display: none;">
@@ -84,8 +91,6 @@
                                     <label class="form-check-label" for="ec_edit">EC</label>
                                 </div>
                                 <div>
-                                    <label for="description" class="form-label" style="margin-bottom: -5px">Description</label>
-                                    <input type="text" class="form-control" id="description" name="description" value="{{ old('description', $current_tdr_processes->description) }}" placeholder="Enter Description">
                                     <div class="process-notes-field {{ $processUsesNotes ? '' : 'd-none' }}">
                                         <label for="notes" class="form-label" style="margin-bottom: -5px">Notes</label>
                                         <input type="text" class="form-control" id="notes" name="notes" value="{{ old('notes', $current_tdr_processes->notes) }}" placeholder="Enter Notes" @disabled(!$processUsesNotes)>
@@ -94,6 +99,10 @@
                             </div>
                         </div>
                     </div>
+                </div>
+                <div class="process-description-field">
+                    <label for="description" class="form-label">{{ __('Description') }}</label>
+                    <textarea class="form-control" id="description" name="description" rows="6" maxlength="255" placeholder="{{ __('Enter Description') }}">{{ old('description', $current_tdr_processes->description) }}</textarea>
                 </div>
                 <div class="text-end mb-2 mt-3">
                     <button type="submit" class="btn btn-outline-primary" id="updateButton">{{ __('Update') }}</button>
@@ -136,6 +145,7 @@
         ndtProcessNamesData: @json($ndtProcessNames->keyBy('id')),
         ecEligibleProcessNameIds: @json($ecEligibleProcessNameIds ?? []),
         processNamesData: @json($processNames->keyBy('id')),
+        machiningEcProcessNameIds: @json(\App\Models\ProcessName::identityIds('Machining (EC)')),
         currentProcesses: @json(\App\Models\TdrProcess::normalizeStoredProcessIds($current_tdr_processes->processes)),
         dropdownParent: document.body
     };

@@ -8,13 +8,15 @@ use Illuminate\Database\Eloquent\Model;
 class ProcessName extends Model
 {
     use HasFactory;
+    use \App\Models\Concerns\HasProcessIdentity;
 
     /** Ключ группы групповых форм: Machining + Machining (EC) — одна печать. */
     public const GROUP_KEY_MERGE_MACHINING_MEC = 'MERGE:MACHINING_MEC';
 
-    /** Имена process_names, которые в групповых формах считаются одной группой «обработка». */
+    /** Постоянные назначения ID, объединяемые в одну групповую форму обработки. */
     public const MACHINING_EC_MERGE_NAMES = ['Machining', 'Machining (EC)', 'Machining(EC)'];
     public const SYSTEM_TRAVELER_NAME = 'Traveler';
+    public const BUSHING_MACHINING_NAMES = ['Machining', 'Machining (AT)'];
 
     private const MANUAL_DATE_EDITABLE_NAME_KEYS = [
         'machining',
@@ -47,7 +49,7 @@ class ProcessName extends Model
     {
         return $query
             ->where('show_in_process_picker', true)
-            ->where('name', '!=', self::SYSTEM_TRAVELER_NAME);
+            ->whereIdentityName(self::SYSTEM_TRAVELER_NAME, '!=');
     }
 
     public function scopeInSpFormOrder($query)
@@ -96,7 +98,7 @@ class ProcessName extends Model
 
     public function allowsManualDateEditing(): bool
     {
-        return self::allowsManualDateEditingForName($this->name);
+        return self::allowsManualDateEditingForName($this->identityName());
     }
 
     public static function allowsManualDateEditingForName(?string $name): bool
@@ -142,7 +144,7 @@ class ProcessName extends Model
 
     public static function isMachiningMachiningEcMergeMember(?self $processName): bool
     {
-        return $processName !== null && in_array($processName->name, self::MACHINING_EC_MERGE_NAMES, true);
+        return $processName !== null && in_array($processName->identityName(), self::MACHINING_EC_MERGE_NAMES, true);
     }
 
     /** Печатная форма с листом MACHINING (Machining, Machining (EC), Machining (Blend) и т.д.). */
@@ -157,7 +159,7 @@ class ProcessName extends Model
     public static function machiningMachiningEcMergeProcessNameIds(): array
     {
         return self::query()
-            ->whereIn('name', self::MACHINING_EC_MERGE_NAMES)
+            ->whereIdentityNames(self::MACHINING_EC_MERGE_NAMES)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->values()
@@ -169,17 +171,17 @@ class ProcessName extends Model
      */
     public static function machiningMachiningEcRepresentative(): ?self
     {
-        $main = self::where('name', 'Machining')->first();
+        $main = self::whereIdentityName('Machining')->first();
         if ($main) {
             return $main;
         }
 
-        return self::where('name', 'Machining (EC)')->first()
-            ?? self::where('name', 'Machining(EC)')->first();
+        return self::whereIdentityName('Machining (EC)')->first()
+            ?? self::whereIdentityName('Machining(EC)')->first();
     }
 
     /**
-     * Ключ группы для модалки групповых форм — по записи process_names (name уникален по смыслу операции: «Chrome plate» и «Chrome stripping» не сливаются).
+     * Ключ группы для модалки групповых форм — по ID process_names, независимо от отображаемого названия.
      * Исключение: Machining и Machining (EC) объединяются.
      *
      * @param  bool  $collapseNdtToGroup  true — вкладка всех деталей заказа: все NDT в NDT_GROUP; false — Part Processes: каждый process_name_id отдельно.

@@ -109,7 +109,8 @@ class PartGroupCoverageResolver
             return [];
         }
         $parts = \App\Models\Component::whereIn('manual_id', $workorder->usedManualIds())
-            ->where('is_bush', false)->get(['id', 'manual_id', 'ipl_num', 'part_number']);
+            ->whereNotIn('id', \App\Models\Component::query()->bushingCandidates()->select('components.id'))
+            ->get(['id', 'manual_id', 'ipl_num', 'part_number']);
         $coverage = [];
         foreach ($parts->groupBy(fn ($p) => $p->manual_id.'|'.PartVariantGrouping::iplFamily($p->ipl_num)) as $family) {
             $selected = $family->whereIn('id', $orderedIds);
@@ -310,7 +311,8 @@ class PartGroupCoverageResolver
         return $option->coverages->filter(fn ($member) => $member->appliesTo($scope))
             ->groupBy(function ($member) use ($families): string {
                 $id = (int) $member->component_id;
-                return isset($families[$id]) ? 'ipl:'.$families[$id][0] : 'member:'.$member->id;
+                return $member->expandsIplFamily() && isset($families[$id])
+                    ? 'ipl:'.$families[$id][0] : 'member:'.$member->id;
             })
             ->map(fn ($members) => $members->sortByDesc('qty')->first())->values();
     }
@@ -335,7 +337,9 @@ class PartGroupCoverageResolver
         $memberQty = max(1, (int) $member->qty) * max(1, $parentQty);
         $componentId = (int) ($member->component_id ?? 0);
         if ($componentId > 0) {
-            foreach ($iplFamilies[$componentId] ?? [$componentId] as $variantId) {
+            $memberIds = $member->expandsIplFamily()
+                ? ($iplFamilies[$componentId] ?? [$componentId]) : [$componentId];
+            foreach ($memberIds as $variantId) {
                 $this->addCoverage($coverage, $variantId, $memberQty, $reason, $selectedGroup, $selectedOption);
             }
 

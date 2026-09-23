@@ -23,14 +23,14 @@ class ProcessFormDataNormalizer
         $index = 1;
 
         foreach ($ndtComponents as $component) {
-            $processNumbers = [substr($component->processName->name, -1)];
+            $processNumbers = [substr($component->processName->identityName(), -1)];
 
             if ($component->plus_process) {
                 $plusProcessIds = explode(',', $component->plus_process);
                 foreach ($plusProcessIds as $plusProcessId) {
                     $plusProcessName = \App\Models\ProcessName::find($plusProcessId);
-                    if ($plusProcessName && strpos($plusProcessName->name, 'NDT-') === 0) {
-                        $processNumbers[] = substr($plusProcessName->name, -1);
+                    if ($plusProcessName && strpos($plusProcessName->identityName(), 'NDT-') === 0) {
+                        $processNumbers[] = substr($plusProcessName->identityName(), -1);
                     }
                 }
             }
@@ -71,14 +71,14 @@ class ProcessFormDataNormalizer
             if (isset($data['combined_ndt_number'])) {
                 $processNumbers = $data['combined_ndt_number'];
             } elseif ($processName) {
-                if (strpos($processName->name, 'NDT-') === 0) {
-                    $processNumbers = substr($processName->name, 4);
-                } elseif ($processName->name === 'Eddy Current Test') {
+                if (strpos($processName->identityName(), 'NDT-') === 0) {
+                    $processNumbers = substr($processName->identityName(), 4);
+                } elseif ($processName->identityName() === 'Eddy Current Test') {
                     $processNumbers = '6';
-                } elseif ($processName->name === 'BNI') {
+                } elseif ($processName->identityName() === 'BNI') {
                     $processNumbers = '5';
                 } else {
-                    $processNumbers = substr($processName->name, -1);
+                    $processNumbers = substr($processName->identityName(), -1);
                 }
             }
 

@@ -1097,7 +1097,7 @@ class WoMeasurementController extends Controller
 
         // EC keeps only Start + machining-type Main processes (e.g. Machining, Machining (EC)).
         $machiningNameIds = $isEc
-            ? \App\Models\ProcessName::where('name', 'like', '%Machining%')->pluck('id')->map(fn($id) => (int) $id)->all()
+            ? \App\Models\ProcessName::whereIdentityName('%Machining%', 'like')->pluck('id')->map(fn($id) => (int) $id)->all()
             : [];
 
         $maxSort = 0;
@@ -1131,7 +1131,7 @@ class WoMeasurementController extends Controller
 
         // EC: add the EC process (tracked on /ec) after the machining processes.
         if ($isEc) {
-            $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+            $ecNameId = \App\Models\ProcessName::whereIdentityName('EC')->value('id');
             if ($ecNameId) {
                 TdrProcess::create([
                     'tdrs_id'            => $tdr->id,
@@ -1281,9 +1281,9 @@ class WoMeasurementController extends Controller
             if (!empty($failedRuleIds)) {
                 $failedRpIds = \App\Models\ManualParameterRuleProcess::whereIn('repair_rule_id', $failedRuleIds)
                     ->pluck('id')->map(fn ($i) => (int) $i)->all();
-                $machiningId   = \App\Models\ProcessName::where('name', 'Machining')->value('id');
-                $machiningEcId = \App\Models\ProcessName::where('name', 'Machining (EC)')->value('id')
-                    ?? \App\Models\ProcessName::where('name', 'Machining(EC)')->value('id');
+                $machiningId   = \App\Models\ProcessName::whereIdentityName('Machining')->value('id');
+                $machiningEcId = \App\Models\ProcessName::whereIdentityName('Machining (EC)')->value('id')
+                    ?? \App\Models\ProcessName::whereIdentityName('Machining(EC)')->value('id');
                 if ($machiningId && $machiningEcId) {
                     $rows = TdrProcess::where('tdrs_id', $tdr->id)
                         ->whereIn('process_names_id', [$machiningId, $machiningEcId])
@@ -1325,7 +1325,7 @@ class WoMeasurementController extends Controller
                     ->delete();
             }
             // Add the EC process (companion to Machining (EC); read by SP Form / TDR-print).
-            $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+            $ecNameId = \App\Models\ProcessName::whereIdentityName('EC')->value('id');
             if ($ecNameId) {
                 $existingEc = TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $ecNameId)->first();
                 if ($existingEc) {
@@ -1720,12 +1720,13 @@ class WoMeasurementController extends Controller
                 'sort_order' => (int) $r->sort_order,
                 'started'    => $r->date_start !== null,
                 'ec'         => (bool) $r->ec,
+                'is_ndt'     => str_starts_with($r->processName?->identityName() ?? '', 'NDT'),
             ])->values()->all();
             // Default: the EC row when the scrap follows a denied concession —
             // NDT after it was never performed. Otherwise the FIRST NDT row:
             // the crack is usually found at the first NDT after strip/machining.
             $defaultKeep = collect($scrapRows)->first(fn ($e) => !empty($e['ec']))
-                ?? collect($scrapRows)->first(fn ($e) => str_starts_with($e['name'], 'NDT'));
+                ?? collect($scrapRows)->first(fn ($e) => ($e['is_ndt'] ?? false));
             $ctx['scrap']['default_keep_row_id'] = $defaultKeep['id'] ?? null;
         }
 
@@ -1942,7 +1943,7 @@ class WoMeasurementController extends Controller
             return null;
         }
 
-        $ecNameId = ProcessName::where('name', 'EC')->value('id');
+        $ecNameId = ProcessName::whereIdentityName('EC')->value('id');
         $existing = $ecNameId
             ? TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $ecNameId)->first()
             : null;
@@ -1978,7 +1979,7 @@ class WoMeasurementController extends Controller
         if (empty($data['ec_accept']) || (($ctx['ec']['status'] ?? null) !== 'proposed')) {
             return null;
         }
-        $ecNameId = ProcessName::where('name', 'EC')->value('id');
+        $ecNameId = ProcessName::whereIdentityName('EC')->value('id');
         if (!$ecNameId) {
             return null;
         }
@@ -2398,7 +2399,7 @@ class WoMeasurementController extends Controller
      */
     private function foldConsecutiveNdt(array $groups): array
     {
-        $nameOf = fn (int $id) => (string) (ProcessName::find($id)?->name ?? '');
+        $nameOf = fn (int $id) => (string) (ProcessName::find($id)?->identityName() ?? '');
         $isNdt  = fn (int $id) => str_starts_with($nameOf($id), 'NDT-');
 
         $out = [];

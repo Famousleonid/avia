@@ -12,6 +12,18 @@ use Illuminate\Support\Facades\DB;
 
 class WoBushingRelationalSync
 {
+    public function editState(WoBushing $bushing): array
+    {
+        $lines = $bushing->lines()->with(['component', 'processes.process.process_name',
+            'processes' => fn ($q) => $q->withCount('machiningWorkSteps'),
+            'processes.batch' => fn ($q) => $q->withCount('machiningWorkSteps')])->orderBy('id')->get();
+        $protected = app(BushingRouteBatches::class)->protectedLineIds($lines);
+        $snapshot = $lines->map(fn ($line) => [$line->getAttributes(),
+            $line->processes->sortBy('id')->map(fn ($p) => [$p->getAttributes(), $p->batch?->getAttributes()])->values()->all()])->all();
+        return ['lines' => $lines, 'protected' => $protected,
+            'token' => hash('sha256', serialize($snapshot))];
+    }
+
     /** @return list<string> */
     private static function stressReliefProcessNames(): array
     {
@@ -44,6 +56,8 @@ class WoBushingRelationalSync
 
                 $rows[] = [
                     'component_id' => (int) $componentId,
+                    'codes_id' => empty($item['codes_id']) ? null : (int) $item['codes_id'],
+                    'code_supplied' => array_key_exists('codes_id', $item),
                     'qty' => max(1, (int) ($item['qty'] ?? 1)),
                     'do_not_order' => ! empty($item['do_not_order']),
                     'need_processes' => $needProcesses,
@@ -79,6 +93,8 @@ class WoBushingRelationalSync
         foreach ($groupData['components'] as $componentId) {
             $rows[] = [
                 'component_id' => (int) $componentId,
+                'codes_id' => empty($groupData['codes'][$componentId]) ? null : (int) $groupData['codes'][$componentId],
+                'code_supplied' => array_key_exists($componentId, $groupData['codes'] ?? []),
                 'qty' => max(1, (int) ($groupData['qty'] ?? 1)),
                 'do_not_order' => ! empty($groupData['do_not_order']),
                 'need_processes' => true,
@@ -103,20 +119,34 @@ class WoBushingRelationalSync
      * @param  array<string, array<string, mixed>>  $groupBushingsData
      * @return list<array{bushing: int, qty: int, processes: array<string, mixed>}>
      */
-    public function syncFromGroupBushings(WoBushing $woBushing, array $groupBushingsData): array
+    public function syncFromGroupBushings(WoBushing $woBushing, array $groupBushingsData, ?string $draftToken = null, ?callable $validateQuantities = null): array
     {
         $workorderId = (int) $woBushing->workorder_id;
 
         $bushDataArray = $this->buildBushDataArrayFromGroups($groupBushingsData);
 
-        DB::transaction(function () use ($woBushing, $groupBushingsData, $workorderId, $bushDataArray) {
+        DB::transaction(function () use ($woBushing, $groupBushingsData, $workorderId, $bushDataArray, $draftToken, $validateQuantities) {
+            WoBushing::whereKey($woBushing->id)->lockForUpdate()->firstOrFail();
+            $lineIds = $woBushing->lines()->orderBy('id')->lockForUpdate()->pluck('id');
+            WoBushingProcess::whereIn('wo_bushing_line_id', $lineIds)->orderBy('id')->lockForUpdate()->get();
+            WoBushingBatch::where('workorder_id', $workorderId)->orderBy('id')->lockForUpdate()->get();
+            $state = $this->editState($woBushing);
+            if ($draftToken !== null && !hash_equals($state['token'], $draftToken)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'group_bushings' => __('Bushing data changed. Reopen the list before saving.'),
+                ]);
+            }
             // До удаления строк: запомнить party/даты по (component_id × колонка шапки), иначе после Update из модалки теряются batch_id и «Grp».
             $preserveByComponent = [];
-            $existingLines = $woBushing->lines()->with(['processes.process.process_name', 'processes.batch'])->get();
+            $existingLines = $state['lines'];
             $routeBatches = app(BushingRouteBatches::class);
             $protectedIds = $routeBatches->protectedLineIds($existingLines);
             $protectedComponents = $existingLines->whereIn('id', $protectedIds)->pluck('component_id')->all();
+            if ($validateQuantities) {
+                $validateQuantities($existingLines->whereIn('id', $protectedIds));
+            }
             foreach ($existingLines as $oldLine) {
+                if (in_array($oldLine->id, $protectedIds)) continue;
                 $cid = (int) $oldLine->component_id;
                 foreach ($oldLine->processes as $wp) {
                     $col = WoBushingProcessColumnKey::fromProcess($wp->process);
@@ -145,7 +175,7 @@ class WoBushingRelationalSync
                 }
                 foreach ($this->normalizeGroupRows($groupData) as $rowData) {
                     $componentId = (int) $rowData['component_id'];
-                    if (in_array($componentId, $protectedComponents)) {
+                    if ($draftToken === null && in_array($componentId, $protectedComponents)) {
                         $sortOrder++;
                         continue;
                     }
@@ -156,6 +186,8 @@ class WoBushingRelationalSync
                         'wo_bushing_id' => $woBushing->id,
                         'workorder_id' => $workorderId,
                         'component_id' => $componentId,
+                        'codes_id' => $rowData['code_supplied'] ? $rowData['codes_id']
+                            : $existingLines->whereNotIn('id', $protectedIds)->firstWhere('component_id', $componentId)?->codes_id,
                         'qty' => $qty,
                         'qty_remaining' => $qty,
                         'do_not_order' => (bool) $rowData['do_not_order'],
@@ -300,8 +332,8 @@ class WoBushingRelationalSync
                 if (! $p || ! $p->process_name) {
                     continue;
                 }
-                $name = $p->process_name->name;
-                if ($name === 'Machining') {
+                $name = $p->process_name->identityName();
+                if (in_array($name, \App\Models\ProcessName::BUSHING_MACHINING_NAMES, true)) {
                     $processes['machining'] = $p->id;
                 } elseif (in_array($name, self::stressReliefProcessNames(), true)) {
                     $processes['stress_relief'] = $p->id;
@@ -331,6 +363,7 @@ class WoBushingRelationalSync
             $out[] = [
                 'line_id' => (int) $line->id,
                 'bushing' => (int) $line->component_id,
+                'codes_id' => $line->codes_id,
                 'group_key' => $groupKey,
                 'sort_order' => (int) $line->sort_order,
                 'qty' => (int) $line->qty,

@@ -154,7 +154,7 @@ class StdProcess extends Model
             if (! $pn) {
                 return false;
             }
-            $name = (string) ($pn->name ?? '');
+            $name = $pn->identityName();
             $sheet = trim((string) ($pn->process_sheet_name ?? ''));
 
             return match ($std) {
@@ -207,7 +207,7 @@ class StdProcess extends Model
 
     protected static function ndtProcessNumber(ProcessName $processName): ?string
     {
-        if (preg_match('/^NDT-(\d+)\b/i', trim((string) $processName->name), $m)) {
+        if (preg_match('/^NDT-(\d+)\b/i', trim((string) $processName->identityName()), $m)) {
             return (string) ((int) $m[1]);
         }
 
@@ -799,8 +799,7 @@ class StdProcess extends Model
             $paintProcess = ManualProcess::query()
                 ->where('manual_id', $manualId)
                 ->whereHas('process.process_name', function ($query) {
-                    $query->where('id', 25)
-                        ->orWhere('name', 'Paint')
+                    $query->whereIdentityName('Paint')
                         ->orWhere('process_sheet_name', 'PAINT APPLICATION');
                 })
                 ->with('process:id,process')

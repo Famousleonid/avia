@@ -7,7 +7,7 @@
         .bushing-edit-table-wrap { width: 100%; max-height: calc(88vh - 170px); overflow-y: auto; overflow-x: auto; }
         .bushing-itemized-table {
             --bushing-col-bushing-width: 280px;
-            --bushing-fixed-cols-width: calc(var(--bushing-col-bushing-width) + 428px);
+            --bushing-fixed-cols-width: calc(var(--bushing-col-bushing-width) + 526px);
             --bushing-ndt-col-width: 96px;
             --bushing-line-height: 28px;
             width: 100%;
@@ -17,7 +17,7 @@
         }
         .bushing-itemized-table col.bushing-col-bushing { width: var(--bushing-col-bushing-width); }
         .bushing-itemized-table col.bushing-col-part-qty { width: 74px; }
-        .bushing-itemized-table col.bushing-col-select { width: 92px; }
+        .bushing-itemized-table col.bushing-col-select { width: 190px; }
         .bushing-itemized-table col.bushing-col-no-order { width: 104px; }
         .bushing-itemized-table col.bushing-col-qty { width: 70px; }
         .bushing-itemized-table col.bushing-col-toggle { width: 88px; }
@@ -114,6 +114,7 @@
                 <form id="bushings-form" method="POST" action="{{ route('wo_bushings.update', $woBushing->id) }}">
                     @csrf
                     @method('PUT')
+                    <input type="hidden" name="draft_token" value="{{ $draftToken }}">
             @endif
 
             @unless($embedded)
@@ -187,9 +188,26 @@
                                             trim((string) $candidate->ipl_num) === trim((string) $candidate->bush_ipl_num)
                                         );
                                         $groupMaxOrderQty = \App\Support\BushingPrlGrouping::capacity($bushingGroup);
+                                        $groupHistory = $historyLines->whereIn('component_id', $bushingGroup->pluck('id'));
+                                        $historyQty = (int) $groupHistory->sum('qty');
+                                        $remainingQty = max(0, $groupMaxOrderQty - $historyQty);
                                     @endphp
+                                    @foreach($groupHistory as $historyLine)
+                                        <tr class="bushing-history-row text-secondary">
+                                            <td>{{ $historyLine->component?->ipl_num }} — {{ $historyLine->component?->part_number }}</td>
+                                            <td colspan="3">{{ __('History — locked') }}</td>
+                                            <td class="text-center">{{ $historyLine->qty }}</td>
+                                            <td colspan="8">
+                                                @foreach($historyLine->processes as $historyProcess)
+                                                    <span class="d-inline-block me-3">{{ $historyProcess->process?->process_name?->name }}
+                                                        {{ $historyProcess->batch?->repair_order ?: $historyProcess->repair_order }}</span>
+                                                @endforeach
+                                            </td>
+                                        </tr>
+                                    @endforeach
                                     <tr class="bushing-row"
                                         data-group-key="{{ $groupKey }}"
+                                        data-history-qty="{{ $historyQty }}"
                                         data-max-order-qty="{{ $groupMaxOrderQty }}">
                                         <td class="bushing-part-cell">
                                             <div class="bushing-line-list">
@@ -204,6 +222,9 @@
                                             <div class="small text-info mt-1 bushing-group-qty-summary" aria-live="polite">
                                                 {{ __('Ordered QTY') }}: <span class="bushing-group-ordered-qty">0</span> / {{ __('max') }} {{ $groupMaxOrderQty }}
                                             </div>
+                                            @if($historyQty)
+                                                <div class="small text-secondary">{{ __('History') }}: {{ $historyQty }} · {{ __('Available to add') }}: {{ $remainingQty }}</div>
+                                            @endif
                                         </td>
                                         <td class="text-center bushing-readonly-qty">
                                             <div class="bushing-line-list align-items-center">
@@ -226,6 +247,9 @@
                                                                    name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][selected]"
                                                                    value="1"
                                                                    class="form-check-input component-checkbox"
+                                                                   data-code-id="{{ $existing['codes_id'] ?? '' }}"
+                                                                   data-ipl="{{ $bushing->ipl_num }}"
+                                                                   {{ !$selected && $remainingQty === 0 ? 'disabled' : '' }}
                                                                    {{ $selected ? 'checked' : '' }}>
                                                             <span class="bushing-select-ipl">{{ $bushing->ipl_num }}</span>
                                                         </span>
@@ -257,17 +281,17 @@
                                                 @foreach($bushingGroup as $bushing)
                                                     @php
                                                         $existing = $bushDataByComponent->get((int) $bushing->id);
-                                                        $rowQty = $existing['qty'] ?? $groupMaxOrderQty;
+                                                        $rowQty = $existing['qty'] ?? max(1, $remainingQty);
                                                     @endphp
                                                     <div>
                                                         <input type="number"
                                                                name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][qty]"
                                                                class="form-control form-control-sm bushing-qty-input"
                                                                min="1"
-                                                               max="{{ $groupMaxOrderQty }}"
+                                                               max="{{ max(1, $remainingQty) }}"
                                                                value="{{ $rowQty }}"
                                                                title="{{ __('Shared Original/Oversize quantity; split between selected P/Ns if needed.') }}"
-                                                               data-part-qty="{{ $groupMaxOrderQty }}">
+                                                               data-part-qty="{{ max(1, $remainingQty) }}">
                                                     </div>
                                                 @endforeach
                                             </div>
@@ -385,7 +409,8 @@
     </div>
 
     @include('admin.wo_bushings.partials.process-selects')
-    <script>
+    @include('admin.wo_bushings.partials.replacement-code-assets')
+<script>
         window.initEditBushingForm = function(root) {
             root = root || document;
             var formRoot = root.querySelector ? root.querySelector('#editBushingFormRoot') : document.getElementById('editBushingFormRoot');
@@ -500,7 +525,8 @@
 
             function syncRow(row) {
                 row.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
-                    var componentPrefix = checkbox.name.replace('[selected]', '');
+                    if (window.BushingReplacementCodes) window.BushingReplacementCodes.sync(checkbox);
+                var componentPrefix = checkbox.name.replace('[selected]', '');
                     var componentId = componentIdFromName(checkbox.name);
                     var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
                     var doNotOrder = row.querySelector('input[name="' + componentPrefix + '[do_not_order]"][type="checkbox"]');
@@ -514,7 +540,10 @@
                         }
                     }
                     if (doNotOrder) doNotOrder.disabled = !checkbox.checked;
-                    if (need) need.disabled = !checkbox.checked;
+                    if (need) {
+                        need.disabled = !checkbox.checked;
+                        if (!checkbox.checked) need.checked = false;
+                    }
 
                     row.querySelectorAll('.bushing-process-line[data-component-id="' + componentId + '"]').forEach(function(line) {
                         line.classList.toggle('is-hidden', !showProcesses);
@@ -530,13 +559,13 @@
                 }
 
                 function updateGroupQty(row) {
-                    var orderedQty = 0;
+                    var orderedQty = parseInt(row.dataset.historyQty || '0', 10) || 0;
                     row.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
                         if (!checkbox.checked) return;
                         var componentPrefix = checkbox.name.replace('[selected]', '');
                         var doNotOrder = row.querySelector('input[name="' + componentPrefix + '[do_not_order]"][type="checkbox"]');
                         var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
-                        if (!doNotOrder || !doNotOrder.checked) {
+                        {
                             orderedQty += Math.max(0, parseInt(qty && qty.value ? qty.value : '0', 10) || 0);
                         }
                     });
@@ -590,7 +619,7 @@
                     row.querySelectorAll('.bushing-do-not-order').forEach(function(noOrder) { noOrder.checked = false; });
                     row.querySelectorAll('.bushing-need-processes').forEach(function(need) { need.checked = false; });
                     row.querySelectorAll('.bushing-qty-input').forEach(function(qty) { qty.value = qty.getAttribute('data-part-qty') || '1'; });
-                    row.querySelectorAll('.bushing-process-control').forEach(function(control) { control.value = ''; });
+                    row.querySelectorAll('.bushing-process-control, .bushing-code-select').forEach(function(control) { control.value = ''; });
                     syncRow(row);
                 });
             }
@@ -623,7 +652,7 @@
                         });
                     });
 
-                if (selectedRows.length === 0) {
+                if (selectedRows.length === 0 && !form.querySelector('.bushing-history-row')) {
                     e.preventDefault();
                     notify('{{ __("Please select at least one component before submitting.") }}');
                     hideGlobalSpinner();

@@ -437,7 +437,7 @@
                             }
                         }
                     }
-                    $normalizedProcessName = strtoupper(trim((string) $processName));
+                    $normalizedProcessName = strtoupper($tp->processName->identityName());
                     $isNdt6TravelerLine = $inTraveler && (
                         str_starts_with($normalizedProcessName, 'NDT-6')
                         || $normalizedProcessName === 'EDDY CURRENT TEST'
@@ -479,7 +479,7 @@
                 <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
                 <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
                     <strong>
-                        @if($processName == 'NDT-1' || $processName == 'NDT-4')
+                        @if($tp->processName->hasIdentity(['NDT-1', 'NDT-4']))
                             {{ __('NDT') }}
                         @else
                             {{ $processName }}
@@ -491,18 +491,14 @@
                         {{ $subLabel }}
                         @if($tp->ec) ( EC ) @endif
                     @endif
-                    <div class="fs-8">
-                        @if($tp->description)
-                            {{ $tp->description }}
-                        @endif
-                    </div>
+                    <div class="fs-8 process-description" style="white-space: pre-line; overflow-wrap: anywhere;">{{ $tp->description }}</div>
                 </div>
                 <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
                     @if(!empty($tp->repair_order))
                         {{ $tp->repair_order }}
                     @elseif(!$inTraveler)
                         W{{ $current_tdr->workorder->number }}
-                    @elseif($processName == 'Paint ')
+                    @elseif($tp->processName->hasIdentity('Paint'))
                         W{{ $current_wo->number }}
                     @endif
                 </div>

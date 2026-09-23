@@ -28,10 +28,10 @@
                                     {{ optional($transfer->component)->name ?? '-' }}
                                 </td>
                                 <td class="text-center">
-                                    {{ optional($transfer->component)->part_number ?? '-' }}
+                                    {{ $transfer->part_number ?: optional($transfer->component)->part_number ?? '-' }}
                                 </td>
                                 <td class="text-center">
-                                    @if($transfer->component_sn)
+                                    @if($transfer->component_sn && !$transfer->source_log_row_key)
                                         <a href="#"
                                            class="text-decoration-underline text-info change-sn-link"
                                            data-transfer-id="{{ $transfer->id }}"
@@ -41,7 +41,7 @@
                                             {{ $transfer->component_sn }}
                                         </a>
                                     @else
-                                        -
+                                        {{ $transfer->component_sn ?: '-' }}
                                     @endif
                                 </td>
                                 <td class="text-center">
@@ -103,10 +103,10 @@
                                     {{ optional($transfer->component)->name ?? '-' }}
                                 </td>
                                 <td class="text-center">
-                                    {{ optional($transfer->component)->part_number ?? '-' }}
+                                    {{ $transfer->part_number ?: optional($transfer->component)->part_number ?? '-' }}
                                 </td>
                                 <td class="text-center">
-                                    @if($transfer->component_sn)
+                                    @if($transfer->component_sn && !$transfer->source_log_row_key)
                                         <a href="#"
                                            class="text-decoration-underline text-info change-sn-link"
                                            data-transfer-id="{{ $transfer->id }}"
@@ -116,7 +116,7 @@
                                             {{ $transfer->component_sn }}
                                         </a>
                                     @else
-                                        -
+                                        {{ $transfer->component_sn ?: '-' }}
                                     @endif
                                 </td>
                                 <td class="text-center">

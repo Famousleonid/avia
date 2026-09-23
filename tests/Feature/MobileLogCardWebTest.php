@@ -27,7 +27,10 @@ class MobileLogCardWebTest extends TestCase
                 'email' => strtolower($role).'.mobile-log-card.'.uniqid().'@example.test',
             ]);
 
-            $response = $this->actingAs($user)->get(route('mobile.show', $workorder));
+            $response = $this->actingAs($user)->withSession([
+                'auth.version' => (int) $user->auth_version,
+                'password_hash_web' => $user->getAuthPassword(),
+            ])->get(route('mobile.show', $workorder));
 
             $response->assertOk()
                 ->assertSee(route('mobile.log-card', $workorder), false)
@@ -52,6 +55,10 @@ class MobileLogCardWebTest extends TestCase
             ]);
 
             $this->actingAs($user)
+                ->withSession([
+                    'auth.version' => (int) $user->auth_version,
+                    'password_hash_web' => $user->getAuthPassword(),
+                ])
                 ->get(route('mobile.show', $workorder))
                 ->assertOk()
                 ->assertDontSee(route('mobile.log-card', $workorder), false)
@@ -86,7 +93,18 @@ class MobileLogCardWebTest extends TestCase
             ->assertSee('data-swap-recognized-numbers', false)
             ->assertSee('Check photographed numbers')
             ->assertSee(route('mobile.log-card.data', $workorder->id), false)
-            ->assertSee('Log Card Photos');
+            ->assertDontSee('Log Card Photos')
+            ->assertDontSee('id="mobileLogCardGallery"', false)
+            ->assertSee('mobile-log-card-shell', false)
+            ->assertSee('height: 100dvh;', false)
+            ->assertSee('calc(4rem + env(safe-area-inset-bottom, 0px))', false)
+            ->assertSee('calc(16px + env(safe-area-inset-left, 0px))', false)
+            ->assertSee('calc(16px + env(safe-area-inset-right, 0px))', false)
+            ->assertDontSee('mobile-log-card-scroll px-2 pb-3', false)
+            ->assertDontSee('data-photo-only', false)
+            ->assertDontSee('Photo only')
+            ->assertSee('mobile-log-card-heading', false)
+            ->assertSee('mobile-log-card-unit', false);
 
         $this->actingAs($technician)
             ->getJson(route('mobile.log-card.template', $workorder->id))

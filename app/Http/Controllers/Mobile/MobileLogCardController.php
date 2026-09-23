@@ -24,12 +24,11 @@ class MobileLogCardController extends Controller
 
     public function index(Request $request, Workorder $workorder)
     {
-        $workorder->load(['unit.manual', 'main.task', 'media']);
+        $workorder->load(['unit.manual', 'main.task']);
         abort_unless(app(MobileReviewAccess::class)->canAccessWorkorder($request->user(), $workorder), 404);
 
         return view('mobile.pages.log-card', [
             'workorder' => $workorder,
-            'logCardPhotos' => $this->photoPayloads($workorder),
         ]);
     }
 

@@ -19,7 +19,7 @@
     .bushing-create-table-wrap { width: 100%; max-height: calc(90vh - 150px); overflow-y: auto; overflow-x: auto; }
     .bushing-itemized-table {
         --bushing-col-bushing-width: 280px;
-        --bushing-fixed-cols-width: calc(var(--bushing-col-bushing-width) + 428px);
+        --bushing-fixed-cols-width: calc(var(--bushing-col-bushing-width) + 526px);
         --bushing-ndt-col-width: 96px;
         --bushing-line-height: 28px;
         width: 100%;
@@ -29,7 +29,7 @@
     }
     .bushing-itemized-table col.bushing-col-bushing { width: var(--bushing-col-bushing-width); }
     .bushing-itemized-table col.bushing-col-part-qty { width: 74px; }
-    .bushing-itemized-table col.bushing-col-select { width: 92px; }
+    .bushing-itemized-table col.bushing-col-select { width: 190px; }
     .bushing-itemized-table col.bushing-col-no-order { width: 104px; }
     .bushing-itemized-table col.bushing-col-qty { width: 70px; }
     .bushing-itemized-table col.bushing-col-toggle { width: 88px; }
@@ -175,7 +175,7 @@
                                                         <input type="checkbox"
                                                                name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][selected]"
                                                                value="1"
-                                                               class="form-check-input component-checkbox">
+                                                               class="form-check-input component-checkbox" data-ipl="{{ $bushing->ipl_num }}">
                                                         <span class="bushing-select-ipl">{{ $bushing->ipl_num }}</span>
                                                     </span>
                                                 </div>
@@ -294,6 +294,7 @@
 </div>
 
 @include('admin.wo_bushings.partials.process-selects')
+@include('admin.wo_bushings.partials.replacement-code-assets')
 <script>
 (function() {
     function initCreateBushingForm(root) {
@@ -384,6 +385,7 @@
 
         function syncRow(row) {
             row.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
+                if (window.BushingReplacementCodes) window.BushingReplacementCodes.sync(checkbox);
                 var componentPrefix = checkbox.name.replace('[selected]', '');
                 var componentId = componentIdFromName(checkbox.name);
                 var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
@@ -398,7 +400,10 @@
                     }
                 }
                 if (doNotOrder) doNotOrder.disabled = !checkbox.checked;
-                if (need) need.disabled = !checkbox.checked;
+                if (need) {
+                    need.disabled = !checkbox.checked;
+                    if (!checkbox.checked) need.checked = false;
+                }
 
                 row.querySelectorAll('.bushing-process-line[data-component-id="' + componentId + '"]').forEach(function(line) {
                     line.classList.toggle('is-hidden', !showProcesses);
@@ -464,7 +469,7 @@
                 row.querySelectorAll('.bushing-do-not-order').forEach(function(noOrder) { noOrder.checked = false; });
                 row.querySelectorAll('.bushing-need-processes').forEach(function(need) { need.checked = false; });
                 row.querySelectorAll('.bushing-qty-input').forEach(function(qty) { qty.value = qty.getAttribute('data-part-qty') || '1'; });
-                row.querySelectorAll('.bushing-process-control').forEach(function(control) { control.value = ''; });
+                row.querySelectorAll('.bushing-process-control, .bushing-code-select').forEach(function(control) { control.value = ''; });
                 syncRow(row);
             });
         };

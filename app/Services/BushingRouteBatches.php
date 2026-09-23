@@ -68,6 +68,8 @@ class BushingRouteBatches
     {
         DB::transaction(function () use ($bushing) {
             WoBushing::whereKey($bushing->id)->lockForUpdate()->firstOrFail();
+            // Also remove drafts left empty by earlier list saves before allocating a number.
+            $this->deleteEmptyDrafts((int) $bushing->workorder_id);
             $lines = $bushing->lines()->with([
                 'processes' => fn ($query) => $query->withCount('machiningWorkSteps'),
                 'processes.process.process_name',
@@ -121,7 +123,19 @@ class BushingRouteBatches
                     WoBushingProcess::whereIn('id', $processRows->pluck('id'))->update(['batch_id' => $batch->id]);
                 }
             }
-            // Empty records retain historical numbering but never appear in forms or RO matching.
+            $this->deleteEmptyDrafts((int) $bushing->workorder_id);
         });
+    }
+
+    private function deleteEmptyDrafts(int $workorderId): void
+    {
+        WoBushingBatch::where('workorder_id', $workorderId)
+            ->whereDoesntHave('woBushingProcesses')
+            ->whereDoesntHave('machiningWorkSteps')
+            ->where(fn ($query) => $query->whereNull('repair_order')->orWhereRaw("TRIM(repair_order) = ''"))
+            ->whereNull('date_start')->whereNull('date_finish')->whereNull('date_promise')
+            ->whereNull('vendor_id')
+            ->where(fn ($query) => $query->whereNull('working_steps_count')->orWhere('working_steps_count', 0))
+            ->delete();
     }
 }

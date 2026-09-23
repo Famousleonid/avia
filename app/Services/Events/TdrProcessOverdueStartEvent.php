@@ -44,7 +44,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
                 return now()->greaterThan($deadline);
             })
             ->filter(function (TdrProcess $process) use ($stdListNames, $stdListResolver, &$preferredStdProcessIds): bool {
-                $processName = trim((string) ($process->processName?->name ?? ''));
+                $processName = $process->processName?->identityName() ?? '';
                 if (!in_array($processName, $stdListNames, true)) {
                     return true;
                 }
@@ -245,7 +245,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
     private function isStdListProcess(TdrProcess $subject): bool
     {
         return in_array(
-            trim((string) ($subject->processName?->name ?? '')),
+            $subject->processName?->identityName() ?? '',
             array_values(WorkorderStdListProcessesService::NAME_BY_KEY),
             true
         );
@@ -255,7 +255,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
     {
         return ProcessName::query()
             ->with('notifyUser')
-            ->whereRaw('LOWER(TRIM(name)) = ?', ['traveler'])
+            ->whereIdentityName(ProcessName::SYSTEM_TRAVELER_NAME)
             ->first();
     }
 

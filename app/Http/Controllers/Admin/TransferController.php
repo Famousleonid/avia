@@ -129,6 +129,7 @@ class TransferController extends Controller
         ]);
 
         $transfer = Transfer::findOrFail($id);
+        abort_if($transfer->source_log_row_key, 422, 'This serial number comes from the source Log Card. Cancel and select the correct part instead.');
         $transfer->component_sn = $request->input('component_sn');
         $transfer->save();
 
@@ -169,6 +170,7 @@ class TransferController extends Controller
      */
     public function create(Request $request, $id)
     {
+        \App\Services\PartReceiptAudit::authorize();
         // source_workorder_number — WO-источник (откуда берётся деталь).
         // Старое имя target_workorder_number оставлено для обратной совместимости.
         $request->validate([
@@ -314,6 +316,7 @@ class TransferController extends Controller
      */
     public function deleteByTdr($id)
     {
+        \App\Services\PartReceiptAudit::authorize();
         try {
             // Получаем TDR запись (в текущем WO)
             $tdr = Tdr::findOrFail($id);

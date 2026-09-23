@@ -64,6 +64,32 @@ class BushingSpecBatchColumnsTest extends TestCase
         $this->assertSame(2, substr_count($response->getContent(), '<div style="page-break-after: always;"></div>'));
     }
 
+    public function test_same_part_number_does_not_merge_different_historical_shipments(): void
+    {
+        $wo = $this->createWorkorder();
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        $ndt = $this->process('NDT-4'); $cad = $this->process('Cad plate');
+        $ndtBatch = WoBushingBatch::create(['workorder_id' => $wo->id, 'process_id' => $ndt->id,
+            'process_column_key' => 'ndt', 'repair_order' => 'NDT-RO']);
+        foreach ([1, 2] as $i) {
+            $part = Component::create(['manual_id' => $wo->unit->manual_id, 'part_number' => 'SAME-PN', 'ipl_num' => '1-'.$i, 'name' => 'Bushing']);
+            $line = WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
+                'component_id' => $part->id, 'qty' => 1, 'qty_remaining' => 1]);
+            $cadBatch = WoBushingBatch::create(['workorder_id' => $wo->id, 'process_id' => $cad->id,
+                'process_column_key' => 'cad', 'repair_order' => 'CAD-RO-'.$i]);
+            foreach ([[$ndt, $ndtBatch], [$cad, $cadBatch]] as [$process, $batch]) {
+                WoBushingProcess::create(['wo_bushing_line_id' => $line->id, 'process_id' => $process->id,
+                    'batch_id' => $batch->id, 'qty' => 1]);
+            }
+        }
+        // RO without date is history too; each physical set appears just once.
+        $groups = app(BushingSpecProcessGroups::class)->build($wo);
+        $this->assertCount(2, $groups);
+        $this->assertSame([1, 1], array_column($groups, 'total_qty'));
+        $this->assertSame([['SAME-PN'], ['SAME-PN']], array_column($groups, 'part_numbers'));
+        $this->assertNotSame($groups[0]['components'][0]['line_id'], $groups[1]['components'][0]['line_id']);
+    }
+
     private function process(string $name): Process
     {
         $processName = ProcessName::firstOrCreate(['name' => $name], ['process_sheet_name' => $name, 'form_number' => 'TEST']);

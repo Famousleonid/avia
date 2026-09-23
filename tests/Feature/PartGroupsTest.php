@@ -24,6 +24,39 @@ class PartGroupsTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_saving_bushing_group_does_not_set_member_flags(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $parts = collect(['1-10', '1-10A', '1-10B'])->map(fn ($ipl) =>
+            $this->createPartGroupComponent($manual->id, $ipl, 'AUTO-'.$ipl));
+        $parts->each(fn ($part) => $part->update(['is_bush' => false, 'units_assy' => 2]));
+        $this->actingAs($admin)->withSession([
+            'auth.version' => (int) $admin->auth_version,
+            'password_hash_web' => $admin->getAuthPassword(),
+        ]);
+        $payload = ['name' => 'Auto flag', 'type' => 'alternative_pn', 'applies_to' => ['prl'],
+            'component_ids' => [$parts[0]->id, $parts[1]->id]];
+        $this->postJson(route('manuals.part-groups.store', $manual), $payload)->assertOk();
+        $group = ManualPartGroup::where('manual_id', $manual->id)->firstOrFail();
+        $this->assertFalse($parts[0]->fresh()->is_bush);
+        $this->assertFalse($parts[1]->fresh()->is_bush);
+
+        $payload['type'] = 'oversize';
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertOk();
+        $this->assertFalse($parts[0]->fresh()->is_bush);
+        $this->assertFalse($parts[1]->fresh()->is_bush);
+        $this->assertFalse($parts[2]->fresh()->is_bush);
+
+        $payload['component_ids'] = [$parts[0]->id, $parts[2]->id];
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertOk();
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $group]))->assertOk();
+        foreach ($parts as $part) {
+            $this->assertFalse($part->fresh()->is_bush);
+            $this->assertSame('2', (string) $part->fresh()->units_assy);
+        }
+    }
+
     public function test_admin_can_create_assy_group_with_scoped_composition(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -31,7 +64,10 @@ class PartGroupsTest extends TestCase
         $memberA = $this->createPartGroupComponent($manual->id, '1-10', 'MEMBER-A');
         $memberB = $this->createPartGroupComponent($manual->id, '1-20', 'MEMBER-B');
 
-        $response = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), [
+        $response = $this->actingAs($admin)->withSession([
+            'auth.version' => (int) $admin->auth_version,
+            'password_hash_web' => $admin->getAuthPassword(),
+        ])->postJson(route('manuals.part-groups.store', $manual), [
             'name' => 'Main ASSY',
             'type' => ManualPartGroup::TYPE_ASSY,
             'applies_to' => ['prl', 'ndt', 'cad'],
@@ -1010,6 +1046,69 @@ class PartGroupsTest extends TestCase
         foreach ($parts as $part) $this->assertContains($part->id, $after);
         $this->assertNotContains($other->id, $after);
         $this->assertNotContains($bush->id, $after);
+    }
+
+    public function test_exact_members_do_not_expand_or_collapse_letters_in_nested_assy(): void
+    {
+        $scopes = ManualPartGroup::validScopes();
+        [$admin, $wo, $member, $child, $childOption] = $this->bundleFixture($scopes, 2);
+        $a = $this->createPartGroupComponent($member->manual_id, '1-10A', 'VARIANT-A');
+        $b = $this->createPartGroupComponent($member->manual_id, '1-10B', 'VARIANT-B');
+        $childOption->coverages()->first()->update(['expand_ipl_family' => false]);
+        $childOption->coverages()->create(['component_id' => $a->id, 'qty' => 1, 'applies_to' => $scopes, 'expand_ipl_family' => false]);
+        $parent = ManualPartGroup::create([
+            'manual_id' => $member->manual_id, 'code' => 'EXACT-'.uniqid(), 'name' => 'Parent',
+            'type' => 'assy', 'behavior' => 'bundle', 'applies_to' => $scopes,
+        ]);
+        $parentOption = $parent->options()->create(['part_number' => 'PARENT', 'is_default' => true]);
+        $parentOption->coverages()->create(['covered_manual_part_group_option_id' => $childOption->id, 'qty' => 3, 'applies_to' => $scopes]);
+        WorkorderPartGroupSelection::create([
+            'workorder_id' => $wo->id, 'manual_part_group_id' => $parent->id,
+            'manual_part_group_option_id' => $parentOption->id, 'qty' => 2, 'selected_by_user_id' => $admin->id,
+        ]);
+        foreach ($scopes as $scope) {
+            $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, $scope);
+            $this->assertSame(12, $coverage[$member->id]['covered_qty']);
+            $this->assertSame(6, $coverage[$a->id]['covered_qty']);
+            $this->assertArrayNotHasKey($b->id, $coverage);
+        }
+        $groups = ManualPartGroup::where('manual_id', $member->manual_id)->with('options.coverages')->get();
+        $composition = app(\App\Services\ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups);
+        foreach ([$child, $parent] as $group) {
+            $this->assertEqualsCanonicalizing([$member->id, $a->id], $composition[$group->id]->all());
+        }
+        $wo->update(['scope_type' => \App\Models\Unit::SCOPE_PART_GROUP_OPTION, 'scope_part_group_option_id' => $parentOption->id]);
+        $scope = app(\App\Services\WorkorderPartScopeResolver::class)->componentQuantities($wo, 'ndt');
+        $this->assertSame(6, $scope[$member->id]);
+        $this->assertSame(3, $scope[$a->id]);
+        $this->assertArrayNotHasKey($b->id, $scope);
+    }
+
+    public function test_editor_does_not_offer_or_override_imported_ipl_restrictions(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $head = $this->createPartGroupComponent($manual->id, '10-30', 'ASSY');
+        $member = $this->createPartGroupComponent($manual->id, '10-35', 'BARE');
+        $payload = ['type' => 'assy', 'applies_to' => ['prl'], 'component_ids' => [$head->id, $member->id],
+            'default_component_id' => $head->id, 'member_expand_ipl_family' => [$member->id => false]];
+        $r = $this->actingAs($admin)->postJson(route('manuals.part-groups.store', $manual), $payload)->assertOk();
+        $group = ManualPartGroup::findOrFail($r->json('group.id'));
+        $edge = $group->options()->first()->coverages()->where('component_id', $member->id)->firstOrFail();
+        // An old UI or a crafted request cannot configure import-only restrictions.
+        $this->assertTrue($edge->expandsIplFamily());
+        $this->assertArrayNotHasKey('expand_ipl_family', collect($r->json('group.options.0.coverages'))->firstWhere('component_id', $member->id));
+        $edge->update(['expand_ipl_family' => false]);
+        unset($payload['member_expand_ipl_family']);
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertOk();
+        $this->assertFalse($edge->fresh()->expandsIplFamily());
+        $payload['member_expand_ipl_family'] = [$member->id => true];
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertOk();
+        $this->assertFalse($edge->fresh()->expandsIplFamily());
+        $template = file_get_contents(resource_path('views/admin/manuals/partials/part-groups-modal.blade.php'));
+        $this->assertStringNotContainsString('part-group-member-family', $template);
+        $this->assertStringNotContainsString('member_expand_ipl_family', $template);
+        $this->assertTrue((new \App\Models\ManualPartGroupCoverage())->expandsIplFamily());
     }
 
     private function bundleFixture(array $scopes, int $memberQty): array

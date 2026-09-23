@@ -23,7 +23,7 @@ class SearchWorkordersByOpenProcessTool
 
         $q = TdrProcess::query()
             ->with([
-                'processName:id,name',
+                'processName:id,name,identity_name',
                 'tdr:id,workorder_id,component_id',
                 'tdr.workorder:id,number,customer_id',
                 'tdr.workorder.customer:id,name',

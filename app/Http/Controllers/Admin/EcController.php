@@ -16,7 +16,7 @@ class EcController extends Controller
 
         $ecRows = TdrProcess::query()
             ->with([
-                'processName:id,name',
+                'processName:id,name,identity_name',
                 'tdr:id,workorder_id,component_id,order_component_id,description',
                 'tdr.workorder:id,number,unit_id',
                 'tdr.workorder.unit:id,manual_id',
@@ -26,7 +26,7 @@ class EcController extends Controller
                 'tdr.orderComponent:id,name,part_number,assy_part_number',
             ])
             ->whereHas('processName', function ($processNameQuery): void {
-                $processNameQuery->where('name', 'EC');
+                $processNameQuery->whereIdentityName('EC');
             })
             ->whereHas('tdr.workorder')
             ->when(! $showAll, function ($query): void {

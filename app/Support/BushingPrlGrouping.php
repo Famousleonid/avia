@@ -6,8 +6,30 @@ use App\Models\Component;
 
 class BushingPrlGrouping
 {
+    /** Classify without rewriting the stored legacy flag. */
+    public static function candidates($components)
+    {
+        $ids = Component::query()->whereKey($components->pluck('id'))
+            ->bushingCandidates()->pluck('id');
+
+        return $components->whereIn('id', $ids)->values();
+    }
+
     public static function capacity($components): int
     {
+        // Imported groups may predate option_kind=original. Their ordered first
+        // numeric standard option is the original; never use oversize AR as its limit.
+        $options = \App\Models\ManualPartGroupOption::query()
+            ->whereIn('component_id', $components->pluck('id'))
+            ->whereHas('group', fn ($q) => $q->where('type', \App\Models\ManualPartGroup::TYPE_OVERSIZE))
+            ->orderBy('sort_order')->orderBy('id')->get();
+        $original = $options->firstWhere('option_kind', 'original')
+            ?? $options->first(fn ($option) => $option->option_kind === 'standard'
+                && is_numeric($components->firstWhere('id', $option->component_id)?->units_assy));
+        if ($original) {
+            return max(1, (int) $components->firstWhere('id', $original->component_id)?->units_assy);
+        }
+
         $initial = $components->first(fn (Component $component): bool =>
             trim((string) $component->bush_ipl_num) !== ''
             && trim((string) $component->ipl_num) === trim((string) $component->bush_ipl_num)
@@ -18,7 +40,7 @@ class BushingPrlGrouping
 
     public static function groups($components)
     {
-        $keys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($components->pluck('manual_id')->all(), 'prl');
+        $keys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($components->pluck('manual_id')->all(), 'bushing');
 
         return $components->groupBy(fn (Component $component): string => self::groupKeyForComponent($component, $keys));
     }

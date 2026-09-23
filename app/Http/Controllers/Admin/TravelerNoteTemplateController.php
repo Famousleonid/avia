@@ -56,7 +56,7 @@ class TravelerNoteTemplateController extends Controller
                 ->select('part_number')->distinct()->orderBy('part_number')->paginate(30);
             $results = $rows->map(fn ($row) => ['id' => $row->part_number, 'text' => $row->part_number]);
         } else {
-            $rows = ProcessName::where('name', '!=', ProcessName::SYSTEM_TRAVELER_NAME)
+            $rows = ProcessName::whereIdentityName(ProcessName::SYSTEM_TRAVELER_NAME, '!=')
                 ->where('name', 'like', "%{$search}%")->orderBy('name')->paginate(30);
             $results = $rows->map(fn ($row) => ['id' => $row->id, 'text' => $row->name]);
         }
@@ -93,7 +93,7 @@ class TravelerNoteTemplateController extends Controller
                     ->where('process_names_id', $request->input('process_names_id')))->ignore($template?->id),
             ],
             'process_names_id' => ['required', 'integer', Rule::exists('process_names', 'id')
-                ->where(fn ($q) => $q->where('name', '!=', ProcessName::SYSTEM_TRAVELER_NAME))],
+                ->where(fn ($q) => $q->whereNotIn('id', ProcessName::identityIds(ProcessName::SYSTEM_TRAVELER_NAME)))],
             'notes' => ['required', 'string', 'max:2000'],
         ], ['part_number.unique' => 'A note already exists for this manual, part number and process. Edit the existing note.']);
     }

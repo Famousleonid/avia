@@ -8,6 +8,16 @@
 @php
     $formConfig = $formConfig ?? config('process_forms.' . ($module ?? 'tdr-processes'), config('process_forms.tdr-processes'));
     $embedded = $embedded ?? false;
+    $processCommentManualIds = collect($table_data ?? [])
+        ->map(fn ($row) => $row['component']->manual_id ?? null)
+        ->merge(collect($process_tdr_components ?? [])->map(fn ($row) => $row->tdr?->component?->manual_id))
+        ->push($current_wo->unit->manual_id ?? null)->filter()->unique();
+    $formProcessComments = \App\Models\ManualProcess::whereIn('manual_id', $processCommentManualIds)
+        ->whereNotNull('process_comment')->get(['manual_id', 'processes_id', 'process_comment'])
+        ->mapWithKeys(fn ($row) => [$row->manual_id.':'.$row->processes_id => $row->process_comment]);
+    $processCommentFor = fn ($processId, $manualId = null) => $formProcessComments->get(
+        ($manualId ?? $current_wo->unit->manual_id ?? '').':'.$processId, ''
+    );
     $header_title = $header_title ?? ($formConfig['header_title'] ?? null);
     // Для одиночной формы — только настройки текущего типа; для packageForms передаётся showFormTypes
     $showFormTypes = $showFormTypes ?? (

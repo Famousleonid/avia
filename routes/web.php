@@ -91,6 +91,11 @@ use App\Http\Controllers\Admin\EcController;
 
 Auth::routes(['verify' => true, 'register' => false]);
 
+// Keep previously issued Android update links working after moving APKs out of public/.
+Route::get('/app/{filename}', [\App\Http\Controllers\Api\Android\AndroidApiController::class, 'downloadBuild'])
+    ->where('filename', 'aviatechnik-v[0-9]+(?:\.[0-9]+)*\.apk')
+    ->name('android.download.legacy');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/password/required', [RequiredPasswordChangeController::class, 'edit'])
         ->name('password.required');
@@ -396,6 +401,10 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::patch('workorders/{workorder}/kit-prl-crossouts/{component}', [WorkorderKitPrlCrossoutController::class, 'update'])->name('tdrs.kit-crossouts.update');
         Route::get('tdrs/specProcessForm/{id}', [TdrPrintFormController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
     Route::get('tdrs/specProcessFormEmp/{id}', [TdrPrintFormController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
+        Route::get('workorders/{workorder}/log-card-transfer', [\App\Http\Controllers\Admin\LogCardTransferController::class, 'sources'])->name('workorders.log-card-transfer.sources');
+        Route::post('workorders/{workorder}/log-card-transfer', [\App\Http\Controllers\Admin\LogCardTransferController::class, 'store'])->name('workorders.log-card-transfer.store');
+        Route::delete('workorders/{workorder}/log-card-transfer', [\App\Http\Controllers\Admin\LogCardTransferController::class, 'destroy'])->name('workorders.log-card-transfer.destroy');
+        Route::post('workorders/{workorder}/part-receipt', [\App\Http\Controllers\Admin\WorkorderPartReceiptController::class, 'update'])->name('workorders.part-receipt.update');
         Route::post('tdrs/update-part-field/{id}', [TdrController::class, 'updatePartField'])->name('tdrs.updatePartField');
         Route::patch('tdrs/{tdr}/scrap', [TdrController::class, 'scrap'])->name('tdrs.scrap');
 

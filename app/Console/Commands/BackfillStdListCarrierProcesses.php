@@ -34,9 +34,9 @@ class BackfillStdListCarrierProcesses extends Command
 
         $service = app(WorkorderStdListProcessesService::class);
         $processNames = ProcessName::query()
-            ->whereIn('name', array_values(WorkorderStdListProcessesService::NAME_BY_KEY))
+            ->whereIdentityNames(array_values(WorkorderStdListProcessesService::NAME_BY_KEY))
             ->get()
-            ->keyBy('name');
+            ->keyBy(fn ($processName) => $processName->identityName());
 
         if ($processNames->isEmpty()) {
             $this->warn('STD List process names not found.');

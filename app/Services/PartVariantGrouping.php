@@ -28,7 +28,8 @@ class PartVariantGrouping
             ->with('options:id,manual_part_group_id,component_id')
             ->get();
         foreach ($groups as $group) {
-            if (! $group->appliesTo($scope)) {
+            if (! ($scope === 'bushing' && $group->type === ManualPartGroup::TYPE_OVERSIZE)
+                && ! $group->appliesTo($scope === 'bushing' ? 'prl' : $scope)) {
                 continue;
             }
             foreach ($group->options as $option) {

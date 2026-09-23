@@ -335,17 +335,18 @@
                                             icon.className = 'bi bi-check2-circle';
                                             const body = document.createElement('div');
                                             const text = document.createElement('div');
+                                            text.className = 'process-choice-label';
                                             text.textContent = process.process;
                                             body.appendChild(text);
                                             if (process.process_comment) {
                                                 const comment = document.createElement('div');
-                                                comment.className = 'small text-body-secondary mt-1';
+                                                comment.className = 'small text-body-secondary mt-1 process-choice-comment';
                                                 comment.textContent = process.process_comment;
                                                 body.appendChild(comment);
                                             }
                                             div.append(icon, body);
                                         } else {
-                                            div.textContent = process.process;
+                                            window.renderProcessChoiceLabel(div, process);
                                         }
                                         exProcessList.appendChild(div);
                                     });

@@ -112,6 +112,14 @@ class Component extends Model implements  hasMedia
         return $this->hasMany(ManualPartGroupOption::class);
     }
 
+    public function scopeBushingCandidates($query)
+    {
+        return $query->where(fn ($q) => $q->where('is_bush', true)
+            ->orWhereHas('partGroupOptions.group', fn ($group) => $group
+                ->where('type', ManualPartGroup::TYPE_OVERSIZE)
+                ->whereColumn('manual_part_groups.manual_id', 'components.manual_id')));
+    }
+
     public function partGroupCoverages(): HasMany
     {
         return $this->hasMany(ManualPartGroupCoverage::class);

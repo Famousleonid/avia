@@ -154,7 +154,7 @@ final class PaintIndexRowsBuilder
         $out = collect();
         foreach ($wo->tdrs as $tdr) {
             foreach ($tdr->tdrProcesses as $tp) {
-                $nameLower = strtolower(trim((string) ($tp->processName?->name ?? '')));
+                $nameLower = strtolower(trim((string) ($tp->processName?->identityName() ?? '')));
                 if ($nameLower !== 'paint') {
                     continue;
                 }

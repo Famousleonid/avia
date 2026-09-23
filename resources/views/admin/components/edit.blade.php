@@ -185,7 +185,7 @@
                             </div>
                         </div>
 <div class="form-group mt-3" id="bush_ipl_container"
-                             style="display: {{ $current_component->is_bush ? 'block' : 'none' }};">
+                             style="display: none;">
                             <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
                             <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
                                    pattern="^\d+-\d+[A-Za-z]?$"
@@ -256,14 +256,8 @@
             const bushIPLContainer = document.getElementById('bush_ipl_container');
             const bushIPLInput = document.getElementById('bush_ipl_num');
 
-            if (isBushCheckbox.checked) {
-                bushIPLContainer.style.display = 'block';
-                bushIPLInput.required = true;
-            } else {
-                bushIPLContainer.style.display = 'none';
-                bushIPLInput.required = false;
-                bushIPLInput.value = '';
-            }
+            bushIPLContainer.style.display = 'none';
+            bushIPLInput.required = false;
         }
 
 

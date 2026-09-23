@@ -334,21 +334,10 @@ class MainController extends Controller
                 ])
                 ->get();
 
-            $prl_parts = Tdr::where('workorder_id', $current_workorder->id)
-                ->where('necessaries_id', $necessary->id)
-                ->with([
-                    'component' => function ($query) {
-                        $query->select('id', 'name', 'part_number', 'ipl_num');
-                    },
-                    'orderComponent' => function ($query) {
-                        $query->select('id', 'name', 'part_number', 'ipl_num');
-                    }
-                ])
-                ->get();
-
-            $orderedQty = $prl_parts->sum('qty');
-            $receivedQty = $prl_parts->whereNotNull('received')->sum('qty');
         }
+        $prl_parts = app(\App\Services\WorkorderPartsList::class)->rows($current_workorder);
+        $orderedQty = $prl_parts->count();
+        $receivedQty = $prl_parts->filter(fn ($part) => !$part->crossed_out && !empty($part->received) && trim((string) $part->po_num) !== '' && $part->received_qty !== null && (int) $part->received_qty === (int) $part->qty)->count();
 
         // Training
         $user = Auth::user();
@@ -440,6 +429,7 @@ class MainController extends Controller
             return $lid > 0 ? 'line_'.$lid : 'wp_'.$wp->id;
         })->map(fn ($wps) => (int) $wps->max('qty'))->sum();
 
+        $bushingBatchLabels = app(\App\Services\BushingRouteBatches::class)->labels((int) $current_workorder->id);
         $bushingProcessGroupedRows = $wpCollection->groupBy(function (WoBushingProcess $wp) {
             $key = WoBushingProcessColumnKey::fromProcess($wp->process);
             if ($key === 'other') {
@@ -447,7 +437,7 @@ class MainController extends Controller
             }
 
             return $key;
-        })->map(function ($group) {
+        })->map(function ($group) use ($bushingBatchLabels) {
             $first = $group->first();
             $groupKey = WoBushingProcessColumnKey::fromProcess($first->process);
             if ($groupKey === 'other') {
@@ -467,7 +457,7 @@ class MainController extends Controller
                 $lineId = (int) ($wp->wo_bushing_line_id ?? 0);
 
                 return $lineId > 0 ? 'single_line_'.$lineId : 'single_wp_'.$wp->id;
-            })->map(function ($batchRows) {
+            })->map(function ($batchRows) use ($bushingBatchLabels, $groupKey) {
                 $firstWp = $batchRows->first();
                 $batch = $firstWp->batch;
                 $isBatch = ! empty($firstWp->batch_id);
@@ -542,6 +532,7 @@ class MainController extends Controller
 
                 return [
                     'is_batch' => $isBatch,
+                    'batch_label' => $bushingBatchLabels[$groupKey][$firstWp->batch_id] ?? 'B',
                     'id' => $isBatch ? (int) $firstWp->batch_id : (int) $firstWp->id,
                     'qty' => $batchQty,
                     'repair_order' => $isBatch ? (string) ($batch?->repair_order ?? '') : (string) ($firstWp->repair_order ?? ''),
@@ -554,6 +545,11 @@ class MainController extends Controller
                     'process_rows' => $processRows,
                 ];
             })->sort(function (array $left, array $right): int {
+                $batchCompare = strnatcasecmp((string) ($left['batch_label'] ?? ''), (string) ($right['batch_label'] ?? ''));
+                if ($batchCompare !== 0) {
+                    return $batchCompare;
+                }
+
                 $leftItem = collect($left['line_items'] ?? [])->first();
                 $rightItem = collect($right['line_items'] ?? [])->first();
 
@@ -1114,6 +1110,11 @@ class MainController extends Controller
             $woBushingProcess->date_promise = $data['date_promise'] ?: null;
         }
 
+        if ((!empty($data['date_start']) || !empty($data['date_finish']))
+            && trim((string) $woBushingProcess->repair_order) === ''
+            && $woBushingProcess->process?->process_name?->allowsManualDateEditing()) {
+            $woBushingProcess->repair_order = 'AT';
+        }
         $woBushingProcess->save();
 
         if ($fromMachiningIndex) {
@@ -1131,6 +1132,7 @@ class MainController extends Controller
                 'success' => true,
                 'user' => auth()->user()?->selection_name ?? 'system',
                 'date_start' => $woBushingProcess->date_start?->format('Y-m-d'),
+                'repair_order' => $woBushingProcess->repair_order,
                 'date_finish' => $woBushingProcess->date_finish?->format('Y-m-d'),
                 'date_promise' => $woBushingProcess->date_promise?->format('Y-m-d'),
             ], 200);
@@ -1239,6 +1241,11 @@ class MainController extends Controller
             $woBushingBatch->date_finish = $data['date_finish'] ?: null;
         }
 
+        if ((!empty($data['date_start']) || !empty($data['date_finish']))
+            && trim((string) $woBushingBatch->repair_order) === ''
+            && $woBushingBatch->process?->process_name?->allowsManualDateEditing()) {
+            $woBushingBatch->repair_order = 'AT';
+        }
         $woBushingBatch->save();
 
         if ($fromMachiningBatchIndex) {
@@ -1256,6 +1263,7 @@ class MainController extends Controller
                 'success' => true,
                 'user' => auth()->user()?->selection_name ?? 'system',
                 'date_start' => $woBushingBatch->date_start?->format('Y-m-d'),
+                'repair_order' => $woBushingBatch->repair_order,
                 'date_finish' => $woBushingBatch->date_finish?->format('Y-m-d'),
                 'date_promise' => $woBushingBatch->date_promise?->format('Y-m-d'),
             ], 200);

@@ -701,7 +701,7 @@ class WorkorderController extends Controller
 
     private function getEcProcessNameId(): ?int
     {
-        $ecProcessNameId = ProcessName::query()->where('name', 'EC')->value('id');
+        $ecProcessNameId = ProcessName::query()->whereIdentityName('EC')->value('id');
 
         return $ecProcessNameId ? (int) $ecProcessNameId : null;
     }
@@ -1683,7 +1683,7 @@ class WorkorderController extends Controller
     private function deleteStdListTdrProcessesForWorkorder(Workorder $workorder): void
     {
         $names = array_values(WorkorderStdListProcessesService::NAME_BY_KEY);
-        $nameIds = ProcessName::query()->whereIn('name', $names)->pluck('id');
+        $nameIds = ProcessName::query()->whereIdentityNames($names)->pluck('id');
         if ($nameIds->isEmpty()) {
             return;
         }

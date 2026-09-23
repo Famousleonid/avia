@@ -9,7 +9,9 @@ use App\Models\Workorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Android contour of the mobile API (/api/android/*).
@@ -32,7 +34,7 @@ class AndroidApiController extends MobileApiController
             'min_sdk' => 26,
             // Brand palette over Material You dynamic colors.
             'dynamic_color' => false,
-            // Self-update: drop aviatechnik-vX.Y.Z.apk into public/app/ —
+            // Self-update: drop aviatechnik-vX.Y.Z.apk into storage/app/android-builds/ —
             // the newest version is detected from the file name.
             'update' => $this->latestAndroidBuild(),
         ];
@@ -42,15 +44,10 @@ class AndroidApiController extends MobileApiController
 
     protected function latestAndroidBuild(): ?array
     {
-        $dir = public_path('app');
-        if (! is_dir($dir)) {
-            return null;
-        }
-
         $bestFile = null;
         $bestVersion = null;
-        foreach (glob($dir . '/aviatechnik-v*.apk') ?: [] as $file) {
-            if (preg_match('/aviatechnik-v(\d+(?:\.\d+)*)\.apk$/i', basename($file), $m)
+        foreach (Storage::disk('android_builds')->files() as $file) {
+            if (preg_match('/\Aaviatechnik-v(\d+(?:\.\d+)*)\.apk\z/', $file, $m)
                 && ($bestVersion === null || version_compare($m[1], $bestVersion, '>'))) {
                 $bestVersion = $m[1];
                 $bestFile = $file;
@@ -59,8 +56,20 @@ class AndroidApiController extends MobileApiController
 
         return $bestFile ? [
             'version_name' => $bestVersion,
-            'url' => asset('app/' . basename($bestFile)),
+            'url' => route('api.android.public.download', ['filename' => $bestFile]),
         ] : null;
+    }
+
+    public function downloadBuild(string $filename): BinaryFileResponse
+    {
+        abort_unless(preg_match('/\Aaviatechnik-v\d+(?:\.\d+)*\.apk\z/', $filename), 404);
+        $disk = Storage::disk('android_builds');
+        abort_unless($disk->exists($filename), 404);
+
+        return response()->download($disk->path($filename), $filename, [
+            'Content-Type' => 'application/vnd.android.package-archive',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function login(Request $request): JsonResponse

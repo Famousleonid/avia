@@ -53,7 +53,7 @@
                        data-route-number="{{ $a['route_number'] ?? '' }}" data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid ?? '' }}"
                        data-batch-id="{{ $batchId }}"
                        data-component-id="{{ $componentId }}"
-                       title="{{ !empty($a['route_number']) ? __('Select for forms / print') : __('Select to remove from batch') }}" autocomplete="off">
+                       title="{{ __('Select for forms / print') }}" autocomplete="off">
             </div>
         @elseif($locked)
             <div class="bushing-batch-inner d-flex align-items-center justify-content-center gap-1 flex-wrap">
