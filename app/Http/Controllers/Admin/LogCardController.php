@@ -519,10 +519,10 @@ class LogCardController extends Controller
             ->orderBy('id')
             ->get();
         $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
-            ->componentIdsByGroup($allGroups);
+            ->componentIdsByGroup($allGroups, $workorder);
         $groups = app(LogCardAssemblyIdentity::class)->groupsForWorkorder($allGroups, $workorder)
             ->where('type', ManualPartGroup::TYPE_ASSY);
-        $assemblyChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($allGroups, $components);
+        $assemblyChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($allGroups, $components, $workorder);
 
         $choiceGroups = $groups->map(function (ManualPartGroup $group) use (
             $componentsById,
@@ -1378,7 +1378,7 @@ class LogCardController extends Controller
             if ($component && $partGroup && app(LogCardAssemblyIdentity::class)->isExplicitSelection($row)
                 && (int) ($row['assy_option_id'] ?? 0) <= 0) {
                 $groups = ManualPartGroup::with('options.coverages')->where('manual_id', $component->manual_id)->get();
-                $choices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($groups, collect([$component]));
+                $choices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($groups, collect([$component]), $workorder);
                 $selected = app(LogCardAssemblyIdentity::class)->selectedAssemblyChoice($row, $choices[$componentId] ?? []);
                 $row['assy_option_id'] = (string) ($selected['option_id'] ?? '');
             }
@@ -1578,9 +1578,9 @@ class LogCardController extends Controller
             ->whereIn('id', $submittedPartGroupIds)
             ->keyBy('id');
         $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
-            ->componentIdsByGroup($compositionGroups);
+            ->componentIdsByGroup($compositionGroups, $workorder);
         $explicitChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent(
-            $compositionGroups, Component::with('assemblies')->whereIn('id', $componentsById->keys())->get()
+            $compositionGroups, Component::with('assemblies')->whereIn('id', $componentsById->keys())->get(), $workorder
         );
         $allAssyGroupsById = $compositionGroups->keyBy('id');
         $hasInvalidAssyChoice = collect($decoded)->contains(function ($row) use (

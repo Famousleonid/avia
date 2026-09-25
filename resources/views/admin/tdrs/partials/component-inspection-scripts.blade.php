@@ -257,7 +257,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     $('#description_group').show();
                     $('#qty').show();
                 } else {
-                    $('#qty').toggle(codeName === 'missing' || necessaryName.toLowerCase() === 'order new');
+                    $('#qty').toggle(codeName === 'missing' || ['order new', 'repair'].includes(necessaryName.toLowerCase()));
+                    $('input[name="qty"]').attr('min', 1).attr('max', necessaryName.toLowerCase() === 'repair' ? Math.max(1, parseInt($('#i_component_id option:selected').attr('data-units-assy'), 10) || 1) : null);
                     $('#necessary').toggle(showNecessary);
                     $('#description_group').toggle(showNecessary);
                 }
@@ -265,7 +266,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (codeName && !isManufacture && codeName !== 'missing' && necessaryName && necessaryName.toLowerCase() !== 'order new') {
                     $('#sns-group').show();
                     $('#serial_number').parent().show();
-                    $('#assy_serial_number').parent().toggle(hasAssy);
+                    $('#assy_serial_number').parent().toggle(hasAssy && necessaryName.toLowerCase() !== 'repair');
                 } else {
                     $('#sns-group').hide();
                 }
@@ -969,6 +970,8 @@ function initTdrInlineCreate() {
         }
         descriptionInput?.classList.add('d-none');
         qtyInput?.classList.add('d-none');
+        document.getElementById('tdr_inline_repair_qty_label')?.classList.add('d-none');
+        row.classList.remove('tdr-inline-repair-row');
         orderComponentGroup?.classList.add('d-none');
         orderQtyMount?.classList.add('d-none');
         orderQtyLabel?.classList.add('d-none');
@@ -1026,7 +1029,17 @@ function initTdrInlineCreate() {
         const hasNecessary = showNecessary && necessaryName;
         const showOrderPicker = hasComponent && (isMissing || isOrderNew);
         const showDescriptionInput = hasComponent && !showOrderPicker && (isManufacture || hasNecessary);
-        const showQty = hasComponent && ((isManufacture && !showOrderPicker) || showOrderPicker);
+        const isRepair = necessaryName === 'repair';
+        row.classList.toggle('tdr-inline-repair-row', isRepair && hasComponent);
+        const repairQtyLabel = document.getElementById('tdr_inline_repair_qty_label');
+        repairQtyLabel?.classList.toggle('d-none', !isRepair || !hasComponent);
+        if (repairQtyLabel && isRepair) repairQtyLabel.title = 'Maximum: ' + Math.max(1, parseInt(componentOption?.dataset.unitsAssy, 10) || 1);
+        const showQty = hasComponent && (isRepair || (isManufacture && !showOrderPicker) || showOrderPicker);
+        if (qtyInput) {
+            if (isRepair) qtyInput.max = String(Math.max(1, parseInt(componentOption?.dataset.unitsAssy, 10) || 1));
+            else qtyInput.removeAttribute('max');
+            qtyInput.title = isRepair ? 'QTY (maximum ' + qtyInput.max + ')' : 'QTY';
+        }
         const showSerial = hasNecessary && !isOrderNew;
 
         if (showOrderPicker) {
@@ -1052,8 +1065,14 @@ function initTdrInlineCreate() {
         orderQtyMount?.classList.toggle('d-none', !showOrderPicker);
         orderQtyLabel?.classList.toggle('d-none', !showOrderPicker);
         moveQtyInputToOrderGroup(showOrderPicker);
+        if (isRepair && hasComponent && qtyInput) {
+            const qtyField = document.getElementById('tdr_inline_repair_qty_field');
+            qtyField?.classList.remove('d-none');
+            qtyField?.appendChild(qtyInput);
+            qtyInput.style.maxWidth = '90px';
+        }
         serialInput?.classList.toggle('d-none', showOrderPicker || !showSerial);
-        assySerialInput?.classList.toggle('d-none', !(showSerial && hasAssy));
+        assySerialInput?.classList.toggle('d-none', !(showSerial && hasAssy && !isRepair));
         if (showOrderPicker && !orderComponentSelect?.value) {
             scheduleOpenOrderComponentSelect();
         }

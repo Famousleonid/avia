@@ -98,6 +98,30 @@
                         <input id="description" type="text" value="{{ $current_tdr->description }}"
                                class="form-control mt-1" name="description">
                     </div>
+                    <div class="form-group" id="repair_qty_group">
+                        <label for="repair_qty">QTY</label>
+                        <input id="repair_qty" name="qty" type="number" class="form-control" min="1"
+                               max="{{ max(1, (int) $current_tdr->component?->units_assy) }}"
+                               value="{{ max(1, (int) $current_tdr->qty) }}">
+                    </div>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const necessary = document.getElementById('necessaries_id');
+                            const qty = document.getElementById('repair_qty');
+                            function syncQty() {
+                                const repair = necessary.selectedOptions[0]?.textContent.trim().toLowerCase() === 'repair';
+                                qty.disabled = !repair;
+                                const assySerial = document.getElementById('assy_serial_number');
+                                if (assySerial) {
+                                    assySerial.disabled = repair;
+                                    assySerial.parentElement.classList.toggle('d-none', repair);
+                                }
+                                document.getElementById('repair_qty_group').classList.toggle('d-none', !repair);
+                            }
+                            necessary.addEventListener('change', syncQty);
+                            syncQty();
+                        });
+                    </script>
                     <div class="text-end mt-2">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Update') }}</button>
                         <a href="{{ route('tdrs.show', ['id'=>$current_tdr->workorder->id]) }}"

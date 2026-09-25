@@ -373,7 +373,7 @@
             <div class="div9" style="text-align: end"> <strong>Repair No.</strong></div>
             <div class="div10 border-b ps-2">{{ $repairNum ?? 'N/A' }}</div>
             <div class="div11" style="text-align: end"> <strong>S/N</strong></div>
-            <div class="div12 border-b ps-2" >{{ $current_tdr->serial_number }}</div>
+            <div class="div12 border-b ps-2" >{{ $current_tdr->serial_number }} · QTY: {{ max(1, (int) $current_tdr->qty) }}</div>
         </div>
 
         <div class="table mt-2 traveler-process-table">

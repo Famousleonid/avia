@@ -28,6 +28,7 @@
                                 ->toJson();
                         @endphp
                         <option value="{{ $component->id }}"
+                                data-units-assy="{{ max(1, (int) $component->units_assy) }}"
                                 data-has_assy="{{ ($component->assy_part_number || $component->assemblies->isNotEmpty()) ? 'true' : 'false' }}"
                                 data-title="{{ $component->name }}"
                                 data-ipl="{{ $component->ipl_num }}"

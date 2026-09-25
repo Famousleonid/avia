@@ -14,6 +14,7 @@ class ManualPartGroupCoverage extends Model
         'legacy_component_assembly_id',
         'qty',
         'expand_ipl_family',
+        'choice_slot',
         'applies_to',
     ];
 

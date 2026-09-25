@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 720" role="img" aria-labelledby="title desc">
+  <title id="title">Chrome Plating Process Sheet</title>
+  <desc id="desc">Printable Chrome Plating process sheet for workorder 107944 with component, part, process and CMM details.</desc>
+  <style>
+    .serif{font-family:Georgia,'Times New Roman',serif}.sans{font-family:Arial,Helvetica,sans-serif}.title{fill:#111;font-size:26px;font-weight:700}.label{fill:#151515;font-size:14px;font-weight:700}.value{fill:#111;font-size:15px}.small{fill:#202020;font-size:12px}.line{stroke:#202020;stroke-width:1}.thin{stroke:#505050;stroke-width:.75}
+  </style>
+  <rect width="1440" height="720" rx="8" fill="#eff3f5"/>
+  <rect x="18" y="17" width="102" height="34" rx="4" fill="#fff" stroke="#0e79dd" stroke-width="1.5"/>
+  <text x="34" y="39" class="sans" fill="#0876db" font-size="15">Print Form</text>
+  <rect x="132" y="17" width="137" height="34" rx="4" fill="#6f747a"/>
+  <text x="151" y="39" class="sans" fill="#fff" font-size="15">⚙ Print Settings</text>
+  <rect x="0" y="66" width="1440" height="654" fill="#fff"/>
+
+  <g transform="translate(36 89)">
+    <text x="0" y="0" class="sans" fill="#050505" font-size="19" font-weight="700" font-style="italic">AVIAT</text><text x="59" y="0" class="sans" fill="#050505" font-size="19" font-weight="700">ECHNIK</text>
+    <path d="M0 6h118M9 11h99M20 16h77" class="thin"/>
+    <text x="418" y="18" class="serif title">CHROME PLATING PROCESS SHEET</text>
+    <g transform="translate(1184 -11)" fill="#111">
+      <rect x="0" y="0" width="6" height="6"/><rect x="9" y="0" width="5" height="5"/><rect x="19" y="0" width="6" height="6"/><rect x="31" y="0" width="5" height="5"/>
+      <rect x="0" y="9" width="5" height="5"/><rect x="11" y="9" width="6" height="6"/><rect x="24" y="8" width="5" height="5"/><rect x="32" y="10" width="6" height="6"/>
+      <rect x="0" y="20" width="6" height="6"/><rect x="10" y="21" width="5" height="5"/><rect x="21" y="19" width="7" height="7"/><rect x="32" y="21" width="5" height="5"/>
+      <rect x="1" y="31" width="5" height="5"/><rect x="11" y="31" width="7" height="7"/><rect x="24" y="31" width="5" height="5"/><rect x="33" y="31" width="6" height="6"/>
+    </g>
+    <g class="serif">
+      <text x="134" y="52" class="label">COMPONENT NAME :</text><text x="344" y="52" class="value">Sliding Tube, Assy</text><path d="M344 57h194" class="line"/>
+      <text x="134" y="79" class="label">PART NUMBER:</text><text x="344" y="79" class="value">2821-0222R</text><path d="M344 84h194" class="line"/>
+      <text x="134" y="106" class="label">WORK ORDER No.:</text><text x="344" y="106" class="value">W107944</text><path d="M344 111h194" class="line"/>
+      <text x="134" y="133" class="label">SERIAL No.:</text><text x="344" y="133" class="value">L1840</text><path d="M344 138h194" class="line"/>
+      <text x="610" y="52" class="label">DATE:</text><path d="M676 57h250" class="line"/>
+      <text x="610" y="79" class="label">RO No.:</text><path d="M676 84h250" class="line"/>
+      <text x="610" y="106" class="label">VENDOR:</text><path d="M676 111h250" class="line"/>
+    </g>
+
+    <text x="0" y="184" class="serif" fill="#111" font-size="17" font-weight="700">Perform the Chrome Plating as the specified under Process No. and in accordance with CMM No .</text>
+    <rect x="-10" y="204" width="1230" height="447" fill="none" class="line"/>
+    <path d="M80 204v447M230 204v447M420 204v447M920 204v447M1016 204v447M1100 204v447" class="line"/>
+    <path d="M-10 239h1230M-10 308h1230M-10 343h1230M-10 378h1230M-10 413h1230M-10 448h1230M-10 483h1230M-10 518h1230M-10 553h1230M-10 588h1230M-10 623h1230" class="thin"/>
+    <g class="serif label"><text x="12" y="226">ITEM No.</text><text x="129" y="226">PART No.</text><text x="270" y="226">DESCRIPTION</text><text x="621" y="226">PROCESS No.</text><text x="952" y="226">QTY</text><text x="1046" y="226">CMM No.</text></g>
+    <g class="serif small">
+      <text x="7" y="276">2821-0222R</text><text x="110" y="264">2821-0222R</text><text x="114" y="282">SN L 1840</text><text x="275" y="276">TUBE SLIDING</text>
+      <text x="473" y="258">Refer to Liebherr SPM 20-00-10P11, Type I</text><text x="450" y="276">Thickness &lt; 0.0098in Grinding</text><text x="510" y="294">374°F &gt; 9°F Fig. 6114</text>
+      <text x="966" y="276">1</text><text x="1030" y="276">32-11-15RM</text>
+    </g>
+  </g>
+</svg>

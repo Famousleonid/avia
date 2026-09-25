@@ -157,6 +157,11 @@ class BushingSpecProcessGroups
                     'component' => $component,
                     'qty' => max(1, (int) ($batchRows->max('qty') ?? $line->qty ?? 1)),
                     'sort_order' => (int) ($line->sort_order ?? 0),
+                    // Batch RO is authoritative, including an intentionally blank RO.
+                    // Keep it per line until pagination so other shipments cannot leak in.
+                    'repair_orders' => $batchRows->groupBy(fn ($row) => WoBushingProcessColumnKey::fromProcess($row->process))
+                        ->map(fn ($rows) => $rows->map(fn ($row) => trim((string) $row->batch->repair_order))
+                            ->filter(fn ($ro) => $ro !== '')->unique()->values()->all())->all(),
                 ];
                 unset($bucket);
             }
@@ -206,6 +211,13 @@ class BushingSpecProcessGroups
                         fn (array $entry): bool => isset($allowedPartNumbers[mb_strtoupper(trim((string) ($entry['component']->part_number ?? '')))])
                     ));
 
+                $repairOrders = [];
+                foreach ($processKeys as $key) {
+                    $repairOrders[$labelMap[$key]] = collect($columnComponents)
+                        ->flatMap(fn ($entry) => $entry['repair_orders'][$key] ?? [])
+                        ->unique()->implode(', ');
+                }
+
                 $groups[] = [
                     'batch_id' => $bucket['batch_id'],
                     'route_number' => $bucket['route_number'],
@@ -223,6 +235,7 @@ class BushingSpecProcessGroups
                     'components' => $columnComponents,
                     'total_qty' => array_sum(array_map(fn (array $entry): int => (int) $entry['qty'], $columnComponents)),
                     'process_numbers' => $processNumbers,
+                    'repair_orders' => $repairOrders,
                     'split_index' => $columnIndex,
                 ];
             }

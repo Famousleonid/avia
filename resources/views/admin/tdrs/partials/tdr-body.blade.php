@@ -1,5 +1,35 @@
 {{-- TDR tab content: Inspection Unit + Inspection Component tables --}}
 <style>
+    #tdr_process_Table .tdr-inline-repair-row > td {
+        padding-top: 14px;
+        align-content: start;
+    }
+    #tdr_inline_repair_qty_field {
+        position: relative;
+    }
+    #tdr_inline_repair_qty_label {
+        position: absolute;
+        top: -12px;
+        left: 0;
+        width: 100%;
+        font-size: 9px;
+        line-height: 10px;
+        margin: 0;
+    }
+    #tdr_inline_repair_qty_mount #tdr_inline_qty {
+        min-width: 0;
+        width: 100%;
+        padding-left: 1px;
+        padding-right: 1px;
+        text-align: center;
+        appearance: textfield;
+        -moz-appearance: textfield;
+    }
+    #tdr_inline_repair_qty_mount #tdr_inline_qty::-webkit-inner-spin-button,
+    #tdr_inline_repair_qty_mount #tdr_inline_qty::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
     .tdr-inline-create-row > td {
         background: rgba(13, 202, 240, .07);
         border-top: 2px solid rgba(13, 202, 240, .45);
@@ -776,7 +806,8 @@
                 </thead>
                 <tbody>
                 @foreach($tdrs as $tdr)
-                    @if($tdr->use_tdr == true && $tdr->use_process_forms == true)
+                    {{-- Keep archived parts available to historical forms, but omit them from the active TDR table. --}}
+                    @if($tdr->use_tdr == true && $tdr->use_process_forms == true && (!$tdr->component_id || ($tdr->component && !$tdr->component->trashed())))
                         @php
                             $tdrDeleteLockedByProcessRo = auth()->check()
                                 && auth()->user()->roleIs(['Technician', 'Team Leader'])
@@ -806,7 +837,10 @@
                             </td>
                             <td class="text-center">
                                 @foreach($necessaries as $nec)
-                                    @if($nec->id == $tdr->necessaries_id) {{ $nec->name }} @endif
+                                    @if($nec->id == $tdr->necessaries_id)
+                                        {{ $nec->name }}
+                                        @if($nec->name === 'Repair')<div class="small tdr-repair-qty">QTY: {{ max(1, (int) $tdr->qty) }}</div>@endif
+                                    @endif
                                 @endforeach
                             </td>
                             <td class="text-center">{{ $tdr->serial_number }}</td>
@@ -986,7 +1020,11 @@
                             <input type="text" name="description" id="tdr_inline_description" class="form-control form-control-sm d-none mb-1" form="tdrInlineCreateForm" placeholder="{{ __('Description') }}">
                         </div>
                     </td>
-                    <td class="text-center text-muted"></td>
+                    <td class="text-center" id="tdr_inline_repair_qty_mount">
+                        <div class="tdr-inline-field" id="tdr_inline_repair_qty_field">
+                            <label for="tdr_inline_qty" id="tdr_inline_repair_qty_label" class="small d-none">QTY</label>
+                        </div>
+                    </td>
                     <td class="text-start tdr-action-cell">
                         <div class="d-flex">
                             <button type="submit" form="tdrInlineCreateForm" class="btn btn-outline-info tdr-inline-save-btn">{{ __('Save') }}</button>

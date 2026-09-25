@@ -666,6 +666,13 @@
                                           style="{{ $paperCountBadgeStyle }}">{{ $prlPartsCount }}</span>
                                 </div>
                             @endif
+                            <button type="button" id="woAssyConfigurationOpen"
+                                    class="btn btn-outline-info btn-sm d-none align-self-center"
+                                    data-index-url="{{ route('workorders.assy-configuration.index', $current_wo) }}"
+                                    data-update-url="{{ route('workorders.assy-configuration.update', $current_wo) }}"
+                                    data-locked="{{ $current_wo->done_at ? '1' : '0' }}">
+                                {{ __('ASSY composition') }} <span id="woAssyConfigurationPending" class="badge bg-warning text-dark d-none"></span>
+                            </button>
                         </div>
 
                     </div>
@@ -775,7 +782,7 @@
                                         role="tab">{{ __('Transfers') }}</button>
                             </li>
                         @endif
-                        @unless(auth()->user()?->roleIs(['Shipping', 'Paint', 'Machining']))
+                        @unless(auth()->user()?->roleIs(['Shipping', 'Paint', 'Machining', 'Technician', 'Team Leader']))
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="tab-measurements" data-bs-toggle="tab"
                                     data-bs-target="#content-measurements" type="button"
@@ -1048,6 +1055,7 @@
 
     {{-- Modals and scripts: reuse from show via stack or include show's modals section --}}
     @include('admin.tdrs.partials.show-modals')
+    @include('admin.tdrs.partials.assy-configuration-modal')
     @include('admin.tdrs.partials.group-process-modal')
     @include('admin.tdrs.partials.show-scripts')
 

@@ -1036,8 +1036,7 @@
                                     </div>
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('NDT', $group['processes']))
-                                            <span class="">
-                                            </span>
+                                            <span class="bushing-sp-ro" data-process="NDT">{{ $group['repair_orders']['NDT'] ?? '' }}</span>
                                         @endif
                                     </div>
                                 </div>
@@ -1089,8 +1088,7 @@
                                     </div>
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Machining', $group['processes']))
-                                            <span class="">
-                                            </span>
+                                            <span class="bushing-sp-ro" data-process="Machining">{{ $group['repair_orders']['Machining'] ?? '' }}</span>
                                         @endif
                                     </div>
                                 </div>
@@ -1142,8 +1140,7 @@
                                     </div>
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Bake (Stress relief)', $group['processes']))
-                                            <span class="">
-                                            </span>
+                                            <span class="bushing-sp-ro" data-process="Bake (Stress relief)">{{ $group['repair_orders']['Bake (Stress relief)'] ?? '' }}</span>
                                         @endif
                                     </div>
                                 </div>
@@ -1195,8 +1192,7 @@
                                     </div>
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Passivation', $group['processes']))
-                                            <span class="">
-                                            </span>
+                                            <span class="bushing-sp-ro" data-process="Passivation">{{ $group['repair_orders']['Passivation'] ?? '' }}</span>
                                         @endif
                                     </div>
                                 </div>
@@ -1248,8 +1244,7 @@
                                     </div>
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('CAD', $group['processes']))
-                                            <span class="">
-                                            </span>
+                                            <span class="bushing-sp-ro" data-process="CAD">{{ $group['repair_orders']['CAD'] ?? '' }}</span>
                                         @endif
                                     </div>
                                 </div>
@@ -1301,8 +1296,7 @@
                                     </div>
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Anodizing', $group['processes']))
-                                            <span class="">
-                                            </span>
+                                            <span class="bushing-sp-ro" data-process="Anodizing">{{ $group['repair_orders']['Anodizing'] ?? '' }}</span>
                                         @endif
                                     </div>
                                 </div>
@@ -1354,8 +1348,7 @@
                                     </div>
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Xylan', $group['processes']))
-                                            <span class="">
-                                            </span>
+                                            <span class="bushing-sp-ro" data-process="Xylan">{{ $group['repair_orders']['Xylan'] ?? '' }}</span>
                                         @endif
                                     </div>
                                 </div>

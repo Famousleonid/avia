@@ -3476,6 +3476,25 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         var form = body.querySelector('#editTdrForm');
                         if (form) {
+                            var repairQty = form.querySelector('#edit_repair_qty');
+                            function syncRepairQty() {
+                                var necessary = form.querySelector('#edit_necessaries_id');
+                                var repair = necessary?.selectedOptions[0]?.textContent.trim().toLowerCase() === 'repair';
+                                var part = form.querySelector('#edit_component_id');
+                                repairQty.disabled = !repair;
+                                var assySerial = form.querySelector('#edit_assy_serial_number');
+                                if (assySerial) {
+                                    assySerial.disabled = repair;
+                                    assySerial.parentElement.classList.toggle('d-none', repair);
+                                }
+                                form.querySelector('#edit_repair_qty_group').classList.toggle('d-none', !repair);
+                                repairQty.max = part?.selectedOptions[0]?.dataset.unitsAssy || repairQty.dataset.manualMax;
+                            }
+                            if (repairQty) {
+                                syncRepairQty();
+                                if (window.$) window.$(form).find('#edit_necessaries_id, #edit_component_id').on('change.repairQty', syncRepairQty);
+                                else form.addEventListener('change', syncRepairQty);
+                            }
                             form.addEventListener('submit', function(ev) {
                                 ev.preventDefault();
                                 var submitBtn = form.querySelector('button[type="submit"]');

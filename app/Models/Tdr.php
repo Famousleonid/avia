@@ -272,7 +272,9 @@ class Tdr extends Model
     //
     public function component()
     {
-        return $this->belongsTo(Component::class);
+        // A TDR is a historical WO record. A part removed from the manual must
+        // remain readable on its existing process and print forms.
+        return $this->belongsTo(Component::class)->withTrashed();
     }
 
     public function orderComponent()

@@ -158,7 +158,7 @@
                     @if($component->description)<span class="process-description">{{ $component->description }}</span>@endif
                 </div>
                 <div class="col-2 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ implode(' / ', $processNumbers) }}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif</div>
-                <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ $component->tdr->qty }}</div>
+                <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ max(1, (int) $component->tdr->qty) }}</div>
                 <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto"></div>
                 <div class="col-1 border-l-b-r details-row text-center" style="min-height: 32px; height: auto"></div>
             </div>

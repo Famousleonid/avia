@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ManualPartGroup;
+use App\Models\Workorder;
 use Illuminate\Support\Collection;
 
 class ManualPartGroupCompositionResolver
@@ -14,7 +15,7 @@ class ManualPartGroupCompositionResolver
      * @param  Collection<int, ManualPartGroup>  $groups
      * @return array<int, Collection<int, int>>
      */
-    public function componentIdsByGroup(Collection $groups): array
+    public function componentIdsByGroup(Collection $groups, ?Workorder $workorder = null): array
     {
         $groupsById = $groups->keyBy(fn (ManualPartGroup $group): int => (int) $group->id);
         $optionToGroupId = $groups
@@ -24,9 +25,11 @@ class ManualPartGroupCompositionResolver
         $families = app(PartGroupCoverageResolver::class)->bundleIplFamiliesForManuals(
             $groups->pluck('manual_id')->unique()->all(), $groups
         );
+        $configuredMembers = $workorder
+            ? app(WorkorderAssyConfiguration::class)->selectedCoverageIds($workorder) : null;
 
         foreach ($groupsById as $groupId => $group) {
-            $this->resolveGroup((int) $groupId, $groupsById, $optionToGroupId, $memo, [], $families);
+            $this->resolveGroup((int) $groupId, $groupsById, $optionToGroupId, $memo, [], $families, $configuredMembers);
         }
 
         return $memo;
@@ -45,7 +48,8 @@ class ManualPartGroupCompositionResolver
         Collection $optionToGroupId,
         array &$memo,
         array $visiting,
-        array $families
+        array $families,
+        ?array $configuredMembers
     ): Collection {
         if (isset($memo[$groupId])) {
             return $memo[$groupId];
@@ -68,11 +72,14 @@ class ManualPartGroupCompositionResolver
                 $componentIds->push((int) $option->component_id);
             }
 
-            foreach ($option->coverages as $coverage) {
+            foreach ($configuredMembers === null
+                ? $option->coverages
+                : app(WorkorderAssyConfiguration::class)->members($option, $configuredMembers) as $coverage) {
                 if ((int) ($coverage->component_id ?? 0) > 0) {
                     $id = (int) $coverage->component_id;
                     $componentIds = $componentIds->merge(
                         $group->behavior === ManualPartGroup::BEHAVIOR_BUNDLE && $coverage->expandsIplFamily()
+                            && ! ($group->type === ManualPartGroup::TYPE_ASSY && $id === (int) $option->component_id)
                             ? ($families[$id] ?? [$id]) : [$id]
                     );
                 }
@@ -82,7 +89,7 @@ class ManualPartGroupCompositionResolver
                 ) ?? 0);
                 if ($nestedGroupId > 0) {
                     $componentIds = $componentIds->merge(
-                        $this->resolveGroup($nestedGroupId, $groupsById, $optionToGroupId, $memo, $visiting, $families)
+                        $this->resolveGroup($nestedGroupId, $groupsById, $optionToGroupId, $memo, $visiting, $families, $configuredMembers)
                     );
                 }
             }

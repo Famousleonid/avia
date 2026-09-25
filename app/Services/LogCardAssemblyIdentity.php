@@ -17,9 +17,9 @@ class LogCardAssemblyIdentity
     }
 
     /** Only own assembly identities, not every ancestor in a BOM. */
-    public function assemblyChoicesByComponent(Collection $groups, Collection $components): array
+    public function assemblyChoicesByComponent(Collection $groups, Collection $components, ?Workorder $workorder = null): array
     {
-        $members = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups);
+        $members = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups, $workorder);
         $choices = [];
         foreach ($groups->where('type', ManualPartGroup::TYPE_ASSY) as $group) {
             foreach ($group->options as $option) {
@@ -28,7 +28,8 @@ class LogCardAssemblyIdentity
                     $specificGroup = clone $group;
                     $specificGroup->setRelation('options', collect([$option]));
                     $specificMembers = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup(
-                        $groups->map(fn ($candidate) => $candidate->id === $group->id ? $specificGroup : $candidate)
+                        $groups->map(fn ($candidate) => $candidate->id === $group->id ? $specificGroup : $candidate),
+                        $workorder
                     );
                     $optionMembers = $specificMembers[$group->id] ?? collect();
                 }
@@ -69,9 +70,10 @@ class LogCardAssemblyIdentity
         $root = ManualPartGroupOption::with('group')->find($rootId);
         $manualId = (int) ($root?->group?->manual_id ?? $workorder->unit?->manual_id);
         $options = $groups->flatMap(fn ($group) => $group->options)->keyBy('id');
+        $configuredMembers = app(WorkorderAssyConfiguration::class)->selectedCoverageIds($workorder);
         $visited = [];
         $allowed = [];
-        $visit = function (int $id) use (&$visit, &$visited, &$allowed, $options): void {
+        $visit = function (int $id) use (&$visit, &$visited, &$allowed, $options, $configuredMembers): void {
             if (isset($visited[$id])) {
                 return;
             }
@@ -81,7 +83,7 @@ class LogCardAssemblyIdentity
                 return;
             }
             $allowed[(int) $option->manual_part_group_id] = true;
-            foreach ($option->coverages as $coverage) {
+            foreach (app(WorkorderAssyConfiguration::class)->members($option, $configuredMembers) as $coverage) {
                 if ($coverage->covered_manual_part_group_option_id) {
                     $visit((int) $coverage->covered_manual_part_group_option_id);
                 }
@@ -118,7 +120,7 @@ class LogCardAssemblyIdentity
             $scope = ManualPartGroupOption::with('group')->find($workorder->scope_part_group_option_id);
             $groups = ManualPartGroup::where('manual_id', $scope?->group?->manual_id)
                 ->with('options.coverages')->get();
-            $members = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups);
+            $members = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups, $workorder);
             foreach ($this->groupsForWorkorder($groups, $workorder)->where('type', ManualPartGroup::TYPE_ASSY) as $group) {
                 $option = $group->options->first();
                 if (! $option) {

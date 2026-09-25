@@ -664,9 +664,9 @@ class MobileApiController extends Controller
             ->whereIn('id', $submittedPartGroupIds)
             ->keyBy('id');
         $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
-            ->componentIdsByGroup($compositionGroups);
+            ->componentIdsByGroup($compositionGroups, $workorder);
         $canonicalRows = [];
-        $explicitChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($compositionGroups, $components);
+        $explicitChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($compositionGroups, $components, $workorder);
         $allAssyGroupsById = $compositionGroups->keyBy('id');
 
         foreach ($inputRows as $inputRow) {
@@ -828,9 +828,9 @@ class MobileApiController extends Controller
             ->orderBy('id')
             ->get();
         $componentIdsByGroup = app(ManualPartGroupCompositionResolver::class)
-            ->componentIdsByGroup($allGroups);
+            ->componentIdsByGroup($allGroups, $workorder);
 
-        $assemblyChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($allGroups, $components);
+        $assemblyChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($allGroups, $components, $workorder);
         $groups = app(LogCardAssemblyIdentity::class)->groupsForWorkorder($allGroups, $workorder)
             ->where('type', ManualPartGroup::TYPE_ASSY)
             ->map(function (ManualPartGroup $group) use (

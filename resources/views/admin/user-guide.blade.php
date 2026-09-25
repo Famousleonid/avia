@@ -158,26 +158,43 @@
             text-transform: uppercase;
         }
 
-        .toc-group + .toc-group { margin-top: 26px; }
+        .toc-group + .toc-group {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(158, 185, 201, .14);
+        }
 
         .toc-group__title {
-            margin: 0 0 9px;
-            color: #8ea3b2;
-            font-size: .72rem;
-            font-weight: 700;
-            letter-spacing: .05em;
+            margin: 0 0 8px;
+            padding: 5px 8px;
+            border-inline-start: 3px solid rgba(17, 181, 217, .62);
+            color: #dcecf3;
+            font-size: .82rem;
+            font-weight: 800;
+            letter-spacing: .06em;
             text-transform: uppercase;
         }
 
         .toc-link {
             display: block;
-            margin-inline-start: -10px;
-            padding: 8px 10px;
+            position: relative;
+            margin-inline-start: 12px;
+            padding: 7px 10px 7px 18px;
             border-inline-start: 2px solid transparent;
             color: #d8e3eb;
-            font-size: .88rem;
+            font-size: .83rem;
             line-height: 1.35;
             text-decoration: none;
+        }
+
+        .toc-link::before {
+            position: absolute;
+            inset-inline-start: 4px;
+            top: 50%;
+            width: 6px;
+            height: 1px;
+            background: rgba(158, 185, 201, .55);
+            content: "";
         }
 
         .toc-link:hover,
@@ -191,6 +208,8 @@
             background: rgba(17, 181, 217, .08);
             color: #6fe0f2;
         }
+
+        .toc-link.is-active::before { background: var(--cyan-500); }
 
         .guide-reading {
             display: flex;
@@ -219,10 +238,18 @@
         .guide-page#workorder-open { order: 24; }
         .guide-page#workorder-main { order: 25; }
         .guide-page#workorder-main-details { order: 26; }
+        .guide-page#workorder-tasks { order: 27; }
+        .guide-page#workorder-processes { order: 28; }
+        .guide-page#workorder-resources { order: 29; }
+        .guide-page#tdr-parts-processes { order: 30; }
+        .guide-page#tdr-traveler { order: 31; }
+        .guide-page#tdr-process-form { order: 32; }
+        .guide-page#tdr-paper-workorder { order: 33; }
+        .guide-page#training { order: 40; }
+        .guide-page#technician-directory { order: 50; }
+        .guide-page#materials { order: 60; }
 
         .guide-page:last-child { margin-bottom: 42px; }
-        .guide-page[data-guide-order="26"] { margin-bottom: 0; }
-
         .chapter-label {
             display: flex;
             align-items: center;
@@ -284,7 +311,7 @@
             display: block;
             width: 100%;
             height: auto;
-            max-height: 610px;
+            max-height: 732px;
             object-fit: contain;
             border-radius: 4px;
             background: #06131e;
@@ -421,8 +448,8 @@
 
         .guide-page__split {
             display: grid;
-            grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-            gap: clamp(20px, 3vw, 42px);
+            grid-template-columns: minmax(0, 3.6fr) minmax(0, 1.4fr);
+            gap: clamp(16px, 2vw, 28px);
             align-items: start;
         }
 
@@ -432,6 +459,17 @@
 
         .guide-page__split .guide-copy {
             display: block;
+        }
+
+        .guide-copy.guide-copy--single {
+            display: block;
+            width: 100%;
+            max-width: none;
+        }
+
+        .guide-copy.guide-copy--single > p {
+            width: 100%;
+            max-width: none;
         }
 
         .guide-page__split .guide-copy section + section {
@@ -524,6 +562,10 @@
         }
 
         .guide-steps li + li::before { top: 19px; }
+
+        .guide-steps--from-2 { counter-reset: guide-step 1; }
+        .guide-steps--from-4 { counter-reset: guide-step 3; }
+        .guide-steps--from-5 { counter-reset: guide-step 4; }
 
         @media (max-width: 1120px) {
             .guide-topbar {
@@ -673,6 +715,28 @@
                     <a class="toc-link" href="#workorder-open" data-i18n="workorderOpenNav">2.4 Open a workorder</a>
                     <a class="toc-link" href="#workorder-main" data-i18n="workorderMainNav">2.5 Main</a>
                     <a class="toc-link" href="#workorder-main-details" data-i18n="workorderMainDetailsNav">2.6 Main: header and work area</a>
+                    <a class="toc-link" href="#workorder-tasks" data-i18n="workorderTasksNav">2.7 Tasks and notes</a>
+                    <a class="toc-link" href="#workorder-processes" data-i18n="workorderProcessesNav">2.8 Processes and parts</a>
+                    <a class="toc-link" href="#workorder-resources" data-i18n="workorderResourcesNav">2.9 TDR, pictures and PDF Library</a>
+                    <a class="toc-link" href="#tdr-parts-processes" data-i18n="tdrPartsProcessesNav">2.10 TDR: parts and processes</a>
+                    <a class="toc-link" href="#tdr-traveler" data-i18n="tdrTravelerNav">2.11 Traveler: process groups</a>
+                    <a class="toc-link" href="#tdr-process-form" data-i18n="tdrProcessFormNav">2.12 Process form</a>
+                    <a class="toc-link" href="#tdr-paper-workorder" data-i18n="tdrPaperWorkorderNav">2.13 TDR: paper workorder</a>
+                </section>
+
+                <section class="toc-group">
+                    <h3 class="toc-group__title" data-i18n="trainingGroup">3. Training</h3>
+                    <a class="toc-link" href="#training" data-i18n="trainingNav">3.1 My training</a>
+                </section>
+
+                <section class="toc-group">
+                    <h3 class="toc-group__title" data-i18n="technicianGroup">4. Technician</h3>
+                    <a class="toc-link" href="#technician-directory" data-i18n="technicianNav">4.1 Technician directory</a>
+                </section>
+
+                <section class="toc-group">
+                    <h3 class="toc-group__title" data-i18n="materialsGroup">5. Materials</h3>
+                    <a class="toc-link" href="#materials" data-i18n="materialsNav">5.1 Materials list</a>
                 </section>
             </nav>
         </aside>
@@ -935,6 +999,197 @@
                     </div>
                 </div>
             </article>
+
+            <article class="guide-page" id="workorder-tasks" data-guide-page data-guide-order="27">
+                <div class="chapter-label" data-i18n="workorderTasksChapter">2.7 · Workorder</div>
+                <h2 class="page-title" data-i18n="workorderTasksTitle">Tasks and notes</h2>
+                <p class="page-lead" data-i18n="workorderTasksLead">Record only work that has actually been completed.</p>
+
+                <div class="guide-page__split">
+                    <figure class="guide-figure">
+                        <img src="{{ asset('img/user-guide/technician-workorder-main-workarea.png') }}" alt="Workorder tasks and notes area" data-i18n-alt="workorderTasksAlt">
+                        <figcaption data-i18n="workorderTasksCaption">Tasks, dates and workorder notes.</figcaption>
+                    </figure>
+                    <div class="guide-copy">
+                        <p data-i18n="workorderTasksCopy">Use the phase buttons to locate the assigned task, then record its date only after the work is complete. The Workorder Notes field is for a short factual note; it saves when you leave the field or press Ctrl+Enter. The All tab gives context, while Tasks / Notes focuses on the work and notes for the order.</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-page" id="workorder-processes" data-guide-page data-guide-order="28">
+                <div class="chapter-label" data-i18n="workorderProcessesChapter">2.8 · Workorder</div>
+                <h2 class="page-title" data-i18n="workorderProcessesTitle">Processes and parts</h2>
+                <p class="page-lead" data-i18n="workorderProcessesLead">Open the section required by the assigned work.</p>
+
+                <div class="guide-page__split">
+                    <figure class="guide-figure">
+                        <img src="{{ asset('img/user-guide/technician-workorder-main-technician.png') }}" alt="Workorder process and parts panels" data-i18n-alt="workorderProcessesAlt">
+                        <figcaption data-i18n="workorderProcessesCaption">Main workorder sections for a technician.</figcaption>
+                    </figure>
+                    <div class="guide-copy">
+                        <p data-i18n="workorderProcessesCopy">STD Processes lists standard work such as stress relief, NDT, CAD and paint. Parts / Processes shows component work and repair processes, and Bushing / Processes shows bushing work when the order contains it. Check the task and status first, open only the section needed for that task, and enter dates or notes only for work you have performed.</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-page" id="workorder-resources" data-guide-page data-guide-order="29">
+                <div class="chapter-label" data-i18n="workorderResourcesChapter">2.9 · Workorder</div>
+                <h2 class="page-title" data-i18n="workorderResourcesTitle">TDR, pictures and PDF Library</h2>
+                <p class="page-lead" data-i18n="workorderResourcesLead">Use supporting records directly from the workorder header.</p>
+
+                <figure class="guide-figure">
+                    <img src="{{ asset('img/user-guide/technician-workorder-main-header-only.png') }}" alt="Workorder header actions" data-i18n-alt="workorderResourcesAlt">
+                    <figcaption data-i18n="workorderResourcesCaption">Buttons in the workorder header.</figcaption>
+                </figure>
+                <div class="guide-copy guide-copy--single">
+                    <p data-i18n="workorderResourcesCopy">The green hammer opens the TDR Report for the order. The blue Pictures button opens photo evidence: review it before work and add images only to the correct group. The yellow PDF Library button opens attached manuals, instructions and reference documents. The Training indicator shows your training status for this manual, and the plus button opens your training record form.</p>
+                </div>
+            </article>
+
+            <article class="guide-page" id="tdr-parts-processes" data-guide-page data-guide-order="30">
+                <div class="chapter-label" data-i18n="tdrPartsProcessesChapter">2.10 · TDR</div>
+                <h2 class="page-title" data-i18n="tdrPartsProcessesTitle">TDR: parts and processes</h2>
+                <p class="page-lead" data-i18n="tdrPartsProcessesLead">Add and save the part first; then add processes for that saved part.</p>
+
+                <div class="guide-page__split">
+                    <figure class="guide-figure">
+                        <img src="{{ asset('img/user-guide/technician-tdr-filled-parts.svg') }}" alt="TDR report with saved part rows and the Add button" data-i18n-alt="tdrPartsProcessesAlt">
+                        <figcaption data-i18n="tdrPartsProcessesCaption">Saved parts in TDR and the Add button for the next part.</figcaption>
+                    </figure>
+                    <div class="guide-copy">
+                        <ol class="guide-steps">
+                            <li data-i18n="tdrPartsStep1">Open TDR Report from Main and press Add below the table. A new part line opens; no data is saved yet.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-page__split">
+                    <figure class="guide-figure">
+                        <img src="{{ asset('img/user-guide/technician-tdr-code.png') }}" alt="TDR part line with Part, Code and Save fields" data-i18n-alt="tdrPartCodeAlt">
+                        <figcaption data-i18n="tdrPartCodeCaption">The new TDR line: Part, Code and Save.</figcaption>
+                    </figure>
+                    <div class="guide-copy">
+                        <ol class="guide-steps guide-steps--from-2">
+                            <li data-i18n="tdrPartsStep2">In P/N (Part), select the required part from the current manual. Add Part appears only if your access allows changing that manual.</li>
+                            <li data-i18n="tdrPartsStep3">After selecting Part, select the required Code, complete only the fields required for this part and press Save. The part must be saved before processes can be added.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-page__split">
+                    <figure class="guide-figure">
+                        <img src="{{ asset('img/user-guide/technician-tdr-processes-button.png') }}" alt="Part Processes train icon in a saved TDR row" data-i18n-alt="tdrProcessesButtonAlt">
+                        <figcaption data-i18n="tdrProcessesButtonCaption">The train icon in Action opens Part Processes for this saved part.</figcaption>
+                    </figure>
+                    <div class="guide-copy">
+                        <ol class="guide-steps guide-steps--from-4">
+                            <li data-i18n="tdrPartsStep4">On the saved part row, press the train icon in Action. The Part Processes tab opens for that exact part.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-page__split">
+                    <figure class="guide-figure">
+                        <img src="{{ asset('img/user-guide/technician-tdr-processes-add.png') }}" alt="Part Processes line for adding a process" data-i18n-alt="tdrProcessCreateAlt">
+                        <figcaption data-i18n="tdrProcessCreateCaption">Part Processes: select a process and save it for the chosen part.</figcaption>
+                    </figure>
+                    <div class="guide-copy">
+                        <ol class="guide-steps guide-steps--from-5">
+                            <li data-i18n="tdrPartsStep5">Press Add, choose Process Name, then choose the required process and enter its description or Page &amp; Fig where needed. Add Process appears only when you are allowed to create a new process definition. Press Save to attach the selected process to this part.</li>
+                        </ol>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-page" id="tdr-traveler" data-guide-page data-guide-order="31">
+                <div class="chapter-label" data-i18n="tdrTravelerChapter">2.11 · TDR</div>
+                <h2 class="page-title" data-i18n="tdrTravelerTitle">Traveler: grouping processes</h2>
+                <p class="page-lead" data-i18n="tdrTravelerLead">Traveler checkboxes group work that is sent together.</p>
+
+                <figure class="guide-figure">
+                    <img src="{{ asset('img/user-guide/technician-tdr-traveler-selection.svg') }}" alt="Part Processes with Traveler checkboxes, Vendor and Form buttons" data-i18n-alt="tdrTravelerAlt">
+                    <figcaption data-i18n="tdrTravelerCaption">Traveler checkboxes, Vendor and Form / Form traveler buttons.</figcaption>
+                </figure>
+                <div class="guide-copy guide-copy--single">
+                    <p data-i18n="tdrTravelerCopy">In Part Processes, checkboxes appear only in the Traveler column. Select the processes that must travel together and press Traveler; an existing group is labelled Traveler 1, Traveler 2, and so on. In the Form column choose the Vendor. Press Form for a single process, or Form traveler for an existing Traveler group. Check the Vendor before opening the form; it is printable output and does not alter the workorder.</p>
+                </div>
+            </article>
+
+            <article class="guide-page" id="tdr-process-form" data-guide-page data-guide-order="32">
+                <div class="chapter-label" data-i18n="tdrProcessFormChapter">2.12 · TDR</div>
+                <h2 class="page-title" data-i18n="tdrProcessFormTitle">Process form</h2>
+                <p class="page-lead" data-i18n="tdrProcessFormLead">The Form button opens a printable sheet for the selected process.</p>
+
+                <figure class="guide-figure">
+                    <img src="{{ asset('img/user-guide/technician-tdr-process-form.svg') }}" alt="Printable process form populated from the workorder" data-i18n-alt="tdrProcessFormAlt">
+                    <figcaption data-i18n="tdrProcessFormCaption">The generated process form uses the current workorder and process data.</figcaption>
+                </figure>
+                <div class="guide-copy guide-copy--single">
+                    <p data-i18n="tdrProcessFormCopy">Form opens in a new tab and fills the sheet from the selected process and its part: workorder number, component, IPL, part number, serial number, process text, quantity and CMM reference. The selected Vendor and RO number appear when they are already assigned. Review every field before Print Form: the form is a printable record and does not save or alter the workorder.</p>
+                </div>
+            </article>
+
+            <article class="guide-page" id="tdr-paper-workorder" data-guide-page data-guide-order="33">
+                <div class="chapter-label" data-i18n="tdrPaperWorkorderChapter">2.13 · TDR</div>
+                <h2 class="page-title" data-i18n="tdrPaperWorkorderTitle">TDR: paper workorder</h2>
+                <p class="page-lead" data-i18n="tdrPaperWorkorderLead">The paper icons create printable forms from the current workorder data.</p>
+
+                <figure class="guide-figure guide-figure--main-header">
+                    <img src="{{ asset('img/user-guide/technician-tdr-paper-forms.png') }}" alt="TDR Report paper form buttons" data-i18n-alt="tdrPaperWorkorderAlt">
+                    <figcaption data-i18n="tdrPaperWorkorderCaption">Paper forms in the TDR Report header.</figcaption>
+                </figure>
+                <div class="guide-copy guide-copy--single">
+                    <p data-i18n="tdrPaperWorkorderCopy">The paper icons do not create a new workorder or change the data: they prepare printable documents from the workorder already on screen. WO Box Title and WO Process Sheet create the paper workorder set; In-Process Check Sheet, TDR Form, R&M Form, SP Form, Log Card and SB Form create their matching records. Green papers are standard-process forms (NDT, CAD, Stress and Paint), while KIT and PRL prepare the parts lists. A green number on a paper icon shows how many rows will be included; check the part and process data first, then open the required form in a new tab and print it only when it is ready.</p>
+                </div>
+            </article>
+
+            <article class="guide-page" id="training" data-guide-page data-guide-order="40">
+                <div class="chapter-label" data-i18n="trainingChapter">3.1 · Training</div>
+                <h2 class="page-title" data-i18n="trainingTitle">My training</h2>
+                <p class="page-lead" data-i18n="trainingLead">Review your training units and their current dates.</p>
+
+                <div class="guide-page__split">
+                    <figure class="guide-figure">
+                        <img src="{{ asset('img/user-guide/technician-training.png') }}" alt="Technician training page" data-i18n-alt="trainingAlt">
+                        <figcaption data-i18n="trainingCaption">Training page for the signed-in technician.</figcaption>
+                    </figure>
+                    <div class="guide-copy">
+                        <p data-i18n="trainingCopy">The Training page contains only your own training records. Use Search to find a component or manual, check the first and last training dates and the total hours, and use Not updated trainings to focus on records requiring attention. Add Unit opens a new training entry; create or update a record only when the training has actually taken place.</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-page" id="technician-directory" data-guide-page data-guide-order="50">
+                <div class="chapter-label" data-i18n="technicianChapter">4.1 · Technician</div>
+                <h2 class="page-title" data-i18n="technicianTitle">Technician directory</h2>
+                <p class="page-lead" data-i18n="technicianLead">Find people and confirm their team and role.</p>
+
+                <div class="guide-page__split">
+                    <figure class="guide-figure">
+                        <img src="{{ asset('img/user-guide/technician-directory.png') }}" alt="Technician directory" data-i18n-alt="technicianAlt">
+                        <figcaption data-i18n="technicianCaption">Directory available to a technician.</figcaption>
+                    </figure>
+                    <div class="guide-copy">
+                        <p data-i18n="technicianCopy">Use Search to find a colleague by name, email, team or stamp, then read the Team and Role columns to confirm the correct person. A technician can view the directory and open only their own profile for editing; other users’ records remain read-only.</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="guide-page" id="materials" data-guide-page data-guide-order="60">
+                <div class="chapter-label" data-i18n="materialsChapter">5.1 · Materials</div>
+                <h2 class="page-title" data-i18n="materialsTitle">Materials list</h2>
+                <p class="page-lead" data-i18n="materialsLead">Find the approved material and its specification.</p>
+
+                <div class="guide-page__split">
+                    <figure class="guide-figure">
+                        <img src="{{ asset('img/user-guide/technician-materials.png') }}" alt="Materials list" data-i18n-alt="materialsAlt">
+                        <figcaption data-i18n="materialsCaption">Materials page available to a technician.</figcaption>
+                    </figure>
+                    <div class="guide-copy">
+                        <p data-i18n="materialsCopy">Search by code, material, specification or description, and click a column heading to sort the list. The pencil opens the material record and Add materials opens a new record; use either only when the material information has been confirmed, so the common list remains accurate for every workorder.</p>
+                    </div>
+                </div>
+            </article>
         </main>
     </div>
 
@@ -1164,6 +1419,247 @@
                 kk: { headerActionTdrTitle: 'TDR Report', headerActionTdrText: 'Осы нарядтың TDR Report бетін ашады.', headerActionPhotosTitle: 'Фотосуреттер', headerActionPhotosText: 'Осы нарядтың барлық фотосуреттерін ашады.', headerActionPdfTitle: 'PDF Library', headerActionPdfText: 'Осы нарядқа тіркелген құжаттарды ашады.', headerActionTrainingTitle: 'Training', headerActionTrainingText: 'Оқу күйіңізді көрсетеді; тарихын көру үшін меңзерді үстіне апарыңыз.', headerActionAddTrainingTitle: 'Training қосу', headerActionAddTrainingText: 'Осы manual бойынша оқу жазбасын қосу немесе жаңарту пішінін ашады.' },
                 be: { headerActionTdrTitle: 'TDR Report', headerActionTdrText: 'Адкрывае TDR Report гэтага нарада.', headerActionPhotosTitle: 'Фатаграфіі', headerActionPhotosText: 'Адкрывае ўсе фатаграфіі гэтага нарада.', headerActionPdfTitle: 'PDF Library', headerActionPdfText: 'Адкрывае дакументы, далучаныя да гэтага нарада.', headerActionTrainingTitle: 'Training', headerActionTrainingText: 'Паказвае статус вашага навучання; навядзіце курсор, каб убачыць гісторыю.', headerActionAddTrainingTitle: 'Дадаць Training', headerActionAddTrainingText: 'Адкрывае форму дадання або абнаўлення запісу аб навучанні для гэтага manual.' },
             };
+            const technicianGuideTranslations = {
+                en: {
+                    workorderTasksNav: '2.7 Tasks and notes', workorderTasksChapter: '2.7 · Workorder', workorderTasksTitle: 'Tasks and notes', workorderTasksLead: 'Record only work that has actually been completed.', workorderTasksAlt: 'Workorder tasks and notes area', workorderTasksCaption: 'Tasks, dates and workorder notes.', workorderTasksCopy: 'Use the phase buttons to locate the assigned task, then record its date only after the work is complete. The Workorder Notes field is for a short factual note; it saves when you leave the field or press Ctrl+Enter. The All tab gives context, while Tasks / Notes focuses on the work and notes for the order.',
+                    workorderProcessesNav: '2.8 Processes and parts', workorderProcessesChapter: '2.8 · Workorder', workorderProcessesTitle: 'Processes and parts', workorderProcessesLead: 'Open the section required by the assigned work.', workorderProcessesAlt: 'Workorder process and parts panels', workorderProcessesCaption: 'Main workorder sections for a technician.', workorderProcessesCopy: 'STD Processes lists standard work such as stress relief, NDT, CAD and paint. Parts / Processes shows component work and repair processes, and Bushing / Processes shows bushing work when the order contains it. Check the task and status first, open only the section needed for that task, and enter dates or notes only for work you have performed.',
+                    workorderResourcesNav: '2.9 TDR, pictures and PDF Library', workorderResourcesChapter: '2.9 · Workorder', workorderResourcesTitle: 'TDR, pictures and PDF Library', workorderResourcesLead: 'Use supporting records directly from the workorder header.', workorderResourcesAlt: 'Workorder header actions', workorderResourcesCaption: 'Buttons in the workorder header.', workorderResourcesCopy: 'The green hammer opens the TDR Report for the order. The blue Pictures button opens photo evidence: review it before work and add images only to the correct group. The yellow PDF Library button opens attached manuals, instructions and reference documents. The Training indicator shows your training status for this manual, and the plus button opens your training record form.',
+                    trainingGroup: '3. Training', trainingNav: '3.1 My training', trainingChapter: '3.1 · Training', trainingTitle: 'My training', trainingLead: 'Review your training units and their current dates.', trainingAlt: 'Technician training page', trainingCaption: 'Training page for the signed-in technician.', trainingCopy: 'The Training page contains only your own training records. Use Search to find a component or manual, check the first and last training dates and the total hours, and use Not updated trainings to focus on records requiring attention. Add Unit opens a new training entry; create or update a record only when the training has actually taken place.',
+                    technicianGroup: '4. Technician', technicianNav: '4.1 Technician directory', technicianChapter: '4.1 · Technician', technicianTitle: 'Technician directory', technicianLead: 'Find people and confirm their team and role.', technicianAlt: 'Technician directory', technicianCaption: 'Directory available to a technician.', technicianCopy: 'Use Search to find a colleague by name, email, team or stamp, then read the Team and Role columns to confirm the correct person. A technician can view the directory and open only their own profile for editing; other users’ records remain read-only.',
+                    materialsGroup: '5. Materials', materialsNav: '5.1 Materials list', materialsChapter: '5.1 · Materials', materialsTitle: 'Materials list', materialsLead: 'Find the approved material and its specification.', materialsAlt: 'Materials list', materialsCaption: 'Materials page available to a technician.', materialsCopy: 'Search by code, material, specification or description, and click a column heading to sort the list. The pencil opens the material record and Add materials opens a new record; use either only when the material information has been confirmed, so the common list remains accurate for every workorder.'
+                },
+                ru: {
+                    workorderTasksNav: '2.7 Задачи и заметки', workorderTasksChapter: '2.7 · Workorder', workorderTasksTitle: 'Задачи и заметки', workorderTasksLead: 'Фиксируйте только фактически выполненную работу.', workorderTasksAlt: 'Зона задач и заметок заказ-наряда', workorderTasksCaption: 'Задачи, даты и заметки заказ-наряда.', workorderTasksCopy: 'Кнопками этапов найдите назначенную задачу и внесите дату только после выполнения работы. Поле Workorder Notes предназначено для краткой фактической заметки: оно сохраняется при выходе из поля или по Ctrl+Enter. Вкладка All даёт общий контекст, а Tasks / Notes показывает задачи и заметки наряда.',
+                    workorderProcessesNav: '2.8 Процессы и детали', workorderProcessesChapter: '2.8 · Workorder', workorderProcessesTitle: 'Процессы и детали', workorderProcessesLead: 'Открывайте раздел, необходимый для назначенной работы.', workorderProcessesAlt: 'Панели процессов и деталей заказ-наряда', workorderProcessesCaption: 'Рабочие разделы Main для техника.', workorderProcessesCopy: 'В STD Processes находятся стандартные работы: stress relief, NDT, CAD и paint. Parts / Processes показывает работу по компоненту и ремонтные процессы, Bushing / Processes — работу с бушингами, если они есть в наряде. Сначала проверьте задачу и статус, открывайте только нужный раздел и вносите даты или заметки лишь по выполненной вами работе.',
+                    workorderResourcesNav: '2.9 TDR, фото и PDF Library', workorderResourcesChapter: '2.9 · Workorder', workorderResourcesTitle: 'TDR, фото и PDF Library', workorderResourcesLead: 'Используйте вспомогательные записи прямо из шапки наряда.', workorderResourcesAlt: 'Действия в шапке заказ-наряда', workorderResourcesCaption: 'Кнопки в шапке заказ-наряда.', workorderResourcesCopy: 'Зелёный молоток открывает TDR Report наряда. Синяя кнопка Pictures открывает фото-доказательства: просмотрите их до начала работы и добавляйте снимки только в правильную группу. Жёлтая кнопка PDF Library открывает прикреплённые manual, инструкции и справочные документы. Индикатор Training показывает ваш статус обучения по этому manual, а кнопка «плюс» открывает форму записи обучения.',
+                    trainingGroup: '3. Training', trainingNav: '3.1 Моё обучение', trainingChapter: '3.1 · Training', trainingTitle: 'Моё обучение', trainingLead: 'Проверяйте свои учебные блоки и актуальные даты.', trainingAlt: 'Страница обучения техника', trainingCaption: 'Страница Training для вошедшего техника.', trainingCopy: 'Страница Training содержит только ваши записи обучения. Через Search найдите компонент или manual, проверьте первую и последнюю даты обучения и общее количество часов, а переключатель Not updated trainings оставляет записи, требующие внимания. Add Unit открывает новую запись обучения; создавайте или обновляйте её только после фактически пройденного обучения.',
+                    technicianGroup: '4. Technician', technicianNav: '4.1 Справочник Technician', technicianChapter: '4.1 · Technician', technicianTitle: 'Справочник Technician', technicianLead: 'Находите сотрудников и проверяйте их команду и роль.', technicianAlt: 'Справочник Technician', technicianCaption: 'Справочник, доступный технику.', technicianCopy: 'Через Search найдите сотрудника по имени, email, команде или stamp, затем сверьте колонки Team и Role. Техник может просматривать справочник и открыть для редактирования только собственный профиль; записи остальных сотрудников остаются только для просмотра.',
+                    materialsGroup: '5. Materials', materialsNav: '5.1 Список Materials', materialsChapter: '5.1 · Materials', materialsTitle: 'Список Materials', materialsLead: 'Находите утверждённый материал и его спецификацию.', materialsAlt: 'Список материалов', materialsCaption: 'Страница Materials, доступная технику.', materialsCopy: 'Ищите по коду, названию, спецификации или описанию и нажимайте заголовок колонки для сортировки списка. Карандаш открывает запись материала, а Add materials — новую запись; используйте их только после подтверждения информации о материале, чтобы общий список оставался точным для всех заказ-нарядов.'
+                },
+                uk: {
+                    workorderTasksNav: '2.7 Завдання й нотатки', workorderTasksChapter: '2.7 · Workorder', workorderTasksTitle: 'Завдання й нотатки', workorderTasksLead: 'Фіксуйте лише фактично виконану роботу.', workorderTasksAlt: 'Зона завдань і нотаток наряду', workorderTasksCaption: 'Завдання, дати й нотатки наряду.', workorderTasksCopy: 'Кнопками етапів знайдіть призначене завдання та внесіть дату лише після завершення роботи. Поле Workorder Notes призначене для короткої фактичної нотатки: воно зберігається після виходу з поля або за Ctrl+Enter. Вкладка All дає загальний контекст, а Tasks / Notes показує завдання й нотатки наряду.',
+                    workorderProcessesNav: '2.8 Процеси й деталі', workorderProcessesChapter: '2.8 · Workorder', workorderProcessesTitle: 'Процеси й деталі', workorderProcessesLead: 'Відкривайте розділ, потрібний для призначеної роботи.', workorderProcessesAlt: 'Панелі процесів і деталей наряду', workorderProcessesCaption: 'Робочі розділи Main для техніка.', workorderProcessesCopy: 'У STD Processes містяться стандартні роботи: stress relief, NDT, CAD і paint. Parts / Processes показує роботу з компонентом і ремонтні процеси, Bushing / Processes — роботу з bushings, якщо вони є в наряді. Спершу перевірте завдання та статус, відкривайте лише потрібний розділ і вносьте дати або нотатки тільки за виконаною вами роботою.',
+                    workorderResourcesNav: '2.9 TDR, фото та PDF Library', workorderResourcesChapter: '2.9 · Workorder', workorderResourcesTitle: 'TDR, фото та PDF Library', workorderResourcesLead: 'Використовуйте допоміжні записи прямо із шапки наряду.', workorderResourcesAlt: 'Дії у шапці наряду', workorderResourcesCaption: 'Кнопки у шапці наряду.', workorderResourcesCopy: 'Зелений молоток відкриває TDR Report наряду. Синя кнопка Pictures відкриває фотодокази: перегляньте їх до початку роботи й додавайте знімки лише до правильної групи. Жовта кнопка PDF Library відкриває прикріплені manual, інструкції та довідкові документи. Індикатор Training показує ваш статус навчання за цим manual, а кнопка «плюс» відкриває форму запису навчання.',
+                    trainingGroup: '3. Training', trainingNav: '3.1 Моє навчання', trainingChapter: '3.1 · Training', trainingTitle: 'Моє навчання', trainingLead: 'Перевіряйте свої навчальні блоки й актуальні дати.', trainingAlt: 'Сторінка навчання техніка', trainingCaption: 'Сторінка Training для увійшовшого техніка.', trainingCopy: 'Сторінка Training містить лише ваші записи навчання. Через Search знайдіть компонент або manual, перевірте першу й останню дати навчання та загальну кількість годин, а перемикач Not updated trainings залишає записи, що потребують уваги. Add Unit відкриває новий запис навчання; створюйте або оновлюйте його лише після фактично пройденого навчання.',
+                    technicianGroup: '4. Technician', technicianNav: '4.1 Довідник Technician', technicianChapter: '4.1 · Technician', technicianTitle: 'Довідник Technician', technicianLead: 'Знаходьте працівників і перевіряйте їхню команду та роль.', technicianAlt: 'Довідник Technician', technicianCaption: 'Довідник, доступний техніку.', technicianCopy: 'Через Search знайдіть працівника за ім’ям, email, командою або stamp, потім звірте колонки Team і Role. Технік може переглядати довідник і відкрити для редагування лише власний профіль; записи інших працівників залишаються лише для перегляду.',
+                    materialsGroup: '5. Materials', materialsNav: '5.1 Список Materials', materialsChapter: '5.1 · Materials', materialsTitle: 'Список Materials', materialsLead: 'Знаходьте затверджений матеріал та його специфікацію.', materialsAlt: 'Список матеріалів', materialsCaption: 'Сторінка Materials, доступна техніку.', materialsCopy: 'Шукайте за кодом, назвою, специфікацією або описом і натискайте заголовок колонки для сортування списку. Олівець відкриває запис матеріалу, а Add materials — новий запис; використовуйте їх лише після підтвердження інформації про матеріал, щоб спільний список залишався точним для всіх нарядів.'
+                },
+                he: {
+                    workorderTasksNav: '2.7 משימות והערות', workorderTasksChapter: '2.7 · הוראת עבודה', workorderTasksTitle: 'משימות והערות', workorderTasksLead: 'תעדו רק עבודה שבוצעה בפועל.', workorderTasksAlt: 'אזור המשימות וההערות של הוראת העבודה', workorderTasksCaption: 'משימות, תאריכים והערות של הוראת העבודה.', workorderTasksCopy: 'השתמשו בכפתורי השלבים כדי לאתר את המשימה שהוקצתה והזינו תאריך רק לאחר סיום העבודה. השדה Workorder Notes מיועד להערה עובדתית קצרה ונשמר כשעוזבים את השדה או לוחצים Ctrl+Enter. הלשונית All נותנת הקשר כללי, ו-Tasks / Notes מתמקדת במשימות ובהערות.',
+                    workorderProcessesNav: '2.8 תהליכים וחלקים', workorderProcessesChapter: '2.8 · הוראת עבודה', workorderProcessesTitle: 'תהליכים וחלקים', workorderProcessesLead: 'פתחו את האזור הנדרש לעבודה שהוקצתה.', workorderProcessesAlt: 'לוחות תהליכים וחלקים של הוראת עבודה', workorderProcessesCaption: 'אזורי Main לטכנאי.', workorderProcessesCopy: 'STD Processes כולל עבודות תקן כגון stress relief, NDT, CAD ו-paint. Parts / Processes מציג עבודת רכיב ותהליכי תיקון, ו-Bushing / Processes מציג עבודה עם bushings כאשר היא קיימת בהוראה. בדקו תחילה את המשימה והסטטוס, פתחו רק את האזור הנדרש והזינו תאריכים או הערות רק על עבודה שביצעתם.',
+                    workorderResourcesNav: '2.9 TDR, תמונות ו-PDF Library', workorderResourcesChapter: '2.9 · הוראת עבודה', workorderResourcesTitle: 'TDR, תמונות ו-PDF Library', workorderResourcesLead: 'השתמשו ברשומות התמיכה ישירות מכותרת ההוראה.', workorderResourcesAlt: 'פעולות בכותרת הוראת העבודה', workorderResourcesCaption: 'כפתורים בכותרת הוראת העבודה.', workorderResourcesCopy: 'הפטיש הירוק פותח את TDR Report של ההוראה. כפתור Pictures הכחול פותח תיעוד מצולם: בדקו אותו לפני תחילת העבודה והוסיפו תמונות רק לקבוצה הנכונה. כפתור PDF Library הצהוב פותח manuals, הוראות ומסמכי עזר מצורפים. מחוון Training מציג את סטטוס ההדרכה שלכם ל-manual זה, וכפתור הפלוס פותח את טופס רישום ההדרכה.',
+                    trainingGroup: '3. Training', trainingNav: '3.1 ההדרכה שלי', trainingChapter: '3.1 · Training', trainingTitle: 'ההדרכה שלי', trainingLead: 'בדקו את יחידות ההדרכה והתאריכים העדכניים שלכם.', trainingAlt: 'דף ההדרכה של טכנאי', trainingCaption: 'דף Training של הטכנאי המחובר.', trainingCopy: 'דף Training מכיל רק את רשומות ההדרכה שלכם. השתמשו ב-Search למציאת רכיב או manual, בדקו את תאריכי ההדרכה הראשונים והאחרונים ואת סך השעות, והשתמשו ב-Not updated trainings כדי להתמקד ברשומות שדורשות תשומת לב. Add Unit פותח רשומת הדרכה חדשה; צרו או עדכנו רשומה רק לאחר שההדרכה בוצעה בפועל.',
+                    technicianGroup: '4. Technician', technicianNav: '4.1 ספר טכנאים', technicianChapter: '4.1 · Technician', technicianTitle: 'ספר טכנאים', technicianLead: 'מצאו עובדים ואמתו את הצוות והתפקיד שלהם.', technicianAlt: 'ספר טכנאים', technicianCaption: 'ספר הזמין לטכנאי.', technicianCopy: 'השתמשו ב-Search למציאת עמית לפי שם, email, צוות או stamp, ולאחר מכן בדקו את העמודות Team ו-Role. טכנאי יכול להציג את הספר ולפתוח לעריכה רק את הפרופיל שלו; רישומי עובדים אחרים הם לקריאה בלבד.',
+                    materialsGroup: '5. Materials', materialsNav: '5.1 רשימת חומרים', materialsChapter: '5.1 · Materials', materialsTitle: 'רשימת חומרים', materialsLead: 'מצאו את החומר המאושר ואת המפרט שלו.', materialsAlt: 'רשימת חומרים', materialsCaption: 'דף Materials הזמין לטכנאי.', materialsCopy: 'חפשו לפי קוד, חומר, מפרט או תיאור ולחצו על כותרת עמודה כדי למיין את הרשימה. סמל העיפרון פותח את רשומת החומר ו-Add materials פותח רשומה חדשה; השתמשו בהם רק לאחר אימות המידע, כדי שהרשימה המשותפת תישאר מדויקת לכל הוראות העבודה.'
+                },
+                de: {
+                    workorderTasksNav: '2.7 Aufgaben und Notizen', workorderTasksChapter: '2.7 · Arbeitsauftrag', workorderTasksTitle: 'Aufgaben und Notizen', workorderTasksLead: 'Erfassen Sie nur tatsächlich ausgeführte Arbeit.', workorderTasksAlt: 'Aufgaben- und Notizbereich des Arbeitsauftrags', workorderTasksCaption: 'Aufgaben, Termine und Notizen zum Arbeitsauftrag.', workorderTasksCopy: 'Nutzen Sie die Phasenschaltflächen, um die zugewiesene Aufgabe zu finden, und tragen Sie ihr Datum erst nach Abschluss der Arbeit ein. Das Feld Workorder Notes ist für eine kurze sachliche Notiz; es speichert beim Verlassen des Feldes oder mit Ctrl+Enter. All liefert den Kontext, während Tasks / Notes sich auf Aufgaben und Notizen konzentriert.',
+                    workorderProcessesNav: '2.8 Prozesse und Teile', workorderProcessesChapter: '2.8 · Arbeitsauftrag', workorderProcessesTitle: 'Prozesse und Teile', workorderProcessesLead: 'Öffnen Sie den für die zugewiesene Arbeit nötigen Bereich.', workorderProcessesAlt: 'Prozess- und Teilebereiche des Arbeitsauftrags', workorderProcessesCaption: 'Main-Arbeitsbereiche für Techniker.', workorderProcessesCopy: 'STD Processes enthält Standardarbeiten wie stress relief, NDT, CAD und paint. Parts / Processes zeigt Komponentenarbeit und Reparaturprozesse, Bushing / Processes die Bushing-Arbeit, sofern sie im Auftrag vorhanden ist. Prüfen Sie zuerst Aufgabe und Status, öffnen Sie nur den benötigten Bereich und tragen Sie Daten oder Notizen nur für von Ihnen ausgeführte Arbeit ein.',
+                    workorderResourcesNav: '2.9 TDR, Fotos und PDF Library', workorderResourcesChapter: '2.9 · Arbeitsauftrag', workorderResourcesTitle: 'TDR, Fotos und PDF Library', workorderResourcesLead: 'Nutzen Sie unterstützende Unterlagen direkt aus dem Auftragskopf.', workorderResourcesAlt: 'Aktionen im Auftragskopf', workorderResourcesCaption: 'Schaltflächen im Auftragskopf.', workorderResourcesCopy: 'Der grüne Hammer öffnet den TDR Report des Auftrags. Die blaue Schaltfläche Pictures öffnet Fotobelege: prüfen Sie diese vor Arbeitsbeginn und fügen Sie Bilder nur der richtigen Gruppe hinzu. PDF Library öffnet beigefügte Manuals, Anweisungen und Referenzunterlagen. Die Training-Anzeige zeigt Ihren Trainingsstatus für dieses Manual; die Plus-Schaltfläche öffnet das Trainingsformular.',
+                    trainingGroup: '3. Training', trainingNav: '3.1 Meine Schulungen', trainingChapter: '3.1 · Training', trainingTitle: 'Meine Schulungen', trainingLead: 'Prüfen Sie Ihre Schulungseinheiten und aktuellen Daten.', trainingAlt: 'Schulungsseite eines Technikers', trainingCaption: 'Training-Seite des angemeldeten Technikers.', trainingCopy: 'Die Training-Seite enthält nur Ihre eigenen Schulungsnachweise. Nutzen Sie Search für Komponente oder Manual, prüfen Sie erstes und letztes Schulungsdatum sowie die Gesamtstunden, und verwenden Sie Not updated trainings für Einträge, die Aufmerksamkeit brauchen. Add Unit öffnet einen neuen Schulungseintrag; erstellen oder aktualisieren Sie ihn erst nach der tatsächlich erfolgten Schulung.',
+                    technicianGroup: '4. Technician', technicianNav: '4.1 Technikerverzeichnis', technicianChapter: '4.1 · Technician', technicianTitle: 'Technikerverzeichnis', technicianLead: 'Finden Sie Personen und prüfen Sie Team und Rolle.', technicianAlt: 'Technikerverzeichnis', technicianCaption: 'Für einen Techniker verfügbares Verzeichnis.', technicianCopy: 'Nutzen Sie Search, um einen Kollegen nach Name, Email, Team oder Stamp zu finden, und prüfen Sie anschließend Team und Role. Ein Techniker kann das Verzeichnis einsehen und nur das eigene Profil bearbeiten; die Datensätze anderer Personen sind schreibgeschützt.',
+                    materialsGroup: '5. Materials', materialsNav: '5.1 Materialliste', materialsChapter: '5.1 · Materials', materialsTitle: 'Materialliste', materialsLead: 'Finden Sie das freigegebene Material und seine Spezifikation.', materialsAlt: 'Materialliste', materialsCaption: 'Für einen Techniker verfügbare Materials-Seite.', materialsCopy: 'Suchen Sie nach Code, Material, Spezifikation oder Beschreibung und klicken Sie zur Sortierung auf eine Spaltenüberschrift. Das Stiftsymbol öffnet den Materialeintrag, Add materials einen neuen Eintrag; verwenden Sie beides nur nach bestätigter Information, damit die gemeinsame Liste für alle Arbeitsaufträge korrekt bleibt.'
+                },
+                kk: {
+                    workorderTasksNav: '2.7 Тапсырмалар және жазбалар', workorderTasksChapter: '2.7 · Workorder', workorderTasksTitle: 'Тапсырмалар және жазбалар', workorderTasksLead: 'Тек нақты орындалған жұмысты тіркеңіз.', workorderTasksAlt: 'Наряд тапсырмалары мен жазбалар аймағы', workorderTasksCaption: 'Наряд тапсырмалары, күндері және жазбалары.', workorderTasksCopy: 'Кезең батырмаларымен тағайындалған тапсырманы тауып, күнін жұмыс аяқталғаннан кейін ғана енгізіңіз. Workorder Notes өрісі қысқа нақты жазбаға арналған; ол өрістен шыққанда немесе Ctrl+Enter басқанда сақталады. All қойындысы жалпы контекст береді, ал Tasks / Notes тапсырмалар мен жазбаларға бағытталады.',
+                    workorderProcessesNav: '2.8 Процестер мен бөлшектер', workorderProcessesChapter: '2.8 · Workorder', workorderProcessesTitle: 'Процестер мен бөлшектер', workorderProcessesLead: 'Тағайындалған жұмысқа қажет бөлімді ашыңыз.', workorderProcessesAlt: 'Наряд процестері мен бөлшектер панельдері', workorderProcessesCaption: 'Техникке арналған Main жұмыс бөлімдері.', workorderProcessesCopy: 'STD Processes ішінде stress relief, NDT, CAD және paint сияқты стандартты жұмыстар бар. Parts / Processes компонент жұмысын және жөндеу процестерін, Bushing / Processes нарядта болса bushing жұмысын көрсетеді. Алдымен тапсырма мен күйді тексеріп, тек қажет бөлімді ашыңыз және күндер мен жазбаларды өзіңіз орындаған жұмысқа ғана енгізіңіз.',
+                    workorderResourcesNav: '2.9 TDR, фото және PDF Library', workorderResourcesChapter: '2.9 · Workorder', workorderResourcesTitle: 'TDR, фото және PDF Library', workorderResourcesLead: 'Көмекші жазбаларды наряд тақырыбынан тікелей пайдаланыңыз.', workorderResourcesAlt: 'Наряд тақырыбындағы әрекеттер', workorderResourcesCaption: 'Наряд тақырыбындағы батырмалар.', workorderResourcesCopy: 'Жасыл балға нарядтың TDR Report бетін ашады. Көк Pictures батырмасы фото-дәлелдерді ашады: оларды жұмысқа дейін қарап, суреттерді тек дұрыс топқа қосыңыз. Сары PDF Library батырмасы тіркелген manual, нұсқаулықтар мен анықтамалық құжаттарды ашады. Training индикаторы осы manual бойынша оқу күйіңізді көрсетеді, ал плюс батырмасы оқу жазбасы пішінін ашады.',
+                    trainingGroup: '3. Training', trainingNav: '3.1 Менің оқуым', trainingChapter: '3.1 · Training', trainingTitle: 'Менің оқуым', trainingLead: 'Оқу блоктарыңыз бен өзекті күндерді тексеріңіз.', trainingAlt: 'Техниктің оқу беті', trainingCaption: 'Жүйеге кірген техниктің Training беті.', trainingCopy: 'Training бетінде тек сіздің оқу жазбаларыңыз бар. Search арқылы компонентті немесе manual табыңыз, бірінші және соңғы оқу күндерін, жалпы сағаттарды тексеріңіз және Not updated trainings арқылы назар аударуды қажет ететін жазбаларды көрсетіңіз. Add Unit жаңа оқу жазбасын ашады; оны тек оқу нақты өткеннен кейін жасаңыз не жаңартыңыз.',
+                    technicianGroup: '4. Technician', technicianNav: '4.1 Technician анықтамалығы', technicianChapter: '4.1 · Technician', technicianTitle: 'Technician анықтамалығы', technicianLead: 'Қызметкерлерді тауып, командасы мен рөлін тексеріңіз.', technicianAlt: 'Technician анықтамалығы', technicianCaption: 'Техникке қолжетімді анықтамалық.', technicianCopy: 'Search арқылы әріптесті аты, email, командасы немесе stamp бойынша табыңыз, кейін Team және Role бағандарын тексеріңіз. Техник анықтамалықты көре алады және тек өз профилін өңдеуге аша алады; басқа қызметкерлердің жазбалары тек оқуға қолжетімді.',
+                    materialsGroup: '5. Materials', materialsNav: '5.1 Materials тізімі', materialsChapter: '5.1 · Materials', materialsTitle: 'Materials тізімі', materialsLead: 'Бекітілген материал мен оның спецификациясын табыңыз.', materialsAlt: 'Материалдар тізімі', materialsCaption: 'Техникке қолжетімді Materials беті.', materialsCopy: 'Код, материал, спецификация немесе сипаттама бойынша іздеңіз және тізімді сұрыптау үшін баған тақырыбын басыңыз. Қарындаш материал жазбасын, Add materials жаңа жазбаны ашады; ортақ тізім барлық нарядтар үшін дәл болып қалуы үшін оларды тек ақпарат расталғаннан кейін пайдаланыңыз.'
+                },
+                be: {
+                    workorderTasksNav: '2.7 Задачы і нататкі', workorderTasksChapter: '2.7 · Workorder', workorderTasksTitle: 'Задачы і нататкі', workorderTasksLead: 'Фіксуйце толькі фактычна выкананую працу.', workorderTasksAlt: 'Вобласць задач і нататак нарада', workorderTasksCaption: 'Задачы, даты і нататкі нарада.', workorderTasksCopy: 'Кнопкамі этапаў знайдзіце прызначаную задачу і ўнясіце дату толькі пасля завяршэння працы. Поле Workorder Notes прызначана для кароткай фактычнай нататкі; яно захоўваецца пры выхадзе з поля або па Ctrl+Enter. Укладка All дае агульны кантэкст, а Tasks / Notes паказвае задачы і нататкі нарада.',
+                    workorderProcessesNav: '2.8 Працэсы і дэталі', workorderProcessesChapter: '2.8 · Workorder', workorderProcessesTitle: 'Працэсы і дэталі', workorderProcessesLead: 'Адкрывайце раздзел, патрэбны для прызначанай працы.', workorderProcessesAlt: 'Панэлі працэсаў і дэталяў нарада', workorderProcessesCaption: 'Рабочыя раздзелы Main для тэхніка.', workorderProcessesCopy: 'У STD Processes знаходзяцца стандартныя працы: stress relief, NDT, CAD і paint. Parts / Processes паказвае працу з кампанентам і рамонтныя працэсы, Bushing / Processes — працу з bushings, калі яны ёсць у нарадзе. Спачатку праверце задачу і статус, адкрывайце толькі патрэбны раздзел і ўносіце даты або нататкі толькі па выкананай вамі працы.',
+                    workorderResourcesNav: '2.9 TDR, фота і PDF Library', workorderResourcesChapter: '2.9 · Workorder', workorderResourcesTitle: 'TDR, фота і PDF Library', workorderResourcesLead: 'Выкарыстоўвайце дапаможныя запісы проста з шапкі нарада.', workorderResourcesAlt: 'Дзеянні ў шапцы нарада', workorderResourcesCaption: 'Кнопкі ў шапцы нарада.', workorderResourcesCopy: 'Зялёны малаток адкрывае TDR Report нарада. Сіняя кнопка Pictures адкрывае фотадоказы: прагледзьце іх перад пачаткам працы і дадавайце здымкі толькі ў правільную групу. Жоўтая PDF Library адкрывае далучаныя manual, інструкцыі і даведачныя дакументы. Індыкатар Training паказвае ваш статус навучання па гэтым manual, а кнопка «плюс» адкрывае форму запісу навучання.',
+                    trainingGroup: '3. Training', trainingNav: '3.1 Маё навучанне', trainingChapter: '3.1 · Training', trainingTitle: 'Маё навучанне', trainingLead: 'Правярайце свае навучальныя блокі і актуальныя даты.', trainingAlt: 'Старонка навучання тэхніка', trainingCaption: 'Старонка Training увайшоўшага тэхніка.', trainingCopy: 'Старонка Training змяшчае толькі вашыя запісы навучання. Праз Search знайдзіце кампанент або manual, праверце першую і апошнюю даты навучання ды агульную колькасць гадзін, а пераключальнік Not updated trainings пакідае запісы, якія патрабуюць увагі. Add Unit адкрывае новы запіс навучання; стварайце або абнаўляйце яго толькі пасля фактычна пройдзенага навучання.',
+                    technicianGroup: '4. Technician', technicianNav: '4.1 Даведнік Technician', technicianChapter: '4.1 · Technician', technicianTitle: 'Даведнік Technician', technicianLead: 'Знаходзьце супрацоўнікаў і правярайце іх каманду і ролю.', technicianAlt: 'Даведнік Technician', technicianCaption: 'Даведнік, даступны тэхніку.', technicianCopy: 'Праз Search знайдзіце калегу па імені, email, камандзе або stamp, затым праверце калонкі Team і Role. Тэхнік можа праглядаць даведнік і адкрываць для рэдагавання толькі ўласны профіль; запісы іншых супрацоўнікаў даступныя толькі для прагляду.',
+                    materialsGroup: '5. Materials', materialsNav: '5.1 Спіс Materials', materialsChapter: '5.1 · Materials', materialsTitle: 'Спіс Materials', materialsLead: 'Знаходзьце зацверджаны матэрыял і яго спецыфікацыю.', materialsAlt: 'Спіс матэрыялаў', materialsCaption: 'Старонка Materials, даступная тэхніку.', materialsCopy: 'Шукайце па кодзе, матэрыяле, спецыфікацыі або апісанні і націскайце загаловак калонкі для сартавання спіса. Аловак адкрывае запіс матэрыялу, а Add materials — новы запіс; выкарыстоўвайце іх толькі пасля пацвярджэння інфармацыі, каб агульны спіс заставаўся дакладным для ўсіх нарадаў.'
+                }
+            };
+            const tdrGuideTranslations = {
+                en: {
+                    tdrPartsProcessesNav: '2.10 TDR: parts and processes', tdrPartsProcessesChapter: '2.10 · TDR', tdrPartsProcessesTitle: 'TDR: parts and processes', tdrPartsProcessesLead: 'First add the part, then add the work required for that part.', tdrPartsProcessesAlt: 'TDR report of a technician workorder', tdrPartsProcessesCaption: 'TDR Report of workorder 100000.', tdrPartsProcessesCopy: 'Open TDR Report from Main. When the Add control is available for the manual, select the required part from the manual data and save it before creating any work against it; Add Part appears only when your access allows changes to that manual. Then select the added part, choose Add Processes, and record only the repair or standard processes that are actually required. The order is important: a process belongs to its part, so do not create a process before the correct part is present and do not add unapproved parts or processes.',
+                    tdrPaperWorkorderNav: '2.11 TDR: paper workorder', tdrPaperWorkorderChapter: '2.11 · TDR', tdrPaperWorkorderTitle: 'TDR: paper workorder', tdrPaperWorkorderLead: 'The paper icons create printable forms from the current workorder data.', tdrPaperWorkorderAlt: 'TDR Report paper form buttons', tdrPaperWorkorderCaption: 'Paper forms in the TDR Report header.', tdrPaperWorkorderCopy: 'The paper icons do not create a new workorder or change the data: they prepare printable documents from the workorder already on screen. WO Box Title and WO Process Sheet create the paper workorder set; In-Process Check Sheet, TDR Form, R&M Form, SP Form, Log Card and SB Form create their matching records. Green papers are standard-process forms (NDT, CAD, Stress and Paint), while KIT and PRL prepare the parts lists. A green number on a paper icon shows how many rows will be included; check the part and process data first, then open the required form in a new tab and print it only when it is ready.'
+                },
+                ru: {
+                    tdrPartsProcessesNav: '2.10 TDR: детали и процессы', tdrPartsProcessesChapter: '2.10 · TDR', tdrPartsProcessesTitle: 'TDR: детали и процессы', tdrPartsProcessesLead: 'Сначала внесите деталь, затем работу по этой детали.', tdrPartsProcessesAlt: 'TDR Report заказ-наряда техника', tdrPartsProcessesCaption: 'TDR Report учебного заказ-наряда 100000.', tdrPartsProcessesCopy: 'Откройте TDR Report из Main. Если для manual доступна кнопка Add, выберите нужную деталь из данных manual и сохраните её до создания любых работ по ней; Add Part появляется только когда ваши права разрешают изменения для этого manual. Затем выберите внесённую деталь, нажмите Add Processes и внесите только фактически необходимые ремонтные или стандартные процессы. Последовательность важна: процесс относится к детали, поэтому не создавайте процесс, пока правильной детали нет в наряде, и не добавляйте неутверждённые детали или процессы.',
+                    tdrPaperWorkorderNav: '2.11 TDR: бумажный заказ-наряд', tdrPaperWorkorderChapter: '2.11 · TDR', tdrPaperWorkorderTitle: 'TDR: бумажный заказ-наряд', tdrPaperWorkorderLead: 'Иконки-листочки создают печатные формы по данным текущего наряда.', tdrPaperWorkorderAlt: 'Кнопки бумажных форм TDR Report', tdrPaperWorkorderCaption: 'Бумажные формы в шапке TDR Report.', tdrPaperWorkorderCopy: 'Иконки-листочки не создают новый заказ-наряд и не меняют данные: они формируют печатные документы по уже открытому наряду. WO Box Title и WO Process Sheet создают комплект бумажного заказ-наряда; In-Process Check Sheet, TDR Form, R&M Form, SP Form, Log Card и SB Form создают соответствующие записи. Зелёные листочки — формы стандартных процессов NDT, CAD, Stress и Paint, а KIT и PRL формируют списки деталей. Зелёная цифра на листочке показывает, сколько строк войдёт в форму: сначала проверьте детали и процессы, затем откройте нужную форму в новой вкладке и печатайте только готовую.',
+                },
+                uk: {
+                    tdrPartsProcessesNav: '2.10 TDR: деталі й процеси', tdrPartsProcessesChapter: '2.10 · TDR', tdrPartsProcessesTitle: 'TDR: деталі й процеси', tdrPartsProcessesLead: 'Спершу внесіть деталь, потім роботу для цієї деталі.', tdrPartsProcessesAlt: 'TDR Report наряду техніка', tdrPartsProcessesCaption: 'TDR Report навчального наряду 100000.', tdrPartsProcessesCopy: 'Відкрийте TDR Report із Main. Якщо для manual доступна кнопка Add, виберіть потрібну деталь із даних manual і збережіть її до створення будь-яких робіт по ній; Add Part з’являється лише коли ваші права дозволяють зміни для цього manual. Потім виберіть внесену деталь, натисніть Add Processes і внесіть лише фактично потрібні ремонтні або стандартні процеси. Послідовність важлива: процес належить деталі, тому не створюйте процес, доки правильної деталі немає в наряді, і не додавайте незатверджені деталі чи процеси.',
+                    tdrPaperWorkorderNav: '2.11 TDR: паперовий наряд', tdrPaperWorkorderChapter: '2.11 · TDR', tdrPaperWorkorderTitle: 'TDR: паперовий наряд', tdrPaperWorkorderLead: 'Іконки-листки створюють друковані форми за даними поточного наряду.', tdrPaperWorkorderAlt: 'Кнопки паперових форм TDR Report', tdrPaperWorkorderCaption: 'Паперові форми у шапці TDR Report.', tdrPaperWorkorderCopy: 'Іконки-листки не створюють новий наряд і не змінюють дані: вони формують друковані документи за вже відкритим нарядом. WO Box Title та WO Process Sheet створюють комплект паперового наряду; In-Process Check Sheet, TDR Form, R&M Form, SP Form, Log Card і SB Form створюють відповідні записи. Зелені листки — форми стандартних процесів NDT, CAD, Stress і Paint, а KIT і PRL формують списки деталей. Зелена цифра на листку показує кількість рядків у формі: спершу перевірте деталі й процеси, потім відкрийте потрібну форму в новій вкладці та друкуйте лише готову.',
+                },
+                he: {
+                    tdrPartsProcessesNav: '2.10 TDR: חלקים ותהליכים', tdrPartsProcessesChapter: '2.10 · TDR', tdrPartsProcessesTitle: 'TDR: חלקים ותהליכים', tdrPartsProcessesLead: 'תחילה הוסיפו את החלק, ולאחר מכן את העבודה עבורו.', tdrPartsProcessesAlt: 'TDR Report של הוראת עבודה לטכנאי', tdrPartsProcessesCaption: 'TDR Report של הוראת עבודה לימודית 100000.', tdrPartsProcessesCopy: 'פתחו את TDR Report מתוך Main. כאשר פקד Add זמין עבור ה-manual, בחרו את החלק הנדרש מנתוני ה-manual ושמרו אותו לפני יצירת עבודה עבורו; Add Part מופיע רק כאשר ההרשאה שלכם מאפשרת שינויים ב-manual זה. לאחר מכן בחרו את החלק שהוסף, לחצו Add Processes והוסיפו רק תהליכי תיקון או תקן שנדרשים בפועל. הסדר חשוב: תהליך שייך לחלק שלו, לכן אל תיצרו תהליך לפני שהחלק הנכון נמצא בהוראה ואל תוסיפו חלקים או תהליכים שלא אושרו.',
+                    tdrPaperWorkorderNav: '2.11 TDR: הוראת עבודה מודפסת', tdrPaperWorkorderChapter: '2.11 · TDR', tdrPaperWorkorderTitle: 'TDR: הוראת עבודה מודפסת', tdrPaperWorkorderLead: 'סמלי הדפים יוצרים טפסים להדפסה מנתוני ההוראה הנוכחית.', tdrPaperWorkorderAlt: 'כפתורי טפסי נייר של TDR Report', tdrPaperWorkorderCaption: 'טפסי נייר בכותרת TDR Report.', tdrPaperWorkorderCopy: 'סמלי הדפים אינם יוצרים הוראת עבודה חדשה ואינם משנים נתונים: הם מכינים מסמכים להדפסה מההוראה שכבר פתוחה. WO Box Title ו-WO Process Sheet יוצרים את ערכת הנייר; In-Process Check Sheet, TDR Form, R&M Form, SP Form, Log Card ו-SB Form יוצרים את הרשומות המתאימות. דפים ירוקים הם טפסי תהליך תקני NDT, CAD, Stress ו-Paint, בעוד KIT ו-PRL מכינים רשימות חלקים. מספר ירוק על דף מציג כמה שורות ייכללו: בדקו תחילה את החלקים והתהליכים, פתחו את הטופס הדרוש בלשונית חדשה והדפיסו רק כשהוא מוכן.',
+                },
+                de: {
+                    tdrPartsProcessesNav: '2.10 TDR: Teile und Prozesse', tdrPartsProcessesChapter: '2.10 · TDR', tdrPartsProcessesTitle: 'TDR: Teile und Prozesse', tdrPartsProcessesLead: 'Fügen Sie zuerst das Teil und danach die Arbeit dafür hinzu.', tdrPartsProcessesAlt: 'TDR Report eines Techniker-Arbeitsauftrags', tdrPartsProcessesCaption: 'TDR Report des Schulungsauftrags 100000.', tdrPartsProcessesCopy: 'Öffnen Sie TDR Report aus Main. Wenn die Schaltfläche Add für das Manual verfügbar ist, wählen Sie das benötigte Teil aus den Manual-Daten und speichern es, bevor Sie Arbeiten dazu anlegen; Add Part erscheint nur, wenn Ihre Rechte Änderungen an diesem Manual erlauben. Wählen Sie anschließend das hinzugefügte Teil, klicken Sie Add Processes und erfassen Sie nur tatsächlich erforderliche Reparatur- oder Standardprozesse. Die Reihenfolge ist wichtig: Ein Prozess gehört zu seinem Teil. Erstellen Sie daher keinen Prozess, bevor das richtige Teil im Auftrag vorhanden ist, und fügen Sie keine nicht freigegebenen Teile oder Prozesse hinzu.',
+                    tdrPaperWorkorderNav: '2.11 TDR: Papierarbeitsauftrag', tdrPaperWorkorderChapter: '2.11 · TDR', tdrPaperWorkorderTitle: 'TDR: Papierarbeitsauftrag', tdrPaperWorkorderLead: 'Die Papiersymbole erstellen druckbare Formulare aus den Daten des aktuellen Auftrags.', tdrPaperWorkorderAlt: 'Papierformular-Schaltflächen im TDR Report', tdrPaperWorkorderCaption: 'Papierformulare im Kopf des TDR Report.', tdrPaperWorkorderCopy: 'Die Papiersymbole erstellen keinen neuen Arbeitsauftrag und ändern keine Daten: Sie bereiten druckbare Dokumente aus dem bereits geöffneten Auftrag vor. WO Box Title und WO Process Sheet erzeugen den Papierauftrag; In-Process Check Sheet, TDR Form, R&M Form, SP Form, Log Card und SB Form erstellen die zugehörigen Aufzeichnungen. Grüne Blätter sind Standardprozessformulare für NDT, CAD, Stress und Paint, während KIT und PRL die Teilelisten vorbereiten. Eine grüne Zahl zeigt die Anzahl der einbezogenen Zeilen; prüfen Sie zuerst Teile und Prozesse, öffnen Sie dann das benötigte Formular in einem neuen Tab und drucken Sie erst, wenn es fertig ist.',
+                },
+                kk: {
+                    tdrPartsProcessesNav: '2.10 TDR: бөлшектер мен процестер', tdrPartsProcessesChapter: '2.10 · TDR', tdrPartsProcessesTitle: 'TDR: бөлшектер мен процестер', tdrPartsProcessesLead: 'Алдымен бөлшекті, содан кейін сол бөлшекке арналған жұмысты қосыңыз.', tdrPartsProcessesAlt: 'Техник нарядының TDR Report беті', tdrPartsProcessesCaption: '100000 оқу нарядының TDR Report беті.', tdrPartsProcessesCopy: 'TDR Report бетін Main ішінен ашыңыз. Егер manual үшін Add басқару элементі қолжетімді болса, керек бөлшекті manual деректерінен таңдап, оған жұмыс жасамас бұрын сақтаңыз; Add Part тек сіздің құқықтарыңыз осы manual-ды өзгертуге рұқсат бергенде шығады. Содан кейін қосылған бөлшекті таңдап, Add Processes басып, тек нақты қажет жөндеу немесе стандартты процестерді енгізіңіз. Реті маңызды: процесс өз бөлшегіне жатады, сондықтан дұрыс бөлшек нарядта болмай тұрып процесс жасамаңыз және бекітілмеген бөлшектер мен процестерді қоспаңыз.',
+                    tdrPaperWorkorderNav: '2.11 TDR: қағаз наряд', tdrPaperWorkorderChapter: '2.11 · TDR', tdrPaperWorkorderTitle: 'TDR: қағаз наряд', tdrPaperWorkorderLead: 'Қағаз белгішелері ағымдағы наряд деректерінен басып шығарылатын пішіндер жасайды.', tdrPaperWorkorderAlt: 'TDR Report қағаз пішіндерінің батырмалары', tdrPaperWorkorderCaption: 'TDR Report тақырыбындағы қағаз пішіндері.', tdrPaperWorkorderCopy: 'Қағаз белгішелері жаңа наряд жасамайды және деректерді өзгертпейді: олар ашық тұрған наряд негізінде басып шығарылатын құжаттарды дайындайды. WO Box Title және WO Process Sheet қағаз наряд жинағын жасайды; In-Process Check Sheet, TDR Form, R&M Form, SP Form, Log Card және SB Form тиісті жазбаларды жасайды. Жасыл қағаздар NDT, CAD, Stress және Paint стандартты процестерінің пішіндері, ал KIT және PRL бөлшектер тізімін дайындайды. Қағаздағы жасыл сан қанша жол кіретінін көрсетеді; алдымен бөлшектер мен процестерді тексеріп, содан кейін қажет пішінді жаңа қойындыда ашып, дайын болғанда ғана басып шығарыңыз.',
+                },
+                be: {
+                    tdrPartsProcessesNav: '2.10 TDR: дэталі і працэсы', tdrPartsProcessesChapter: '2.10 · TDR', tdrPartsProcessesTitle: 'TDR: дэталі і працэсы', tdrPartsProcessesLead: 'Спачатку дадайце дэталь, затым працу для гэтай дэталі.', tdrPartsProcessesAlt: 'TDR Report нарада тэхніка', tdrPartsProcessesCaption: 'TDR Report навучальнага нарада 100000.', tdrPartsProcessesCopy: 'Адкрыйце TDR Report з Main. Калі для manual даступная кнопка Add, выберыце патрэбную дэталь з даных manual і захавайце яе да стварэння любой працы па ёй; Add Part з’яўляецца толькі калі вашы правы дазваляюць змены для гэтага manual. Затым выберыце дададзеную дэталь, націсніце Add Processes і ўнясіце толькі фактычна неабходныя рамонтныя або стандартныя працэсы. Паслядоўнасць важная: працэс адносіцца да дэталі, таму не стварайце працэс, пакуль правільнай дэталі няма ў нарадзе, і не дадавайце незацверджаныя дэталі або працэсы.',
+                    tdrPaperWorkorderNav: '2.11 TDR: папяровы нарад', tdrPaperWorkorderChapter: '2.11 · TDR', tdrPaperWorkorderTitle: 'TDR: папяровы нарад', tdrPaperWorkorderLead: 'Значкі-лісткі ствараюць друкаваныя формы з даных бягучага нарада.', tdrPaperWorkorderAlt: 'Кнопкі папяровых форм TDR Report', tdrPaperWorkorderCaption: 'Папяровыя формы ў шапцы TDR Report.', tdrPaperWorkorderCopy: 'Значкі-лісткі не ствараюць новы нарад і не змяняюць даныя: яны рыхтуюць друкаваныя дакументы з ужо адкрытага нарада. WO Box Title і WO Process Sheet ствараюць папяровы камплект нарада; In-Process Check Sheet, TDR Form, R&M Form, SP Form, Log Card і SB Form ствараюць адпаведныя запісы. Зялёныя лісты — формы стандартных працэсаў NDT, CAD, Stress і Paint, а KIT і PRL рыхтуюць спісы дэталяў. Зялёная лічба на лісце паказвае колькасць радкоў у форме: спачатку праверце дэталі і працэсы, затым адкрыйце патрэбную форму ў новай укладцы і друкуйце толькі гатовую.'
+                }
+            };
+            const tdrPartsAddTranslations = {
+                en: {
+                    tdrPartsProcessesAlt: 'TDR Report with saved parts and the Add button',
+                    tdrPartsProcessesCaption: 'Saved parts in TDR; Add creates the next part row.',
+                    tdrPartsProcessesCopy: 'Open TDR Report from Main and press Add below the table: a new line opens. Select Part from the current manual and save the line. If the required item is missing from the manual data and your access permits it, use Add Part below the Part field to create it first. Then select the saved part, choose Add Processes, and enter only the repair or standard processes actually required. A process belongs to its part, so do not create it until the correct part is in the workorder.'
+                },
+                ru: {
+                    tdrPartsProcessesAlt: 'TDR Report с внесёнными деталями и кнопкой Add',
+                    tdrPartsProcessesCaption: 'Внесённые детали в TDR; Add создаёт строку следующей детали.',
+                    tdrPartsProcessesCopy: 'Откройте TDR Report из Main и нажмите Add под таблицей — откроется новая строка. В поле Part выберите деталь из текущего manual и сохраните строку. Если нужной позиции нет в данных manual и ваши права это позволяют, сначала используйте Add Part под полем Part. Затем выберите сохранённую деталь, нажмите Add Processes и внесите только действительно необходимые ремонтные или стандартные процессы. Процесс относится к детали, поэтому не создавайте его, пока правильная деталь не внесена в заказ-наряд.'
+                },
+                uk: {
+                    tdrPartsProcessesAlt: 'TDR Report із внесеними деталями та кнопкою Add',
+                    tdrPartsProcessesCaption: 'Внесені деталі в TDR; Add створює рядок наступної деталі.',
+                    tdrPartsProcessesCopy: 'Відкрийте TDR Report із Main і натисніть Add під таблицею — відкриється новий рядок. У полі Part виберіть деталь із поточного manual і збережіть рядок. Якщо потрібної позиції немає в даних manual і ваші права це дозволяють, спершу використайте Add Part під полем Part. Потім виберіть збережену деталь, натисніть Add Processes і внесіть лише фактично потрібні ремонтні або стандартні процеси. Процес належить деталі, тому не створюйте його, доки правильну деталь не внесено до наряду.'
+                },
+                he: {
+                    tdrPartsProcessesAlt: 'TDR Report עם חלקים שמורים ולחצן Add',
+                    tdrPartsProcessesCaption: 'החלקים השמורים ב-TDR; Add יוצר שורת חלק נוספת.',
+                    tdrPartsProcessesCopy: 'פתחו את TDR Report מתוך Main ולחצו Add מתחת לטבלה: תיפתח שורה חדשה. בשדה Part בחרו חלק מה-manual הנוכחי ושמרו את השורה. אם הפריט הדרוש אינו נמצא בנתוני ה-manual וההרשאה מאפשרת זאת, השתמשו תחילה ב-Add Part שמתחת לשדה Part. לאחר מכן בחרו את החלק שנשמר, לחצו Add Processes והוסיפו רק תהליכי תיקון או תקן שנדרשים בפועל. תהליך שייך לחלק שלו, לכן אין ליצור אותו לפני שהחלק הנכון נוסף להוראת העבודה.'
+                },
+                de: {
+                    tdrPartsProcessesAlt: 'TDR Report mit gespeicherten Teilen und Add-Schaltfläche',
+                    tdrPartsProcessesCaption: 'Gespeicherte Teile im TDR; Add erstellt die nächste Teilezeile.',
+                    tdrPartsProcessesCopy: 'Öffnen Sie TDR Report aus Main und klicken Sie unter der Tabelle auf Add: Eine neue Zeile wird geöffnet. Wählen Sie im Feld Part ein Teil aus dem aktuellen Manual und speichern Sie die Zeile. Fehlt das benötigte Teil in den Manual-Daten und erlauben Ihre Rechte dies, verwenden Sie zuerst Add Part unter dem Feld Part. Wählen Sie danach das gespeicherte Teil, klicken Sie Add Processes und erfassen Sie nur tatsächlich erforderliche Reparatur- oder Standardprozesse. Ein Prozess gehört zu seinem Teil; erstellen Sie ihn erst, wenn das richtige Teil im Arbeitsauftrag vorhanden ist.'
+                },
+                kk: {
+                    tdrPartsProcessesAlt: 'Енгізілген бөлшектері және Add батырмасы бар TDR Report',
+                    tdrPartsProcessesCaption: 'TDR ішіндегі енгізілген бөлшектер; Add келесі бөлшек жолын ашады.',
+                    tdrPartsProcessesCopy: 'TDR Report бетін Main ішінен ашып, кестенің төменгі жағындағы Add батырмасын басыңыз: жаңа жол ашылады. Part өрісінде ағымдағы manual ішінен бөлшекті таңдап, жолды сақтаңыз. Қажетті позиция manual деректерінде жоқ болса және құқығыңыз рұқсат етсе, алдымен Part өрісінің астындағы Add Part қолданыңыз. Содан кейін сақталған бөлшекті таңдап, Add Processes басып, тек нақты қажет жөндеу немесе стандартты процестерді енгізіңіз. Процесс өз бөлшегіне жатады, сондықтан дұрыс бөлшек нарядқа қосылмай тұрып оны жасамаңыз.'
+                },
+                be: {
+                    tdrPartsProcessesAlt: 'TDR Report з захаванымі дэталямі і кнопкай Add',
+                    tdrPartsProcessesCaption: 'Захаваныя дэталі ў TDR; Add стварае радок наступнай дэталі.',
+                    tdrPartsProcessesCopy: 'Адкрыйце TDR Report з Main і націсніце Add пад табліцай — адкрыецца новы радок. У полі Part выберыце дэталь з бягучага manual і захавайце радок. Калі патрэбнай пазіцыі няма ў даных manual і вашы правы гэта дазваляюць, спачатку выкарыстоўвайце Add Part пад полем Part. Затым выберыце захаваную дэталь, націсніце Add Processes і ўнясіце толькі фактычна неабходныя рамонтныя або стандартныя працэсы. Працэс адносіцца да дэталі, таму не стварайце яго, пакуль правільная дэталь не дададзена ў нарад.'
+                }
+            };
+            const tdrPartsDetailedTranslations = {
+                en: {
+                    tdrPartsProcessesLead: 'Add and save the part first; then add processes for that saved part.',
+                    tdrPartsStep1: 'Open TDR Report from Main and press Add below the table. A new part line opens; no data is saved yet.',
+                    tdrPartCodeAlt: 'TDR part line with Part, Code and Save fields', tdrPartCodeCaption: 'The new TDR line: Part, Code and Save.',
+                    tdrPartsStep2: 'In P/N (Part), select the required part from the current manual. Add Part appears only if your access allows changing that manual.',
+                    tdrPartsStep3: 'After selecting Part, select the required Code, complete only the fields required for this part and press Save. The part must be saved before processes can be added.',
+                    tdrProcessesButtonAlt: 'Part Processes train icon in a saved TDR row', tdrProcessesButtonCaption: 'The train icon in Action opens Part Processes for this saved part.',
+                    tdrPartsStep4: 'On the saved part row, press the train icon in Action. The Part Processes tab opens for that exact part.',
+                    tdrProcessCreateAlt: 'Part Processes line for adding a process', tdrProcessCreateCaption: 'Part Processes: select a process and save it for the chosen part.',
+                    tdrPartsStep5: 'Press Add, choose Process Name, then choose the required process and enter its description or Page & Fig where needed. Add Process appears only when you are allowed to create a new process definition. Press Save to attach the selected process to this part.'
+                },
+                ru: {
+                    tdrPartsProcessesLead: 'Сначала внесите и сохраните деталь, затем добавьте процессы именно к этой детали.',
+                    tdrPartsStep1: 'Откройте TDR Report из Main и нажмите Add под таблицей. Откроется новая строка детали; данные пока не сохранены.',
+                    tdrPartCodeAlt: 'Строка TDR с полями Part, Code и Save', tdrPartCodeCaption: 'Новая строка TDR: Part, Code и Save.',
+                    tdrPartsStep2: 'В поле P/N (Part) выберите нужную деталь из текущего manual. Add Part появляется только если ваши права позволяют менять этот manual.',
+                    tdrPartsStep3: 'После выбора Part выберите нужный Code, заполните только необходимые для этой детали поля и нажмите Save. До сохранения детали процессы добавить нельзя.',
+                    tdrProcessesButtonAlt: 'Иконка-паровозик Part Processes в сохранённой строке TDR', tdrProcessesButtonCaption: 'Паровозик в колонке Action открывает Part Processes для этой сохранённой детали.',
+                    tdrPartsStep4: 'В сохранённой строке детали нажмите паровозик в колонке Action. Откроется вкладка Part Processes именно этой детали.',
+                    tdrProcessCreateAlt: 'Строка добавления процесса во вкладке Part Processes', tdrProcessCreateCaption: 'Part Processes: выберите процесс и сохраните его для выбранной детали.',
+                    tdrPartsStep5: 'Нажмите Add, выберите Process Name, затем нужный процесс и при необходимости внесите описание или Page & Fig. Add Process появляется только когда вам разрешено создавать новое определение процесса. Нажмите Save, чтобы привязать выбранный процесс к этой детали.'
+                },
+                uk: {
+                    tdrPartsProcessesLead: 'Спершу внесіть і збережіть деталь, потім додайте процеси саме до цієї деталі.',
+                    tdrPartsStep1: 'Відкрийте TDR Report із Main і натисніть Add під таблицею. Відкриється новий рядок деталі; дані ще не збережені.',
+                    tdrPartCodeAlt: 'Рядок TDR з полями Part, Code і Save', tdrPartCodeCaption: 'Новий рядок TDR: Part, Code і Save.',
+                    tdrPartsStep2: 'У полі P/N (Part) виберіть потрібну деталь із поточного manual. Add Part з’являється лише якщо ваші права дозволяють змінювати цей manual.',
+                    tdrPartsStep3: 'Після вибору Part виберіть потрібний Code, заповніть лише потрібні для цієї деталі поля та натисніть Save. Поки деталь не збережено, процеси додати не можна.',
+                    tdrProcessesButtonAlt: 'Іконка-потяг Part Processes у збереженому рядку TDR', tdrProcessesButtonCaption: 'Потяг у колонці Action відкриває Part Processes для цієї збереженої деталі.',
+                    tdrPartsStep4: 'У збереженому рядку деталі натисніть потяг у колонці Action. Відкриється вкладка Part Processes саме для цієї деталі.',
+                    tdrProcessCreateAlt: 'Рядок додавання процесу у вкладці Part Processes', tdrProcessCreateCaption: 'Part Processes: виберіть процес і збережіть його для вибраної деталі.',
+                    tdrPartsStep5: 'Натисніть Add, виберіть Process Name, потім потрібний процес і за потреби внесіть опис або Page & Fig. Add Process з’являється лише коли вам дозволено створювати нове визначення процесу. Натисніть Save, щоб прив’язати вибраний процес до цієї деталі.'
+                },
+                he: {
+                    tdrPartsProcessesLead: 'תחילה הוסיפו ושמרו את החלק, ולאחר מכן הוסיפו תהליכים לאותו חלק.',
+                    tdrPartsStep1: 'פתחו TDR Report מתוך Main ולחצו Add מתחת לטבלה. תיפתח שורת חלק חדשה; הנתונים עדיין לא נשמרו.',
+                    tdrPartCodeAlt: 'שורת TDR עם שדות Part, Code ו-Save', tdrPartCodeCaption: 'שורת TDR חדשה: Part, Code ו-Save.',
+                    tdrPartsStep2: 'בשדה P/N (Part) בחרו את החלק הדרוש מתוך ה-manual הנוכחי. Add Part מופיע רק אם ההרשאה שלכם מאפשרת לשנות את ה-manual.',
+                    tdrPartsStep3: 'לאחר בחירת Part בחרו את ה-Code הדרוש, מלאו רק שדות הנדרשים לחלק ולחצו Save. יש לשמור את החלק לפני הוספת תהליכים.',
+                    tdrProcessesButtonAlt: 'סמל הרכבת Part Processes בשורת TDR שמורה', tdrProcessesButtonCaption: 'סמל הרכבת בעמודת Action פותח Part Processes עבור החלק השמור.',
+                    tdrPartsStep4: 'בשורת החלק השמור לחצו על סמל הרכבת בעמודת Action. תיפתח לשונית Part Processes עבור אותו חלק.',
+                    tdrProcessCreateAlt: 'שורת הוספת תהליך בלשונית Part Processes', tdrProcessCreateCaption: 'Part Processes: בחרו תהליך ושמרו אותו לחלק שנבחר.',
+                    tdrPartsStep5: 'לחצו Add, בחרו Process Name, אחר כך את התהליך הדרוש והזינו תיאור או Page & Fig בעת הצורך. Add Process מופיע רק כאשר מותר לכם ליצור הגדרת תהליך חדשה. לחצו Save כדי לקשר את התהליך לחלק זה.'
+                },
+                de: {
+                    tdrPartsProcessesLead: 'Fügen Sie zuerst das Teil hinzu und speichern Sie es; fügen Sie danach Prozesse genau zu diesem Teil hinzu.',
+                    tdrPartsStep1: 'Öffnen Sie TDR Report aus Main und klicken Sie unter der Tabelle auf Add. Eine neue Teilezeile wird geöffnet; noch sind keine Daten gespeichert.',
+                    tdrPartCodeAlt: 'TDR-Zeile mit den Feldern Part, Code und Save', tdrPartCodeCaption: 'Neue TDR-Zeile: Part, Code und Save.',
+                    tdrPartsStep2: 'Wählen Sie im Feld P/N (Part) das benötigte Teil aus dem aktuellen Manual. Add Part erscheint nur, wenn Ihre Rechte Änderungen an diesem Manual erlauben.',
+                    tdrPartsStep3: 'Wählen Sie nach Part den erforderlichen Code, füllen Sie nur die für dieses Teil erforderlichen Felder aus und klicken Sie Save. Das Teil muss gespeichert sein, bevor Prozesse hinzugefügt werden können.',
+                    tdrProcessesButtonAlt: 'Part-Processes-Zugsymbol in einer gespeicherten TDR-Zeile', tdrProcessesButtonCaption: 'Das Zugsymbol in Action öffnet Part Processes für dieses gespeicherte Teil.',
+                    tdrPartsStep4: 'Klicken Sie in der gespeicherten Teilezeile auf das Zugsymbol in Action. Die Registerkarte Part Processes wird genau für dieses Teil geöffnet.',
+                    tdrProcessCreateAlt: 'Zeile zum Hinzufügen eines Prozesses in Part Processes', tdrProcessCreateCaption: 'Part Processes: Wählen und speichern Sie einen Prozess für das ausgewählte Teil.',
+                    tdrPartsStep5: 'Klicken Sie Add, wählen Sie Process Name, dann den erforderlichen Prozess und tragen Sie bei Bedarf Beschreibung oder Page & Fig ein. Add Process erscheint nur, wenn Sie eine neue Prozessdefinition erstellen dürfen. Klicken Sie Save, um den Prozess diesem Teil zuzuordnen.'
+                },
+                kk: {
+                    tdrPartsProcessesLead: 'Алдымен бөлшекті қосып, сақтаңыз; содан кейін процестерді дәл осы бөлшекке қосыңыз.',
+                    tdrPartsStep1: 'Main ішінен TDR Report ашып, кестенің астындағы Add батырмасын басыңыз. Жаңа бөлшек жолы ашылады; деректер әлі сақталмаған.',
+                    tdrPartCodeAlt: 'Part, Code және Save өрістері бар TDR жолы', tdrPartCodeCaption: 'Жаңа TDR жолы: Part, Code және Save.',
+                    tdrPartsStep2: 'P/N (Part) өрісінде ағымдағы manual ішінен қажетті бөлшекті таңдаңыз. Add Part тек сіздің құқықтарыңыз осы manual-ды өзгертуге рұқсат берсе пайда болады.',
+                    tdrPartsStep3: 'Part таңдағаннан кейін қажетті Code таңдаңыз, осы бөлшекке керек өрістерді ғана толтырып, Save басыңыз. Бөлшек сақталмайынша процестерді қосуға болмайды.',
+                    tdrProcessesButtonAlt: 'Сақталған TDR жолындағы Part Processes пойыз белгішесі', tdrProcessesButtonCaption: 'Action бағанындағы пойыз белгішесі осы сақталған бөлшек үшін Part Processes ашады.',
+                    tdrPartsStep4: 'Сақталған бөлшек жолында Action бағанындағы пойыз белгішесін басыңыз. Дәл осы бөлшектің Part Processes қойындысы ашылады.',
+                    tdrProcessCreateAlt: 'Part Processes қойындысындағы процесс қосу жолы', tdrProcessCreateCaption: 'Part Processes: процесті таңдап, оны таңдалған бөлшекке сақтаңыз.',
+                    tdrPartsStep5: 'Add басыңыз, Process Name таңдаңыз, содан кейін керек процесті таңдап, қажет болса сипаттаманы немесе Page & Fig енгізіңіз. Add Process тек жаңа процесс анықтамасын жасауға құқығыңыз болса шығады. Процесті осы бөлшекке бекіту үшін Save басыңыз.'
+                },
+                be: {
+                    tdrPartsProcessesLead: 'Спачатку дадайце і захавайце дэталь, пасля дадайце працэсы менавіта да гэтай дэталі.',
+                    tdrPartsStep1: 'Адкрыйце TDR Report з Main і націсніце Add пад табліцай. Адкрыецца новы радок дэталі; даныя яшчэ не захаваныя.',
+                    tdrPartCodeAlt: 'Радок TDR з палямі Part, Code і Save', tdrPartCodeCaption: 'Новы радок TDR: Part, Code і Save.',
+                    tdrPartsStep2: 'У полі P/N (Part) выберыце патрэбную дэталь з бягучага manual. Add Part з’яўляецца толькі калі вашы правы дазваляюць змяняць гэты manual.',
+                    tdrPartsStep3: 'Пасля выбару Part выберыце неабходны Code, запоўніце толькі патрэбныя для дэталі палі і націсніце Save. Пакуль дэталь не захаваная, працэсы дадаць нельга.',
+                    tdrProcessesButtonAlt: 'Значок-паравозік Part Processes у захаваным радку TDR', tdrProcessesButtonCaption: 'Паравозік у калонцы Action адкрывае Part Processes для гэтай захаванай дэталі.',
+                    tdrPartsStep4: 'У захаваным радку дэталі націсніце паравозік у калонцы Action. Адкрыецца ўкладка Part Processes менавіта для гэтай дэталі.',
+                    tdrProcessCreateAlt: 'Радок дадання працэсу ва ўкладцы Part Processes', tdrProcessCreateCaption: 'Part Processes: выберыце працэс і захавайце яго для выбранай дэталі.',
+                    tdrPartsStep5: 'Націсніце Add, выберыце Process Name, потым патрэбны працэс і пры неабходнасці ўнясіце апісанне або Page & Fig. Add Process з’яўляецца толькі калі вам дазволена ствараць новае вызначэнне працэсу. Націсніце Save, каб прывязаць выбраны працэс да гэтай дэталі.'
+                }
+            };
+            const tdrTravelerTranslations = {
+                en: {
+                    tdrTravelerNav: '2.11 Traveler: process groups', tdrTravelerChapter: '2.11 · TDR', tdrTravelerTitle: 'Traveler: grouping processes', tdrTravelerLead: 'Traveler checkboxes group work that is sent together.', tdrTravelerAlt: 'Part Processes with Traveler checkboxes, Vendor and Form buttons', tdrTravelerCaption: 'Traveler checkboxes, Vendor and Form / Form traveler buttons.', tdrTravelerCopy: 'In Part Processes, checkboxes appear only in the Traveler column. Select the processes that travel together and press Traveler; an existing group is labelled Traveler 1, Traveler 2, and so on. In the Form column choose the Vendor. Press Form for a single process, or Form traveler for an existing group. Check the Vendor before opening the form; it is printable output and does not alter the workorder.',
+                    tdrProcessFormNav: '2.12 Process form', tdrProcessFormChapter: '2.12 · TDR', tdrProcessFormTitle: 'Process form', tdrProcessFormLead: 'Form opens a printable sheet for the selected process.', tdrProcessFormAlt: 'Printable process form from the workorder', tdrProcessFormCaption: 'The generated form uses current workorder and process data.', tdrProcessFormCopy: 'Form opens in a new tab and fills the sheet from the selected process and part: workorder, component, IPL, part and serial numbers, process text, quantity and CMM reference. Vendor and RO number appear when already assigned. Review every field before Print Form; the form is printable output and does not alter the workorder.',
+                    tdrPaperWorkorderNav: '2.13 TDR: paper workorder', tdrPaperWorkorderChapter: '2.13 · TDR'
+                },
+                ru: {
+                    tdrTravelerNav: '2.11 Traveler: группы процессов', tdrTravelerChapter: '2.11 · TDR', tdrTravelerTitle: 'Traveler: объединение процессов', tdrTravelerLead: 'Флажки Traveler объединяют работы, которые отправляются вместе.', tdrTravelerAlt: 'Part Processes с флажками Traveler, Vendor и кнопками Form', tdrTravelerCaption: 'Флажки Traveler, Vendor и кнопки Form / Form traveler.', tdrTravelerCopy: 'В Part Processes флажки находятся только в колонке Traveler. Отметьте процессы, которые должны идти одним Traveler, и нажмите Traveler; сформированная группа показана подписью Traveler 1, Traveler 2 и так далее. В колонке Form выберите Vendor. Для одиночного процесса нажмите Form, для уже объединённого Traveler — Form traveler. Перед открытием проверьте Vendor: форма предназначена для печати и не меняет заказ-наряд.',
+                    tdrProcessFormNav: '2.12 Форма процесса', tdrProcessFormChapter: '2.12 · TDR', tdrProcessFormTitle: 'Форма процесса', tdrProcessFormLead: 'Кнопка Form открывает печатный лист выбранного процесса.', tdrProcessFormAlt: 'Печатная форма процесса из заказ-наряда', tdrProcessFormCaption: 'Готовая форма использует данные текущего заказ-наряда и процесса.', tdrProcessFormCopy: 'Form открывается в новой вкладке и заполняет лист данными выбранного процесса и детали: номером заказ-наряда, компонентом, IPL, номером детали и S/N, текстом процесса, количеством и ссылкой CMM. Vendor и номер RO показываются, когда уже назначены. Проверьте все поля перед Print Form: форма предназначена для печати и не меняет заказ-наряд.',
+                    tdrPaperWorkorderNav: '2.13 TDR: бумажный заказ-наряд', tdrPaperWorkorderChapter: '2.13 · TDR'
+                },
+                uk: {
+                    tdrTravelerNav: '2.11 Traveler: групи процесів', tdrTravelerChapter: '2.11 · TDR', tdrTravelerTitle: 'Traveler: об’єднання процесів', tdrTravelerLead: 'Прапорці Traveler об’єднують роботи, що надсилаються разом.', tdrTravelerAlt: 'Part Processes з прапорцями Traveler, Vendor і кнопками Form', tdrTravelerCaption: 'Прапорці Traveler, Vendor і кнопки Form / Form traveler.', tdrTravelerCopy: 'У Part Processes прапорці є лише в колонці Traveler. Позначте процеси, які мають іти одним Traveler, і натисніть Traveler; готова група має позначку Traveler 1, Traveler 2 тощо. У колонці Form виберіть Vendor. Для одного процесу натисніть Form, для вже об’єднаного Traveler — Form traveler. Перед відкриттям перевірте Vendor: форма призначена для друку й не змінює наряд.',
+                    tdrProcessFormNav: '2.12 Форма процесу', tdrProcessFormChapter: '2.12 · TDR', tdrProcessFormTitle: 'Форма процесу', tdrProcessFormLead: 'Form відкриває друкований лист вибраного процесу.', tdrProcessFormAlt: 'Друкована форма процесу з наряду', tdrProcessFormCaption: 'Готова форма використовує дані поточного наряду та процесу.', tdrProcessFormCopy: 'Form відкривається у новій вкладці та заповнює лист даними процесу й деталі: номером наряду, компонентом, IPL, номером деталі та S/N, текстом процесу, кількістю й CMM. Vendor та RO показуються, якщо вже призначені. Перевірте поля перед Print Form: форма лише друкується і не змінює наряд.',
+                    tdrPaperWorkorderNav: '2.13 TDR: паперовий наряд', tdrPaperWorkorderChapter: '2.13 · TDR'
+                },
+                he: {
+                    tdrTravelerNav: '2.11 Traveler: קבוצות תהליכים', tdrTravelerChapter: '2.11 · TDR', tdrTravelerTitle: 'Traveler: קיבוץ תהליכים', tdrTravelerLead: 'תיבות Traveler מקבצות עבודה שנשלחת יחד.', tdrTravelerAlt: 'Part Processes עם תיבות Traveler, Vendor וכפתורי Form', tdrTravelerCaption: 'תיבות Traveler, Vendor וכפתורי Form / Form traveler.', tdrTravelerCopy: 'ב‑Part Processes תיבות הסימון נמצאות רק בעמודת Traveler. סמנו תהליכים שצריכים להישלח באותו Traveler ולחצו Traveler; קבוצה קיימת מסומנת Traveler 1, Traveler 2 וכן הלאה. בעמודת Form בחרו Vendor. לתהליך בודד לחצו Form; לקבוצת Traveler קיימת לחצו Form traveler. בדקו את ה‑Vendor לפני הפתיחה: הטופס מיועד להדפסה ואינו משנה את הוראת העבודה.',
+                    tdrProcessFormNav: '2.12 טופס תהליך', tdrProcessFormChapter: '2.12 · TDR', tdrProcessFormTitle: 'טופס תהליך', tdrProcessFormLead: 'Form פותח גיליון להדפסה עבור התהליך שנבחר.', tdrProcessFormAlt: 'טופס תהליך להדפסה מהוראת העבודה', tdrProcessFormCaption: 'הטופס משתמש בנתוני ההוראה והתהליך הנוכחיים.', tdrProcessFormCopy: 'Form נפתח בלשונית חדשה וממלא את הגיליון מנתוני התהליך והחלק: הוראה, רכיב, IPL, מספר חלק ו‑S/N, טקסט התהליך, כמות ו‑CMM. Vendor ו‑RO מופיעים אם הוקצו. בדקו את השדות לפני Print Form; הטופס להדפסה ואינו משנה את ההוראה.',
+                    tdrPaperWorkorderNav: '2.13 TDR: הוראת עבודה מודפסת', tdrPaperWorkorderChapter: '2.13 · TDR'
+                },
+                de: {
+                    tdrTravelerNav: '2.11 Traveler: Prozessgruppen', tdrTravelerChapter: '2.11 · TDR', tdrTravelerTitle: 'Traveler: Prozesse gruppieren', tdrTravelerLead: 'Traveler-Checkboxen gruppieren Arbeiten, die zusammen versendet werden.', tdrTravelerAlt: 'Part Processes mit Traveler-Checkboxen, Vendor und Form-Schaltflächen', tdrTravelerCaption: 'Traveler-Checkboxen, Vendor sowie Form- und Form-traveler-Schaltflächen.', tdrTravelerCopy: 'In Part Processes befinden sich Checkboxen nur in der Spalte Traveler. Markieren Sie Prozesse, die in einem Traveler laufen sollen, und klicken Sie Traveler; eine bestehende Gruppe ist als Traveler 1, Traveler 2 und so weiter gekennzeichnet. Wählen Sie in der Spalte Form den Vendor. Für einen einzelnen Prozess klicken Sie Form, für eine vorhandene Traveler-Gruppe Form traveler. Prüfen Sie den Vendor vorher: Das Formular dient nur dem Druck und ändert den Arbeitsauftrag nicht.',
+                    tdrProcessFormNav: '2.12 Prozessformular', tdrProcessFormChapter: '2.12 · TDR', tdrProcessFormTitle: 'Prozessformular', tdrProcessFormLead: 'Form öffnet ein druckbares Blatt für den ausgewählten Prozess.', tdrProcessFormAlt: 'Druckbares Prozessformular aus dem Arbeitsauftrag', tdrProcessFormCaption: 'Das Formular nutzt aktuelle Auftrags- und Prozessdaten.', tdrProcessFormCopy: 'Form öffnet einen neuen Tab und füllt das Blatt aus Prozess- und Teiledaten: Auftrag, Komponente, IPL, Teile- und Seriennummer, Prozesstext, Menge und CMM. Vendor und RO erscheinen, wenn zugeordnet. Prüfen Sie alle Felder vor Print Form; das Formular dient nur dem Druck und ändert den Auftrag nicht.',
+                    tdrPaperWorkorderNav: '2.13 TDR: Papierarbeitsauftrag', tdrPaperWorkorderChapter: '2.13 · TDR'
+                },
+                kk: {
+                    tdrTravelerNav: '2.11 Traveler: процесс топтары', tdrTravelerChapter: '2.11 · TDR', tdrTravelerTitle: 'Traveler: процестерді біріктіру', tdrTravelerLead: 'Traveler жалаушалары бірге жіберілетін жұмыстарды біріктіреді.', tdrTravelerAlt: 'Traveler жалаушалары, Vendor және Form батырмалары бар Part Processes', tdrTravelerCaption: 'Traveler жалаушалары, Vendor және Form / Form traveler батырмалары.', tdrTravelerCopy: 'Part Processes ішінде жалаушалар тек Traveler бағанында болады. Бір Traveler-мен жүретін процестерді белгілеп, Traveler басыңыз; дайын топ Traveler 1, Traveler 2 және т.б. деп көрсетіледі. Form бағанынан Vendor таңдаңыз. Жеке процесс үшін Form, ал дайын Traveler тобы үшін Form traveler басыңыз. Ашар алдында Vendor-ды тексеріңіз: пішін басып шығаруға арналған және нарядты өзгертпейді.',
+                    tdrProcessFormNav: '2.12 Процесс пішіні', tdrProcessFormChapter: '2.12 · TDR', tdrProcessFormTitle: 'Процесс пішіні', tdrProcessFormLead: 'Form таңдалған процесс үшін баспа парағын ашады.', tdrProcessFormAlt: 'Нарядтан жасалған баспа процесс пішіні', tdrProcessFormCaption: 'Пішін ағымдағы наряд пен процесс деректерін қолданады.', tdrProcessFormCopy: 'Form жаңа қойындыда ашылып, процесс пен бөлшек деректерімен толтырылады: наряд, компонент, IPL, бөлшек нөмірі мен S/N, процесс мәтіні, саны және CMM. Vendor мен RO тағайындалса көрсетіледі. Print Form алдында өрістерді тексеріңіз; пішін тек баспаға арналған және нарядты өзгертпейді.',
+                    tdrPaperWorkorderNav: '2.13 TDR: қағаз наряд', tdrPaperWorkorderChapter: '2.13 · TDR'
+                },
+                be: {
+                    tdrTravelerNav: '2.11 Traveler: групы працэсаў', tdrTravelerChapter: '2.11 · TDR', tdrTravelerTitle: 'Traveler: аб’яднанне працэсаў', tdrTravelerLead: 'Сцяжкі Traveler аб’ядноўваюць работы, якія адпраўляюцца разам.', tdrTravelerAlt: 'Part Processes са сцяжкамі Traveler, Vendor і кнопкамі Form', tdrTravelerCaption: 'Сцяжкі Traveler, Vendor і кнопкі Form / Form traveler.', tdrTravelerCopy: 'У Part Processes сцяжкі ёсць толькі ў калонцы Traveler. Адзначце працэсы, якія павінны ісці адным Traveler, і націсніце Traveler; гатовая група пазначана Traveler 1, Traveler 2 і гэтак далей. У калонцы Form выберыце Vendor. Для асобнага працэсу націсніце Form, для ўжо аб’яднанага Traveler — Form traveler. Праверце Vendor перад адкрыццём: форма прызначана для друку і не змяняе нарад.',
+                    tdrProcessFormNav: '2.12 Форма працэсу', tdrProcessFormChapter: '2.12 · TDR', tdrProcessFormTitle: 'Форма працэсу', tdrProcessFormLead: 'Form адкрывае друкаваны ліст выбранага працэсу.', tdrProcessFormAlt: 'Друкаваная форма працэсу з нарада', tdrProcessFormCaption: 'Форма выкарыстоўвае даныя бягучага нарада і працэсу.', tdrProcessFormCopy: 'Form адкрываецца ў новай укладцы і запаўняе ліст данымі працэсу і дэталі: нарадам, кампанентам, IPL, нумарам дэталі і S/N, тэкстам працэсу, колькасцю і CMM. Vendor і RO паказваюцца, калі прызначаныя. Праверце палі перад Print Form; форма толькі друкуецца і не змяняе нарад.',
+                    tdrPaperWorkorderNav: '2.13 TDR: папяровы нарад', tdrPaperWorkorderChapter: '2.13 · TDR'
+                }
+            };
             const languageButtons = [...document.querySelectorAll('[data-language]')];
             const pages = [...document.querySelectorAll('[data-guide-page]')]
                 .sort((left, right) => Number(left.dataset.guideOrder) - Number(right.dataset.guideOrder));
@@ -1180,7 +1676,7 @@
 
             function applyLanguage(language, persist = true) {
                 const selected = translations[language] ? language : 'en';
-                const dictionary = { ...translations[selected], ...mainTranslations[selected], ...mainDetailsTranslations[selected], ...mainHeaderActionsTranslations[selected], workorderMainHeaderStep3: mainHeaderPhotoPdfTranslations[selected] };
+                const dictionary = { ...translations[selected], ...mainTranslations[selected], ...mainDetailsTranslations[selected], ...mainHeaderActionsTranslations[selected], ...technicianGuideTranslations[selected], ...tdrGuideTranslations[selected], ...tdrPartsAddTranslations[selected], ...tdrPartsDetailedTranslations[selected], ...tdrTravelerTranslations[selected], workorderMainHeaderStep3: mainHeaderPhotoPdfTranslations[selected] };
 
                 document.documentElement.lang = selected;
                 // Hebrew changes the words only. The guide navigation and page layout stay LTR.

@@ -48,6 +48,7 @@ use App\Http\Controllers\Admin\UserGuideController;
 use App\Http\Controllers\Admin\WorkorderStdProcessController;
 use App\Http\Controllers\Admin\WorkorderKitPrlCrossoutController;
 use App\Http\Controllers\Admin\WorkorderPartGroupSelectionController;
+use App\Http\Controllers\Admin\WorkorderAssyConfigurationController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\ManualDimensionFigureController;
 use App\Http\Controllers\Admin\ManualDimensionPointController;
@@ -587,6 +588,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::put('/manuals/{manual}/part-groups/{partGroup}', [ManualPartGroupController::class, 'update'])->name('manuals.part-groups.update');
     Route::delete('/manuals/{manual}/part-groups/{partGroup}', [ManualPartGroupController::class, 'destroy'])->name('manuals.part-groups.destroy');
     Route::patch('/workorders/{workorder}/part-groups/{partGroup}/selection', [WorkorderPartGroupSelectionController::class, 'update'])->name('workorders.part-groups.selection.update');
+    Route::get('/workorders/{workorder}/assy-configuration', [WorkorderAssyConfigurationController::class, 'index'])->name('workorders.assy-configuration.index');
+    Route::patch('/workorders/{workorder}/assy-configuration', [WorkorderAssyConfigurationController::class, 'update'])->name('workorders.assy-configuration.update');
     Route::post('/components/{component}/update-from-inspection', [ComponentController::class, 'updateFromInspection'])->name('components.updateFromInspection');
 
     Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');

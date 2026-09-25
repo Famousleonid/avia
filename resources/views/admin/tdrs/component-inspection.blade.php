@@ -87,6 +87,7 @@
                                     <option selected value="">---</option>
                                     @foreach($components as $component)
                                         <option value="{{ $component->id }}"
+                                                data-units-assy="{{ max(1, (int) $component->units_assy) }}"
                                                 data-has_assy="{{ $component->assy_part_number ? 'true' : 'false' }}"
                                                 data-title="{{ $component->name }}"
                                                 data-ipl="{{ $component->ipl_num }}"
@@ -589,7 +590,8 @@
                     $('#qty').show();
                 } else {
                     // 2. Поле количества (qty) — Missing или Order New
-                    $('#qty').toggle(codeNameLower === 'missing' || (necessaryName || '').toLowerCase() === 'order new');
+                    $('#qty').toggle(codeNameLower === 'missing' || ['order new', 'repair'].includes((necessaryName || '').toLowerCase()));
+                    $('input[name="qty"]').attr('min', 1).attr('max', (necessaryName || '').toLowerCase() === 'repair' ? Math.max(1, parseInt($('#i_component_id option:selected').attr('data-units-assy'), 10) || 1) : null);
 
                     // 3. Группа необходимых действий (necessary) — для Repair/Order New
                     $('#necessary').toggle(showNecessary);
@@ -602,7 +604,7 @@
 
                     if (hasAssy) {
                         $('#serial_number').parent().show();
-                        $('#assy_serial_number').parent().show();
+                        $('#assy_serial_number').parent().toggle((necessaryName || '').toLowerCase() !== 'repair');
                     } else {
                         $('#serial_number').parent().show();
                         $('#assy_serial_number').parent().hide();
@@ -795,6 +797,7 @@
                         .forEach(function(component) {
                         $('#i_component_id').append(
                             '<option value="' + component.id + '" ' +
+                            'data-units-assy="' + Math.max(1, parseInt(component.units_assy, 10) || 1) + '" ' +
                             'data-has_assy="' + ((component.assy_part_number || (Array.isArray(component.assemblies) && component.assemblies.length)) ? 'true' : 'false') + '" ' +
                             'data-title="' + component.name + '" ' +
                             'data-ipl="' + (component.ipl_num || '') + '" ' +

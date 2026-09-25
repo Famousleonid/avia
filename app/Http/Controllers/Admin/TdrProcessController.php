@@ -1431,7 +1431,7 @@ class TdrProcessController extends Controller
                         $processGroups[$currentRunKey]['logical_unit_keys']['pid_'.(int) $processId] = true;
                     }
 
-                    $qty = 1;
+                    $qty = max(1, (int) $tdrProcess->tdr->qty);
                     $processGroups[$currentRunKey]['processes_qty'][$processId] =
                         ($processGroups[$currentRunKey]['processes_qty'][$processId] ?? 0) + $qty;
 

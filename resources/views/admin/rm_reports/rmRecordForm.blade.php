@@ -301,6 +301,14 @@
             gap: 0;
         }
 
+        /* Grid cells must center their own content even in browsers that do not
+           support align-content on ordinary block elements. Also covers JS rows. */
+        .parent > div {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
 
 
 

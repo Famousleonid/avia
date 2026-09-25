@@ -293,7 +293,9 @@ class ManualPartGroupController extends Controller
         ])->save();
 
         $this->removeUnusedOptions($group, [(int) $option->id]);
-        $keptCoverageIds = [];
+        // Imported conditional links are selected per workorder, not edited as
+        // ordinary additive members in this form. Preserve them on group save.
+        $keptCoverageIds = $option->coverages()->whereNotNull('choice_slot')->pluck('id')->all();
         $existingComponentCoverages = $option->coverages()->whereNotNull('component_id')->get()->keyBy('component_id');
         $existingAssyCoverages = $option->coverages()->whereNotNull('covered_manual_part_group_option_id')->get()->keyBy('covered_manual_part_group_option_id');
 
@@ -301,6 +303,9 @@ class ManualPartGroupController extends Controller
             $coverage = $existingComponentCoverages->get($componentId) ?: $option->coverages()->make([
                 'component_id' => $componentId,
             ]);
+            if (filled($coverage->choice_slot)) {
+                continue;
+            }
             $coverage->fill([
                 'covered_manual_part_group_option_id' => null,
                 'qty' => max(1, (int) ($data['member_qty'][$componentId] ?? 1)),
@@ -313,6 +318,9 @@ class ManualPartGroupController extends Controller
             $coverage = $existingAssyCoverages->get($includedOptionId) ?: $option->coverages()->make([
                 'covered_manual_part_group_option_id' => $includedOptionId,
             ]);
+            if (filled($coverage->choice_slot)) {
+                continue;
+            }
             $coverage->fill([
                 'component_id' => null,
                 'qty' => max(1, (int) ($data['included_group_qty'][$includedOptionId] ?? 1)),
@@ -459,6 +467,7 @@ class ManualPartGroupController extends Controller
                         ? (int) $coverage->covered_manual_part_group_option_id
                         : null,
                     'qty' => (int) $coverage->qty,
+                    'choice_slot' => $coverage->choice_slot,
                     'applies_to' => $coverage->applies_to,
                     'part_number' => $coverage->component?->part_number,
                     'ipl_num' => $coverage->component?->ipl_num,

@@ -408,23 +408,21 @@
 
     @endadmin
 
-    @admin
-        <li class="nav-item press-spinner">
-            <a href="{{ route('admin.user-guide', ['center' => 1]) }}" class="nav-link {{ request()->routeIs('admin.user-guide') ? 'active' : '' }}">
-                <i class="bi bi-journal-bookmark me-2"></i> <span>User Guide</span>
-            </a>
-        </li>
-    @endadmin
-
-    @hasanyrole('Admin|Manager')
-        <li class="nav-item border-top">
-            <a class="nav-link" href="#" id="{{ $themeToggleId }}">
-                <i class="bi bi-moon me-2"></i>&nbsp; <span>Thema</span>
-            </a>
-        </li>
-    @endhasanyrole
-
 @endif
+
+<li class="nav-item press-spinner">
+    <a href="{{ route('admin.user-guide', ['center' => 1]) }}" class="nav-link {{ request()->routeIs('admin.user-guide') ? 'active' : '' }}">
+        <i class="bi bi-journal-bookmark me-2"></i> <span>User Guide</span>
+    </a>
+</li>
+
+@hasanyrole('Admin|Manager')
+    <li class="nav-item border-top">
+        <a class="nav-link" href="#" id="{{ $themeToggleId }}">
+            <i class="bi bi-moon me-2"></i>&nbsp; <span>Thema</span>
+        </a>
+    </li>
+@endhasanyrole
 
 </ul>
 

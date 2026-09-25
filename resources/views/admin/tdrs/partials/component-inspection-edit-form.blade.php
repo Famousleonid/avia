@@ -20,7 +20,7 @@
             <select name="component_id" id="edit_component_id" class="form-control" style="width: 100%">
                 <option value="">{{ __('---') }}</option>
                 @foreach($components as $component)
-                    <option value="{{ $component->id }}" {{ (int) $component->id === (int) $current_tdr->component_id ? 'selected' : '' }}>
+                    <option value="{{ $component->id }}" data-units-assy="{{ max(1, (int) $component->units_assy) }}" {{ (int) $component->id === (int) $current_tdr->component_id ? 'selected' : '' }}>
                         {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
                     </option>
                 @endforeach
@@ -77,6 +77,12 @@
                class="form-control" name="description">
     </div>
 
+    <div class="mb-3" id="edit_repair_qty_group">
+        <label for="edit_repair_qty" class="form-label">QTY</label>
+        <input type="number" id="edit_repair_qty" name="qty" class="form-control" min="1" step="1"
+               data-manual-max="{{ max(1, (int) $current_tdr->component?->units_assy) }}"
+               value="{{ max(1, (int) $current_tdr->qty) }}">
+    </div>
     <div class="text-end">
         <button type="submit" class="btn btn-outline-primary">{{ __('Update') }}</button>
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>

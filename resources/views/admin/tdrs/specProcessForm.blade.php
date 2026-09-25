@@ -611,6 +611,7 @@
                         <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-component-serial-no" style="height: 22px;font-weight: bold">
                             @if($slotData['slot'] !== 'empty')
                                 {{ $slotData['item']->component->serial_number }}
+                                <span class="spec-component-qty"> · QTY: {{ max(1, (int) $slotData['item']->component->qty) }}</span>
                             @endif
                         </div>
                     @endforeach

@@ -399,7 +399,8 @@ public function rmRecordForm(Request $request, $id)
             
             // Удаляем только те records, которые не используются
             if (!empty($recordsToDelete)) {
-                RmReport::whereIn('id', $recordsToDelete)->delete();
+                // Delete through model events so every removed record is audited.
+                DB::transaction(fn () => RmReport::destroy($recordsToDelete));
             }
             
             // Формируем сообщение

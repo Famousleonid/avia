@@ -304,7 +304,7 @@
 
                     <tbody>
                     @foreach($formattedTrainingLists as $trainingList)
-                        <tr data-is-due="{{ $trainingList['is_due_for_update'] ? '1' : '0' }}">
+                        <tr data-manual-id="{{ $trainingList['manuals_id'] }}" data-is-due="{{ $trainingList['is_due_for_update'] ? '1' : '0' }}">
                             <td class="text-center">
                                 <button type="button"
                                         class="btn btn-link p-0 m-0 align-baseline text-decoration-none training-modal-link"
@@ -1168,13 +1168,21 @@
             const trainingsTableBody = document.querySelector('#trainingsTable tbody');
 
             if (trainingsTableBody) {
+                const requestedManual = new URLSearchParams(window.location.search).get('manual_id');
+                const selectedRow = Array.from(trainingsTableBody.rows).find(row => row.dataset.manualId === requestedManual);
+                let selectedManual = selectedRow ? requestedManual : null;
+                if (selectedRow && trainingsSearchInput) {
+                    trainingsSearchInput.value = selectedRow.cells[1].textContent.trim();
+                }
                 const applyTrainingFilters = function () {
                     const onlyDue = trainingNotUpdatedCheckbox ? trainingNotUpdatedCheckbox.checked : false;
                     const term = trainingsSearchInput ? trainingsSearchInput.value.trim().toLowerCase() : '';
 
                     Array.from(trainingsTableBody.rows).forEach(function (row) {
                         const matchesDue = !onlyDue || row.dataset.isDue === '1';
-                        const matchesTerm = term === '' || row.textContent.toLowerCase().includes(term);
+                        const matchesTerm = selectedManual
+                            ? row.dataset.manualId === selectedManual
+                            : term === '' || row.textContent.toLowerCase().includes(term);
                         row.style.display = (matchesDue && matchesTerm) ? '' : 'none';
                     });
                 };
@@ -1183,8 +1191,12 @@
                     trainingNotUpdatedCheckbox.addEventListener('change', applyTrainingFilters);
                 }
                 if (trainingsSearchInput) {
-                    trainingsSearchInput.addEventListener('input', applyTrainingFilters);
+                    trainingsSearchInput.addEventListener('input', function () {
+                        selectedManual = null;
+                        applyTrainingFilters();
+                    });
                 }
+                applyTrainingFilters();
             }
 
             // Удаление всех training records

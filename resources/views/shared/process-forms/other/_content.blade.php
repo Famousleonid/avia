@@ -115,7 +115,7 @@
                         ])
                     @endif
                 </div>
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">{{ $component->tdr->qty }}</div>
+                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">{{ max(1, (int) $component->tdr->qty) }}</div>
                 <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
                     @foreach($manuals ?? [] as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)

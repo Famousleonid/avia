@@ -21,6 +21,7 @@
                         ? (int) $coverage->covered_manual_part_group_option_id
                         : null,
                     'qty' => (int) $coverage->qty,
+                    'choice_slot' => $coverage->choice_slot,
                     'applies_to' => $coverage->applies_to,
                     'part_number' => $coverage->component?->part_number,
                     'ipl_num' => $coverage->component?->ipl_num,
@@ -148,6 +149,7 @@
                                         <summary class="fw-semibold">{{ __('Included groups') }} (<span id="manual-part-group-included-count">0</span>)</summary>
                                         <div class="small text-muted my-2" id="manual-part-group-nested-help">{{ __('Only directly included groups are listed. Expand a group to see its contents.') }}</div>
                                         <div id="manual-part-group-assy-members"></div>
+                                        <div id="manual-part-group-conditional-members" class="small text-info mt-2 d-none"></div>
                                         <button type="button" class="btn btn-sm btn-outline-info mt-2" id="manual-part-group-nested-add" aria-expanded="false" aria-controls="manual-part-group-nested-picker">+ {{ __('Add group') }}</button>
                                         <div class="border rounded p-2 mt-2 d-none" id="manual-part-group-nested-picker">
                                             <label class="form-label small" for="manual-part-group-nested-search">{{ __('Find a group to include') }}</label>
@@ -212,6 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const sbWrap = document.getElementById('manual-part-group-sb-wrap');
     const assyWrap = document.getElementById('manual-part-group-assy-wrap');
     const assyMembers = document.getElementById('manual-part-group-assy-members');
+    const conditionalMembers = document.getElementById('manual-part-group-conditional-members');
     const tbody = document.getElementById('manual-part-group-members');
     const nameInput = document.getElementById('manual-part-group-name');
     const bushingWarning = document.getElementById('manual-part-group-bushing-warning');
@@ -531,6 +534,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function resetForm(useSelection) {
+        conditionalMembers.textContent = '';
+        conditionalMembers.classList.add('d-none');
         closePicker();
         closeNestedPicker();
         nestedDetails.open = false;
@@ -559,7 +564,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const option = group.options[0] || {};
         document.getElementById('manual-part-group-order-pn').value = isKit() ? (option.part_number || '') : '';
         document.getElementById('manual-part-group-order-ipl').value = isKit() ? (option.ipl_num || '') : '';
-        members = isBundle() ? (option.coverages || []).filter(function (coverage) { return Number(coverage.component_id) > 0; }).map(function (coverage) { return Object.assign({}, coverage); }) : group.options.map(function (item) {
+        const conditional = (option.coverages || []).filter(function (coverage) { return Boolean(coverage.choice_slot); });
+        conditionalMembers.textContent = conditional.length
+            ? '{{ __('Conditional members are preserved on save and selected by the technician in the workorder:') }} ' +
+                conditional.map(function (coverage) {
+                    return coverage.choice_slot.replaceAll('_', ' ') + ': ' +
+                        (coverage.covered_option?.part_number || coverage.part_number || '');
+                }).join('; ')
+            : '';
+        conditionalMembers.classList.toggle('d-none', conditional.length === 0);
+        members = isBundle() ? (option.coverages || []).filter(function (coverage) { return Number(coverage.component_id) > 0 && !coverage.choice_slot; }).map(function (coverage) { return Object.assign({}, coverage); }) : group.options.map(function (item) {
             const row = partsTable.querySelector('.manual-part-select[data-component-id="' + item.component_id + '"]')?.closest('tr');
             const cells = row?.querySelectorAll('td') || [];
             return { component_id: item.component_id, ipl_num: item.ipl_num || '', part_number: item.part_number || '', name: cells[3]?.textContent.trim() || '', qty: 1, is_default: item.is_default };
@@ -568,7 +582,7 @@ document.addEventListener('DOMContentLoaded', function () {
             members.forEach(function (member) { member.is_default = Number(member.component_id) === Number(option.component_id); });
         }
         includedGroups = {};
-        (option.coverages || []).filter(function (coverage) { return Number(coverage.covered_option_id) > 0; }).forEach(function (coverage) {
+        (option.coverages || []).filter(function (coverage) { return Number(coverage.covered_option_id) > 0 && !coverage.choice_slot; }).forEach(function (coverage) {
             includedGroups[Number(coverage.covered_option_id)] = { qty: Number(coverage.qty || 1) };
         });
         document.querySelectorAll('.manual-part-group-scope').forEach(function (scope) { scope.checked = (group.applies_to || []).includes(scope.value); });

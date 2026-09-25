@@ -35,7 +35,8 @@ class WorkorderPartScopeResolver
         if ($workorder->modified_scope_part_group_option_id) {
             return $this->optionComponentQuantities(
                 (int) $workorder->modified_scope_part_group_option_id,
-                $formScope
+                $formScope,
+                app(WorkorderAssyConfiguration::class)->selectedCoverageIds($workorder)
             );
         }
 
@@ -44,7 +45,11 @@ class WorkorderPartScopeResolver
                 ? [(int) $workorder->scope_component_id => 1]
                 : [],
             Unit::SCOPE_PART_GROUP_OPTION => $workorder->scope_part_group_option_id
-                ? $this->optionComponentQuantities((int) $workorder->scope_part_group_option_id, $formScope)
+                ? $this->optionComponentQuantities(
+                    (int) $workorder->scope_part_group_option_id,
+                    $formScope,
+                    app(WorkorderAssyConfiguration::class)->selectedCoverageIds($workorder)
+                )
                 : [],
             Unit::SCOPE_FULL_UNIT => null,
             default => $this->legacyComponentQuantities($workorder),
@@ -137,10 +142,10 @@ class WorkorderPartScopeResolver
     }
 
     /** @return array<int, int> */
-    private function optionComponentQuantities(int $optionId, ?string $formScope): array
+    private function optionComponentQuantities(int $optionId, ?string $formScope, array $configuredMembers): array
     {
         $result = [];
-        $this->collectOptionComponents($optionId, $formScope, 1, $result, []);
+        $this->collectOptionComponents($optionId, $formScope, 1, $result, [], $configuredMembers);
 
         return $result;
     }
@@ -154,7 +159,8 @@ class WorkorderPartScopeResolver
         ?string $formScope,
         int $multiplier,
         array &$result,
-        array $visited
+        array $visited,
+        array $configuredMembers
     ): void {
         if (isset($visited[$optionId])) {
             return;
@@ -184,11 +190,7 @@ class WorkorderPartScopeResolver
             $result[$componentId] = max($result[$componentId] ?? 0, max(1, $multiplier));
         }
 
-        foreach ($option->coverages as $coverage) {
-            if ($formScope !== null && ! $coverage->appliesTo($formScope)) {
-                continue;
-            }
-
+        foreach (app(WorkorderAssyConfiguration::class)->members($option, $configuredMembers, $formScope) as $coverage) {
             $qty = max(1, (int) ($coverage->qty ?? 1)) * max(1, $multiplier);
             if ($coverage->component_id) {
                 $componentId = (int) $coverage->component_id;
@@ -200,7 +202,8 @@ class WorkorderPartScopeResolver
                     $formScope,
                     $qty,
                     $result,
-                    $visited
+                    $visited,
+                    $configuredMembers
                 );
             }
         }

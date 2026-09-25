@@ -38,6 +38,7 @@ class TdrsTest extends TestCase
         $component = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'CMP-100',
+            'units_assy' => 2,
             'name' => 'QA Component',
             'ipl_num' => '1-10',
         ]);

@@ -88,6 +88,44 @@ class BushingSpecBatchColumnsTest extends TestCase
         $this->assertSame([1, 1], array_column($groups, 'total_qty'));
         $this->assertSame([['SAME-PN'], ['SAME-PN']], array_column($groups, 'part_numbers'));
         $this->assertNotSame($groups[0]['components'][0]['line_id'], $groups[1]['components'][0]['line_id']);
+        $this->assertSame(['NDT' => 'NDT-RO', 'CAD' => 'CAD-RO-1'], $groups[0]['repair_orders']);
+        $this->assertSame(['NDT' => 'NDT-RO', 'CAD' => 'CAD-RO-2'], $groups[1]['repair_orders']);
+    }
+
+    public function test_ro_is_printed_per_operation_and_route_with_blank_batch_authority(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id]);
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        $names = ['machining' => 'Machining', 'stress_relief' => 'Bake (Stress relief)',
+            'ndt' => 'NDT-4', 'passivation' => 'Passivation', 'cad' => 'Cad plate',
+            'anodizing' => 'Anodizing', 'xylan' => 'Xylan coating'];
+        foreach ([1, 2] as $route) {
+            $part = $this->createComponent($wo->unit->manual, ['part_number' => 'RO-PN-'.$route, 'ipl_num' => '8-'.$route]);
+            $line = WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
+                'component_id' => $part->id, 'qty' => 1, 'qty_remaining' => 1, 'sort_order' => $route]);
+            foreach ($names as $key => $name) {
+                $process = $this->process($name);
+                $ro = $route === 2 ? null : ($key === 'machining' ? 'AT' : 'R-'.$key.'<literal>');
+                $batch = WoBushingBatch::create(['workorder_id' => $wo->id, 'process_id' => $process->id,
+                    'process_column_key' => $key, 'route_number' => $route, 'repair_order' => $ro]);
+                WoBushingProcess::create(['wo_bushing_line_id' => $line->id, 'process_id' => $process->id,
+                    'batch_id' => $batch->id, 'qty' => 1, 'repair_order' => 'STALE-ROW-RO']);
+            }
+        }
+        $groups = app(BushingSpecProcessGroups::class)->build($wo);
+        $this->assertCount(2, $groups);
+        $this->assertSame('AT', $groups[0]['repair_orders']['Machining']);
+        $this->assertSame('R-ndt<literal>', $groups[0]['repair_orders']['NDT']);
+        $this->assertSame(array_fill_keys(array_values(BushingSpecProcessGroups::LABELS), ''), $groups[1]['repair_orders']);
+        $response = $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version,
+            'password_hash_web' => $admin->getAuthPassword()])->get(route('wo_bushings.specProcessForm', $bushing->id))->assertOk();
+        foreach (BushingSpecProcessGroups::LABELS as $key => $label) {
+            $expected = $key === 'machining' ? 'AT' : 'R-'.$key.'<literal>';
+            $response->assertSee('data-process="'.$label.'">'.e($expected).'</span>', false);
+            $response->assertSee('data-process="'.$label.'"></span>', false);
+        }
+        $response->assertDontSee('STALE-ROW-RO')->assertDontSee('<literal>', false);
     }
 
     private function process(string $name): Process

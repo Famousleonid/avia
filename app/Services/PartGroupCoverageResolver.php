@@ -44,6 +44,7 @@ class PartGroupCoverageResolver
         $selected = $this->inferSelectionsFromTdrs($workorder, $groups, $selected);
         $coverage = $this->bushingCoverageFromLines($workorder, $groups) + $automaticCoverage;
         $iplFamilies = $this->bundleIplFamilies($workorder, $allGroups);
+        $configuredMembers = app(WorkorderAssyConfiguration::class)->selectedCoverageIds($workorder);
 
         foreach ($selected as $groupId => $selection) {
             /** @var ManualPartGroup|null $group */
@@ -80,7 +81,7 @@ class PartGroupCoverageResolver
                 continue;
             }
 
-            foreach ($this->bundleMembers($option, $scope, $iplFamilies) as $member) {
+            foreach ($this->bundleMembers($option, $scope, $iplFamilies, $configuredMembers) as $member) {
                 $this->expandBundleMember(
                     $coverage,
                     $member,
@@ -92,7 +93,8 @@ class PartGroupCoverageResolver
                     $allGroups,
                     $optionsById,
                     [(int) $option->id => true],
-                    $iplFamilies
+                    $iplFamilies,
+                    $configuredMembers
                 );
             }
         }
@@ -306,9 +308,9 @@ class PartGroupCoverageResolver
     /** Count directly listed letter variants once per assembly, not once per P/N.
      * Separate nested assembly occurrences remain additive.
      */
-    private function bundleMembers(ManualPartGroupOption $option, string $scope, array $families): Collection
+    private function bundleMembers(ManualPartGroupOption $option, string $scope, array $families, array $configuredMembers): Collection
     {
-        return $option->coverages->filter(fn ($member) => $member->appliesTo($scope))
+        return app(WorkorderAssyConfiguration::class)->members($option, $configuredMembers, $scope)
             ->groupBy(function ($member) use ($families): string {
                 $id = (int) $member->component_id;
                 return $member->expandsIplFamily() && isset($families[$id])
@@ -328,7 +330,8 @@ class PartGroupCoverageResolver
         Collection $groups,
         Collection $optionsById,
         array $optionPath,
-        array $iplFamilies
+        array $iplFamilies,
+        array $configuredMembers
     ): void {
         if (! $member->appliesTo($scope)) {
             return;
@@ -337,10 +340,24 @@ class PartGroupCoverageResolver
         $memberQty = max(1, (int) $member->qty) * max(1, $parentQty);
         $componentId = (int) ($member->component_id ?? 0);
         if ($componentId > 0) {
-            $memberIds = $member->expandsIplFamily()
+            // The head of a nested ASSY is the chosen physical P/N, not the
+            // entire letter family of other possible child assemblies.
+            $owningOption = $optionsById->get((int) $member->manual_part_group_option_id);
+            $isAssyHead = $componentId === (int) ($owningOption?->component_id ?? 0)
+                && $groups->get((int) ($owningOption?->manual_part_group_id ?? 0))?->type === ManualPartGroup::TYPE_ASSY;
+            $memberIds = $member->expandsIplFamily() && ! $isAssyHead
                 ? ($iplFamilies[$componentId] ?? [$componentId]) : [$componentId];
             foreach ($memberIds as $variantId) {
                 $this->addCoverage($coverage, $variantId, $memberQty, $reason, $selectedGroup, $selectedOption);
+            }
+            if ($isAssyHead) {
+                foreach ($iplFamilies[$componentId] ?? [] as $variantId) {
+                    if ($variantId !== $componentId) {
+                        $this->addCoverage($coverage, $variantId, PHP_INT_MAX,
+                            'IPL alternative not selected; included ASSY P/N '.$owningOption->part_number,
+                            $selectedGroup, $selectedOption);
+                    }
+                }
             }
 
             return;
@@ -404,7 +421,7 @@ class PartGroupCoverageResolver
 
         $optionPath[$coveredOptionId] = true;
 
-        foreach ($this->bundleMembers($coveredOption, $scope, $iplFamilies) as $nestedMember) {
+        foreach ($this->bundleMembers($coveredOption, $scope, $iplFamilies, $configuredMembers) as $nestedMember) {
             $this->expandBundleMember(
                 $coverage,
                 $nestedMember,
@@ -416,7 +433,8 @@ class PartGroupCoverageResolver
                 $groups,
                 $optionsById,
                 $optionPath,
-                $iplFamilies
+                $iplFamilies,
+                $configuredMembers
             );
         }
     }
@@ -454,6 +472,7 @@ class PartGroupCoverageResolver
         }
 
         $coverage[$componentId]['covered_qty'] = $qty === PHP_INT_MAX
+            || $coverage[$componentId]['covered_qty'] === PHP_INT_MAX
             ? PHP_INT_MAX
             : min(PHP_INT_MAX, $coverage[$componentId]['covered_qty'] + $qty);
     }

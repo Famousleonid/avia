@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class RmReport extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
     protected $fillable = [
         'is_admin_template',
         'manual_id',
@@ -23,6 +25,15 @@ class RmReport extends Model
     ];
 
     protected $casts = ['is_admin_template' => 'boolean'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('rm_report')
+            ->logOnly($this->fillable)
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     public function scopeTemplatesFirst($query)
     {

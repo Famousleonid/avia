@@ -104,7 +104,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    .training-status button { flex-shrink: 0; }
+    .training-status .training-link { flex-shrink: 0; }
 </style>
 
 <div class="training-status ms-4 text-center border rounded" data-tippy-content='{!! $historyHtmlAttr !!}'>
@@ -114,13 +114,13 @@
         </div>
 
         @if($showPlus)
-            <button
-                class="btn btn-outline-primary btn-sm mains-add-trainings-btn"
-                data-manual-id="{{ $manualId }}"
+            <a
+                class="btn btn-outline-primary btn-sm training-link"
+                href="{{ route('trainings.index', ['manual_id' => $manualId]) }}"
                 style="height:30px;width:30px;padding:0;display:flex;align-items:center;justify-content:center;"
-                title="{{ __('Add training') }}">
+                title="{{ __('Open trainings') }}">
                 <i class="bi bi-plus-circle" style="font-size:14px;"></i>
-            </button>
+            </a>
         @else
 {{--            <span style="display:inline-block;width:30px;height:30px;"></span>--}}
         @endif

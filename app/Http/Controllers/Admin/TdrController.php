@@ -687,6 +687,7 @@ class TdrController extends Controller
         $manufactureCode = Code::where('name', 'Manufacture')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
         $repairNecessary = Necessary::where('name', 'Repair')->first();
+        $this->validateRepairQuantity($validated);
 
         // TODO(tdr-refactor): Remove this legacy tdrs.store compatibility branch after the UI posts unit inspections only to TdrUnitInspectionController.
         $isDetachedUnitInspection = empty($validated['component_id'])
@@ -1943,7 +1944,7 @@ class TdrController extends Controller
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->with([
-                'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num')->with('media'); },
+                'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num', 'deleted_at')->with('media'); },
                 'conditions'
             ])
             ->inDisplayOrder()
@@ -2146,7 +2147,7 @@ class TdrController extends Controller
             $components = $this->filterComponentsForUnit(
                 Component::query()
                     ->whereIn('manual_id', $current_tdr->workorder->usedManualIds())
-                    ->select('id', 'part_number', 'name', 'ipl_num', 'kit', 'np', 'kit_e', 'eff_code')
+                    ->select('id', 'part_number', 'name', 'ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code')
                     ->get(),
                 $current_tdr->workorder
             );
@@ -2175,6 +2176,25 @@ class TdrController extends Controller
      * @param int $id
      * @return \Illuminate\Http\RedirectResponse
      */
+    private function validateRepairQuantity(array $values, ?Tdr $tdr = null): void
+    {
+        $necessaryId = $values['necessaries_id'] ?? $tdr?->necessaries_id;
+        if (!Necessary::whereKey($necessaryId)->where('name', 'Repair')->exists()) {
+            return;
+        }
+        $component = Component::find($values['component_id'] ?? $tdr?->component_id);
+        if (!$component) {
+            return;
+        }
+        $maximum = max(1, (int) $component->units_assy);
+        $qty = (int) ($values['qty'] ?? $tdr?->qty ?? 1);
+        if ($qty < 1 || $qty > $maximum) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'qty' => __('Repair quantity must be between 1 and :max (manual quantity).', ['max' => $maximum]),
+            ]);
+        }
+    }
+
     public function update(Request $request, $id)
     {
         // Находим запись Tdr по ID
@@ -2207,6 +2227,9 @@ class TdrController extends Controller
         }
 
         $validated = $request->validate($rules);
+        if (array_key_exists('qty', $validated)) {
+            $validated['qty'] = (int) ($validated['qty'] ?? 1);
+        }
 
         if (! $canReplaceTdrComponent) {
             unset($validated['component_id']);
@@ -2219,6 +2242,7 @@ class TdrController extends Controller
             ]);
         }
 
+        $this->validateRepairQuantity($validated, $tdr);
         $orderNewNecessary = Necessary::where('name', 'Order New')->first();
         $isOrderNew = $orderNewNecessary
             && isset($validated['necessaries_id'])
