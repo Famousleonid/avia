@@ -451,6 +451,8 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'tdr'])
+
 @php
     $totalPages = 1;
 @endphp

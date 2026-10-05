@@ -165,7 +165,7 @@ class WorkordersWriteTest extends TestCase
         $customer = $this->createCustomer();
         $unit = $this->createUnit(['name' => 'Created Unit Name']);
 
-        $response = $this->actingAs($admin)->post(route('workorders.store'), [
+        $response = $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])->post(route('workorders.store'), [
             'number' => 700001,
             'unit_id' => $unit->id,
             'customer_id' => $customer->id,
@@ -188,9 +188,43 @@ class WorkordersWriteTest extends TestCase
             'description' => 'Created from test',
             'is_draft' => 0,
         ]);
-        $this->assertSame('Created from test', $unit->fresh()->name);
+        $this->assertSame('Created Unit Name', $unit->fresh()->name);
 
         $this->assertNotNull($draftInstruction->id);
+    }
+
+    public function test_creation_copies_unit_name_once_without_following_later_catalog_changes(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->createDraftInstruction();
+        $unit = $this->createUnit(['name' => 'Initial catalog name']);
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])
+            ->post(route('workorders.store'), [
+                'number' => 700002, 'unit_id' => $unit->id,
+                'customer_id' => $this->createCustomer()->id,
+                'instruction_id' => $this->createInstruction(['name' => 'Repair'])->id,
+                'user_id' => $admin->id, 'open_at' => now()->toDateString(),
+            ])->assertRedirect(route('workorders.index'))->assertSessionHasNoErrors();
+        $wo = Workorder::where('number', 700002)->firstOrFail();
+        $this->assertSame('Initial catalog name', $wo->description);
+        $unit->update(['name' => 'Later catalog name']);
+        $this->assertSame('Initial catalog name', $wo->fresh(['unit'])->displayDescription());
+        $html = $this->get(route('workorders.edit', $wo))->assertOk()->getContent();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+        $this->assertSame('Initial catalog name', (new \DOMXPath($dom))->query('//input[@id="description"]')->item(0)->getAttribute('value'));
+
+        if (! \App\Models\Instruction::query()->find(6)) {
+            \App\Models\Instruction::forceCreate(['id' => 6, 'name' => 'Mobile Draft']);
+        }
+        $this->withoutExceptionHandling()->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])->post(route('mobile.draft.store'), [
+            'unit_id' => $unit->id,
+            'customer_id' => $wo->customer_id,
+            'description' => 'Independent mobile draft',
+            'open_at' => now()->toDateString(),
+        ])->assertStatus(302)->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('workorders', ['unit_id' => $unit->id, 'is_draft' => 1, 'description' => 'Independent mobile draft']);
+        $this->assertSame('Later catalog name', $unit->fresh()->name);
     }
 
     public function test_created_overhaul_for_a_manual_part_has_only_the_head_part_in_std(): void
@@ -420,7 +454,7 @@ class WorkordersWriteTest extends TestCase
         $this->assertNotNull($workorder);
         $this->assertTrue((bool) $workorder->is_draft);
         $this->assertLessThan(100000, (int) $workorder->number);
-        $this->assertSame('Draft from test', $unit->fresh()->name);
+        $this->assertSame('Draft Unit Name', $unit->fresh()->name);
     }
 
     public function test_mobile_can_create_pending_unit_for_draft_without_manual(): void
@@ -539,7 +573,7 @@ class WorkordersWriteTest extends TestCase
         $this->assertSame(123, (int) $workorder->number);
     }
 
-    public function test_draft_release_uses_manual_title_when_description_is_empty(): void
+    public function test_draft_release_preserves_empty_description_without_unit_or_manual_fallback(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $draftInstruction = $this->createDraftInstruction();
@@ -581,7 +615,9 @@ class WorkordersWriteTest extends TestCase
 
         $this->assertFalse((bool) $draft->is_draft);
         $this->assertSame(700124, (int) $draft->number);
-        $this->assertSame('Release Fallback CMM Title', $unit->name);
+        $this->assertNull($unit->name);
+        $this->assertNull($draft->description);
+        $this->assertNull($draft->displayDescription());
     }
 
     public function test_released_draft_keeps_draft_number_and_next_draft_continues_sequence(): void
@@ -635,7 +671,7 @@ class WorkordersWriteTest extends TestCase
         $this->assertTrue((bool) $nextDraft->is_draft);
         $this->assertSame(8, (int) $nextDraft->number);
         $this->assertSame(8, (int) $nextDraft->draft_number);
-        $this->assertSame('Next draft after release', $unit->fresh()->name);
+        $this->assertSame('Next Draft Unit Name', $unit->fresh()->name);
     }
 
     public function test_regular_creation_rejects_non_integer_number(): void
@@ -833,9 +869,22 @@ class WorkordersWriteTest extends TestCase
         $workorder->refresh();
 
         $this->assertSame(800001, (int) $workorder->number);
-        $this->assertSame('Before update', $workorder->description);
-        $this->assertSame('After update', $unit->fresh()->name);
+        $this->assertSame('After update', $workorder->description);
+        $this->assertSame('QA Unit', $unit->fresh()->name);
         $this->assertSame('After update', $workorder->fresh(['unit'])->displayDescription());
+        $unit->update(['name' => null]);
+        $this->assertSame('After update', $workorder->fresh(['unit'])->displayDescription());
+        $payload = ['unit_id' => $unit->id, 'customer_id' => $customer->id,
+            'instruction_id' => $instruction->id, 'user_id' => $admin->id, 'open_at' => now()->toDateString()];
+        $this->put(route('workorders.update', $workorder), $payload)->assertSessionHasNoErrors();
+        $this->assertSame('After update', $workorder->fresh()->description);
+        $this->put(route('workorders.update', $workorder), $payload + ['description' => ''])->assertSessionHasNoErrors();
+        $this->assertNull($workorder->fresh()->description);
+        $unit->update(['name' => 'Changed catalog name']);
+        $this->assertNull($workorder->fresh(['unit'])->displayDescription());
+        $this->put(route('workorders.update', $workorder), $payload)->assertSessionHasNoErrors();
+        $this->assertNull($workorder->fresh()->description);
+        $this->assertSame('Changed catalog name', $unit->fresh()->name);
     }
 
     public function test_manager_can_change_workorder_technik_on_edit(): void

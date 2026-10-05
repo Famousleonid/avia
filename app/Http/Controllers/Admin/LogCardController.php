@@ -107,7 +107,7 @@ class LogCardController extends Controller
                 return $row;
             })
             ->all();
-        $componentData = $this->sortSavedLogCardRowsByPartNumber($componentData, $savedComponentsById);
+        $componentData = app(\App\Services\ManualLogCardOrder::class)->displayRows($componentData, $current_wo);
 
         $primaryManualId = (int) ($current_wo->unit->manual_id ?? 0);
         $usedManualIds = $current_wo->usedManualIds();
@@ -488,6 +488,20 @@ class LogCardController extends Controller
             })
             ->values();
 
+        $orderRanks = $manual && app(\App\Services\ManualLogCardOrder::class)->followsManualOrder($current_wo)
+            ? app(\App\Services\ManualLogCardOrder::class)->ranks($manual) : [];
+        if (!$orderRanks && $alwaysIncludeComponentIds->isNotEmpty()) {
+            $orderRanks = array_flip($alwaysIncludeComponentIds->all());
+        }
+        if ($orderRanks) {
+            $orderedComponents = $orderedComponents->sortBy(function (array $row) use ($orderRanks) {
+                $ids = ($row['row_type'] ?? '') === 'assy_group'
+                    ? $row['assy_group']['choices']->pluck('component_id')->all()
+                    : [(int) $row['component']->id];
+                return min(array_map(fn ($id) => $orderRanks[$id] ?? PHP_INT_MAX, $ids));
+            })->values();
+        }
+
         return [
             'groupedComponents' => $groupedComponents,
             'separateComponents' => $separateComponents,
@@ -502,7 +516,7 @@ class LogCardController extends Controller
     }
 
     /**
-     * Build one Log Card choice row for every ASSY group created in Manual Parts.
+     * Build independent IPL-family rows with their own ASSY choices, not BOM-wide radios.
      * Only components enabled for this Log Card are included; the synthetic ASSY
      * option is available when its base component is eligible.
      *
@@ -541,7 +555,7 @@ class LogCardController extends Controller
                     && $componentsById->has($id)
                     && (int) ($componentsById->get($id)->units_assy ?? 1) === 1
                     && ($id === (int) $option->component_id
-                        || app(LogCardAssemblyIdentity::class)->hasOwnAssembly($componentsById->get($id), (string) $option->part_number))
+                        || collect($assemblyChoices[$id] ?? [])->contains('group_id', (int) $group->id))
                     && ! $assignedComponentIds->contains($id))
                 ->unique()
                 ->values();
@@ -560,6 +574,8 @@ class LogCardController extends Controller
                 ): array {
                     $component = $componentsById->get($componentId);
                     $isAssyPart = $componentId === $assyComponentId;
+                    $ownChoice = collect($assemblyChoices[$componentId] ?? [])
+                        ->firstWhere('group_id', (int) $option->manual_part_group_id);
 
                     return [
                         'choice_key' => 'component_'.$componentId,
@@ -570,8 +586,8 @@ class LogCardController extends Controller
                         'ipl_num' => (string) ($component->ipl_num ?? ''),
                         'label' => (string) ($component->name ?? ''),
                         'manual_part_group_option_id' => $isAssyPart ? (int) $option->id : null,
-                        'assy_part_number' => $isAssyPart ? '' : $assyPartNumber,
-                        'assy_ipl_num' => $isAssyPart ? '' : $assyIplNumber,
+                        'assy_part_number' => $isAssyPart ? '' : ($ownChoice['part_number'] ?? $assyPartNumber),
+                        'assy_ipl_num' => $isAssyPart ? '' : ($ownChoice['ipl_num'] ?? $assyIplNumber),
                         'is_assy_part' => $isAssyPart,
                         'assembly_choices' => $isAssyPart ? [] : ($assemblyChoices[$componentId] ?? []),
                     ];
@@ -591,6 +607,14 @@ class LogCardController extends Controller
                 'choices' => $choices,
             ];
         })->filter()->values();
+
+        $choiceGroups = $choiceGroups->flatMap(function (array $row) {
+            return $row['choices']->groupBy(fn ($choice) => app(LogCardAssemblyIdentity::class)->logCardFamilyKey($choice))
+                ->map(fn ($choices, $family) => array_merge($row, [
+                    'group_key' => $row['group_key'].'_family_'.$family,
+                    'choices' => $choices->values(),
+                ]))->values();
+        })->values();
 
         return [$choiceGroups, $assignedComponentIds->unique()->values()];
     }
@@ -639,66 +663,6 @@ class LogCardController extends Controller
             ->values();
     }
 
-    private function sortSavedLogCardRowsByPartNumber(array $rows, $componentsById): array
-    {
-        $sections = [];
-        $section = ['header' => null, 'rows' => []];
-
-        foreach ($rows as $row) {
-            if (is_array($row) && ($row['row_type'] ?? '') === 'manual') {
-                if ($section['header'] !== null || $section['rows'] !== []) {
-                    $sections[] = $section;
-                }
-                $section = ['header' => $row, 'rows' => []];
-
-                continue;
-            }
-
-            $section['rows'][] = $row;
-        }
-
-        if ($section['header'] !== null || $section['rows'] !== []) {
-            $sections[] = $section;
-        }
-
-        return collect($sections)
-            ->flatMap(function (array $section) use ($componentsById): array {
-                $sortedRows = collect($section['rows'])
-                    ->sort(function ($left, $right) use ($componentsById): int {
-                        if (! is_array($left) || ! is_array($right)) {
-                            return is_array($left) <=> is_array($right);
-                        }
-
-                        $leftComponent = $componentsById->get((int) ($left['component_id'] ?? 0));
-                        $rightComponent = $componentsById->get((int) ($right['component_id'] ?? 0));
-                        $partNumberCompare = strnatcasecmp(
-                            trim((string) ($left['part_number'] ?? $leftComponent?->part_number ?? '')),
-                            trim((string) ($right['part_number'] ?? $rightComponent?->part_number ?? ''))
-                        );
-                        if ($partNumberCompare !== 0) {
-                            return $partNumberCompare;
-                        }
-
-                        $iplCompare = StdProcess::compareIplValues(
-                            (string) ($leftComponent?->ipl_num ?? ''),
-                            (string) ($rightComponent?->ipl_num ?? '')
-                        );
-
-                        return $iplCompare !== 0
-                            ? $iplCompare
-                            : ((int) ($left['unit_index'] ?? 0) <=> (int) ($right['unit_index'] ?? 0));
-                    })
-                    ->values()
-                    ->all();
-
-                return $section['header'] === null
-                    ? $sortedRows
-                    : array_merge([$section['header']], $sortedRows);
-            })
-            ->values()
-            ->all();
-    }
-
     private function sortLogCardComponentsByPartNumber($components)
     {
         return $components
@@ -740,6 +704,7 @@ class LogCardController extends Controller
         }
         $componentData = is_array($componentData) ? $componentData : [];
         $componentData = app(LogCardAssemblyIdentity::class)->cleanRows($componentData, $current_wo);
+        $componentData = app(\App\Services\ManualLogCardOrder::class)->displayRows($componentData, $current_wo);
 
         $manualIds = collect($componentData)
             ->filter(fn ($row) => is_array($row) && ! empty($row['manual_id']))
@@ -1294,6 +1259,13 @@ class LogCardController extends Controller
             ->whereIn('id', $componentIds)
             ->get()
             ->keyBy('id');
+        $identity = app(LogCardAssemblyIdentity::class);
+        $assemblyChoices = $identity->assemblyChoicesByComponent(
+            ManualPartGroup::with('options.coverages')->whereIn('manual_id', $components->pluck('manual_id')->unique())->get(),
+            $components, $workorder
+        );
+        $rows = array_map(fn ($row) => is_array($row) && ! empty($row['component_id'])
+            ? $identity->withAutomaticAssembly($row, $assemblyChoices[(int) $row['component_id']] ?? []) : $row, $rows);
         $usedManualsById = Manual::query()
             ->whereIn('id', $workorder->usedManualIds())
             ->get(['id', 'number', 'title'])
@@ -1366,6 +1338,12 @@ class LogCardController extends Controller
                     $orderNew
                 );
             }
+            if (app(LogCardAssemblyIdentity::class)->isExplicitNoAssembly($row)) {
+                $row = app(LogCardAssemblyIdentity::class)->withoutAssembly($row);
+                $row['part_number'] = (string) ($component?->part_number ?? '');
+                $row['name'] = (string) ($component?->name ?? '');
+                continue;
+            }
             $assemblyId = (int) ($row['component_assembly_id'] ?? 0);
             $assyPartNumber = trim((string) ($row['assy_part_number'] ?? ''));
             $assyIplNum = trim((string) ($row['assy_ipl_num'] ?? ''));
@@ -1375,12 +1353,15 @@ class LogCardController extends Controller
             $partGroup = $partGroupsById->get((int) ($row['manual_part_group_id'] ?? 0));
             // Older clients submit only the group. Resolve the same unique option
             // accepted by validation instead of silently reverting to its first option.
-            if ($component && $partGroup && app(LogCardAssemblyIdentity::class)->isExplicitSelection($row)
+            if ($component && $partGroup && $partGroupChoice === 'component'
                 && (int) ($row['assy_option_id'] ?? 0) <= 0) {
                 $groups = ManualPartGroup::with('options.coverages')->where('manual_id', $component->manual_id)->get();
                 $choices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($groups, collect([$component]), $workorder);
                 $selected = app(LogCardAssemblyIdentity::class)->selectedAssemblyChoice($row, $choices[$componentId] ?? []);
-                $row['assy_option_id'] = (string) ($selected['option_id'] ?? '');
+                if ($selected) {
+                    $row['assy_option_id'] = (string) $selected['option_id'];
+                    $row['assy_selection_explicit'] = '1';
+                }
             }
             $partGroupOption = $partGroupChoice === 'assy'
                 ? $partGroupOptionsById->get((int) ($row['manual_part_group_option_id'] ?? 0))
@@ -1530,7 +1511,7 @@ class LogCardController extends Controller
             ->unique();
         $componentsById = Component::query()
             ->whereIn('id', $submittedComponentIds)
-            ->get(['id', 'manual_id'])
+            ->get(['id', 'manual_id', 'ipl_num'])
             ->keyBy('id');
         $scopeResolver = app(WorkorderPartScopeResolver::class);
         $hasInvalidComponent = $submittedComponentIds->contains(function (int $componentId) use (
@@ -1559,15 +1540,21 @@ class LogCardController extends Controller
             ->map(fn ($id): int => (int) $id)
             ->filter()
             ->unique();
-        $hasDuplicateAssyGroup = collect($decoded)
+        $hasDuplicateFamily = collect($decoded)
             ->filter(fn ($row): bool => is_array($row)
                 && ($row['row_type'] ?? '') !== 'manual'
-                && (int) ($row['manual_part_group_id'] ?? 0) > 0)
-            ->groupBy(fn ($row): int => (int) $row['manual_part_group_id'])
+                && ((int) ($row['manual_part_group_id'] ?? 0) > 0
+                    || app(LogCardAssemblyIdentity::class)->isExplicitNoAssembly($row)))
+            ->groupBy(function ($row) use ($componentsById): string {
+                $component = $componentsById->get((int) $row['component_id']);
+                return $component->manual_id.':'.app(LogCardAssemblyIdentity::class)->logCardFamilyKey([
+                    'component_id' => $component->id, 'ipl_num' => $component->ipl_num,
+                ]).':'.(int) ($row['unit_index'] ?? 0);
+            })
             ->contains(fn ($rows): bool => $rows->count() > 1);
-        if ($hasDuplicateAssyGroup) {
+        if ($hasDuplicateFamily) {
             throw ValidationException::withMessages([
-                'component_data' => [__('Select only one item from each ASSY group.')],
+                'component_data' => [__('Select only one variant from each IPL family.')],
             ]);
         }
         $compositionGroups = ManualPartGroup::query()
@@ -1595,9 +1582,21 @@ class LogCardController extends Controller
                 return false;
             }
 
+            $identity = app(LogCardAssemblyIdentity::class);
+            $choices = $explicitChoices[(int) ($row['component_id'] ?? 0)] ?? [];
+            if (!$identity->isExplicitNoAssembly($row) && $identity->needsAssemblyChoice($row) && count($choices) > 1) {
+                throw ValidationException::withMessages([
+                    'component_data' => [__('Select an ASSY for part :part.', ['part' => $componentsById->get((int) ($row['component_id'] ?? 0))?->part_number])],
+                ]);
+            }
+            $row = $identity->withAutomaticAssembly($row, $choices);
+
             $groupId = (int) ($row['manual_part_group_id'] ?? 0);
             $optionId = (int) ($row['manual_part_group_option_id'] ?? 0);
             $explicit = app(LogCardAssemblyIdentity::class)->isExplicitSelection($row);
+            if (app(LogCardAssemblyIdentity::class)->isExplicitNoAssembly($row)) {
+                return false;
+            }
             if ($explicit && (($row['manual_part_group_choice'] ?? '') !== 'component'
                 || ! app(LogCardAssemblyIdentity::class)->selectedAssemblyChoice($row, $explicitChoices[(int) ($row['component_id'] ?? 0)] ?? []))) {
                 return true;
@@ -1627,6 +1626,10 @@ class LogCardController extends Controller
             }
             $memberIds = collect($componentIdsByGroup[$groupId] ?? []);
             if (! $memberIds->contains((int) $component->id)) {
+                return true;
+            }
+            if ($choice === 'component' && ! $explicit
+                && ! app(LogCardAssemblyIdentity::class)->selectedAssemblyChoice($row, $explicitChoices[(int) $component->id] ?? [])) {
                 return true;
             }
 

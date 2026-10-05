@@ -10,7 +10,7 @@
                 <h4 class="mb-0 text-black">
                     <strong>{{ $process_name->process_sheet_name ?? $process_name->name ?? ($header_title ?? 'PROCESS') }} PROCESS SHEET</strong>
                 </h4>
-                @if($isMachiningPrintedForm)
+                @if($isMachiningPrintedForm && $process_name->hasIdentity(['Machining', 'Machining (EC)']))
                     @php($mhLibs = $machining_header_manual_libs ?? [])
                     @auth
                         <div class="machining-sheet-header-meta text-md-end ms-md-auto">
@@ -53,7 +53,8 @@
                 <div class="col-8 pt-2 border-b process-ro-line">
                     @php($headerRepairOrder = trim((string) ($formHeaderRepairOrder ?? '')))
                     @if($headerRepairOrder !== '')
-                        <strong class="process-ro-box">{{ $headerRepairOrder }}</strong>
+                        {{-- Bushing forms use this field for a batch label (B1), not an RO. --}}
+                        <strong class="process-ro-box">{{ ($module ?? '') === 'wo_bushings' ? $headerRepairOrder : 'R' }}</strong>
                     @endif
                 </div>
             </div>

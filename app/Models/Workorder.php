@@ -25,6 +25,7 @@ class Workorder extends Model implements HasMedia
         'arrival_box_status','arrival_box_notes','arrival_box_recorded_by','arrival_box_recorded_at','torque_values','sales_invoice_amount','sales_invoice_date',];
 
     protected $casts = [
+        'expected_completion_date' => 'date',
         'approve_at' => 'datetime',
         'done_at' => 'date',
         'sales_invoice_date' => 'date',
@@ -170,9 +171,7 @@ class Workorder extends Model implements HasMedia
 
     public function displayDescription(): ?string
     {
-        $unitName = trim((string) ($this->unit?->name ?? ''));
-
-        return $unitName !== '' ? $unitName : null;
+        return $this->description;
     }
 
     public function doneUser()
@@ -281,6 +280,7 @@ class Workorder extends Model implements HasMedia
                 'user_id',
                 'approve_at',
                 'wo_estimate_date',
+                'expected_completion_date',
                 'approve_name',
                 'description',
                 'serial_number',

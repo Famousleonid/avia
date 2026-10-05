@@ -256,6 +256,8 @@
 </head>
 
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'sp'])
+
 <!-- Кнопки печати -->
 <div class="text-start m-2 no-print">
     <button class="btn btn-primary" onclick="window.print()">Print Form</button>

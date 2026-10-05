@@ -1,6 +1,7 @@
 @extends('admin.master')
 
 @section('style')
+    <style>.btn[data-process-images].has-print-images{border-color:#ffc107!important}</style>
     <style>
         .dir-description-cell { max-width: 360px; white-space: normal; line-height: 1.35; }
         .dir-vendor-media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .85rem; }
@@ -157,6 +158,9 @@
                                     @endif
                                     <td class="text-center">
                                         <div class="btn-group" role="group">
+                                            @if($slug === 'process_names')
+                                                <button type="button" class="btn btn-outline-info btn-sm btn-icon me-2 {{ $item->print_images_count > 0 ? 'has-print-images' : '' }}" data-process-images="{{ route('process-print-attachments.index', $item) }}" title="Print images by part number ({{ $item->print_images_count }})"><i class="bi bi-images"></i></button>
+                                            @endif
                                             @if($isVendorDirectory)
                                                 <button class="btn btn-outline-primary btn-sm btn-icon me-2" data-bs-toggle="modal" data-bs-target="#dirVendorModal" onclick="dirOpenVendorAssets(this.closest('tr'))" title="View and edit"><i class="bi bi-pencil-square"></i></button>
                                             @else
@@ -392,6 +396,9 @@
 @endsection
 
 @section('scripts')
+    @if($slug === 'process_names')
+        <script src="{{ asset('js/process-print-attachments.js') }}?v={{ filemtime(public_path('js/process-print-attachments.js')) }}"></script>
+    @endif
     @php
         $fieldUpdateUrlTemplate = $slug === 'process_names'
             ? route('directories.field.update', ['directory' => $slug, 'id' => '__ID__', 'field' => '__FIELD__'])

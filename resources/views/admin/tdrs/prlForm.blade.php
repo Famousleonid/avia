@@ -562,13 +562,12 @@
 </head>
 
 <body>
-@if($showPrintMarkQr ?? true)
     @include('shared.print-mark.qr', [
+        'printMarkFormKey' => ($printSettingsProfile ?? '') === 'kit' ? 'kit' : (in_array(optional(request()->route())->getName(), ['tdrs.bushPrlForm', 'tdrs.bushingPrlForm']) ? 'bushing_prl' : 'prl'),
         'printMarkWorkorder' => $current_wo ?? null,
         'printMarkQrTop' => '-8px',
-        'printMarkQrPrintTop' => '-2mm',
+        'printMarkQrPrintTop' => '0',
     ])
-@endif
 <!-- Кнопки для печати и настроек -->
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" onclick="window.print()">

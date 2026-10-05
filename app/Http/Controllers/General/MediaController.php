@@ -260,7 +260,7 @@ class MediaController extends Controller
         $workorder = Workorder::findOrFail($id);
 
         $request->validate([
-            'pdf' => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+            'pdf' => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:51200',
             'document_name' => 'nullable|string|max:255',
             'doc_kind' => ['nullable', \Illuminate\Validation\Rule::exists('document_categories', 'key')->whereNull('deleted_at')],
         ]);

@@ -109,6 +109,14 @@
         </a>
     </li>
 
+    @if($sidebarUser?->roleIs(['Admin', 'Manager']))
+        <li class="nav-item">
+            <a class="nav-link press-spinner {{ request()->routeIs('workorders.status') ? 'active' : '' }}" href="{{ route('workorders.status') }}">
+                <i class="bi bi-speedometer2 me-2"></i> <span>WO Status</span>
+            </a>
+        </li>
+    @endif
+
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('trainings.index')}}">
             <i class="bi bi-list-check me-2"></i> <span>Training</span>

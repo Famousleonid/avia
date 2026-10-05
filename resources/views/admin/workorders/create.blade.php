@@ -495,7 +495,7 @@
             }
 
 
-            unitSelect.addEventListener('change', function () {
+            $(unitSelect).on('change', function () {
                 const selectedOption = this.options[this.selectedIndex];
                 const unitName = selectedOption.getAttribute('data-name');
                 descriptionInput.value = unitName || '';

@@ -9,7 +9,9 @@
     }
 
     $printMarkWoNumber = preg_replace('/\D+/', '', (string) $printMarkWoNumber);
-    $printMarkQrEnabled = \App\Models\ProjectSetting::boolean(\App\Models\ProjectSetting::PRINT_FORMS_QR_ENABLED, true);
+    $printMarkQrEnabled = isset($printMarkFormKey)
+        ? app(\App\Services\PrintFormQrSettings::class)->enabled($printMarkFormKey)
+        : \App\Models\ProjectSetting::boolean(\App\Models\ProjectSetting::PRINT_FORMS_QR_ENABLED, true);
     $printMarkQrSize = max(24, min(96, (int) ($printMarkQrSize ?? 40)));
     $printMarkQrTop = $printMarkQrTop ?? '3mm';
     $printMarkQrRight = $printMarkQrRight ?? 'max(4mm, calc(100vw - var(--container-margin-left, 0px) - var(--container-max-width, 100vw) + 4mm))';
@@ -22,7 +24,7 @@
     $printMarkWarnings = array_values(array_unique(array_filter((array) ($printMarkWarnings ?? []))));
 @endphp
 
-@if($printMarkWoNumber !== '' && $printMarkQrEnabled)
+@if(($printMarkWoNumber !== '' || ($printMarkAllowWithoutWorkorder ?? false)) && $printMarkQrEnabled)
     @php
         $printMarkPrintedAt = $printMarkPrintedAt ?? now();
         $printMarkPrintedBy = $printMarkPrintedBy ?? (optional(auth()->user())->selection_name ?: 'system');
@@ -55,6 +57,7 @@
             'workorders.measurements.fc-table' => 'Fits and Clearances',
         ];
         $printMarkFormName = trim((string) ($printMarkFormName
+            ?? (isset($printMarkFormKey) ? config('print_form_qr.'.$printMarkFormKey.'.label') : null)
             ?? ($process_name->process_sheet_name ?? ($process_name->name ?? null))
             ?? ($printMarkRouteFormNames[$printMarkRouteName] ?? 'Printed Form')));
 
@@ -62,7 +65,7 @@
         try {
             $printMarkRecord = app(\App\Services\PrintMarkService::class)->create([
                 'workorder_id' => is_object($printMarkCandidate) ? ($printMarkCandidate->id ?? null) : null,
-                'workorder_number' => 'W' . $printMarkWoNumber,
+                'workorder_number' => $printMarkWoNumber !== '' ? 'W' . $printMarkWoNumber : '—',
                 'form_name' => $printMarkFormName,
                 'requirement_warnings' => $printMarkWarnings,
                 'printed_by_user_id' => auth()->id(),
@@ -167,8 +170,8 @@
                     print-color-adjust: exact;
                     position: fixed;
                     visibility: visible;
-                    right: {{ $printMarkQrPrintRight }};
-                    top: {{ $printMarkQrPrintTop }};
+                    right: {{ $printMarkQrPrintRight }} !important;
+                    top: {{ $printMarkQrPrintTop }} !important;
                 }
                 .system-print-qr__warning { display: none !important; }
             }

@@ -23,7 +23,7 @@
             <div class="col-1 fs-7">#1</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt1_name_id ?? null]))
-                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt1_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt1_name_id]->id) : '', 'description' => ''])
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt1_name_id]->process, 'description' => ''])
                 @endif
             </div>
         </div>
@@ -32,7 +32,7 @@
             <div class="col-1 fs-7">#4</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt4_name_id ?? null]))
-                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt4_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt4_name_id]->id) : '', 'description' => ''])
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt4_name_id]->process, 'description' => ''])
                 @endif
             </div>
         </div>
@@ -41,7 +41,7 @@
             <div class="col-1 fs-7">#7</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt7_name_id ?? null]))
-                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt7_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt7_name_id]->id) : '', 'description' => ''])
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt7_name_id]->process, 'description' => ''])
                 @endif
             </div>
         </div>
@@ -51,7 +51,7 @@
             <div class="col-1 fs-7">#2</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt2_name_id ?? null]))
-                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt2_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt2_name_id]->id) : '', 'description' => ''])
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt2_name_id]->process, 'description' => ''])
                 @endif
             </div>
         </div>
@@ -59,7 +59,7 @@
             <div class="col-1 fs-7">#5</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt5_name_id ?? null]))
-                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt5_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt5_name_id]->id) : '', 'description' => ''])
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt5_name_id]->process, 'description' => ''])
                 @endif
             </div>
         </div>
@@ -67,7 +67,7 @@
             <div class="col-1 fs-7">#8</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt8_name_id ?? null]))
-                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt8_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt8_name_id]->id) : '', 'description' => ''])
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt8_name_id]->process, 'description' => ''])
                 @endif
             </div>
         </div>
@@ -77,7 +77,7 @@
             <div class="col-1 fs-7">#3</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt3_name_id ?? null]))
-                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt3_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt3_name_id]->id) : '', 'description' => ''])
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt3_name_id]->process, 'description' => ''])
                 @endif
             </div>
         </div>
@@ -86,7 +86,7 @@
             <div class="col-1 fs-7 text-end">#6</div>
             <div class="col-10 border-b">
                 @if(isset($ndt_processes_by_id[$ndt6_name_id ?? null]))
-                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt6_name_id]->process, 'comment' => isset($processCommentFor) ? $processCommentFor($ndt_processes_by_id[$ndt6_name_id]->id) : '', 'description' => ''])
+                    @include('shared.process-forms._process-text', ['text' => $ndt_processes_by_id[$ndt6_name_id]->process, 'description' => ''])
                 @endif
             </div>
         </div>
@@ -119,6 +119,7 @@
         @foreach($ndt_components as $component)
             @php
                 $pn = $component->processName;
+                $isUsMeasurement = \App\Models\ProcessName::normalizedNameKey($pn->identityName()) === 'usmeasurement';
                 if ($pn->identityName() === 'Eddy Current Test') {
                     $processNumbers = ['6'];
                 } elseif ($pn->identityName() === 'BNI') {
@@ -146,8 +147,14 @@
                     }
                 }
                 sort($processNumbers);
+                $usMeasurementText = '';
+                if ($isUsMeasurement) {
+                    $selectedIds = \App\Models\TdrProcess::normalizeStoredProcessIds($component->processes);
+                    $selectedProcesses = \App\Models\Process::whereIn('id', $selectedIds)->get()->keyBy('id');
+                    $usMeasurementText = collect($selectedIds)->map(fn ($id) => $selectedProcesses->get($id)?->process)->filter()->implode("\n");
+                }
             @endphp
-            <div class="row fs-8 data-row-ndt" data-row-index="{{ $rowIndex }}">
+            <div class="row fs-8 data-row-ndt {{ $isUsMeasurement ? 'data-row-us-measurement' : '' }}" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ $component->tdr->component->ipl_num }}</div>
                 <div class="col-3 border-l-b details-row text-center" style="min-height: 32px; height: auto; line-height: 1">
                     {{ $component->tdr->component->part_number }}
@@ -157,7 +164,16 @@
                     <span>{{ $component->tdr->component->name }}</span>
                     @if($component->description)<span class="process-description">{{ $component->description }}</span>@endif
                 </div>
-                <div class="col-2 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ implode(' / ', $processNumbers) }}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif</div>
+                <div class="col-2 border-l-b details-row text-center" style="min-height: 32px; height: auto">
+                    @if($isUsMeasurement)
+                        <span style="white-space: pre-line; overflow-wrap: anywhere">{{ $usMeasurementText }}</span>
+                    @else
+                        {{ implode(' / ', $processNumbers) }}
+                    @endif
+                    @if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])
+                        <span class="process-requirement-print-star">*</span>
+                    @endif
+                </div>
                 <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto">{{ max(1, (int) $component->tdr->qty) }}</div>
                 <div class="col-1 border-l-b details-row text-center" style="min-height: 32px; height: auto"></div>
                 <div class="col-1 border-l-b-r details-row text-center" style="min-height: 32px; height: auto"></div>
@@ -187,16 +203,22 @@
                 }
                 $serial = isset($data['extra_process']) ? ($data['extra_process']->serial_num ?? null) : null;
                 $qty = isset($data['extra_process']) ? ($data['extra_process']->qty ?? 1) : ($data['qty'] ?? 1);
+                $rowProcessName = $data['process_name'] ?? $process_name ?? null;
+                $rowIdentity = $rowProcessName instanceof \App\Models\ProcessName ? $rowProcessName->identityName() : data_get($rowProcessName, 'name');
+                $isUsMeasurement = \App\Models\ProcessName::normalizedNameKey($rowIdentity) === 'usmeasurement';
+                if ($isUsMeasurement) {
+                    $processNumbers = data_get($data['process'] ?? null, 'process', '');
+                }
             @endphp
             @if($comp)
-            <div class="row fs-8 data-row-ndt" data-row-index="{{ $rowIndex }}">
+            <div class="row fs-8 data-row-ndt {{ $isUsMeasurement ? 'data-row-us-measurement' : '' }}" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">{{ $comp->ipl_num }}</div>
                 <div class="col-3 border-l-b details-row text-center" style="height: 32px; line-height: 1">
                     {{ $comp->part_number }}
                     @if($serial)<br>SN {{ $serial }}@endif
                 </div>
                 <div class="col-3 border-l-b details-row text-center" style="height: 32px">{{ $comp->name }}</div>
-                <div class="col-2 border-l-b details-row text-center" style="height: 32px">{{ $processNumbers }}</div>
+                <div class="col-2 border-l-b details-row text-center" style="{{ $isUsMeasurement ? 'min-height: 32px; height: auto; white-space: pre-line; overflow-wrap: anywhere' : 'height: 32px' }}">{{ $processNumbers }}</div>
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">{{ $qty }}</div>
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
                 <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>

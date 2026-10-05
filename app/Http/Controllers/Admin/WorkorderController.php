@@ -873,10 +873,6 @@ class WorkorderController extends Controller
 
         $workorder = Workorder::create($data);
 
-        if ($unit) {
-            $unit->forceFill(['name' => $description !== '' ? $description : null])->save();
-        }
-
         if (!$isDraft) {
             $overhaulId = Instruction::overhaulId();
             if ($overhaulId && (int) $workorder->instruction_id === (int) $overhaulId) {
@@ -1011,16 +1007,6 @@ class WorkorderController extends Controller
                     ->withInput();
             }
 
-            $submittedDescription = trim((string) $request->input('description', ''));
-            if ($submittedDescription === '') {
-                $existingUnitName = trim((string) $unit->name);
-                $manualTitle = trim((string) ($unit->manual?->title ?? ''));
-                $fallbackDescription = $existingUnitName !== '' ? $existingUnitName : $manualTitle;
-
-                if ($fallbackDescription !== '') {
-                    $request->merge(['description' => $fallbackDescription]);
-                }
-            }
         }
 
         $request->merge([
@@ -1119,7 +1105,6 @@ class WorkorderController extends Controller
         $isNowOverhaul = $overhaulId !== null && $newInstructionId === (int) $overhaulId;
 
         $workorder->update($request->except([
-            'description',
             'not_used_manual_ids',
             'scope_type',
             'scope_target_id',
@@ -1138,14 +1123,6 @@ class WorkorderController extends Controller
             app(WorkorderStdProcessItemsService::class)->rebuild(
                 $workorder->fresh(['unit.manuals', 'instruction'])
             );
-        }
-
-        if ($request->has('description')) {
-            $description = trim((string) $request->input('description', ''));
-            $unit = Unit::find($request->input('unit_id', $workorder->unit_id));
-            if ($unit) {
-                $unit->forceFill(['name' => $description !== '' ? $description : null])->save();
-            }
         }
 
         if ($wasOverhaul && ! $isNowOverhaul) {

@@ -10,6 +10,7 @@ use App\Models\Main;
 use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\Process;
+use App\Models\QuantumRoLine;
 use App\Models\StdProcess;
 use App\Models\Task;
 use App\Models\Tdr;
@@ -91,6 +92,28 @@ class MainController extends Controller
         return view('admin.mains.photos', [
             'workorder' => $workorder,
         ]);
+    }
+
+    public function quantumRoLines(Workorder $workorder, \App\Services\QuantumRoMatrix $matrixBuilder)
+    {
+        abort_unless(auth()->user()?->roleIs(['Admin', 'Manager']), 403);
+
+        // Keep every source detail, including unresolved/dismissed lines. Applying
+        // a line to a local process is independent of its presence in the buffer.
+        $number = (string) $workorder->number;
+        $lines = QuantumRoLine::query()
+            ->whereIn(DB::raw('UPPER(TRIM(wo_number))'), [$number, 'W' . $number])
+            ->orderByDesc('out_date')
+            ->orderByDesc('ro_number')
+            ->orderBy('rod_auto_key')
+            ->get(['ro_number', 'pn', 'description', 'serial_number', 'bom_ref',
+                'vendor_name', 'out_date', 'returned_date', 'last_seen_at']);
+
+        $matrix = $matrixBuilder->build($lines);
+
+        return response()->json([
+            'html' => view('admin.mains.partials.quantum-ro-lines', compact('workorder', 'lines', 'matrix'))->render(),
+        ])->header('Cache-Control', 'no-store');
     }
 
     public function store(Request $request)

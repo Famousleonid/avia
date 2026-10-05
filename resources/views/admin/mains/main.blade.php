@@ -5,6 +5,9 @@
     <script>
         (() => {
             const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
+            @if(auth()->user()?->roleIs(['Admin', 'Manager']))
+                allowedTabs.push('ro');
+            @endif
             const woId = @json((string) ($current_workorder->id ?? ''));
             let tab = document.documentElement.getAttribute('data-main-tab') || 'overview';
 
@@ -505,6 +508,9 @@
                 <script>
                     (function () {
                         const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
+                        @if(auth()->user()?->roleIs(['Admin', 'Manager']))
+                            allowedTabs.push('ro');
+                        @endif
                         const woId = '{{ (int)($current_workorder->id ?? 0) }}';
                         const hashMatch = window.location.hash.match(/^#qa-main:(.+)$/);
                         const hashTab = hashMatch ? new URLSearchParams(hashMatch[1]).get('tab') : '';
@@ -523,6 +529,9 @@
                         <button type="button" class="main-tab-btn" data-main-tab="std" role="tab">STD Processes</button>
                         <button type="button" class="main-tab-btn" data-main-tab="parts" role="tab">Parts / Processes</button>
                         <button type="button" class="main-tab-btn" data-main-tab="bushings" role="tab">Bushing / Processes</button>
+                        @if(auth()->user()?->roleIs(['Admin', 'Manager']))
+                            <button type="button" class="main-tab-btn" data-main-tab="ro" role="tab" aria-controls="main-ro-panel">RO</button>
+                        @endif
                     </div>
 
                     <div class="main-tabs-toolbar">
@@ -1499,6 +1508,12 @@
                     </div>
 
                     </div>
+                    @if(auth()->user()?->roleIs(['Admin', 'Manager']))
+                    <section id="main-ro-panel" class="main-ro-panel border border-info" role="tabpanel" aria-label="Quantum RO"
+                             data-ro-url="{{ route('mains.quantum-ro-lines', $current_workorder) }}">
+                        <div class="main-ro-content" data-ro-content aria-live="polite"></div>
+                    </section>
+                    @endif
                     <div class="main-tab-resize-handle" data-main-tab-resize title="Drag to resize"></div>
                 </div>
                 @endunless
@@ -1688,7 +1703,7 @@
     <script src="{{ asset('js/tdrs/show/pdf-badge-handler.js') }}"></script>
     <script src="{{ asset('js/tdrs/show/pdf-library-handler.js') }}"></script>
     <script src="{{ asset('js/tdrs/show/pdf-viewer-handler.js') }}"></script>
-    <script src="{{ asset('js/tdrs/show/pdf-upload-handler.js') }}"></script>
+    <script src="{{ asset('js/tdrs/show/pdf-upload-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-upload-handler.js')) }}"></script>
     <script src="{{ asset('js/tdrs/show/pdf-delete-handler.js') }}"></script>
     <script src="{{ asset('js/tdrs/show/show-main.js') }}"></script>
 
@@ -1708,6 +1723,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             (function initMainTabs() {
                 const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
+                @if(auth()->user()?->roleIs(['Admin', 'Manager']))
+                    allowedTabs.push('ro');
+                @endif
                 const shell = document.querySelector('[data-main-tabs]');
                 if (!shell) return;
 
@@ -1716,7 +1734,62 @@
                 const tabKey = woId ? `activeTab:${woId}` : 'activeTab:default';
                 const sizeKeyPrefix = woId ? `panelWidth:${woId}:` : 'panelWidth:default:';
                 const resizeHandle = shell.querySelector('[data-main-tab-resize]');
+                const roPanel = shell.querySelector('[data-ro-url]');
+                let roLoading = false;
                 let activeTab = 'overview';
+                let tabSelectedByUser = false;
+                let roPopovers = [];
+
+                function hideRoPopovers() {
+                    roPopovers.forEach(instance => instance.hide());
+                }
+
+                document.addEventListener('keydown', event => {
+                    if (event.key === 'Escape') hideRoPopovers();
+                });
+
+                function initRoPopovers(content) {
+                    roPopovers = Array.from(content.querySelectorAll('.main-ro-number')).map(button =>
+                        tippy(button, {
+                            content: button.nextElementSibling.content.firstElementChild.cloneNode(true),
+                            trigger: 'click', interactive: true, placement: 'auto',
+                            appendTo: () => document.body, theme: 'avia-dark', maxWidth: 280,
+                            aria: { content: 'describedby', expanded: false },
+                            onShow(instance) {
+                                roPopovers.forEach(other => { if (other !== instance) other.hide(); });
+                                button.setAttribute('aria-expanded', 'true');
+                            },
+                            onHide() { button.setAttribute('aria-expanded', 'false'); },
+                        })
+                    );
+                }
+
+                async function loadRoLines() {
+                    if (!roPanel || roLoading) return;
+                    roLoading = true;
+                    const content = roPanel.querySelector('[data-ro-content]');
+                    roPopovers.forEach(instance => instance.destroy());
+                    roPopovers = [];
+                    content.setAttribute('aria-busy', 'true');
+                    content.innerHTML = '<p class="p-3 text-muted">Loading synchronized RO lines…</p>';
+                    try {
+                        const response = await fetch(roPanel.dataset.roUrl, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            cache: 'no-store',
+                        });
+                        if (!response.ok || response.redirected) throw new Error('RO request failed');
+                        const data = await response.json();
+                        if (typeof data.html !== 'string') throw new Error('Invalid RO response');
+                        content.innerHTML = data.html;
+                        initRoPopovers(content);
+                    } catch (error) {
+                        content.innerHTML = '<p class="p-3 text-danger" role="alert">Could not load RO lines. Reopen the RO tab to retry.</p>';
+                    } finally {
+                        roLoading = false;
+                        content.setAttribute('aria-busy', 'false');
+                    }
+                }
+
 
                 function readQaMainTarget() {
                     const match = window.location.hash.match(/^#qa-main:(.+)$/);
@@ -1737,9 +1810,12 @@
                 async function activateMainTab(tab, { save = true } = {}) {
                     if (!allowedTabs.includes(tab)) tab = 'overview';
                     activeTab = tab;
+                    hideRoPopovers();
                     document.documentElement.setAttribute('data-main-tab', tab);
                     shell.dataset.activeMainTab = tab;
+                    if (tab === 'ro') loadRoLines();
                     await applySavedWidth(tab);
+                    if (activeTab !== tab) return;
 
                     shell.querySelectorAll('.main-tab-btn').forEach((btn) => {
                         const active = btn.dataset.mainTab === tab;
@@ -1772,6 +1848,7 @@
                     }
 
                     const width = await window.UserUiSettings.get(settingsScope, widthKey(tab), '');
+                    if (activeTab !== tab) return;
 
                     if (width) {
                         shell.style.setProperty('--main-tab-panel-width', `${parseInt(width, 10)}px`);
@@ -1783,6 +1860,7 @@
                 shell.addEventListener('click', (e) => {
                     const btn = e.target.closest('.main-tab-btn');
                     if (!btn) return;
+                    tabSelectedByUser = true;
                     activateMainTab(btn.dataset.mainTab);
                 });
 
@@ -1853,8 +1931,9 @@
                 }
 
                 (async () => {
-                    activeTab = await readTab();
-                    await activateMainTab(activeTab, { save: false });
+                    const savedTab = await readTab();
+                    if (tabSelectedByUser) return;
+                    await activateMainTab(savedTab, { save: false });
                     focusQaMainTarget();
                 })();
                 window.addEventListener('hashchange', focusQaMainTarget);

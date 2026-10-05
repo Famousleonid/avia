@@ -191,6 +191,8 @@
 </head>
 
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'training132', 'printMarkAllowWithoutWorkorder' => true, 'printMarkFormName' => 'Training 132 — ' . ($training->user->selection_name ?? '')])
+
 <div class="text-start m-2 no-print">
     <button class="btn btn-primary" onclick="window.print()">Печать формы</button>
     <button class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#printSettingsModal">

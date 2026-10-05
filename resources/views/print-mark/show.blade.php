@@ -143,10 +143,12 @@
         </section>
 
         <section class="print-mark-body">
+            @if($workorder !== '—')
             <div class="print-mark-row">
                 <div class="print-mark-label">Work Order</div>
                 <div class="print-mark-value">{{ $workorder }}</div>
             </div>
+            @endif
             <div class="print-mark-row">
                 <div class="print-mark-label">Form</div>
                 <div class="print-mark-value">{{ $formName }}</div>

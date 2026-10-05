@@ -575,6 +575,8 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'qa_log'])
+
 @php
     $manual = $manuals->firstWhere('id', $current_wo->unit->manual_id);
     $twoLineAssyValue = function (?string $value): string {

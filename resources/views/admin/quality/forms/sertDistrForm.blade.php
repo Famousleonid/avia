@@ -144,6 +144,8 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'qa_destruction'])
+
 <div class="no-print text-start mb-3">
     <button type="button" class="btn btn-outline-primary" onclick="window.print()">{{ __('Print Form') }}</button>
 </div>

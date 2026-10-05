@@ -5,6 +5,38 @@
 Local bridge reads Quantum RO data and sends staged rows to avia API.
 Quantum remains read-only.
 
+## Main workorder RO tab (28/Sep/2026)
+
+The Main page has a read-only RO tab backed by `quantum_ro_lines`, loaded via
+`GET /mains/{workorder}/quantum-ro-lines` on tab activation. It shows
+all buffered detail rows for that exact WO (trimmed, case-insensitive, with or
+without W), regardless of apply status. No recent-date limit or completed-WO
+exclusion is used. OUT_DATE and returned_date stay on their own source line;
+the page does not aggregate return dates across a shared RO number.
+
+Only Admin and Manager roles can see this tab or call its data endpoint; other
+authenticated roles receive HTTP 403. A saved RO tab selection is ignored when
+the user's current role no longer permits it.
+
+Each staged row retains `last_seen_at`. This is the row's
+last receipt by the sync, not a claim that every row is still present in Oracle.
+Historical source rows remain visible in the synchronized snapshot.
+Local validation for W107731 found 12 distinct RO / 15
+buffered lines, including two R8990 CAD Plate B records with different receipt
+times and return values. No Oracle-currentness inference is made from these
+local records.
+
+The tab now renders only an SP-form-style matrix: description, P/N and S/N in
+column headers and process/REF rows. Cells show only clickable RO numbers;
+vendor and sent/returned dates appear in a small click popover.
+Column identity is the normalized P/N + serial pair. Each source detail remains
+an independent entry, even when several details occupy the same cell. The
+receipt time stays in the staging data and is not shown in the compact UI. Process
+labels use unique `process_names.code` matches and SP form ordering; ambiguous
+or unknown references remain explicit REF rows. T/T1/T2 references appear as
+Traveler rows, without guessing process membership from current local targets.
+No local process values are substituted for the synchronized Quantum dates.
+
 ## Bridge Architecture
 
 ```text
@@ -397,7 +429,7 @@ Current classification:
 
 ```text
 PN = NDT -> STD_LIST_NDT
-PN = CAD -> STD_LIST_CAD
+PN = CAD or CAD Plate -> STD_LIST_CAD
 PN = NDTB -> BUSHING_NDTB (bushing process key: ndt)
 PN = Machining -> BUSHING_MACHINING (bushing process key: machining)
 PN = CADB or CAD Plate B -> bushing process key: cad
@@ -426,7 +458,7 @@ Examples:
 | Quantum PN | Description | Class |
 |---|---|---|
 | `NDT` | Non Destructive Test | `STD_LIST_NDT` |
-| `CAD Plate` | Cadmium Plating | `DETAIL_PROCESS` |
+| `CAD Plate` | Cadmium Plating | `STD_LIST_CAD` |
 | `CAD Removal` | CAD Removal | `DETAIL_PROCESS` |
 | `Nital Etch` | Etch Inspection | `DETAIL_PROCESS` |
 | `170-70496-003` | Pin | `DETAIL_PART` |
@@ -434,11 +466,73 @@ Examples:
 Important correction:
 
 ```text
-Only PN exactly NDT or CAD is a STD list candidate.
+PN normalized as NDT, CAD, or CADPLATE is a STD list candidate.
+CADPLATE routing was verified in deployed production code on 28/Sep/2026.
 Nital Etch Inspection is not a STD database/list.
 ```
 
 ## Avia Storage Audit
+
+### 2026-09-28 W107830 empty detail processes
+
+Read-only checks of live Oracle, production staging/targets/activity and
+deployed routing code confirm WO 306 / W107830, TDR 1806, PN 2225-0014,
+SN HM00868:
+
+- Machining (AT) 3103 and Stress Relief 3104 remain empty. Quantum BOM
+  715771 (Machining) and 715774 (Stress Relief) have no linked RO_DETAIL,
+  no REF and ITEM_COMPLETE=F. These BOM-only rows do not enter RO staging.
+- NDT-1 3105 remains empty because R9286 / rod:33412 / WOB 721829
+  supplies PN=NDT, REF=N1, not the detail PN. Staging 3739 is applied
+  to STD NDT 524, which contains R9286, sent 26/Aug/2026 and returned
+  28/Aug/2026. That STD row has ignore_row=1. The deployed resolver does
+  not exclude ignored STD targets or redirect them into detail processes.
+- NDT-4 3107 has no corresponding N4 RO in the current WO Oracle rows
+  or production staging. A separate generic NDT BOM 715783 has no RO
+  or REF and cannot be identified as an N4 operation.
+- Chrome plating 3106 (R9298, 31/Aug/2026–11/Sep/2026), NDT-6 3108
+  (R9356, 11/Sep/2026–16/Sep/2026), Passivation 3109 (R9379,
+  sent 18/Sep/2026, return null) agree with Oracle and applied staging.
+- All four staged RO source/applied hashes match; last_seen_at at check
+  was 28/Sep/2026 10:33:10. Empty detail process updated_at values still
+  equal their creation on 17/Jul/2026; available target activity contains
+  no later updates to those rows. No evidence of RO/date clearing found.
+
+Do not copy R9286 into NDT-4 or infer a completed shop operation from a
+generic BOM entry. Scripts: `quantum/log/audit-107830-oracle.php` and
+`storage/app/codex/audit-107830.php`. No production changes.
+
+### 2026-09-28 W107854 Brace CAD routed to STD list
+
+Confirmed against live Oracle, current production DB and deployed
+`QuantumRoBufferApplyService::routeForLine` (read-only diagnosis):
+
+- WO 339 / W107854, TDR 1847: BRACE, LOWER, PN 170-70621-001,
+  IPL 1-452, SN 1574924/003. Cad plate process 3433 exists, but RO and
+  dates remain null; updated_at is still 23/Jul/2026.
+- R9281 / rod:33403 / WOB 721798 has RO detail PN **CAD Plate**,
+  BOM PN **CAD Plate**, REF CP, and no detail serial. Oracle dates:
+  sent 25/Aug/2026, returned 01/Sep/2026. The exported relationship
+  does not identify the Brace PN. Do not infer a physical Brace association
+  merely from quantity 1 or the matching WO.
+- Production staging 3728 received the row on 25/Aug/2026 15:03:09;
+  last_seen_at at diagnosis was 28/Sep/2026 10:13:09. Applied/source
+  hashes match. The deployed classifier routes CAD/CADPLATE to STD CAD
+  before detail-part matching, irrespective of REF CP.
+- Target workorder_std_processes 581 currently contains R9281 and both
+  dates. Audit first wrote R9281 there on 25/Aug/2026 15:05:02,
+  replacing R9186; return date was written 01/Sep/2026 14:50:02.
+  On 04/Sep/2026 the older R9186 was reapplied at 17:20:02, then R9281
+  restored at 17:25:01. Both sources map to the same STD row.
+- By contrast, Brace NDT R9274 / rod:33378 supplies PN 170-70621-001
+  and REF N1, and correctly populates its TDR process 3432.
+
+Cause: generic service-PN routing, not a missing import or a deleted Brace
+RO. Assigning this CAD RO specifically to Brace requires an explicit source
+part association or reviewed mapping; do not copy the STD RO to arbitrary
+Cad plate rows. No production data or application code changed.
+Diagnostic SELECT scripts: `quantum/log/audit-107854-oracle.php` and
+`storage/app/codex/audit-107854.php`.
 
 ### 2026-08-24 TDR P/N mismatch example: R9273 / W107849
 
@@ -643,3 +737,31 @@ date_start, date_finish, date_promise
 ```
 
 Need a Quantum/source external key before applying reliably into avia tables.
+
+
+## 2026-09-28 W107775: two ROs applied to one NDT row
+
+Read-only verification on current production (72.251.11.16): WO 223 / W107775,
+TDR 1510, tdr_processes 2754, NDT-6 Eddy Current, process 440,
+P/N 1840-0002, S/N L694, REF N6.
+
+- Activity 38132, 08/Sep/2026 15:25:02 Toronto: Quantum filled R9331 and
+  date_start 08/Sep/2026. Activity 39720, 14/Sep/2026 15:35:01: Quantum
+  filled date_finish 14/Sep/2026.
+- Activity 43204, 28/Sep/2026 13:10:02: background update changed R9331 to
+  R9423, changed date_start to 28/Sep/2026, cleared the Quantum-managed
+  date_finish. No human causer is recorded for these updates.
+- Staging 3916 / rod:33543 (R9331) and 4186 / rod:33773 (R9423) both
+  have applied target tdr_processes:2754 and matching WO/P/N/S/N/REF.
+  Old staging snapshot retains R9331 and the earlier return date; the target
+  row holds R9423. New staging was first seen 28/Sep/2026 13:08:09.
+- Deployed TdrProcessController::show passes this row's repair_order to
+  formHeaderRepairOrder; shared/process-forms/_header renders it directly.
+  The form therefore reflected the stored RO, not an invented or cached number.
+- Deployed fillTarget unconditionally assigns the source RO and clears a
+  Quantum-managed finish when the incoming source has no return date.
+  Two source rows targeting one process can therefore replace the earlier
+  cycle's current fields. Historical values remain in activity/staging.
+
+No production changes were made. This confirms AVIA staging/application
+history, not whether the physical part was dispatched or returned.

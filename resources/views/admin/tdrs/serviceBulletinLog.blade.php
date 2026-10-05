@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="{{ asset('css/forms/service-bulletin-log.css') }}?v={{ filemtime(public_path('css/forms/service-bulletin-log.css')) }}">
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'sb'])
+
 @php
     $serviceBulletinReadOnly = (bool) ($serviceBulletinAccess['read_only'] ?? false);
     $serviceBulletinReadOnlyMessage = $serviceBulletinAccess['message'] ?? null;

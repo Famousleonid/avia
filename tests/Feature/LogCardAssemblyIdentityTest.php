@@ -14,6 +14,113 @@ class LogCardAssemblyIdentityTest extends TestCase
 {
     use BuildsDomainData, DatabaseTransactions;
 
+    public function test_empty_assy_survives_save_reopen_print_and_mobile_with_one_or_multiple_parents(): void
+    {
+        [$admin, $wo, $part, $first, $second] = $this->scopedMainFitting();
+        $wo->update(['scope_type' => 'full_unit', 'scope_part_group_option_id' => null]);
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()]);
+        $none = ['component_id' => (string) $part->id, 'manual_id' => (string) $part->manual_id,
+            'manual_part_group_choice' => 'component', 'manual_part_group_id' => '',
+            'assy_selection_explicit' => '1', 'assy_option_id' => '', 'serial_number' => 'IRON-SN'];
+        $this->postJson(route('log_card.store'), ['workorder_id' => $wo->id, 'component_data' => json_encode([$none])])->assertOk();
+        LogCard::where('workorder_id', $wo->id)->delete();
+        $this->postJson(route('mobile.log-card.store', $wo->id), ['rows' => [$none]])->assertOk();
+
+        $first->coverages()->delete();
+        $part->update(['part_number' => '49201-108', 'ipl_num' => '3-2130C']);
+        $second->update(['part_number' => '49201-8', 'ipl_num' => '3-1950C']);
+        // A sibling letter has a different parent; ordinary BOM expansion must not add it.
+        $sibling = Component::create(['manual_id' => $part->manual_id, 'part_number' => '49201-105',
+            'ipl_num' => '3-2130', 'name' => 'Cylinder', 'units_assy' => 1, 'log_card' => false]);
+        $first->coverages()->create(['component_id' => $sibling->id, 'qty' => 1, 'expand_ipl_family' => true]);
+        $second->coverages()->update(['expand_ipl_family' => true]);
+        $groups = ManualPartGroup::with('options.coverages')->where('manual_id', $part->manual_id)->get();
+        $choices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($groups, collect([$part]), $wo);
+        $this->assertCount(1, $choices[$part->id]);
+        $this->assertSame('49201-8', $choices[$part->id][0]['part_number']);
+        $log = LogCard::where('workorder_id', $wo->id)->firstOrFail();
+        $response = $this->get(route('log_card.partial', $wo))->assertOk();
+        $this->assertSame('', collect($response->viewData('componentData'))->firstWhere('component_id', (string) $part->id)['assy_part_number']);
+        $this->assertSame('', collect(json_decode($log->fresh()->component_data, true))->firstWhere('component_id', (string) $part->id)['assy_part_number']);
+        $draft = $this->get(route('log_card.partial', $wo).'?edit=1')->assertOk()->assertDontSee('No ASSY')->getContent();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$draft);
+        $xpath = new \DOMXPath($dom);
+        $select = '//select[contains(@class,"lc-group-assy-select") and @data-component-id="'.$part->id.'"]';
+        $this->assertSame(2, $xpath->query($select.'/option')->length);
+        $this->assertSame(1, $xpath->query($select.'/option[@selected and @value=""]')->length);
+        $this->putJson(route('log_card.update', $log), ['workorder_id' => $wo->id, 'component_data' => json_encode([$none])])->assertOk();
+        $saved = collect(json_decode($log->fresh()->component_data, true))->firstWhere('component_id', (string) $part->id);
+        $this->assertSame('', $saved['assy_part_number']);
+        $this->assertSame('IRON-SN', $saved['serial_number']);
+        $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertDontSee('49201-8');
+        $this->putJson(route('mobile.log-card.update', $wo->id), ['rows' => [$none]])->assertOk();
+        $this->assertSame('', collect(json_decode($log->fresh()->component_data, true))->firstWhere('component_id', (string) $part->id)['assy_part_number']);
+    }
+
+    public function test_shared_parent_does_not_make_harnesses_and_pins_mutually_exclusive(): void
+    {
+        [$admin, $wo, $original, $first, $second] = $this->scopedMainFitting();
+        $wo->update(['scope_type' => 'full_unit', 'scope_part_group_option_id' => null]);
+        $original->update(['log_card' => false]);
+        $parts = collect();
+        foreach (['2-20' => '49103-9', '2-20A' => '49103-13', '2-30' => '49103-11',
+            '2-30A' => '49103-15', '2-1290' => '49106-5', '2-1380' => '49131-3', '2-1420' => '49132-1'] as $ipl => $pn) {
+            $part = Component::create(['manual_id' => $original->manual_id, 'part_number' => $pn,
+                'ipl_num' => $ipl, 'name' => str_starts_with($pn, '49103') ? 'Harness Assembly, Wiring' : 'Pin',
+                'units_assy' => 1, 'log_card' => true]);
+            foreach ([$first, $second] as $option) {
+                $option->coverages()->create(['component_id' => $part->id, 'qty' => 1]);
+            }
+            $parts->push($part);
+        }
+        $this->actingAs($admin);
+        $template = $this->getJson(route('mobile.log-card.template', $wo->id))->assertOk();
+        $groups = collect($template->json('data.assy_groups'));
+        $this->assertCount(5, $groups);
+        $this->assertCount(5, $groups->pluck('group_key')->unique());
+        $this->assertSame([2, 2, 1, 1, 1], $groups->map(fn ($g) => count($g['choices']))->all());
+        $this->assertSame(7, $groups->sum(fn ($g) => count($g['choices'])));
+
+        $rows = $parts->whereIn('ipl_num', ['2-20A', '2-30', '2-1290'])->values()->map(fn ($p) => [
+            'component_id' => (string) $p->id, 'manual_id' => (string) $p->manual_id,
+            'manual_part_group_id' => (string) $first->manual_part_group_id,
+            'manual_part_group_choice' => 'component', 'assy_option_id' => (string) $first->id,
+            'assy_selection_explicit' => '1', 'ipl_group' => 'assy_group_'.$first->manual_part_group_id,
+            'serial_number' => 'SN-'.$p->part_number,
+        ])->all();
+        $this->postJson(route('log_card.store'), ['workorder_id' => $wo->id, 'component_data' => json_encode($rows)])->assertOk();
+        $log = LogCard::where('workorder_id', $wo->id)->firstOrFail();
+        $this->assertCount(3, collect(json_decode($log->component_data, true))->whereNotNull('component_id'));
+        $response = $this->get(route('log_card.partial', $wo).'?edit=1')->assertOk();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $rowPath = '//tr[contains(@class,"lc-assy-group-row")]';
+        $this->assertSame(5, $xpath->query($rowPath)->length);
+        $this->assertSame(3, $xpath->query($rowPath.'//input[@type="checkbox" and @checked]')->length);
+        foreach ($xpath->query($rowPath) as $row) {
+            $radios = $xpath->query('.//input[@type="radio"]', $row);
+            $this->assertLessThanOrEqual(2, $radios->length);
+        }
+        foreach ($rows as $saved) {
+            $this->assertSame(1, $xpath->query($rowPath.'//input[@type="radio" and @checked and @value="'.$saved['component_id'].'"]')->length);
+        }
+        $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertSee('49103-13')->assertSee('49103-11')->assertSee('49106-5');
+        $this->putJson(route('mobile.log-card.update', $wo->id), ['rows' => $rows])->assertOk();
+        $savedRows = collect(json_decode($log->fresh()->component_data, true))->whereNotNull('component_id');
+        $this->assertCount(3, $savedRows);
+        $this->assertSame(3, $savedRows->pluck('serial_number')->unique()->count());
+        $duplicate = $rows[0];
+        $duplicate['component_id'] = (string) $parts->firstWhere('ipl_num', '2-20')->id;
+        $duplicate['manual_part_group_id'] = (string) $second->manual_part_group_id;
+        $duplicate['assy_option_id'] = (string) $second->id;
+        $this->putJson(route('log_card.update', $log), [
+            'workorder_id' => $wo->id, 'component_data' => json_encode([...$rows, $duplicate]),
+        ])->assertStatus(422);
+        $this->putJson(route('mobile.log-card.update', $wo->id), ['rows' => [...$rows, $duplicate]])->assertStatus(422);
+    }
+
     private function scopedMainFitting(): array
     {
         $admin = $this->createUserWithRole('Admin');
@@ -21,13 +128,11 @@ class LogCardAssemblyIdentityTest extends TestCase
         $part = Component::create([
             'manual_id' => $wo->unit->manual_id, 'part_number' => '2821-0111',
             'ipl_num' => '14-210A', 'name' => 'Main Fitting', 'units_assy' => 1, 'log_card' => true,
-            'assy_part_number' => '2821A0100-02', 'assy_ipl_num' => '14-1A',
         ]);
         $options = [];
         foreach (['02' => '14-1A', '03' => '14-1C'] as $suffix => $ipl) {
             $pn = '2821A0100-'.$suffix;
             $head = Component::create(['manual_id' => $part->manual_id, 'part_number' => $pn, 'name' => 'Main Fitting ASSY', 'ipl_num' => $ipl]);
-            $part->assemblies()->create(['assy_part_number' => $pn, 'assy_ipl_num' => $ipl, 'units_assy' => 1]);
             $group = ManualPartGroup::create([
                 'manual_id' => $part->manual_id, 'code' => uniqid('LC-SCOPE-'), 'name' => $pn,
                 'type' => 'assy', 'behavior' => 'bundle', 'applies_to' => ['prl'],
@@ -67,7 +172,7 @@ class LogCardAssemblyIdentityTest extends TestCase
         [, $wo, $part, $old, $selected] = $this->scopedMainFitting();
         $tech = $this->createUserWithRole('Technician');
         $this->actingAs($tech)->get(route('log_card.partial', $wo))->assertOk()
-            ->assertSee('Select your ASSY')->assertSee($old->part_number)->assertSee($selected->part_number);
+            ->assertSee('Select ASSY')->assertSee($old->part_number)->assertSee($selected->part_number);
         $row = ['component_id' => (string) $part->id, 'manual_id' => (string) $part->manual_id,
             'manual_part_group_choice' => 'component', 'manual_part_group_id' => (string) $old->manual_part_group_id,
             'assy_selection_explicit' => '1', 'serial_number' => 'IRON-123', 'assy_serial_number' => 'ASSY-456'];
@@ -78,7 +183,7 @@ class LogCardAssemblyIdentityTest extends TestCase
         $this->assertSame('1', $saved['assy_selection_explicit']);
         $response = $this->get(route('log_card.partial', $wo))->assertOk();
         $this->assertSame($old->part_number, $response->viewData('componentData')[0]['assy_part_number']);
-        $this->get(route('log_card.partial', $wo).'?edit=1')->assertOk()->assertSee('Select your ASSY');
+        $this->get(route('log_card.partial', $wo).'?edit=1')->assertOk()->assertSee('Select ASSY');
         $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertSee($old->part_number);
         $this->putJson(route('log_card.update', $log), ['workorder_id' => $wo->id, 'component_data' => json_encode([$saved])])->assertOk();
         $saved = json_decode($log->fresh()->component_data, true)[0];
@@ -98,8 +203,7 @@ class LogCardAssemblyIdentityTest extends TestCase
     public function test_explicit_selection_cannot_use_unrelated_or_bom_only_assembly(): void
     {
         [$admin, $wo, $part, $old, $selected] = $this->scopedMainFitting();
-        $part->assemblies()->where('assy_part_number', $old->part_number)->delete();
-        $part->update(['assy_part_number' => null]);
+        $old->coverages()->where('component_id', $part->id)->delete();
         $row = ['component_id' => (string) $part->id, 'manual_id' => (string) $part->manual_id,
             'manual_part_group_choice' => 'component', 'manual_part_group_id' => (string) $old->manual_part_group_id,
             'assy_selection_explicit' => '1'];
@@ -113,7 +217,7 @@ class LogCardAssemblyIdentityTest extends TestCase
         $second->update(['manual_part_group_id' => $first->manual_part_group_id]);
         $tech = $this->createUserWithRole('Technician');
         $response = $this->actingAs($tech)->withSession(['auth.version' => (int) $tech->auth_version, 'password_hash_web' => $tech->getAuthPassword()])->get(route('log_card.partial', $wo))->assertOk();
-        $response->assertSee('Select your ASSY')->assertSee('value="'.$second->id.'"', false);
+        $response->assertSee('Select ASSY')->assertSee('value="'.$second->id.'"', false);
         $row = ['component_id' => (string) $part->id, 'manual_id' => (string) $part->manual_id,
             'manual_part_group_choice' => 'component', 'manual_part_group_id' => (string) $first->manual_part_group_id,
             'assy_selection_explicit' => '1', 'serial_number' => 'BARE-SN', 'assy_serial_number' => 'ASSY-SN'];
@@ -140,8 +244,7 @@ class LogCardAssemblyIdentityTest extends TestCase
     {
         [$admin, $wo, $part, $first, $second] = $this->scopedMainFitting();
         $second->update(['manual_part_group_id' => $first->manual_part_group_id]);
-        $part->assemblies()->where('assy_part_number', $first->part_number)->delete();
-        $part->update(['assy_part_number' => null]);
+        $first->coverages()->where('component_id', $part->id)->delete();
         $row = ['component_id' => (string) $part->id, 'manual_id' => (string) $part->manual_id,
             'manual_part_group_choice' => 'component', 'manual_part_group_id' => (string) $first->manual_part_group_id,
             'assy_selection_explicit' => '1'];
@@ -205,6 +308,7 @@ class LogCardAssemblyIdentityTest extends TestCase
     public function test_completed_card_identity_and_received_scope_are_not_replaced_by_modified_scope(): void
     {
         [, $wo, $part, $old, $selected] = $this->scopedMainFitting();
+        $part->update(['assy_part_number' => $old->part_number, 'assy_ipl_num' => $old->ipl_num]);
         $row = ['component_id' => $part->id, 'manual_part_group_choice' => 'component', 'assy_part_number' => $old->part_number];
         $identity = app(LogCardAssemblyIdentity::class);
         $wo->forceFill(['modified_scope_part_group_option_id' => $old->id])->save();
@@ -242,7 +346,7 @@ class LogCardAssemblyIdentityTest extends TestCase
         $this->assertNotContains($old->manual_part_group_id, $allowed);
     }
 
-    public function test_axle_in_two_boms_is_a_separate_log_card_part_and_old_parent_pn_is_not_printed(): void
+    public function test_kit_membership_is_not_an_assy_identity_and_old_parent_pn_is_not_printed(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $wo = $this->createWorkorder(['user_id' => $admin->id]);
@@ -254,7 +358,7 @@ class LogCardAssemblyIdentityTest extends TestCase
             $head = Component::create(['manual_id' => $wo->unit->manual_id, 'part_number' => $pn, 'name' => 'SLIDING TUBE ASSY', 'ipl_num' => $pn]);
             $group = ManualPartGroup::create([
                 'manual_id' => $wo->unit->manual_id, 'code' => uniqid('LC-'), 'name' => $pn,
-                'type' => 'assy', 'behavior' => 'bundle', 'applies_to' => ['prl'],
+                'type' => 'kit', 'behavior' => 'bundle', 'applies_to' => ['prl'],
             ]);
             $option = $group->options()->create(['component_id' => $head->id, 'part_number' => $pn, 'ipl_num' => '13-1', 'option_kind' => 'assy']);
             $option->coverages()->create(['component_id' => $axle->id, 'qty' => 1]);
@@ -291,5 +395,92 @@ class LogCardAssemblyIdentityTest extends TestCase
         $this->assertTrue($identity->hasOwnAssembly($part, 'REAL-ASSY'));
         $row = ['component_id' => $part->id, 'manual_part_group_choice' => 'component', 'assy_part_number' => 'REAL-ASSY', 'assy_serial_number' => 'AS-123'];
         $this->assertSame([$row], $identity->cleanRows([$row]));
+    }
+
+    public function test_pintle_without_legacy_links_uses_new_group_on_web_mobile_save_and_print(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id, 'scope_type' => 'full_unit']);
+        $part = Component::create(['manual_id' => $wo->unit->manual_id, 'part_number' => '49224-103',
+            'ipl_num' => '3-480A', 'name' => 'Pintle', 'units_assy' => 1, 'log_card' => false]);
+        $head = Component::create(['manual_id' => $part->manual_id, 'part_number' => '49224-3',
+            'ipl_num' => '3-460A', 'name' => 'Pintle Assembly', 'units_assy' => 1, 'log_card' => false]);
+        $group = ManualPartGroup::create(['manual_id' => $part->manual_id, 'code' => uniqid('PINTLE-'),
+            'name' => 'Pintle Assembly', 'type' => 'assy', 'behavior' => 'bundle']);
+        $option = $group->options()->create(['component_id' => $head->id, 'part_number' => $head->part_number, 'ipl_num' => $head->ipl_num]);
+        $option->coverages()->create(['component_id' => $part->id, 'qty' => 1]);
+        $this->actingAs($admin)->get(route('log_card.partial', $wo))->assertOk()->assertDontSee('49224-103');
+        $part->update(['log_card' => true]);
+        $this->get(route('log_card.partial', $wo))->assertOk()->assertSee('49224-103')->assertSee('49224-3');
+        $this->getJson(route('mobile.log-card.template', $wo->id))->assertOk()
+            ->assertJsonPath('data.assy_groups.0.choices.0.assy_part_number', '49224-3');
+        $row = ['component_id' => (string) $part->id, 'manual_id' => (string) $part->manual_id,
+            'manual_part_group_id' => (string) $group->id, 'manual_part_group_choice' => 'component',
+            'serial_number' => 'PINTLE-SN', 'assy_part_number' => 'STALE-LEGACY'];
+        $this->postJson(route('log_card.store'), ['workorder_id' => $wo->id, 'component_data' => json_encode([$row])])->assertOk();
+        $log = LogCard::where('workorder_id', $wo->id)->firstOrFail();
+        $saved = json_decode($log->component_data, true)[0];
+        $this->assertSame('49224-103', $saved['part_number']);
+        $this->assertSame('49224-3', $saved['assy_part_number']);
+        $this->assertSame((string) $option->id, $saved['assy_option_id']);
+        $this->assertSame('1', $saved['assy_selection_explicit']);
+        $this->get(route('log_card.partial', $wo))->assertOk()->assertSee('49224-103')->assertSee('49224-3');
+        $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertSee('49224-103')->assertSee('49224-3');
+        $this->putJson(route('mobile.log-card.update', $wo->id), ['rows' => [$row]])->assertOk();
+        $saved = collect(json_decode($log->fresh()->component_data, true))->firstWhere('component_id', (string) $part->id);
+        $this->assertSame('49224-3', $saved['assy_part_number']);
+        $this->assertSame('PINTLE-SN', $saved['serial_number']);
+        $this->assertNull($part->fresh()->assy_part_number);
+        $this->assertCount(0, $part->fresh()->assemblies);
+    }
+
+    public function test_nested_assy_does_not_offer_ancestor_even_when_legacy_links_claim_it(): void
+    {
+        [$admin, $wo, $part, $old, $selected] = $this->scopedMainFitting();
+        $wo->update(['scope_type' => 'full_unit', 'scope_part_group_option_id' => null]);
+        $parent = ManualPartGroup::create(['manual_id' => $part->manual_id, 'code' => uniqid('PARENT-'),
+            'name' => 'Top assembly', 'type' => 'assy', 'behavior' => 'bundle']);
+        $option = $parent->options()->create(['part_number' => 'TOP-ASSY', 'ipl_num' => '1-1']);
+        $option->coverages()->create(['covered_manual_part_group_option_id' => $selected->id, 'qty' => 1]);
+        $part->update(['assy_part_number' => 'TOP-ASSY']);
+        $part->assemblies()->create(['assy_part_number' => 'TOP-ASSY', 'assy_ipl_num' => '1-1']);
+        $groups = ManualPartGroup::where('manual_id', $part->manual_id)->with('options.coverages')->get();
+        $choices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($groups, collect([$part]), $wo)[$part->id];
+        $this->assertSame([$old->id, $selected->id], array_column($choices, 'option_id'));
+        $row = ['component_id' => (string) $part->id, 'manual_id' => (string) $part->manual_id,
+            'manual_part_group_choice' => 'component', 'manual_part_group_id' => (string) $parent->id];
+        $this->actingAs($admin)->postJson(route('log_card.store'), ['workorder_id' => $wo->id, 'component_data' => json_encode([$row])])->assertStatus(422);
+        $this->postJson(route('mobile.log-card.store', $wo->id), ['rows' => [$row]])->assertStatus(422);
+    }
+
+    public function test_new_identity_respects_exact_letters_and_nested_variant_families(): void
+    {
+        [, $wo, $part, $old, $selected] = $this->scopedMainFitting();
+        $variant = Component::create(['manual_id' => $part->manual_id, 'part_number' => 'OTHER-METAL',
+            'ipl_num' => '14-210B', 'name' => 'Variant', 'units_assy' => 1, 'log_card' => true]);
+        foreach ([$old, $selected] as $option) {
+            $option->coverages()->where('component_id', $part->id)->update(['expand_ipl_family' => false]);
+        }
+        $identity = app(LogCardAssemblyIdentity::class);
+        $load = fn () => ManualPartGroup::where('manual_id', $part->manual_id)->with('options.coverages')->get();
+        $this->assertArrayNotHasKey($variant->id, $identity->assemblyChoicesByComponent($load(), collect([$variant]), $wo));
+        $family = ManualPartGroup::create(['manual_id' => $part->manual_id, 'code' => uniqid('ALT-'),
+            'name' => 'Variants', 'type' => 'alternative_pn', 'behavior' => 'choose_one']);
+        $first = $family->options()->create(['component_id' => $part->id, 'part_number' => $part->part_number]);
+        $family->options()->create(['component_id' => $variant->id, 'part_number' => $variant->part_number]);
+        $selected->coverages()->create(['covered_manual_part_group_option_id' => $first->id, 'qty' => 1]);
+        $choices = $identity->assemblyChoicesByComponent($load(), collect([$variant]), $wo);
+        $this->assertSame([$selected->id], array_column($choices[$variant->id], 'option_id'));
+    }
+
+    public function test_unselected_configuration_slot_cannot_become_selected_when_nested_assy_is_excluded(): void
+    {
+        [, $wo, $part, $old, $selected] = $this->scopedMainFitting();
+        $selected->coverages()->where('component_id', $part->id)->update(['choice_slot' => 'variant']);
+        $selected->coverages()->create(['covered_manual_part_group_option_id' => $old->id, 'qty' => 1, 'choice_slot' => 'variant']);
+        $groups = ManualPartGroup::where('manual_id', $part->manual_id)->with('options.coverages')->get();
+        $choices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($groups, collect([$part]), $wo);
+        $this->assertSame([$old->id], array_column($choices[$part->id], 'option_id'));
+        $this->assertCount(2, $groups->firstWhere('id', $selected->manual_part_group_id)->options->first()->coverages);
     }
 }

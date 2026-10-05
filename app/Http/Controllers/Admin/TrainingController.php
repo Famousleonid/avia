@@ -84,11 +84,13 @@ class TrainingController extends Controller
             // ежегодный update = 2 × 5. Считаются только 112-е.
             $manualDailyHours = (float) ($firstTraining->manual->training_hours ?? 0);
             $unitHours = 0.0;
+            $hoursByTraining = [];
             $previousDate = null;
             foreach ($trainings112 as $t112) {
                 $isFirstOrRefresh = $previousDate === null
                     || \Carbon\Carbon::parse($t112->date_training)->diffInDays(\Carbon\Carbon::parse($previousDate)) >= 365;
-                $unitHours += ($isFirstOrRefresh ? $manualDailyHours : 2) * 5;
+                $hoursByTraining[$t112->id] = ($isFirstOrRefresh ? $manualDailyHours : 2) * 5;
+                $unitHours += $hoursByTraining[$t112->id];
                 $previousDate = $t112->date_training;
             }
             $totalHoursAll += $unitHours;
@@ -104,6 +106,7 @@ class TrainingController extends Controller
                 'days_since_last_training_112' => $daysSinceLastTraining112,
                 'is_due_for_update' => $isDueForUpdate,
                 'total_hours' => $unitHours,
+                'hours_by_training' => $hoursByTraining,
                 // В модалке 132 всегда первая (перевыпущенная не должна тонуть в списке дат)
                 'trainings' => $sortedTrainings->sortBy([
                     fn ($a, $b) => (int) ((string) $b->form_type === '132') <=> (int) ((string) $a->form_type === '132'),
@@ -111,6 +114,10 @@ class TrainingController extends Controller
                 ])->values(),
             ];
         }
+
+        $formattedTrainingLists = collect($formattedTrainingLists)
+            ->sortBy(fn ($row) => (string) $row['first_training']->date_training)
+            ->values()->all();
 
         // SCA-курсы выбранного сотрудника (для людей с can_sign_certificates):
         // все активные курсы + первая/последняя даты записей
@@ -163,7 +170,19 @@ class TrainingController extends Controller
                 ->values();
         }
 
+        $savedSearch = \App\Models\UserUiSetting::where('user_id', $user->id)
+            ->where('scope', 'trainings')->where('key', 'search')->first()?->value;
+        $trainingSearch = is_array($savedSearch) && is_string($savedSearch['text'] ?? null) ? $savedSearch['text'] : '';
+        $trainingSelectedManual = is_array($savedSearch) ? (string) ($savedSearch['manual_id'] ?? '') : '';
+        $requestedManual = $request->has('manual_id') ? (string) $request->input('manual_id') : $trainingSelectedManual;
+        $searchRow = collect($formattedTrainingLists)->first(fn ($row) => (string) $row['manuals_id'] === $requestedManual);
+        $trainingSelectedManual = $searchRow ? $requestedManual : '';
+        if ($request->has('manual_id')) {
+            $trainingSearch = $searchRow ? (string) $searchRow['first_training']->manual->unit_name_training : '';
+        }
+
         return view('admin.trainings.index', compact(
+            'trainingSearch', 'trainingSelectedManual',
             'formattedTrainingLists',
             'planes',
             'builders',
@@ -195,7 +214,10 @@ class TrainingController extends Controller
             })
             ->get();
 
-        return view('admin.trainings.create', compact('manuals', 'planes', 'userId', 'targetUser'));
+        $addedManuals = Manual::whereIn('id', $addedCmmIds)->whereNotNull('unit_name_training')
+            ->where('unit_name_training', '<>', '')->get();
+
+        return view($request->boolean('modal') ? 'admin.trainings.partials.add-unit-modal' : 'admin.trainings.create', compact('manuals', 'addedManuals', 'planes', 'userId', 'targetUser'));
     }
 
     /**
@@ -232,7 +254,6 @@ class TrainingController extends Controller
         };
         $request->merge([
             'date_training' => $normalizeProjectDate($request->input('date_training')),
-            'additional_training_date' => $normalizeProjectDate($request->input('additional_training_date')),
             'form_132_date' => $normalizeProjectDate($request->input('form_132_date')),
             'training_dates' => array_map($normalizeProjectDate, (array) $request->input('training_dates', [])),
         ]);
@@ -282,6 +303,8 @@ class TrainingController extends Controller
 
             $indexParams = $userId !== auth()->id() ? ['user_id' => $userId] : [];
 
+            if ($request->expectsJson()) return response()->json(['success' => true]);
+
             return redirect()->route('trainings.index', $indexParams)
                 ->with('success', "Old training marked for {$created} unit(s)." . ($withForm132 ? ' Form 132 created.' : ''));
         }
@@ -295,7 +318,6 @@ class TrainingController extends Controller
             'date_training' => 'required|date|before_or_equal:today',
             'training_dates' => 'nullable|array',
             'training_dates.*' => 'nullable|date|after:date_training|before_or_equal:today',
-            'additional_training_date' => 'nullable|date|after_or_equal:date_training|before_or_equal:today',
             'user_id' => 'nullable|integer|exists:users,id',
         ]);
 
@@ -307,10 +329,6 @@ class TrainingController extends Controller
             return $this->fridayOf($d);
         }, $trainingDates)));
         sort($trainingDates);
-
-        $additionalDate = isset($validatedData['additional_training_date'])
-            ? $this->fridayOf($validatedData['additional_training_date'])
-            : null;
 
         // Form 132 — одна на первую дату (если ещё нет для этого юнита)
         $existingForm132 = Training::where('user_id', $userId)
@@ -351,13 +369,10 @@ class TrainingController extends Controller
             $ensureTraining112($dateYmd);
         }
 
-        // Дополнительная тренировка (если пользователь выбрал «Да» при последней > 360 дней)
-        if ($additionalDate) {
-            $ensureTraining112($additionalDate);
-        }
-
         // Записи создаются ТОЛЬКО по фактическим датам: догенерация годовых 112
         // за пропущенные годы удалена сознательно (решение от 21.08.2026).
+
+        if ($request->expectsJson()) return response()->json(['success' => true]);
 
         $returnUrl = $request->input('return_url');
         if ($returnUrl && (str_contains($returnUrl, '/tdrs/') || str_contains($returnUrl, '/mains/') || str_contains($returnUrl, '/trainings/show-all'))) {
@@ -461,7 +476,22 @@ class TrainingController extends Controller
                 'success' => true,
                 'message' => $message,
                 'created' => $createdCount,
-                'skipped' => $skippedCount
+                'skipped' => $skippedCount,
+                'saved_trainings' => collect($validatedData['manuals_id'])->unique()->flatMap(function ($savedManualId) use ($userId) {
+                    $dailyHours = (float) (Manual::find($savedManualId)?->training_hours ?? 0);
+                    $previousDate = null;
+                    return Training::where('user_id', $userId)->where('manuals_id', $savedManualId)
+                        ->where('form_type', '112')->where('is_legacy', false)->whereNull('matrix_row_id')
+                        ->orderBy('date_training')->orderBy('id')->get()->map(function ($training) use ($dailyHours, &$previousDate) {
+                            $date = \Carbon\Carbon::parse($training->date_training);
+                            $refresh = $previousDate === null || $date->diffInDays($previousDate) >= 365;
+                            $hours = ($refresh ? $dailyHours : 2) * 5;
+                            $previousDate = $date;
+                            return ['id' => $training->id, 'manual_id' => $training->manuals_id,
+                                'date' => $date->format('Y-m-d'), 'hours' => $hours];
+                        });
+                })->values(),
+                'submitted_dates' => array_map(fn ($date) => $this->fridayOf($date), $validatedData['date_training']),
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);

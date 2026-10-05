@@ -414,7 +414,7 @@
                                 <span class="pdf-drop-icon"><i class="bi bi-file-earmark-pdf"></i></span>
                                 <span class="min-w-0">
                                     <span class="pdf-drop-title d-block">Drop PDF or scan here, or click to upload</span>
-                                    <span class="pdf-drop-meta d-block">PDF, JPG/JPEG, PNG or WebP. One file, max 10 MB. Upload starts automatically.</span>
+                                    <span class="pdf-drop-meta d-block">PDF, JPG/JPEG, PNG or WebP. One file, max 50 MB. Upload starts automatically.</span>
                                     <span class="pdf-selected-file d-block" id="pdfSelectedFile">No file selected</span>
                                     <span class="pdf-upload-progress" id="pdfUploadProgress">
                                         <span class="pdf-upload-progress-track">

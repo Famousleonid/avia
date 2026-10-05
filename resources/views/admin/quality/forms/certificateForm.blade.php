@@ -1869,6 +1869,8 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'qa_certificate'])
+
 <div class="arc-toolbar">
     <button type="button" class="arc-print-button" data-certificate-print>Print Form</button>
 </div>

@@ -424,6 +424,8 @@
 </head>
 
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'log_card'])
+
 <!-- Кнопка для печати -->
 <div class="text-start m-3">
     <button class="btn btn-outline-primary no-print" onclick="window.print()">

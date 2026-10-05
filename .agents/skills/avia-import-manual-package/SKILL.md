@@ -57,6 +57,12 @@ These PDFs are commonly image-only and watermarked. Do not trust `pdftotext` or 
 
 Run the package analyzer after each completed FIG. It rejects duplicate IPLs, malformed required fields, and inconsistent FIG prefixes. Do not assemble the final CSV until every per-FIG file passes.
 
+### Initial Log Card display order (required)
+
+During the initial manual-package import, derive `manuals.log_card_order` from the source workbook's LLP / Log Card row order, not numeric IPL sorting. Include this order in the same reviewed import SQL and SELECT-only verification SQL; do not require the manager to upload the workbook again on the Log Card order page. That page is for searching and manually adjusting the order only.
+
+Resolve source rows to the imported component IDs, keep alternative P/N families together using `ManualLogCardOrder::groups()`, and order each family by its first source occurrence. Audit ambiguous/unmatched source rows instead of guessing. Append existing Log Card families absent from the workbook in their existing relative order and report them. Preserve a manually saved existing order during repeat imports unless the user explicitly authorizes resetting it. Guard the prior order and verify the exact final ordered ID list after import, including repeat-import idempotency. If production lacks `manuals.log_card_order`, report the required schema prerequisite rather than silently omitting order from the handoff. Record the source sheet/rows, resulting order artifact, verification and any unresolved conflicts in the manual ledger during package work. A workflow update alone does not authorize rewriting existing manuals.
+
 ### 3. Analyze the workbook and build import artifacts
 
 Run:

@@ -224,7 +224,7 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_description">Description</label>
-                                            <input type="text" name="description" id="description" value="{{ old('description', $current_wo->unit?->name) }}" class="form-control">
+                                            <input type="text" name="description" id="description" value="{{ old('description', $current_wo->description) }}" class="form-control">
                                         </div>
                                     </div>
 
@@ -442,7 +442,6 @@
             // --------------------------------- Select 2 --------------------------------------------------------
 
             const unitSelect = document.getElementById('unit_id');
-            const workorderDescriptionInput = document.getElementById('description');
             const cmmSelect = document.getElementById('cmmSelect');
             const unitNameInput = document.getElementById('unitNameInput');
             const workScopeTypeSelect = document.getElementById('work_scope_type');
@@ -611,8 +610,6 @@
 
             unitSelect.onchange = function () {
                 const selectedOption = this.options[this.selectedIndex];
-                const unitName = selectedOption.getAttribute('data-name');
-                workorderDescriptionInput.value = unitName || '';
                 const scopeHint = document.getElementById('workScopeHint');
                 if (scopeHint) {
                     scopeHint.textContent = 'Work scope: ' + (selectedOption.getAttribute('data-scope-label') || 'Complete Unit');
@@ -655,11 +652,6 @@
                     syncUnitNameFromSelectedCmm();
                 });
 
-                $('#unit_id').on('change', function() {
-                    const selectedOption = $(this).find('option:selected');
-                    const unitName = selectedOption.attr('data-name');
-                    workorderDescriptionInput.value = unitName || '';
-                });
 
                 $('#assignManualSelect').select2({
                     placeholder: '{{ __('Select CMM') }}',
@@ -751,9 +743,6 @@
                         option.setAttribute('data-verified', '0');
                         $('#unit_id').append(option).trigger('change');
 
-                        if (data.name) {
-                            workorderDescriptionInput.value = data.name;
-                        }
 
                         // Закрыть модалку
                         bootstrap.Modal.getInstance(document.getElementById('addUnitModal')).hide();
@@ -851,18 +840,7 @@
                 return (opt?.textContent || '').trim();
             }
 
-            function selectedAssignManualTitle() {
-                const opt = assignManualSelect?.options[assignManualSelect.selectedIndex] || null;
-                return String(opt?.getAttribute('data-title') || '').trim();
-            }
 
-            function fillBlankWorkorderDescription(value) {
-                const description = String(value || '').trim();
-                if (!description || !workorderDescriptionInput) return;
-                if (String(workorderDescriptionInput.value || '').trim() !== '') return;
-
-                workorderDescriptionInput.value = description;
-            }
 
             async function assignManualToSelectedUnit() {
                 const opt = selectedUnitOption();
@@ -883,7 +861,6 @@
 
                 try {
                     if (currentManualId && currentManualId === String(manualId)) {
-                        fillBlankWorkorderDescription(opt?.getAttribute('data-name') || selectedAssignManualTitle());
                         assignManualModal?.hide();
                         const form = document.getElementById('createForm');
                         form.dataset.readyToSubmit = '1';
@@ -895,7 +872,6 @@
                     if (existingOption) {
                         unitSelect.value = existingOption.value;
                         $('#unit_id').val(existingOption.value).trigger('change');
-                        fillBlankWorkorderDescription(existingOption.getAttribute('data-name') || selectedAssignManualTitle());
                         assignManualModal?.hide();
                         const form = document.getElementById('createForm');
                         form.dataset.readyToSubmit = '1';
@@ -926,7 +902,6 @@
                     opt.textContent = data.manual_number
                         ? `${data.part_number} (${data.manual_number})`
                         : data.part_number;
-                    fillBlankWorkorderDescription(data.name || data.manual_title);
                     $('#unit_id').trigger('change.select2');
 
                     assignManualModal?.hide();

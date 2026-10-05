@@ -1090,7 +1090,6 @@ class MobileController extends Controller
         $existingUnitName = trim((string) ($unit?->name ?? ''));
         $description = $submittedUnitName !== '' ? $submittedUnitName : $existingUnitName;
         $data['description'] = $description !== '' ? $description : null;
-        $unit?->forceFill(['name' => $description !== '' ? $description : null])->save();
 
         // createDraft сам присвоит number и is_draft=true
         $wo = Workorder::createDraft($data);

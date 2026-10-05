@@ -3534,7 +3534,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="{{ asset('js/tdrs/show/pdf-badge-handler.js') }}"></script>
 <script src="{{ asset('js/tdrs/show/pdf-library-handler.js') }}"></script>
 <script src="{{ asset('js/tdrs/show/pdf-viewer-handler.js') }}"></script>
-<script src="{{ asset('js/tdrs/show/pdf-upload-handler.js') }}"></script>
+<script src="{{ asset('js/tdrs/show/pdf-upload-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-upload-handler.js')) }}"></script>
 <script src="{{ asset('js/tdrs/show/pdf-delete-handler.js') }}"></script>
 <script src="{{ asset('js/tdrs/show/show-main.js') }}"></script>
 <script>

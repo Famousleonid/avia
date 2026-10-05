@@ -26,12 +26,9 @@
             $choices = collect($assyGroup['choices']);
             $baseGroupKey = (string) $assyGroup['group_key'];
             $rowGroupKey = $sectionKey !== '' ? $sectionKey.'_'.$baseGroupKey : $baseGroupKey;
-            $savedRowsForGroup = $savedComponentRows->filter(function ($saved) use ($choices, $partGroup, $baseGroupKey) {
-                if ((int) ($saved['manual_part_group_id'] ?? 0) === (int) $partGroup->id
-                    || (string) ($saved['ipl_group'] ?? '') === $baseGroupKey) {
-                    return true;
-                }
-
+            $savedRowsForGroup = $savedComponentRows->filter(function ($saved) use ($choices) {
+                // Several independent rows may share one parent ASSY (including old saved keys).
+                // Match the actual component, never the parent group or its former radio-row key.
                 return $choices->contains(fn ($choice): bool =>
                     (int) ($saved['component_id'] ?? 0) === (int) $choice['component_id']
                 );
@@ -108,15 +105,21 @@
                             ? ($savedRow['manual_part_group_id'] ?? $partGroup->id) : $partGroup->id);
                         $selectedAssemblyOption = $savedRow && (int) ($savedRow['component_id'] ?? 0) === (int) $choice['component_id']
                             ? (int) ($savedRow['assy_option_id'] ?? 0) : 0;
+                        if ($assemblyChoices->count() === 1 && !($savedRow && app(\App\Services\LogCardAssemblyIdentity::class)->isExplicitNoAssembly($savedRow))) {
+                            $selectedAssemblyOption = (int) $assemblyChoices->first()['option_id'];
+                        }
+                        $hasSelectedAssembly = $assemblyChoices->contains(fn ($candidate) => $selectedAssemblyOption > 0
+                            ? $selectedAssemblyOption === (int) $candidate['option_id']
+                            : ($savedRow && $selectedAssemblyGroup === (int) $candidate['group_id'] && ($savedRow['assy_part_number'] ?? '') === $candidate['part_number']));
                     @endphp
                     <div class="lc-group-assy-choice {{ $selectedChoiceKey !== (string) $choice['choice_key'] ? 'd-none' : '' }}"
                          data-component-id="{{ $choice['component_id'] }}">
-                        @if($assemblyChoices->count() > 1)
-                            <label class="small text-muted mb-1" for="lc-assy-{{ $rowGroupKey }}-{{ $choice['component_id'] }}">{{ __('Select your ASSY') }}</label>
+                        @if($assemblyChoices->isNotEmpty())
+                            <label class="small text-muted mb-1" for="lc-assy-{{ $rowGroupKey }}-{{ $choice['component_id'] }}">{{ __('ASSY') }}</label>
                             <select id="lc-assy-{{ $rowGroupKey }}-{{ $choice['component_id'] }}"
                                     class="form-select form-select-sm lc-group-assy-select"
                                     data-component-id="{{ $choice['component_id'] }}" @disabled($logCardTdrReadOnly)>
-                                <option value="">{{ __('Select your ASSY') }}</option>
+                                <option value="" @selected(!$hasSelectedAssembly)>{{ __('Select ASSY') }}</option>
                                 @foreach($assemblyChoices as $assemblyChoice)
                                     <option value="{{ $assemblyChoice['option_id'] }}"
                                             data-group-id="{{ $assemblyChoice['group_id'] }}"

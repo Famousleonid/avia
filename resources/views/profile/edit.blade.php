@@ -1,6 +1,12 @@
 @extends('admin.master')
 
 @section('content')
+    <style>
+        #profile-new-password-requirements li:last-child { white-space: nowrap; }
+        @media (max-width: 480px) {
+            #profile-new-password-requirements { font-size: .75rem; }
+        }
+    </style>
     <div class="container mt-3" style="max-width: 760px;">
         <div class="card bg-gradient">
             <div class="card-header text-center">

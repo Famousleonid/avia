@@ -1,3 +1,6 @@
+@php
+    $printMarkFormKey = 'required_bushings';
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>

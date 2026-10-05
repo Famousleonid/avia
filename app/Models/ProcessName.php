@@ -4,11 +4,58 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
+use Spatie\Activitylog\Traits\LogsActivity;
 
-class ProcessName extends Model
+class ProcessName extends Model implements \Spatie\MediaLibrary\HasMedia
 {
+    use \Spatie\MediaLibrary\InteractsWithMedia;
+
+    public const PRINT_ATTACHMENT_COLLECTION = 'process_print_attachments';
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(self::PRINT_ATTACHMENT_COLLECTION)->useDisk('private')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+    }
+
+    public static function printPartKey(string $partNumber): string
+    {
+        return mb_strtoupper(trim($partNumber));
+    }
+
+    public function printAttachmentFor(string $partNumber): ?\Spatie\MediaLibrary\MediaCollections\Models\Media
+    {
+        $key = self::printPartKey($partNumber);
+        return $key === '' ? null : $this->getMedia(self::PRINT_ATTACHMENT_COLLECTION)
+            ->first(fn ($media) => $media->getCustomProperty('part_number_key') === $key);
+    }
     use HasFactory;
+    use LogsActivity;
     use \App\Models\Concerns\HasProcessIdentity;
+
+    protected static $recordEvents = ['created', 'updated'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('process_name')
+            ->logOnly(['print_form'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    public function tapActivity(Activity $activity, string $eventName): void
+    {
+        if (auth()->check()) {
+            $activity->causer()->associate(auth()->user());
+        }
+        $activity->properties = $activity->properties->merge([
+            'process_name' => $this->name,
+            'process_identity' => $this->identityName(),
+        ]);
+    }
 
     /** Ключ группы групповых форм: Machining + Machining (EC) — одна печать. */
     public const GROUP_KEY_MERGE_MACHINING_MEC = 'MERGE:MACHINING_MEC';

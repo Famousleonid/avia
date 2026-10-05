@@ -167,13 +167,6 @@
             margin: auto;
         }
 
-        .manual-parts-loading-indicator {
-            align-items: center;
-            color: var(--bs-info);
-            gap: .4rem;
-            white-space: nowrap;
-        }
-
         .assy-popover-button {
             max-width: 100%;
             min-width: 0;
@@ -799,6 +792,31 @@
             gap: .25rem;
         }
 
+        .manual-parts-search-slot {
+            position: relative;
+            width: 260px;
+            flex: 0 0 260px;
+        }
+        .manual-parts-search-slot[aria-busy="true"] .input-group {
+            visibility: hidden;
+        }
+        .manual-parts-search-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            color: var(--bs-info, #36b9cc);
+        }
+        .manual-parts-search-slot .manual-parts-search-loading span {
+            width: 12px;
+            height: 12px;
+        }
+        .manual-parts-search-slot[aria-busy="false"] .manual-parts-search-loading {
+            display: none;
+        }
+
         .manual-tabs-loading-dots span {
             width: .42rem;
             height: .42rem;
@@ -1010,7 +1028,7 @@
                                 data-tab-target="#nav-dimensions"
                                 style="font-size:inherit;border:1px solid #198754;color:#198754">F&amp;C</button>
                         <button type="button"
-                                class="btn btn-outline-primary btn-sm btn-update-components"
+                                class="btn btn-outline-primary btn-sm btn-update-components @if($manualShowTab !== 'components') d-none @endif"
                                 data-tab-target="#nav-components"
                                 data-id="{{ $units->first()?->id ?? '' }}"
                                 data-manuals-id="{{ $cmm->id }}"
@@ -1021,8 +1039,12 @@
                                 data-bs-target="#editUnitModal">
                             {{ __('Update Components') }}
                         </button>
-                        <div class="d-none" data-tab-target="#nav-parts">
-                            <div class="input-group input-group-sm" style="width: 260px">
+                        <div class="manual-parts-search-slot @if($manualShowTab !== 'parts') d-none @endif"
+                             id="manual-parts-search-slot" data-tab-target="#nav-parts" aria-busy="true">
+                            <div class="manual-parts-search-loading manual-tabs-loading-dots" role="status" aria-label="{{ __('Loading parts search') }}">
+                                <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+                            </div>
+                            <div class="input-group input-group-sm">
                                 <input type="text"
                                        id="parts-search"
                                        class="form-control"
@@ -1036,18 +1058,8 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="@if($manualShowTab !== 'parts') d-none @endif" data-tab-target="#nav-parts">
-                            <div id="manual-parts-loading-indicator"
-                                 class="manual-parts-loading-indicator d-inline-flex small"
-                                 role="status"
-                                 aria-live="polite"
-                                 aria-hidden="false">
-                                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-                                <span>{{ __('Loading images...') }}</span>
-                            </div>
-                        </div>
                         <button type="button"
-                           class="btn btn-outline-info btn-sm d-none"
+                           class="btn btn-outline-info btn-sm @if($manualShowTab !== 'parts') d-none @endif"
                            data-tab-target="#nav-parts"
                            data-bs-toggle="offcanvas"
                            data-bs-target="#manualCreateComponentOffcanvas"
@@ -1056,17 +1068,11 @@
                            @if($manualPartsLocked && ! $userCanManageLockedManualParts) title="{{ __('Manual parts are locked') }}" @endif>
                             {{ __('Add Parts') }}
                         </button>
+                        @if(auth()->user()->roleIs(['Admin', 'Manager']))
+                            <a class="btn btn-outline-info btn-sm @if($manualShowTab !== 'parts') d-none @endif" data-tab-target="#nav-parts" href="{{ route('manuals.log-card-order', $cmm) }}">Log Card order</a>
+                        @endif
                         <button type="button"
-                                class="btn btn-outline-primary btn-sm d-none"
-                                data-tab-target="#nav-parts"
-                                data-bs-toggle="modal"
-                                data-bs-target="#uploadCsvModal"
-                                @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)
-                                @if($manualPartsLocked && ! $userCanManageLockedManualParts) title="{{ __('Manual parts are locked') }}" @endif>
-                            <i class="bi bi-upload"></i> {{__('Upload CSV')}}
-                        </button>
-                        <button type="button"
-                                class="btn btn-outline-success btn-sm d-none"
+                                class="btn btn-outline-success btn-sm @if($manualShowTab !== 'parts') d-none @endif"
                                 id="manual-part-groups-open"
                                 data-tab-target="#nav-parts"
                                 data-bs-toggle="modal"
@@ -1074,23 +1080,6 @@
                                 @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
                             <i class="bi bi-diagram-3"></i> {{ __('Part Groups') }}
                         </button>
-                        <form action="{{ $manualPartsLocked ? route('manuals.part-lock.unlock', ['manual' => $cmm]) : route('manuals.part-lock.lock', ['manual' => $cmm]) }}"
-                              method="POST"
-                              class="d-none m-0"
-                              data-tab-target="#nav-parts">
-                            @csrf
-                            @if($manualPartsLocked)
-                                @method('DELETE')
-                            @endif
-                            <input type="hidden" name="return_to" value="{{ $manualUrlParts }}">
-                            <button type="submit"
-                                    class="btn btn-outline-secondary btn-sm"
-                                    @disabled(! $userCanManageLockedManualParts)
-                                    title="{{ $manualPartsLocked ? __('Unlock parts') : __('Lock parts') }}">
-                                <i class="bi {{ $manualPartsLocked ? 'bi-unlock' : 'bi-lock-fill' }}"></i>
-                                {{ $manualPartsLocked ? __('Unlock Parts') : __('Lock Parts') }}
-                            </button>
-                        </form>
                         <a href="{{ route('processes.create', ['manual_id' => $cmm->id, 'return_to' => $manualUrlProcesses]) }}"
                            class="btn btn-outline-primary btn-sm d-none"
                            data-tab-target="#nav-processes">
@@ -1210,72 +1199,6 @@
                             </tbody>
                         </table>
                     </div>
-                    <script>
-                        (function () {
-                            const table = document.getElementById('manualPartsTable');
-                            const indicator = document.getElementById('manual-parts-loading-indicator');
-                            if (!table || !indicator) return;
-
-                            let waitGeneration = 0;
-
-                            function setLoading(loading) {
-                                indicator.classList.toggle('d-none', !loading);
-                                indicator.classList.toggle('d-inline-flex', loading);
-                                indicator.setAttribute('aria-hidden', loading ? 'false' : 'true');
-                            }
-
-                            function waitForImage(image) {
-                                if (image.complete) return Promise.resolve();
-
-                                return new Promise(function (resolve) {
-                                    let settled = false;
-                                    function finish() {
-                                        if (settled) return;
-                                        settled = true;
-                                        image.removeEventListener('load', finish);
-                                        image.removeEventListener('error', finish);
-                                        resolve();
-                                    }
-
-                                    image.addEventListener('load', finish, { once: true });
-                                    image.addEventListener('error', finish, { once: true });
-                                    if (image.complete) finish();
-                                });
-                            }
-
-                            function trackPartImages() {
-                                const pendingImages = Array.from(table.querySelectorAll('img.component-avatar'))
-                                    .filter(function (image) { return !image.complete; });
-                                const generation = ++waitGeneration;
-
-                                if (pendingImages.length === 0) {
-                                    setLoading(false);
-                                    return Promise.resolve();
-                                }
-
-                                setLoading(true);
-                                return Promise.all(pendingImages.map(waitForImage)).finally(function () {
-                                    if (generation === waitGeneration) setLoading(false);
-                                });
-                            }
-
-                            window.trackManualPartImages = trackPartImages;
-                            trackPartImages();
-
-                            const tbody = table.tBodies[0];
-                            if (tbody && typeof MutationObserver === 'function') {
-                                new MutationObserver(function (mutations) {
-                                    const hasAddedImages = mutations.some(function (mutation) {
-                                        return Array.from(mutation.addedNodes).some(function (node) {
-                                            return node.nodeType === Node.ELEMENT_NODE
-                                                && (node.matches?.('img.component-avatar') || node.querySelector?.('img.component-avatar'));
-                                        });
-                                    });
-                                    if (hasAddedImages) trackPartImages();
-                                }).observe(tbody, { childList: true, subtree: true });
-                            }
-                        })();
-                    </script>
                     @include('admin.manuals.partials.part-groups-modal', [
                         'partGroups' => $partGroups,
                         'serviceBulletins' => $serviceBulletins,
@@ -1457,7 +1380,7 @@
                                             <form action="{{ route('manual_processes.destroy', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}"
                                                   method="POST"
                                                   class="d-inline"
-                                                  data-manual-project-delete-form
+                                                  data-manual-project-delete-form data-no-spinner
                                                   data-confirm-title="{{ __('Delete process?') }}"
                                                   data-confirm-message="{{ __('This process row will be removed from the manual.') }}">
                                                 @csrf
@@ -1600,7 +1523,7 @@
                                   method="post"
                                   action="{{ route('manuals.service-bulletins.destroy', ['manual' => $cmm, 'serviceBulletin' => $bulletin]) }}"
                                   class="d-none"
-                                  data-manual-project-delete-form
+                                  data-manual-project-delete-form data-no-spinner
                                   data-confirm-title="{{ __('Delete Service Bulletin row?') }}"
                                   data-confirm-message="{{ __('This Service Bulletin row will be removed from the manual.') }}">
                                 @csrf
@@ -2658,6 +2581,18 @@
             const input = document.getElementById('parts-search');
             const clearInput = document.getElementById('parts-search-clear');
             const table = document.getElementById('manualPartsTable');
+            const partsSearchSlot = document.getElementById('manual-parts-search-slot');
+            let partsSearchReady = false;
+
+            // Paint on the existing page while a reload waits for the server response.
+            window.addEventListener('beforeunload', function () {
+                if (document.getElementById('nav-parts')?.classList.contains('active')) {
+                    partsSearchSlot?.setAttribute('aria-busy', 'true');
+                }
+            });
+            window.addEventListener('pageshow', function () {
+                if (partsSearchReady) partsSearchSlot?.setAttribute('aria-busy', 'false');
+            });
 
             function initManualPartDeleteConfirm() {
                 if (!table) return;
@@ -2757,7 +2692,9 @@
                 if (!confirmed) return;
 
                 form.dataset.projectConfirmAccepted = '1';
-                if (typeof showGlobalSpinner === 'function') {
+                if (typeof window.safeShowSpinner === 'function') {
+                    window.safeShowSpinner();
+                } else if (typeof showGlobalSpinner === 'function') {
                     showGlobalSpinner();
                 } else if (typeof showLoadingSpinner === 'function') {
                     showLoadingSpinner();
@@ -2907,6 +2844,8 @@
                 });
                 updateSortHeaders();
                 applyPartsSearch();
+                partsSearchReady = true;
+                partsSearchSlot?.setAttribute('aria-busy', 'false');
             }
 
             // Part Groups uses the same selection, without a second grouping editor.

@@ -45,9 +45,32 @@
             white-space: nowrap;
         }
 
-        /* Вертикальный скролл при большом списке, шапка прилипает */
+        /* Fit below the page header and above the shared footer. */
+        .trainings-page,
+        .trainings-page > .card {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 0;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        .trainings-page > .card > .card-header {
+            flex-shrink: 0;
+        }
+
+        .trainings-page > .card > .card-body {
+            min-height: 0;
+            overflow: auto;
+            padding-top: 0;
+        }
+
+        /* The card body owns the main table's vertical and horizontal scroll. */
         .trainings-table-wrap {
-            max-height: 85vh;
+            overflow: visible;
+        }
+
+        #scaCoursesBody .trainings-table-wrap {
             overflow: auto;
         }
 
@@ -124,8 +147,6 @@
         }
 
         html[data-bs-theme="dark"] .select2-container .select2-dropdown {
-            max-height: 40vh !important;
-            overflow-y: auto !important;
             border: 1px solid #ccc !important;
             border-radius: 8px;
             color: white;
@@ -141,6 +162,7 @@
         .select2-container .select2-dropdown {
             min-width: 320px !important;
             width: auto !important;
+            overflow: hidden;
         }
 
         .select2-container .select2-results__option {
@@ -148,25 +170,45 @@
         }
 
         .select2-results__options {
-            max-height: 60vh !important;
+            max-height: 40vh !important;
             overflow-y: auto !important;
         }
+        .unit-training-modal .modal-body { overflow-x: auto; }
+        .unit-training-modal .training-date-grid {
+            display: grid;
+            grid-template-columns: 72px minmax(145px, 1fr) 65px 76px 34px 32px;
+            gap: 8px;
+            align-items: center;
+            min-width: 470px;
+            margin: 0 0 8px;
+        }
+        .unit-training-modal .training-date-grid > div { width: auto; padding: 0; min-width: 0; }
+        .training-hours { text-align: center; font-variant-numeric: tabular-nums; }
+        .training-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .training-page-heading { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; white-space: nowrap; font-size: 1rem; font-weight: 400; min-width: 0; overflow-x: auto; margin-bottom: 12px; }
+        .training-page-heading h5,
+        .training-page-heading .form-select,
+        .training-page-heading .select2-selection__rendered { font-size: 1rem !important; }
+        html[data-bs-theme] .training-page-heading #userSelectDropdown,
+        html[data-bs-theme] .training-page-heading #select2-userSelectDropdown-container { color: rgba(var(--bs-info-rgb), 1) !important; }
+        .training-page-heading > * { flex-shrink: 0; }
+        .training-page-heading .select2-container { width: 260px !important; }
+        .training-page-heading .select2-selection__rendered,
+        .training-page-heading label { font-weight: 400 !important; }
     </style>
 
-    <div class="container-fluid px-4 px-xl-5">
+    <div class="container-fluid px-4 px-xl-5 trainings-page">
         <div class="card shadow">
             <div class="card-header">
-                <div class="d-flex justify-content-between flex-wrap align-items-center gap-2">
-                    <div class="d-flex align-items-center gap-3 flex-wrap">
-                        <h5 class="mb-0">{{ __('Trainings') }}</h5>
+                    <div class="training-page-heading">
+                        <h5 class="mb-0">{{ __('Trainings') }}:</h5>
 
                         @roles("Admin|Manager")
                         @if($canViewAllUsers && $users->isNotEmpty())
                             <div class="d-flex align-items-center gap-2">
-                                <label class="form-label mb-0 small text-muted">{{ __('User') }}:</label>
                                 <select class="form-select form-select-sm"
                                         id="userSelectDropdown"
-                                        style="min-width: 300px;">
+                                        aria-label="Technik" style="width: 260px; font-weight: 400;">
                                     @foreach($users as $u)
                                         <option value="{{ $u->id }}" {{ $selectedUserId == $u->id ? 'selected' : '' }}>
                                             {{ $u->stamp }} — {{ $u->selection_name }}
@@ -176,31 +218,44 @@
                             </div>
                         @endif
                         @endroles
-
+                        @if(!$canViewAllUsers || !auth()->user()->roleIs(['Admin', 'Manager']) || $users->isEmpty())
+                            <span class="text-info">{{ $users->firstWhere('id', $selectedUserId)?->selection_name ?? auth()->user()->selection_name }}</span>
+                        @endif
+                        <span>—</span>
+                        <span class="fw-normal">
+                            {{ __('Total training hours') }}:
+                            <span id="trainingTotalHours" class="text-info">{{ number_format($totalHoursAll, $totalHoursAll == floor($totalHoursAll) ? 0 : 1, '.', ' ') }}</span>
+                        </span>
+                    </div>
+                <div class="d-flex justify-content-between flex-wrap align-items-center gap-2">
+                    <div class="flex-grow-1">
                         <input type="search"
                                id="trainingsSearch"
+                               value="{{ $trainingSearch }}"
                                class="form-control form-control-sm"
                                style="min-width: 200px;"
                                placeholder="{{ __('Search') }}…"
                                aria-label="{{ __('Search') }}">
 
-                        <span class="text-muted">
-                            {{ __('Total training hours') }}:
-                            <strong>{{ number_format($totalHoursAll, $totalHoursAll == floor($totalHoursAll) ? 0 : 1, '.', ' ') }}</strong>
-                        </span>
                     </div>
 
+                    <div class="d-flex flex-wrap align-items-center gap-3">
                     <div class="form-check form-switch pt-1">
                         <input class="form-check-input" type="checkbox" id="trainingNotUpdated">
                         <label class="form-check-label" for="trainingNotUpdated">
                             Not updated trainings
                         </label>
                     </div>
+                    <div class="form-check form-switch pt-1">
+                        <input class="form-check-input" type="checkbox" id="trainingOnlyActive">
+                        <label class="form-check-label" for="trainingOnlyActive">Only active</label>
+                    </div>
+                    </div>
 
                     <div class="align-middle">
                         <a href="{{ route('trainings.create') }}{{ $canViewAllUsers && $selectedUserId != auth()->id() ? '?user_id=' . $selectedUserId : '' }}"
-                           class="btn btn-primary align-middle">
-                            {{ __('Add Unit') }}
+                           class="btn btn-primary align-middle" id="openAddUnitModal">
+                            {{ __('Add Component') }}
                         </a>
                     </div>
                 </div>
@@ -241,7 +296,7 @@
                                             @if(!$course['last'])
                                                 <span class="text-muted">{{ __('never') }}</span>
                                             @elseif($course['overdue'])
-                                                <span style="background: #b3423a; color: #fff; border-radius: 4px; padding: 1px 8px; font-weight: 700;"
+                                                <span class="text-danger fw-bold"
                                                       title="{{ __(':days days since last training — refresh required (MP-20)', ['days' => $course['days_since']]) }}">
                                                     {{ Carbon::parse($course['last'])->format('d/M/Y') }}
                                                 </span>
@@ -304,7 +359,22 @@
 
                     <tbody>
                     @foreach($formattedTrainingLists as $trainingList)
-                        <tr data-manual-id="{{ $trainingList['manuals_id'] }}" data-is-due="{{ $trainingList['is_due_for_update'] ? '1' : '0' }}">
+                        @php
+                            $searchText = implode(' ', [
+                                $trainingList['first_training']->manual->title ?? 'N/A',
+                                $trainingList['first_training']->manual->unit_name_training ?? 'N/A',
+                                format_project_date($trainingList['first_training']->date_training),
+                                $trainingList['last_training_112'] ? format_project_date($trainingList['last_training_112']->date_training) : 'N/A',
+                                number_format($trainingList['total_hours'], $trainingList['total_hours'] == floor($trainingList['total_hours']) ? 0 : 1, '.', ' ').' hrs',
+                                __('Dates & Forms'),
+                            ]);
+                            $searchMatch = $trainingSelectedManual !== ''
+                                ? (string) $trainingList['manuals_id'] === $trainingSelectedManual
+                                : str_contains(mb_strtolower($searchText), mb_strtolower(trim($trainingSearch)));
+                        @endphp
+                        <tr data-manual-id="{{ $trainingList['manuals_id'] }}" data-is-due="{{ $trainingList['is_due_for_update'] ? '1' : '0' }}"
+                            data-search-text="{{ $searchText }}" @if(!$searchMatch) style="display: none;" @endif
+                            data-is-active="{{ $trainingList['last_training_112'] && $trainingList['days_since_last_training_112'] <= (int) config('trainings.matrix_red_after_days', 350) ? '1' : '0' }}">
                             <td class="text-center">
                                 <button type="button"
                                         class="btn btn-link p-0 m-0 align-baseline text-decoration-none training-modal-link"
@@ -336,7 +406,7 @@
                                 @if(!$last112Date)
                                     N/A
                                 @elseif($isOverdue)
-                                    <span style="background: #b3423a; color: #fff; border-radius: 4px; padding: 1px 8px; font-weight: 700;"
+                                    <span class="text-danger fw-bold"
                                           title="{{ __(':days days since last training — refresh required (MP-20)', ['days' => $daysSince112]) }}">
                                         {{ $last112Date->format('d/M/Y') }}
                                     </span>
@@ -387,11 +457,33 @@
         </div>
     </div>
 
+    <div class="modal fade" id="addUnitModal" tabindex="-1" aria-label="Add Component" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content"></div></div>
+    </div>
+    <style>
+        .unit-training-modal .form-control.training-locked-base-date:disabled {
+            background: transparent !important;
+            border-color: transparent;
+            box-shadow: none;
+            opacity: 1;
+            color: inherit;
+        }
+        #addUnitModal .modal-content { min-width: 0; }
+        #addUnitModal .modal-body { min-height: 0; overflow-y: auto; }
+        #addUnitModal .unit-date-row { display: grid; grid-template-columns: 82px minmax(0, 1fr) 55px 80px 32px; align-items: center; gap: 8px; margin-bottom: 8px; }
+        #addUnitModal .unit-papers { display: flex; gap: 4px; }
+        #addUnitModal .paper-btn { pointer-events: none; opacity: 1; width: 34px; height: 46px; }
+        #addUnitModal #date_training_group { margin-bottom: 0; }
+        #addUnitModal #date_training_group + .form-group { margin-top: 0 !important; }
+        #addUnitModal .unit-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--avia-border); padding-top: 16px; margin-top: 16px; }
+        #addUnitModal .select2-container { width: 100% !important; }
+    </style>
+    <script src="{{ asset('js/training-add-unit.js') }}?v={{ filemtime(public_path('js/training-add-unit.js')) }}" defer></script>
     {{-- Все модалки вынесены из <tr> / <table> --}}
     @foreach($formattedTrainingLists as $trainingList)
 
         <!-- Modal: Training (dates, forms, edit) -->
-        <div class="modal fade"
+        <div class="modal fade unit-training-modal"
              id="trainingModal{{ $trainingList['first_training']->manuals_id }}"
              tabindex="-1"
              aria-labelledby="trainingModalLabel{{ $trainingList['first_training']->manuals_id }}"
@@ -403,16 +495,20 @@
                             id="trainingModalLabel{{ $trainingList['first_training']->manuals_id }}">
                             {{ __('Training') }}: {{ $trainingList['first_training']->manual->title }}
                             <br>
-                            PN {{ $trainingList['first_training']->manual->unit_name_training }}
+                            <span class="text-info">PN {{ $trainingList['first_training']->manual->unit_name_training }}</span>
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
                     </div>
 
                     <div class="modal-body">
-                        <p class="text-muted small mb-3">
-                            {{ __('Last Form 112') }}:
-                            {{ $trainingList['last_training_112'] ? Carbon::parse($trainingList['last_training_112']->date_training)->format('d/M/Y') : __('No Form 112 yet') }}
-                        </p>
+                        @if(auth()->user()->canApproveTrainings() && $trainingList['trainings']->contains(fn ($t) => !$t->isApproved()))
+                        <div class="training-summary justify-content-end">
+                            <button type="button" class="btn btn-outline-success btn-sm approve-unit-btn"
+                                    data-user-id="{{ $selectedUserId }}" data-manual-id="{{ $trainingList['first_training']->manuals_id }}">
+                                ✓ {{ __('Approve all dates of this unit') }}
+                            </button>
+                        </div>
+                        @endif
 
                         @php
                             $viewerCanApprove = auth()->user()->canApproveTrainings();
@@ -425,17 +521,17 @@
                                 // 132 редактирует только Admin; принятые — только назначенный
                                 $dateLocked = $frozen || ((string) $training->form_type === '132' && !$viewerIsAdmin);
                             @endphp
-                            <div class="row g-2 mb-2 align-items-center edit-training-row"
+                            <div class="training-date-grid edit-training-row"
                                  data-training-id="{{ $training->id }}"
                                  data-original-date="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
                                 <div class="col-auto" style="min-width: 70px;">
                                     <span class="text-muted">{{ __('Form') }} {{ $training->form_type }}</span>
                                 </div>
 
-                                <div class="col">
+                                <div class="col" title="{{ $frozen ? __('Approved: only the designated manager can edit') : ((string) $training->form_type === '132' ? __('Date: Admin only') : __('Date: employee, Admin or Manager; approved dates require designated permission')) }}">
                                     @if($dateLocked)
                                         <input type="text"
-                                               class="form-control form-control-sm"
+                                               class="form-control form-control-sm {{ (string) $training->form_type === '132' ? 'training-locked-base-date' : '' }}"
                                                value="{{ \Carbon\Carbon::parse($training->date_training)->format('d/M/Y') }}"
                                                disabled>
                                     @else
@@ -447,12 +543,16 @@
                                     @endif
                                 </div>
 
+                                <div class="training-hours" title="{{ __('Hours for this training (Form 112)') }}">
+                                    {{ $trainingList['hours_by_training'][$training->id] ?? '—' }}
+                                    @if(isset($trainingList['hours_by_training'][$training->id]))<small class="text-muted">{{ __('hrs') }}</small>@endif
+                                </div>
                                 <div class="col-auto">
                                     @if($training->isApproved())
                                         <span class="badge"
                                               style="background: rgba(46, 125, 79, 0.18); color: #4caf7d; border: 1px solid #2e7d4f;"
                                               title="{{ __('Approved by :name, :date', ['name' => $training->approvedBy->selection_name ?? '?', 'date' => $training->approved_at?->format('d/M/Y')]) }}">
-                                            ✓ {{ __('Approved') }}
+                                            ✓
                                         </span>
                                         @if($viewerIsDesignated)
                                             <button type="button"
@@ -465,8 +565,8 @@
                                     @elseif($viewerCanApprove)
                                         <button type="button"
                                                 class="btn btn-outline-success btn-sm approve-training-btn"
-                                                data-training-id="{{ $training->id }}">
-                                            ✓ {{ __('Approve') }}
+                                                data-training-id="{{ $training->id }}" title="{{ __('Approve') }}" aria-label="{{ __('Approve') }}">
+                                            <i class="bi bi-check-lg"></i>
                                         </button>
                                     @endif
                                 </div>
@@ -509,17 +609,6 @@
                                 </div>
                             </div>
                         @endforeach
-
-                        @if($viewerCanApprove && $trainingList['trainings']->contains(fn ($t) => !$t->isApproved()))
-                            <div class="text-end mt-2">
-                                <button type="button"
-                                        class="btn btn-outline-success btn-sm approve-unit-btn"
-                                        data-user-id="{{ $selectedUserId }}"
-                                        data-manual-id="{{ $trainingList['first_training']->manuals_id }}">
-                                    ✓ {{ __('Approve all dates of this unit') }}
-                                </button>
-                            </div>
-                        @endif
 
                         <hr class="my-3">
 
@@ -765,25 +854,6 @@
         </div>
     </div>
 
-    <!-- Modal: Confirm delete single training date -->
-    <div class="modal fade" id="confirmDeleteDateModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">{{ __('Confirm Delete') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="mb-0">{{ __('Delete this training date?') }}</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteDateBtn">{{ __('Delete') }}</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal: Confirm remove approval -->
     <div class="modal fade" id="confirmUnapproveModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-sm">
@@ -879,173 +949,320 @@
             const baseUrl = '{{ url("trainings") }}';
             const csrfToken = '{{ csrf_token() }}';
 
+            function trainingClick(selector, handler) {
+                document.addEventListener('click', function (event) {
+                    const button = event.target.closest(selector);
+                    if (button && !button.disabled) handler.call(button, event);
+                });
+            }
+
+            async function confirmTraining(modal, options) {
+                if (!window.confirmDialog) { showNotification('Confirmation dialog is unavailable.', 'error'); return false; }
+                const body = modal.querySelector('.modal-body');
+                body.inert = true;
+                try {
+                    const answer = window.confirmDialog(options);
+                    const dialog = document.getElementById('globalConfirmModal');
+                    const closed = new Promise(resolve => dialog.addEventListener('hidden.bs.modal', resolve, {once: true}));
+                    const accepted = await answer;
+                    await closed;
+                    // Bootstrap removes this when the confirmation closes, although our editor is still open.
+                    if (modal.classList.contains('show')) document.body.classList.add('modal-open');
+                    return accepted;
+                } finally {
+                    body.inert = false;
+                }
+            }
+
+            // Keep the Bootstrap shell, unsaved dates and footer controls alive.
+            async function refreshTrainingModal(modal) {
+                modal.querySelector('.modal-body').inert = true;
+                try {
+                    await loadTrainingModal(modal);
+                    modal.dataset.refreshRevision = String(Number(modal.dataset.refreshRevision || 0) + 1);
+                } finally {
+                    modal.querySelector('.modal-body').inert = false;
+                }
+            }
+
+            async function loadTrainingModal(modal) {
+                const pendingRows = Array.from(modal.querySelectorAll('.pending-training-row'));
+                const addDraft = modal.querySelector('.add-training-date-input')?.value || '';
+                const drafts = new Map();
+                modal.querySelectorAll('.edit-training-row').forEach(row => {
+                    const input = row.querySelector('.edit-training-date-input');
+                    if (input && projectDateInputToYmd(input) !== row.dataset.originalDate) {
+                        drafts.set(row.dataset.trainingId, input.value);
+                    }
+                });
+                const response = await fetch(window.location.href, {headers: {'Accept': 'text/html'}, cache: 'no-store'});
+                if (!response.ok || response.redirected) throw new Error('Could not refresh training. Please reload the page.');
+                const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+                const fresh = doc.getElementById(modal.id);
+                if (!fresh) {
+                    // The last date may be deleted; keep Add usable in this same window.
+                    modal.querySelectorAll('.edit-training-row, .approve-unit-btn').forEach(node => node.remove());
+                    modal.querySelector('.training-summary')?.remove();
+                    const manualId = modal.querySelector('.add-training-row')?.dataset.manualsId;
+                    const tableRow = manualId && document.querySelector('#trainingsTable tr[data-manual-id="' + manualId + '"]');
+                    if (tableRow) {
+                        tableRow.cells[2].textContent = 'N/A';
+                        tableRow.cells[3].textContent = 'N/A';
+                        tableRow.cells[4].textContent = '0 hrs';
+                        tableRow.dataset.isDue = '1';
+                    }
+                    const total = document.getElementById('trainingTotalHours');
+                    if (total && doc.getElementById('trainingTotalHours')) total.textContent = doc.getElementById('trainingTotalHours').textContent;
+                    return;
+                }
+                modal.querySelectorAll('[data-project-date]').forEach(input => {
+                    input._projectDatePicker?.destroy();
+                    delete input._projectDatePicker;
+                });
+                modal.querySelector('.modal-body').replaceWith(fresh.querySelector('.modal-body'));
+                const divider = modal.querySelector('.add-training-row')?.previousElementSibling;
+                pendingRows.forEach(row => divider?.before(row));
+                const addInput = modal.querySelector('.add-training-date-input');
+                if (addInput) addInput.value = addDraft;
+                modal.querySelectorAll('.edit-training-row').forEach(row => {
+                    const input = row.querySelector('.edit-training-date-input');
+                    if (input && drafts.has(row.dataset.trainingId)) input.value = drafts.get(row.dataset.trainingId);
+                });
+                window.initProjectDatePickers?.(modal);
+                modal.querySelector('.sign-in-toggle')?.dispatchEvent(new Event('change', {bubbles: true}));
+                // Totals and last dates outside the dialog must reflect the same server calculation.
+                const manualId = modal.querySelector('.add-training-row')?.dataset.manualsId;
+                if (manualId) {
+                    const selector = '#trainingsTable tr[data-manual-id="' + manualId + '"]';
+                    const oldRow = document.querySelector(selector);
+                    const newRow = doc.querySelector(selector);
+                    if (oldRow && newRow) {
+                        [2, 3, 4].forEach(index => { oldRow.cells[index].innerHTML = newRow.cells[index].innerHTML; });
+                        oldRow.dataset.isDue = newRow.dataset.isDue;
+                    }
+                }
+                const total = document.getElementById('trainingTotalHours');
+                if (total && doc.getElementById('trainingTotalHours')) total.textContent = doc.getElementById('trainingTotalHours').textContent;
+                bootstrap.Modal.getInstance(modal)?.handleUpdate();
+            }
+
             // Значение проектного date-инпута (24/Aug/2026) → 'Y-m-d' для сервера
             function projectDateInputToYmd(input) {
-                const picked = input._projectDatePicker?.selectedDates?.[0];
-                if (picked) {
-                    return picked.getFullYear() + '-'
-                        + String(picked.getMonth() + 1).padStart(2, '0') + '-'
-                        + String(picked.getDate()).padStart(2, '0');
-                }
                 const m = String(input.value || '').trim().match(/^(\d{1,2})[\/.]([a-z]{3})[\/.](\d{4})$/i);
                 if (!m) return '';
                 const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
                 const month = months.indexOf(m[2].toLowerCase());
                 if (month < 0) return '';
+                const date = new Date(Number(m[3]), month, Number(m[1]));
+                if (date.getFullYear() !== Number(m[3]) || date.getMonth() !== month || date.getDate() !== Number(m[1])) return '';
                 return m[3] + '-' + String(month + 1).padStart(2, '0') + '-' + String(Number(m[1])).padStart(2, '0');
             }
 
-            // Сохранение изменённых дат
-            document.querySelectorAll('.edit-training-save-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    const modalId = this.getAttribute('data-modal-id');
-                    const modalEl = document.getElementById(modalId);
-                    if (!modalEl) return;
-
-                    const rows = modalEl.querySelectorAll('.edit-training-row');
-                    const updates = [];
-
-                    rows.forEach(function (row) {
-                        const trainingId = row.getAttribute('data-training-id');
-                        const originalDate = row.getAttribute('data-original-date');
+            function trainingDirty(modal) {
+                return !!modal.querySelector('.pending-training-row')
+                    || !!modal.querySelector('.add-training-date-input')?.value.trim()
+                    || Array.from(modal.querySelectorAll('.edit-training-row')).some(row => {
                         const input = row.querySelector('.edit-training-date-input');
-
-                        if (!input || !trainingId) return;
-
-                        const newDate = projectDateInputToYmd(input);
-                        if (newDate && newDate !== originalDate) {
-                            updates.push({ id: trainingId, date_training: newDate });
-                        }
+                        return input && projectDateInputToYmd(input) !== row.dataset.originalDate;
                     });
+            }
 
-                    if (updates.length === 0) {
-                        bootstrap.Modal.getInstance(modalEl)?.hide();
-                        return;
+            function discardTrainingDraft(modal) {
+                modal.querySelectorAll('.pending-training-row').forEach(row => {
+                    row.querySelector('input')._projectDatePicker?.destroy();
+                    row.remove();
+                });
+                modal.querySelectorAll('.edit-training-row').forEach(row => {
+                    const input = row.querySelector('.edit-training-date-input');
+                    if (input) {
+                        const [year, month, day] = row.dataset.originalDate.split('-');
+                        const value = day + '/' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(month) - 1] + '/' + year;
+                        input.value = value;
+                        input._projectDatePicker?.setDate(value, true);
                     }
+                });
+                modal.querySelector('.add-training-date-input')?._projectDatePicker?.clear();
+            }
 
-                    let done = 0;
-                    let errors = [];
-
-                    updates.forEach(function (u) {
-                        fetch(baseUrl + '/' + u.id, {
-                            method: 'PATCH',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': csrfToken,
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({ date_training: u.date_training })
-                        })
-                            .then(function (r) {
-                                return r.json().then(function (data) {
-                                    return { ok: r.ok, data: data };
-                                });
-                            })
-                            .then(function (result) {
-                                done++;
-
-                                if (!result.ok) {
-                                    errors.push(result.data.message || 'ID ' + u.id);
-                                }
-
-                                if (done === updates.length) {
-                                    bootstrap.Modal.getInstance(modalEl)?.hide();
-
-                                    if (errors.length > 0) {
-                                        showNotification('{{ __("Error") }}: ' + errors.join(', '), 'error');
-                                    } else {
-                                        showNotification('{{ __("Training dates updated.") }}', 'success');
-                                        location.reload();
-                                    }
-                                }
-                            })
-                            .catch(function (err) {
-                                done++;
-                                errors.push(err.message);
-
-                                if (done === updates.length) {
-                                    bootstrap.Modal.getInstance(modalEl)?.hide();
-                                    showNotification('{{ __("Error") }}: ' + errors.join(', '), 'error');
-                                }
-                            });
-                    });
+            document.querySelectorAll('.unit-training-modal').forEach(modal => {
+                const cancel = modal.querySelector('.modal-footer [data-bs-dismiss="modal"]');
+                cancel?.removeAttribute('data-bs-dismiss');
+                cancel?.addEventListener('click', () => {
+                    if (modal.dataset.saving === '1') return;
+                    discardTrainingDraft(modal);
+                    bootstrap.Modal.getInstance(modal)?.hide();
+                });
+                modal.addEventListener('hide.bs.modal', async event => {
+                    if (modal.dataset.saving === '1') { event.preventDefault(); return; }
+                    if (!trainingDirty(modal)) return;
+                    event.preventDefault();
+                    if (modal.dataset.closePrompt === '1') return;
+                    modal.dataset.closePrompt = '1';
+                    try {
+                        if (await confirmTraining(modal, {
+                            title: 'Unsaved training changes',
+                            message: 'Added training dates and edits have not been saved. Close without saving?',
+                            okText: 'Discard changes', cancelText: 'Continue editing', danger: true
+                        })) {
+                            discardTrainingDraft(modal);
+                            bootstrap.Modal.getInstance(modal)?.hide();
+                        }
+                    } finally { delete modal.dataset.closePrompt; }
                 });
             });
+            window.addEventListener('beforeunload', event => {
+                if (Array.from(document.querySelectorAll('.unit-training-modal')).some(trainingDirty)) {
+                    event.preventDefault();
+                    event.returnValue = '';
+                }
+            });
 
-            // Добавление тренинга в Edit modal
-            document.querySelectorAll('.add-training-in-edit-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    const row = this.closest('.add-training-row');
-                    if (!row) return;
+            // Add is a local draft operation. Only Save sends dates to the server.
+            trainingClick('.add-training-in-edit-btn', function () {
+                const modal = this.closest('.modal');
+                const source = modal.querySelector('.add-training-date-input');
+                if (!source.value.trim()) {
+                    source._emptyDateAnimation?.cancel();
+                    const border = getComputedStyle(source).borderColor;
+                    source._emptyDateAnimation = source.animate([
+                        {borderColor: border, boxShadow: '0 0 0 0 transparent'},
+                        {borderColor: '#dc3545', boxShadow: '0 0 0 2px rgba(220, 53, 69, .35)', offset: 0.35},
+                        {borderColor: '#dc3545', boxShadow: '0 0 0 2px rgba(220, 53, 69, .35)', offset: 0.65},
+                        {borderColor: border, boxShadow: '0 0 0 0 transparent'}
+                    ], {duration: 600, iterations: 3, easing: 'ease-in-out'});
+                    return;
+                }
+                const ymd = projectDateInputToYmd(source);
+                if (!ymd) { showNotification('Enter a valid date: dd/Mmm/yyyy.', 'warning'); return; }
+                const today = new Date();
+                const date = new Date(ymd + 'T00:00:00');
+                if (date > today) { showNotification('Training date cannot be in the future.', 'warning'); return; }
+                const row = document.createElement('div');
+                row.className = 'training-date-grid pending-training-row';
+                row.innerHTML = '<div class="text-muted">Form 112</div>'
+                    + '<div><input class="form-control form-control-sm pending-training-date-input" data-project-date autocomplete="off"></div>'
+                    + '<div class="training-hours text-muted">—</div>'
+                    + '<div class="small text-warning" style="grid-column: span 2">Not saved</div>'
+                    + '<div><button type="button" class="btn btn-outline-danger btn-sm remove-pending-training" title="Remove unsaved date"><i class="bi bi-trash"></i></button></div>';
+                row.querySelector('input').value = source.value;
+                modal.querySelector('.add-training-row').previousElementSibling.before(row);
+                window.initProjectDatePickers?.(row);
+                source._projectDatePicker?.clear();
+                source.value = '';
+                bootstrap.Modal.getInstance(modal)?.handleUpdate();
+            });
+            trainingClick('.remove-pending-training', function () {
+                const row = this.closest('.pending-training-row');
+                row.querySelector('input')._projectDatePicker?.destroy();
+                row.remove();
+            });
 
-                    const manualsId = row.getAttribute('data-manuals-id');
-                    const input = row.querySelector('.add-training-date-input');
-                    if (!input || !manualsId) return;
-
-                    const dateYmd = projectDateInputToYmd(input);
-
-                    if (!dateYmd) {
-                        showNotification('{{ __("Please select a date.") }}', 'warning');
-                        return;
+            document.querySelectorAll('.edit-training-save-btn').forEach(button => {
+                button.addEventListener('click', async function () {
+                    const modal = document.getElementById(this.dataset.modalId);
+                    if (!modal || modal.dataset.saving === '1') return;
+                    const pending = Array.from(modal.querySelectorAll('.pending-training-row'));
+                    const updates = Array.from(modal.querySelectorAll('.edit-training-row')).filter(row => {
+                        const input = row.querySelector('.edit-training-date-input');
+                        return input && projectDateInputToYmd(input) !== row.dataset.originalDate;
+                    });
+                    const unusedInput = modal.querySelector('.add-training-date-input');
+                    if (unusedInput?.value.trim()) {
+                        showNotification('Click +Add to include the entered date, then Save.', 'warning'); return;
                     }
-
-                    const trainingData = {
-                        manuals_id: [manualsId],
-                        date_training: [dateYmd],
-                        form_type: ['112']
-                    };
-
-                    if (canEditOtherUser && selectedUserId !== authUserId) {
-                        trainingData.user_id = selectedUserId;
+                    const inputs = [...pending.map(row => row.querySelector('input')), ...updates.map(row => row.querySelector('input'))];
+                    if (inputs.some(input => !projectDateInputToYmd(input))) {
+                        showNotification('Enter a valid date: dd/Mmm/yyyy.', 'warning'); return;
                     }
-
-                    fetch('{{ route('trainings.createTraining') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify(trainingData)
-                    })
-                        .then(function (r) {
-                            return r.json().then(function (data) {
-                                return { ok: r.ok, data: data };
-                            });
-                        })
-                        .then(function (result) {
-                            if (result.ok && result.data.success) {
-                                showNotification(result.data.message || '{{ __("Training added.") }}', 'success');
-                                location.reload();
-                            } else {
-                                showNotification('{{ __("Error") }}: ' + (result.data.message || ''), 'error');
+                    if (inputs.some(input => new Date(projectDateInputToYmd(input) + 'T00:00:00') > new Date())) {
+                        showNotification('Training date cannot be in the future.', 'warning'); return;
+                    }
+                    if (!pending.length && !updates.length) { bootstrap.Modal.getInstance(modal)?.hide(); return; }
+                    modal.dataset.saving = '1';
+                    this.disabled = true;
+                    modal.querySelector('.modal-body').inert = true;
+                    async function send(url, method, data) {
+                        const response = await fetch(url, {method, headers: {
+                            'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'
+                        }, body: JSON.stringify(data)});
+                        const result = await response.json();
+                        if (!response.ok || !result.success) throw new Error(result.message || 'Could not save training.');
+                        return result;
+                    }
+                    try {
+                        // Mark successful rows clean individually; a failed later request stays editable.
+                        for (const row of updates) {
+                            const date = projectDateInputToYmd(row.querySelector('input'));
+                            await send(baseUrl + '/' + row.dataset.trainingId, 'PATCH', {date_training: date});
+                            row.dataset.originalDate = date;
+                        }
+                        if (pending.length) {
+                            const manual = modal.querySelector('.add-training-row').dataset.manualsId;
+                            const data = {
+                                manuals_id: pending.map(() => manual),
+                                date_training: pending.map(row => projectDateInputToYmd(row.querySelector('input'))),
+                                form_type: pending.map(() => '112')
+                            };
+                            if (canEditOtherUser && selectedUserId !== authUserId) data.user_id = selectedUserId;
+                            const saved = await send('{{ route('trainings.createTraining') }}', 'POST', data);
+                            // The database write succeeded: do not retry it if only the animation fails.
+                            pending.forEach(row => row.classList.remove('pending-training-row'));
+                            for (const [index, row] of pending.entries()) {
+                                const record = saved.saved_trainings?.find(item => String(item.manual_id) === String(manual)
+                                    && item.date === saved.submitted_dates?.[index]);
+                                const status = row.querySelector('.text-warning');
+                                const hours = row.querySelector('.training-hours');
+                                if (!record) { if (status) status.textContent = 'Saved'; continue; }
+                                row.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                                hours.textContent = record.hours + ' hrs';
+                                hours.classList.remove('text-muted');
+                                hours.style.opacity = '0';
+                                row.dataset.saveAnimation = 'running';
+                                const oldBox = status.getBoundingClientRect();
+                                const newBox = hours.getBoundingClientRect();
+                                const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                                await Promise.all([
+                                    status.animate([{opacity: 1, transform: 'translateX(0)'},
+                                        {opacity: 0, transform: reduced ? 'none' : 'translateX(' + (newBox.x - oldBox.x) + 'px)'}],
+                                        {duration: 1000, easing: 'ease-in-out', fill: 'forwards'}).finished,
+                                    hours.animate([{opacity: 0}, {opacity: 0, offset: 0.35}, {opacity: 1}],
+                                        {duration: 1000, easing: 'ease-in-out', fill: 'forwards'}).finished
+                                ]);
+                                status.textContent = '';
+                                hours.style.opacity = '1';
+                                row.dataset.saveAnimation = 'done';
                             }
-                        })
-                        .catch(function (err) {
-                            showNotification('{{ __("An error occurred") }}: ' + err.message, 'error');
+                        }
+                        showNotification('Training dates saved.', 'success');
+                        const content = modal.querySelector('.modal-content');
+                        const height = content.getBoundingClientRect().height;
+                        content.style.overflow = 'hidden';
+                        await content.animate([{height: height + 'px', opacity: 1}, {height: '0px', opacity: 0}],
+                            {duration: 400, easing: 'ease-in', fill: 'forwards'}).finished;
+                        delete modal.dataset.saving;
+                        await new Promise(resolve => {
+                            modal.addEventListener('hidden.bs.modal', resolve, {once: true});
+                            bootstrap.Modal.getInstance(modal)?.hide();
                         });
+                        location.reload();
+                    } catch (error) {
+                        showNotification(error.message, 'error');
+                    } finally {
+                        delete modal.dataset.saving;
+                        this.disabled = false;
+                        modal.querySelector('.modal-body').inert = false;
+                    }
                 });
             });
 
             // Удаление отдельной даты тренинга — своя модалка вместо браузерного confirm
-            let pendingDeleteDateId = null;
-
-            document.querySelectorAll('.delete-training-date-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
+            trainingClick('.delete-training-date-btn', async function () {
                     const trainingId = this.getAttribute('data-training-id');
                     if (!trainingId) return;
-
-                    pendingDeleteDateId = trainingId;
-                    new bootstrap.Modal(document.getElementById('confirmDeleteDateModal')).show();
-                });
-            });
-
-            document.getElementById('confirmDeleteDateBtn')?.addEventListener('click', function () {
-                const trainingId = pendingDeleteDateId;
-                if (!trainingId) return;
-                bootstrap.Modal.getInstance(document.getElementById('confirmDeleteDateModal'))?.hide();
-
-                (function () {
+                    if (!await confirmTraining(this.closest('.modal'), {title: 'Delete training', message: 'Delete this training date?', okText: 'Delete', danger: true})) return;
+                    const modal = this.closest('.modal');
+                    const button = this;
+                    button.disabled = true;
                     fetch(baseUrl + '/' + trainingId, {
                         method: 'DELETE',
                         headers: {
@@ -1058,23 +1275,25 @@
                                 return { ok: r.ok, data: data };
                             });
                         })
-                        .then(function (result) {
+                        .then(async function (result) {
                             if (!result.ok) {
                                 showNotification('{{ __("Error") }}: ' + (result.data.message || ''), 'error');
                                 return;
                             }
 
                             showNotification(result.data.message || '{{ __("Training date deleted.") }}', 'success');
-                            location.reload();
+                            await refreshTrainingModal(modal);
                         })
                         .catch(function (err) {
                             showNotification('{{ __("Error") }}: ' + err.message, 'error');
-                        });
-                })();
+                        }).finally(() => { button.disabled = false; });
             });
 
             // Приёмка тренингов: approve / unapprove / approve всего юнита
             function trainingApprovalPost(url) {
+                if (Array.from(document.querySelectorAll('.unit-training-modal')).some(trainingDirty)) {
+                    showNotification('Save or discard your training changes before approval.', 'warning'); return;
+                }
                 fetch(url, {
                     method: 'POST',
                     headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
@@ -1092,20 +1311,16 @@
                     });
             }
 
-            document.querySelectorAll('.approve-training-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
+            trainingClick('.approve-training-btn', function () {
                     trainingApprovalPost(baseUrl + '/' + this.getAttribute('data-training-id') + '/approve');
-                });
             });
 
             // Снятие приёмки — своя модалка вместо браузерного confirm
             let pendingUnapproveId = null;
 
-            document.querySelectorAll('.unapprove-training-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
+            trainingClick('.unapprove-training-btn', function () {
                     pendingUnapproveId = this.getAttribute('data-training-id');
                     new bootstrap.Modal(document.getElementById('confirmUnapproveModal')).show();
-                });
             });
 
             document.getElementById('confirmUnapproveBtn')?.addEventListener('click', function () {
@@ -1114,8 +1329,10 @@
                 trainingApprovalPost(baseUrl + '/' + pendingUnapproveId + '/unapprove');
             });
 
-            document.querySelectorAll('.approve-unit-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
+            trainingClick('.approve-unit-btn', function () {
+                    if (Array.from(document.querySelectorAll('.unit-training-modal')).some(trainingDirty)) {
+                        showNotification('Save or discard your training changes before approval.', 'warning'); return;
+                    }
                     const params = new URLSearchParams({
                         user_id: this.getAttribute('data-user-id'),
                         manual_id: this.getAttribute('data-manual-id'),
@@ -1140,7 +1357,6 @@
                         .catch(function (err) {
                             showNotification('{{ __("Error") }}: ' + err.message, 'error');
                         });
-                });
             });
 
             // Переключение showImage только для конкретной модалки/manuals_id
@@ -1164,39 +1380,84 @@
 
             // Согласованные клиентские фильтры: поиск + тумблёр «Not updated» (AND)
             const trainingNotUpdatedCheckbox = document.getElementById('trainingNotUpdated');
+            const trainingOnlyActiveCheckbox = document.getElementById('trainingOnlyActive');
             const trainingsSearchInput = document.getElementById('trainingsSearch');
             const trainingsTableBody = document.querySelector('#trainingsTable tbody');
 
             if (trainingsTableBody) {
-                const requestedManual = new URLSearchParams(window.location.search).get('manual_id');
-                const selectedRow = Array.from(trainingsTableBody.rows).find(row => row.dataset.manualId === requestedManual);
-                let selectedManual = selectedRow ? requestedManual : null;
-                if (selectedRow && trainingsSearchInput) {
-                    trainingsSearchInput.value = selectedRow.cells[1].textContent.trim();
-                }
+                let selectedManual = @json($trainingSelectedManual) || null;
+                let searchSaveTimer, pendingSearch = null, savingSearch = null;
+                const flushTrainingSearch = () => {
+                    clearTimeout(searchSaveTimer);
+                    if (!savingSearch && pendingSearch) {
+                        savingSearch = (async () => {
+                            while (pendingSearch) {
+                                const value = pendingSearch; pendingSearch = null;
+                                await window.UserUiSettings.set('trainings', 'search', value, {keepalive: true});
+                            }
+                        })().finally(() => { savingSearch = null; });
+                    }
+                };
+                const rememberTrainingSearch = () => {
+                    pendingSearch = {text: trainingsSearchInput?.value || '', manual_id: selectedManual || ''};
+                    // A link's initial component must not override later typed searches on reload.
+                    const url = new URL(window.location.href);
+                    if (url.searchParams.has('manual_id')) {
+                        url.searchParams.delete('manual_id');
+                        history.replaceState(history.state, '', url);
+                    }
+                    clearTimeout(searchSaveTimer);
+                    searchSaveTimer = setTimeout(flushTrainingSearch, 200);
+                };
+                window.addEventListener('pagehide', flushTrainingSearch);
+                document.addEventListener('visibilitychange', () => { if (document.hidden) flushTrainingSearch(); });
                 const applyTrainingFilters = function () {
                     const onlyDue = trainingNotUpdatedCheckbox ? trainingNotUpdatedCheckbox.checked : false;
+                    const onlyActive = trainingOnlyActiveCheckbox ? trainingOnlyActiveCheckbox.checked : false;
                     const term = trainingsSearchInput ? trainingsSearchInput.value.trim().toLowerCase() : '';
 
                     Array.from(trainingsTableBody.rows).forEach(function (row) {
                         const matchesDue = !onlyDue || row.dataset.isDue === '1';
+                        const matchesActive = !onlyActive || row.dataset.isActive === '1';
                         const matchesTerm = selectedManual
                             ? row.dataset.manualId === selectedManual
-                            : term === '' || row.textContent.toLowerCase().includes(term);
-                        row.style.display = (matchesDue && matchesTerm) ? '' : 'none';
+                            : term === '' || row.dataset.searchText.toLowerCase().includes(term);
+                        row.style.display = (matchesDue && matchesActive && matchesTerm) ? '' : 'none';
                     });
                 };
 
                 if (trainingNotUpdatedCheckbox) {
-                    trainingNotUpdatedCheckbox.addEventListener('change', applyTrainingFilters);
+                    trainingNotUpdatedCheckbox.addEventListener('change', () => {
+                        if (trainingNotUpdatedCheckbox.checked && trainingOnlyActiveCheckbox) trainingOnlyActiveCheckbox.checked = false;
+                        applyTrainingFilters();
+                    });
                 }
+                trainingOnlyActiveCheckbox?.addEventListener('change', () => {
+                    if (trainingOnlyActiveCheckbox.checked && trainingNotUpdatedCheckbox) trainingNotUpdatedCheckbox.checked = false;
+                    applyTrainingFilters();
+                });
                 if (trainingsSearchInput) {
                     trainingsSearchInput.addEventListener('input', function () {
                         selectedManual = null;
                         applyTrainingFilters();
+                        rememberTrainingSearch();
                     });
                 }
+                document.addEventListener('training:select-component', event => {
+                    const manualId = String(event.detail?.manualId || '');
+                    const row = Array.from(trainingsTableBody.rows).find(item => item.dataset.manualId === manualId);
+                    if (!row) return;
+                    selectedManual = manualId;
+                    if (trainingsSearchInput) trainingsSearchInput.value = row.cells[1].textContent.trim();
+                    if (trainingNotUpdatedCheckbox) trainingNotUpdatedCheckbox.checked = false;
+                    if (trainingOnlyActiveCheckbox) trainingOnlyActiveCheckbox.checked = false;
+                    applyTrainingFilters();
+                    rememberTrainingSearch();
+                    row.scrollIntoView({block: 'nearest'});
+                    trainingsSearchInput?.focus({preventScroll: true});
+                });
                 applyTrainingFilters();
+                if (new URLSearchParams(window.location.search).has('manual_id')) rememberTrainingSearch();
             }
 
             // Удаление всех training records
@@ -1264,13 +1525,6 @@
                     theme: 'bootstrap-5',
                     width: 'style',
                     dropdownAutoWidth: true,
-                });
-                // Скролл списка: инлайн-стили поверх любых тем select2
-                jQuery(select).on('select2:open', function () {
-                    document.querySelectorAll('.select2-results__options').forEach(function (el) {
-                        el.style.maxHeight = '60vh';
-                        el.style.overflowY = 'auto';
-                    });
                 });
                 jQuery(select).on('change', function () {
                     window.location.href = '{{ route('trainings.index') }}?user_id=' + this.value;

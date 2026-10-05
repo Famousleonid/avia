@@ -4,7 +4,15 @@
     <style>
         .project-settings-page {
             max-width: 1240px;
+            min-height: 0;
+            overflow-y: auto;
+            padding-bottom: 16px;
         }
+
+        .qr-forms-scroll { max-height: 55vh; overflow: auto; }
+        .qr-forms-table { margin: 0; }
+        .qr-forms-table th { position: sticky; top: 0; background: var(--avia-surface, var(--bs-body-bg)); z-index: 1; }
+        .qr-forms-table label { display: block; cursor: pointer; }
 
         .project-settings-layout {
             align-items: flex-start;
@@ -111,6 +119,7 @@
             height: 1.35rem;
             width: 2.55rem;
         }
+        .project-settings-page .qr-forms-table .form-check-input { width: 1.1rem; height: 1.1rem; }
 
         .project-settings-page textarea {
             min-height: 110px;
@@ -224,9 +233,10 @@
 
             <section class="project-settings-panel">
                 @if($activeSection === 'printed-forms')
-                    <form method="POST" action="{{ route('admin.project-settings.update') }}">
+                    <form id="printedFormsSettings" method="POST" action="{{ route('admin.project-settings.update') }}">
                         @csrf
                         <input type="hidden" name="settings_section" value="printed-forms">
+                        <input type="hidden" name="qr_forms_present" value="1">
 
                         <div class="project-settings-panel-header">
                             <h5>Printed Forms</h5>
@@ -253,6 +263,19 @@
                                     <label class="visually-hidden" for="printFormsQrEnabled">QR code mark</label>
                                 </div>
                             </div>
+                        </div>
+                        <div class="qr-forms-scroll">
+                            <table class="table table-sm table-hover qr-forms-table">
+                                <thead><tr><th class="px-3">Form</th><th class="text-center" style="width: 70px">QR</th></tr></thead>
+                                <tbody>
+                                @foreach($qrForms as $key => $form)
+                                    <tr>
+                                        <td class="px-3"><label for="qr-form-{{ $key }}">{{ $form['label'] }}</label></td>
+                                        <td class="text-center"><input class="form-check-input" type="checkbox" id="qr-form-{{ $key }}" name="qr_forms[{{ $key }}]" value="1" @checked(old('qr_forms_present') ? old('qr_forms.'.$key, false) : $qrFormSelections[$key])></td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
                         </div>
                         <div class="project-settings-panel-footer">
                             <button type="submit" class="btn btn-outline-primary">Save Printed Forms</button>

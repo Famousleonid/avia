@@ -161,18 +161,19 @@
                             $assemblyId = $item['component_assembly_id'] ?? '';
                             $assyPartNumber = $item['assy_part_number'] ?? '';
                             $assyIplNum = $item['assy_ipl_num'] ?? '';
-                            if (!$assyPartNumber && $assemblyId && $component->relationLoaded('assemblies')) {
+                            $noAssembly = app(\App\Services\LogCardAssemblyIdentity::class)->isExplicitNoAssembly($item);
+                            if (!$noAssembly && !$assyPartNumber && $assemblyId && $component->relationLoaded('assemblies')) {
                                 $assembly = $component->assemblies->firstWhere('id', (int) $assemblyId);
                                 $assyPartNumber = $assembly->assy_part_number ?? '';
                                 $assyIplNum = $assembly->assy_ipl_num ?? $assyIplNum;
                             }
-                            if (!$assyPartNumber && $component->relationLoaded('assemblies') && $component->assemblies->count() === 1) {
+                            if (!$noAssembly && !$assyPartNumber && $component->relationLoaded('assemblies') && $component->assemblies->count() === 1) {
                                 $assembly = $component->assemblies->first();
                                 $assyPartNumber = $assembly->assy_part_number ?? '';
                                 $assyIplNum = $assembly->assy_ipl_num ?? $assyIplNum;
                                 $assemblyId = $assembly->id ?? $assemblyId;
                             }
-                            if (!$assyPartNumber && !empty($component->assy_part_number)) {
+                            if (!$noAssembly && !$assyPartNumber && !empty($component->assy_part_number)) {
                                 $assyPartNumber = $component->assy_part_number;
                             }
                         @endphp

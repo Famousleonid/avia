@@ -9,7 +9,58 @@ use Tests\TestCase;
 
 class PrintProcessFormFormattingTest extends TestCase
 {
-    public function test_process_form_preserves_multiline_specification_comment_and_description_as_text(): void
+    public function test_machining_technician_and_library_are_printed_only_for_at_and_ec(): void
+    {
+        $this->actingAs((new \App\Models\User())->forceFill(['id'=>1, 'name'=>'Print Technician', 'selection_name_order'=>'first_last']));
+        $wo = (new Workorder())->forceFill(['number'=>107736, 'serial_number'=>'00220']);
+        $wo->setRelation('unit', (new Unit())->forceFill(['name'=>'Shock Strut', 'part_number'=>'2801A0000-03']));
+        $preview = '';
+        foreach (['Machining'=>true, 'Machining (AT)'=>true, 'Machining (EC)'=>true, 'Machining (OUT)'=>false, 'Machining (Blend)'=>false] as $name=>$visible) {
+            $html = view('shared.process-forms._header', [
+                'process_name'=>(new ProcessName())->forceFill(['name'=>$name, 'process_sheet_name'=>'MACHINING']),
+                'current_wo'=>$wo, 'selectedVendor'=>null, 'machining_header_manual_libs'=>['294','286'],
+            ])->render();
+            if ($visible) {
+                $this->assertStringContainsString('class="machining-sheet-header-meta', $html);
+                $this->assertStringContainsString('Print Technician', $html);
+                $this->assertStringContainsString('(lib: 294, 286)', $html);
+            } else {
+                $this->assertStringNotContainsString('class="machining-sheet-header-meta', $html);
+                $this->assertStringNotContainsString('Print Technician', $html);
+                $this->assertStringNotContainsString('(lib:', $html);
+            }
+            $this->assertStringContainsString('process-sheet-title-row--machining', $html);
+            if (in_array($name, ['Machining (AT)','Machining (EC)','Machining (OUT)'], true)) {
+                $preview .= '<section data-process="'.$name.'"><h3>'.$name.'</h3>'.$html.'</section>';
+            }
+        }
+        file_put_contents(base_path('codex-test-runtime/machining-header.html'), '<!doctype html><html><head><style>'.file_get_contents(public_path('assets/Bootstrap 5/bootstrap.min.css')).'</style>'.view('shared.process-forms._styles')->render().'</head><body>'.$preview.'</body></html>');
+    }
+
+    public function test_process_header_shows_only_a_boxed_ro_marker_and_preserves_batch_labels(): void
+    {
+        $workorder = (new Workorder())->forceFill(['number' => 107736, 'serial_number' => '00220']);
+        $workorder->setRelation('unit', (new Unit())->forceFill(['name' => 'Shock Strut', 'part_number' => '2801A0000-03']));
+        foreach ([['tdr-processes', 'R9138', 'R'], ['tdr-processes', 'R9138, R9171', 'R'],
+            ['tdr-processes', '  ', null], ['wo_bushings', 'B1', 'B1']] as [$module, $ro, $expected]) {
+            $html = view('shared.process-forms._header', [
+                'module' => $module,
+                'current_wo' => $workorder,
+                'process_name' => (new ProcessName())->forceFill(['name' => 'Passivation', 'process_sheet_name' => 'PASSIVATION']),
+                'selectedVendor' => null,
+                'formHeaderRepairOrder' => $ro,
+            ])->render();
+            if ($expected === null) {
+                $this->assertStringNotContainsString('class="process-ro-box"', $html);
+            } else {
+                $this->assertStringContainsString('class="process-ro-box">'.$expected.'</strong>', $html);
+            }
+            $this->assertStringNotContainsString('R9138', $html);
+            $this->assertStringNotContainsString('R9171', $html);
+        }
+    }
+
+    public function test_process_form_preserves_specification_and_description_but_never_outputs_manual_comment(): void
     {
         $html = view('shared.process-forms._process-text', [
             'text' => "Specification <literal>\n11111\n222222",
@@ -17,7 +68,8 @@ class PrintProcessFormFormattingTest extends TestCase
             'description' => "Fig. 6010\nZone 2",
         ])->render();
         $this->assertStringContainsString("Specification &lt;literal&gt;<br />\n11111<br />\n222222", $html);
-        $this->assertStringContainsString("class=\"process-comment\">Steel parts.\n&lt;Second line&gt;", $html);
+        $this->assertStringNotContainsString("Steel parts.", $html);
+        $this->assertStringNotContainsString("process-comment", $html);
         $this->assertStringContainsString("class=\"process-description\">Fig. 6010\nZone 2", $html);
         $this->assertStringNotContainsString('<literal>', $html);
     }

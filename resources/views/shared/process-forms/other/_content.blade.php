@@ -64,7 +64,6 @@
                     @if($procText)
                         @include('shared.process-forms._process-text', [
                             'text' => $procText,
-                            'comment' => isset($processCommentFor) ? $processCommentFor($proc->id ?? $proc, $comp->manual_id) : '',
                             'description' => $data['description'] ?? '',
                         ])
                     @endif
@@ -109,7 +108,6 @@
                     @if($procText)
                         @include('shared.process-forms._process-text', [
                             'text' => $procText,
-                            'comment' => isset($processCommentFor) ? $processCommentFor($process, $component->tdr->component->manual_id) : '',
                             'description' => $component->description ?? '',
                             'showRequirementStar' => method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [],
                         ])

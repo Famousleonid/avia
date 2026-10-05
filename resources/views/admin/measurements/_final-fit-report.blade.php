@@ -1,3 +1,6 @@
+@php
+    $printMarkFormKey = 'final_dimensions';
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>

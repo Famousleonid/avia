@@ -69,6 +69,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
                 'qa_access',
                 'ec_access',
                 'can_sign_certificates',
+                'can_manage_approved_trainings',
                 'email',
                 'birthday',
             ])

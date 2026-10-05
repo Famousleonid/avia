@@ -398,7 +398,8 @@
                             @php
                                 $records = $accessRecords->get($featureKey, collect());
                                 $assignedUserIds = $assignedUserIdsByFeature[$featureKey] ?? [];
-                                $availableUsers = $users->reject(fn ($user) => in_array((int) $user->id, $assignedUserIds, true));
+                                $availableUsers = $users->reject(fn ($user) => in_array((int) $user->id, $assignedUserIds, true)
+                                    || (empty($feature['user_flag']) && $user->isSystemAdmin()));
                             @endphp
 
                             <section id="{{ $feature['dom_id'] }}"
@@ -436,7 +437,7 @@
                                                                 @endif
                                                             </div>
                                                         </div>
-                                                        <form method="POST" action="{{ route('admin.access.destroy', $access) }}" class="m-0" data-no-spinner>
+                                                        <form method="POST" action="{{ $access->remove_url ?? route('admin.access.destroy', $access) }}" class="m-0 access-remove-form" data-no-spinner>
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="btn btn-outline-danger btn-sm access-remove-button" title="Remove" aria-label="Remove">
@@ -571,6 +572,15 @@
                     submit.disabled = !hasCheckedUser;
                 }
             }
+            document.querySelectorAll('[data-access-form], .access-remove-form').forEach(form => {
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    if (!window.confirmDialog) { window.showNotification?.('Confirmation dialog is unavailable.', 'error'); return; }
+                    if (await window.confirmDialog({title: 'Change access', message: form.classList.contains('access-remove-form') ? 'Remove this access?' : 'Grant access to selected users?', okText: 'Save', cancelText: 'Cancel'})) {
+                        HTMLFormElement.prototype.submit.call(form);
+                    }
+                });
+            });
         });
     </script>
 @endsection

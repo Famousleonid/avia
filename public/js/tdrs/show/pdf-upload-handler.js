@@ -106,7 +106,7 @@ const PdfUploadHandler = {
         }
 
         if (!this.isSupportedFile(file)) {
-            showNotification('Please select a PDF, JPG/JPEG, PNG or WebP file (max 10 MB).', 'warning');
+            showNotification('Please select a PDF, JPG/JPEG, PNG or WebP file (max 50 MB).', 'warning');
             this.clearFormFile();
             return;
         }
@@ -199,7 +199,7 @@ const PdfUploadHandler = {
 
     isSupportedFile(file) {
         const name = (file?.name || '').toLowerCase();
-        return file && /\.(pdf|jpe?g|png|webp)$/.test(name) && file.size <= 10 * 1024 * 1024;
+        return file && /\.(pdf|jpe?g|png|webp)$/.test(name) && file.size <= 50 * 1024 * 1024;
     },
 
     updateSelectedFile(file) {

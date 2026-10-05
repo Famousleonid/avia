@@ -14,6 +14,11 @@ use Illuminate\View\View;
 
 class AccessController extends Controller
 {
+    private const TRAINING_FLAGS = [
+        'trainings.sca' => 'can_sign_certificates',
+        'trainings.manage_approved' => 'can_manage_approved_trainings',
+    ];
+
     public function index(): View
     {
         $features = $this->managedFeatures();
@@ -33,6 +38,14 @@ class AccessController extends Controller
             ])
             ->groupBy('feature_key');
 
+        foreach (self::TRAINING_FLAGS as $key => $column) {
+            $accessRecords->put($key, User::with('role')->where($column, true)->orderBy('name')->get()
+                ->map(fn (User $user) => (object) [
+                    'user' => $user, 'user_id' => $user->id, 'created_at' => null, 'grantedBy' => null,
+                    'remove_url' => route('admin.access.training-flag.destroy', ['feature' => $key, 'user' => $user->id]),
+                ]));
+        }
+
         return view('admin.access.index', [
             'features' => $features,
             'featureGroups' => collect($features)->groupBy('group', preserveKeys: true),
@@ -41,10 +54,6 @@ class AccessController extends Controller
                 ->get(['id', 'name']),
             'users' => User::query()
                 ->with('role')
-                ->where(function ($query) {
-                    $query->where('is_admin', '!=', 1)
-                        ->orWhereDoesntHave('role', fn ($roleQuery) => $roleQuery->where('name', 'Admin'));
-                })
                 ->orderBy('name')
                 ->orderBy('email')
                 ->get()
@@ -70,6 +79,15 @@ class AccessController extends Controller
         $userIds = collect($data['user_ids'])
             ->map(fn ($userId): int => (int) $userId)
             ->unique();
+
+        if (isset(self::TRAINING_FLAGS[$data['feature_key']])) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($userIds, $data) {
+                foreach (User::whereIn('id', $userIds)->get() as $user) {
+                    $user->update([self::TRAINING_FLAGS[$data['feature_key']] => true]);
+                }
+            });
+            return redirect()->route('admin.access.index')->with('success', 'Access saved.');
+        }
 
         $assignableUserIds = User::query()
             ->with('role')
@@ -111,7 +129,7 @@ class AccessController extends Controller
 
     private function managedFeatures(): array
     {
-        return collect(config('features', []))
+        $features = collect(config('features', []))
             ->filter(fn (array $definition): bool => (bool) ($definition['managed'] ?? false))
             ->map(function (array $definition, string $key): array {
                 return [
@@ -122,6 +140,18 @@ class AccessController extends Controller
                 ];
             })
             ->all();
+        foreach (['trainings.sca' => 'SCA (training qualification)', 'trainings.manage_approved' => 'Manage approved trainings'] as $key => $label) {
+            $features[$key] = ['key' => $key, 'label' => $label, 'group' => 'Trainings',
+                'dom_id' => 'access-feature-'.Str::slug(str_replace('.', '-', $key)), 'user_flag' => true];
+        }
+        return $features;
+    }
+
+    public function destroyTrainingFlag(string $feature, User $user): RedirectResponse
+    {
+        abort_unless(isset(self::TRAINING_FLAGS[$feature]), 404);
+        $user->update([self::TRAINING_FLAGS[$feature] => false]);
+        return redirect()->route('admin.access.index')->with('success', 'Access removed.');
     }
 
     private function isManagedFeature(string $featureKey): bool

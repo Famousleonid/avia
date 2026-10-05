@@ -476,7 +476,8 @@
         display: none !important;
     }
 
-    @media (max-width: 900px) {
+    /* Letter print width is also below 900px; this layout is screen-only. */
+    @media screen and (max-width: 900px) {
         .std-meta-grid,
         .std-ndt-grid,
         .std-instruction-row,

@@ -5,7 +5,6 @@
 (function () {
     var SEL = [
         '#date_training',
-        '#additional_training_date',
         'input[name="training_dates[]"]',
         '.add-training-date-input',
         '.edit-training-date-input',

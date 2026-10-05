@@ -184,17 +184,17 @@
 
     function renderAssyGroup(group, manual, disabled) {
         const choices = group.choices || [];
-        const key = `assy-${manual.id}-${group.group_id}`;
+        const key = `assy-${manual.id}-${group.group_key}`;
         const radios = choices.map((choice, index) => `<label class="d-flex gap-2 align-items-start small mb-1">
             <input type="radio" class="form-check-input mt-1" name="${key}" value="${payloadAttr(choice)}" ${index === 0 ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
             <span><strong>${escapeHtml(choice.part_number || '—')}</strong> · IPL ${escapeHtml(choice.ipl_num || '—')} · ${escapeHtml(choice.name || '')}</span>
         </label>`).join('');
         const assemblySelectors = choices.map((choice, index) => {
-            if ((choice.assembly_choices || []).length < 2) return '';
+            if (!(choice.assembly_choices || []).length) return '';
             return `<label class="mobile-group-assy-choice small mt-2 w-100" data-component-id="${choice.component_id}" ${index === 0 ? '' : 'hidden'}>
-                Select your ASSY
+                ASSY
                 <select class="form-select form-select-sm draft-assy-choice" ${disabled ? 'disabled' : ''}>
-                    <option value="">Select your ASSY</option>
+                    <option value="">Select ASSY</option>
                     ${choice.assembly_choices.map(assy => `<option value="${assy.option_id}" data-group-id="${assy.group_id}">${escapeHtml(assy.ipl_num)} / ${escapeHtml(assy.part_number)}</option>`).join('')}
                 </select>
             </label>`;
@@ -253,12 +253,14 @@
         const sections = templateResponses.map(template => {
             const manual = template.manual || { id: '', label: 'Manual' };
             const items = [];
-            (template.assy_groups || []).forEach(group => items.push(renderAssyGroup(group, manual, readOnly)));
-            (template.groups || []).forEach(group => items.push(renderRegularGroup(group, manual, readOnly)));
-            (template.separate || []).forEach(choice => items.push(renderSeparate(choice, manual, readOnly)));
+            const rank = choices => Math.min(...choices.map(choice => template.order_ranks?.[choice.component_id ?? choice.id] ?? Number.MAX_SAFE_INTEGER));
+            (template.assy_groups || []).forEach(group => items.push({html:renderAssyGroup(group, manual, readOnly),rank:rank(group.choices || [])}));
+            (template.groups || []).forEach(group => items.push({html:renderRegularGroup(group, manual, readOnly),rank:rank(group.variants || [])}));
+            (template.separate || []).forEach(choice => items.push({html:renderSeparate(choice, manual, readOnly),rank:rank([choice])}));
+            items.sort((a,b) => a.rank-b.rank);
             if (!items.length) return '';
             return `<section class="mb-3">
-                ${items.join('')}
+                ${items.map(item => item.html).join('')}
             </section>`;
         }).join('');
 
@@ -295,8 +297,8 @@
             const selector = Array.from(card.querySelectorAll('.mobile-group-assy-choice'))
                 .find(label => Number(label.dataset.componentId) === Number(choice.component_id))?.querySelector('select');
             if (selector && row.manual_part_group_choice === 'component') {
-                row.manual_part_group_id = Number(selector.selectedOptions[0]?.dataset.groupId || 0);
-                row.assy_option_id = Number(selector.value);
+                row.manual_part_group_id = selector.value ? Number(selector.selectedOptions[0]?.dataset.groupId) : null;
+                row.assy_option_id = selector.value ? Number(selector.value) : null;
                 row.assy_selection_explicit = '1';
             }
         }

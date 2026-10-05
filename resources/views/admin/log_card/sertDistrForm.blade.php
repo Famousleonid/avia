@@ -1,3 +1,6 @@
+@php
+    $printMarkFormKey = 'destruction';
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>

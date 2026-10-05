@@ -334,6 +334,8 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'rm'])
+
 <!-- Кнопки для печати и настроек -->
 <div class="text-start m-3">
     <button class="btn btn-outline-primary no-print" onclick="window.print()">

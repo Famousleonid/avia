@@ -1,3 +1,6 @@
+@php
+    $printMarkFormKey = 'fits';
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>

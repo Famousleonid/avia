@@ -1,4 +1,7 @@
 @php
+    $printMarkFormKey = 'traveler';
+@endphp
+@php
     $formConfig = $formConfig ?? config('process_forms.travel-form', config('process_forms.tdr-processes'));
 @endphp
 <!DOCTYPE html>

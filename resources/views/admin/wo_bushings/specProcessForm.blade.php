@@ -1,3 +1,6 @@
+@php
+    $printMarkFormKey = 'bushing_sp';
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>

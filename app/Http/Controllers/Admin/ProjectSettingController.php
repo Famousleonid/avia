@@ -36,6 +36,8 @@ class ProjectSettingController extends Controller
         return view('admin.project_settings.index', [
             'activeSection' => $activeSection,
             'qrEnabled' => ProjectSetting::boolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true),
+            'qrForms' => app(\App\Services\PrintFormQrSettings::class)->catalog(),
+            'qrFormSelections' => app(\App\Services\PrintFormQrSettings::class)->selections(),
             'marketingWoEstimateEmailRecipientsText' => implode("\n", $marketingEmails),
             'marketingWoEstimateEmailDelayDays' => ProjectSetting::marketingWoEstimateEmailDelayDays(),
             'users' => $users,
@@ -56,6 +58,9 @@ class ProjectSettingController extends Controller
         abort_unless(in_array($section, ['all', 'printed-forms', 'marketing'], true), 422);
 
         $data = $request->validate([
+            'qr_forms_present' => ['sometimes', 'boolean'],
+            'qr_forms' => ['sometimes', 'array'],
+            'qr_forms.*' => ['boolean'],
             'marketing_wo_estimate_email_recipients' => ['nullable', 'string', 'max:4000'],
             'marketing_wo_estimate_email_delay_days' => ['nullable', 'integer', 'min:0', 'max:365'],
         ]);
@@ -78,6 +83,16 @@ class ProjectSettingController extends Controller
         }
 
         if (in_array($section, ['all', 'printed-forms'], true)) {
+            if ($request->boolean('qr_forms_present')) {
+                $forms = app(\App\Services\PrintFormQrSettings::class)->catalog();
+                $selections = [];
+                foreach ($forms as $key => $form) {
+                    $selections[$key] = $request->boolean('qr_forms.'.$key);
+                }
+                ProjectSetting::updateOrCreate(
+                    ['key' => \App\Services\PrintFormQrSettings::KEY], ['value' => $selections]
+                );
+            }
             ProjectSetting::setBoolean(
                 ProjectSetting::PRINT_FORMS_QR_ENABLED,
                 $request->boolean('print_forms_qr_enabled')

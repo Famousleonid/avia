@@ -1006,6 +1006,12 @@ class TdrProcessController extends Controller
         // Получаем vendor_id и (опционально) конкретный process_id из запроса
         $vendorId = $request->input('vendor_id');
         $specificProcessId = $request->input('process_id');
+        if ($specificProcessId !== null && ProcessName::normalizedNameKey($current_tdrs_process->processName->identityName()) === 'usmeasurement') {
+            $current_tdrs_process->processes = array_values(array_filter(
+                TdrProcess::normalizeStoredProcessIds($current_tdrs_process->processes),
+                fn ($pid) => (int) $pid === (int) $specificProcessId
+            ));
+        }
         $selectedVendor = null;
         if ($vendorId) {
             $selectedVendor = Vendor::find($vendorId);

@@ -8,15 +8,8 @@
 @php
     $formConfig = $formConfig ?? config('process_forms.' . ($module ?? 'tdr-processes'), config('process_forms.tdr-processes'));
     $embedded = $embedded ?? false;
-    $processCommentManualIds = collect($table_data ?? [])
-        ->map(fn ($row) => $row['component']->manual_id ?? null)
-        ->merge(collect($process_tdr_components ?? [])->map(fn ($row) => $row->tdr?->component?->manual_id))
-        ->push($current_wo->unit->manual_id ?? null)->filter()->unique();
-    $formProcessComments = \App\Models\ManualProcess::whereIn('manual_id', $processCommentManualIds)
-        ->whereNotNull('process_comment')->get(['manual_id', 'processes_id', 'process_comment'])
-        ->mapWithKeys(fn ($row) => [$row->manual_id.':'.$row->processes_id => $row->process_comment]);
-    $processCommentFor = fn ($processId, $manualId = null) => $formProcessComments->get(
-        ($manualId ?? $current_wo->unit->manual_id ?? '').':'.$processId, ''
+    $partPrintAttachment = app(\App\Services\ProcessPrintAttachment::class)->forForm(
+        $process_name ?? null, $process_tdr_components ?? ($ndt_components ?? []), $table_data ?? []
     );
     $header_title = $header_title ?? ($formConfig['header_title'] ?? null);
     // Для одиночной формы — только настройки текущего типа; для packageForms передаётся showFormTypes
@@ -45,7 +38,8 @@
 </head>
 <body>
 @include('shared.print-mark.qr', array_merge(
-    ['printMarkWorkorder' => $current_wo ?? null, 'printMarkWarnings' => $processRequirementWarnings],
+    ['printMarkWorkorder' => $current_wo ?? null, 'printMarkWarnings' => $processRequirementWarnings,
+     'printMarkFormKey' => isset($process_name->id) ? 'process_'.$process_name->id : 'process'],
     isset($process_name) && \App\Models\ProcessName::isMachiningPrintedForm($process_name)
         ? ['printMarkQrHostSelector' => '.process-sheet-title-row--machining']
         : []
@@ -87,6 +81,8 @@
 @if(!$embedded)
 @include('shared.process-forms._fig-attachment')
 @endif
+
+@include('shared.process-forms._part-attachment')
 
 @if(!$embedded)
 @if(!isset($hideBootstrapJS) || !$hideBootstrapJS)

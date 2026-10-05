@@ -35,6 +35,7 @@ class Manual extends Model implements HasMedia
     protected $dates = ['deleted_at'];
 
     protected $casts = [
+        'log_card_order' => 'array',
         'additional_manual_ids' => 'array',
     ];
 
@@ -50,6 +51,7 @@ class Manual extends Model implements HasMedia
                 'unit_name',
                 'lib',
                 'additional_manual_ids',
+                'log_card_order',
             ])
             ->logExcept(['created_at', 'updated_at'])
             ->logOnlyDirty()

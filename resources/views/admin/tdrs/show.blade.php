@@ -151,6 +151,20 @@
             gap: .15rem;
         }
 
+        .tdr-show-paper-std.is-unavailable {
+            filter: grayscale(1);
+            opacity: .42;
+        }
+
+        .tdr-show-paper-std.is-unavailable .paper-btn {
+            cursor: not-allowed;
+        }
+
+        .tdr-show-paper-std.is-unavailable .paper-btn svg {
+            transform: none;
+        }
+
+
         @media (max-width: 1479.98px) {
             .tdr-show-paper-strip {
                 column-gap: .35rem;
@@ -608,10 +622,15 @@
                                                   data-bs-target="#extraGroupFormsModal"/>
                         </div>
                         <div class="tdr-show-paper-divider" aria-hidden="true"></div>
-                        <div class="tdr-show-paper-std ms-2" id="tdr-std-paper-group">
+                        @php
+                            $stdFormsEnabled = $current_wo->isOverhaul();
+                        @endphp
+                        <div class="tdr-show-paper-std ms-2 {{ $stdFormsEnabled ? '' : 'is-unavailable' }}" id="tdr-std-paper-group"
+                             @if(!$stdFormsEnabled) title="STD forms are available for Overhaul only" @endif>
                                 <span class="tdr-std-paper-ndt-wrap d-inline-block position-relative">
                                     <x-paper-button text="NDT STD"
-                                                    href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
+                                                    :href="$stdFormsEnabled ? route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) : null"
+                                                    :disabled="!$stdFormsEnabled" type="button"
                                                     target="_blank" color="outline-success"
                                                     :custom-colors="['fold' => '#2fbf78', 'stroke' => '#2fbf78', 'text' => '#146c43', 'paper' => '#d5d5d5']"/>
                                     @if(($stdFormCounts['ndt'] ?? 0) > 0)
@@ -620,7 +639,8 @@
                                 </span>
                             <span class="tdr-std-paper-cad-wrap d-inline-block position-relative">
                                     <x-paper-button text="CAD STD"
-                                                    href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
+                                                    :href="$stdFormsEnabled ? route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) : null"
+                                                    :disabled="!$stdFormsEnabled" type="button"
                                                     target="_blank" color="outline-success"
                                                     :custom-colors="['fold' => '#2fbf78', 'stroke' => '#2fbf78', 'text' => '#146c43', 'paper' => '#d5d5d5']"/>
                                     @if(($stdFormCounts['cad'] ?? 0) > 0)
@@ -629,7 +649,8 @@
                                 </span>
                             <span class="tdr-std-paper-stress-wrap d-inline-block position-relative">
                                     <x-paper-button text="Stress STD"
-                                                    href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"
+                                                    :href="$stdFormsEnabled ? route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) : null"
+                                                    :disabled="!$stdFormsEnabled" type="button"
                                                     target="_blank" color="outline-success"
                                                     :custom-colors="['fold' => '#2fbf78', 'stroke' => '#2fbf78', 'text' => '#146c43', 'paper' => '#d5d5d5']"/>
                                     @if(($stdFormCounts['stress'] ?? 0) > 0)
@@ -638,7 +659,8 @@
                                 </span>
                             <span class="tdr-std-paper-paint-wrap d-inline-block position-relative">
                                     <x-paper-button text="Paint STD"
-                                                    href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"
+                                                    :href="$stdFormsEnabled ? route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) : null"
+                                                    :disabled="!$stdFormsEnabled" type="button"
                                                     target="_blank" color="outline-success"
                                                     :custom-colors="['fold' => '#2fbf78', 'stroke' => '#2fbf78', 'text' => '#146c43', 'paper' => '#d5d5d5']"/>
                                     @if(($stdFormCounts['paint'] ?? 0) > 0)

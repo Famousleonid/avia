@@ -1,3 +1,6 @@
+@php
+    $printMarkFormKey = 'process';
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>

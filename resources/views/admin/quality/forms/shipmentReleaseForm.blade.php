@@ -246,6 +246,8 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'qa_release'])
+
 <div class="no-print">
     <button class="btn btn-sm btn-outline-primary" onclick="window.print()">{{ __('Print Form') }}</button>
 </div>

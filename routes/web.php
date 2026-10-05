@@ -255,6 +255,8 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
 // ----------------------Auth route ------------------------------------------------------------------------
 
 Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
+    Route::get('/wo-status', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'index'])->name('workorders.status');
+    Route::patch('/wo-status/{workorder}/completion-date', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'updateCompletionDate'])->name('workorders.status.completion-date');
 
     Route::get('/cabinet', [CabinetController::class, 'index'])->name('cabinet.index');
     Route::get('/paint', [PaintController::class, 'index'])->middleware('can:feature.paint')->name('paint.index');
@@ -319,6 +321,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/mains/resolve-workorder-number', [MainController::class, 'resolveWorkorderNumber'])->name('mains.resolve-workorder-number');
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
     Route::get('/mains/{workorder}/photos', [MainController::class, 'photos'])->name('mains.photos');
+    Route::get('/mains/{workorder}/quantum-ro-lines', [MainController::class, 'quantumRoLines'])->name('mains.quantum-ro-lines');
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/repair-order', [MainController::class, 'updateWoBushingProcessGroupRepairOrder'])->name('mains.wo_bushing_group.repair_order');
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/dates', [MainController::class, 'updateWoBushingProcessGroupDates'])->name('mains.wo_bushing_group.dates');
 
@@ -445,6 +448,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::delete('/inspection-component-variants/{manualInspectionComponentVariant}', [ManualInspectionComponentController::class, 'destroyVariant'])->name('inspection-component-variants.destroy');
 
     // --- Parameters ---
+    Route::get('/manuals/{manual}/log-card-order', [\App\Http\Controllers\Admin\ManualLogCardOrderController::class, 'index'])->name('manuals.log-card-order');
+    Route::post('/manuals/{manual}/log-card-order/preview', [\App\Http\Controllers\Admin\ManualLogCardOrderController::class, 'preview'])->name('manuals.log-card-order.preview');
+    Route::put('/manuals/{manual}/log-card-order', [\App\Http\Controllers\Admin\ManualLogCardOrderController::class, 'update'])->name('manuals.log-card-order.update');
     Route::get('/manuals/{manual}/parameters', [ManualParameterController::class, 'index'])->name('manuals.parameters.index');
     Route::post('/dimension-points/{manualDimensionPoint}/parameters', [ManualParameterController::class, 'store'])->name('dimension-points.parameters.store');
     Route::post('/dimension-points/{manualDimensionPoint}/copy-from/{sourcePoint}', [ManualParameterController::class, 'copyPointSetup'])->name('dimension-points.copy-from');
@@ -798,6 +804,7 @@ Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(funct
     Route::middleware('systemAdmin')->group(function () {
         Route::get('/access', [AccessController::class, 'index'])->name('admin.access.index');
         Route::post('/access', [AccessController::class, 'store'])->name('admin.access.store');
+        Route::delete('/access/training-flag/{feature}/{user}', [AccessController::class, 'destroyTrainingFlag'])->name('admin.access.training-flag.destroy');
         Route::delete('/access/{access}', [AccessController::class, 'destroy'])->name('admin.access.destroy');
         Route::get('/project-settings', [ProjectSettingController::class, 'index'])->name('admin.project-settings.index');
         Route::post('/project-settings', [ProjectSettingController::class, 'update'])->name('admin.project-settings.update');
@@ -837,6 +844,10 @@ Route::middleware(['auth', 'verified', 'desktop'])
 
         Route::patch('{directory}/toggle/{id}/{field}', [DirectoryController::class, 'toggle'])->name('directories.toggle');
         Route::get('process_names/sp-form-preview', [TdrPrintFormController::class, 'specProcessFormPreview'])->name('process_names.sp-form-preview');
+        Route::get('process_names/{processName}/print-attachments', [\App\Http\Controllers\Admin\ProcessPrintAttachmentController::class, 'index'])->name('process-print-attachments.index');
+        Route::post('process_names/{processName}/print-attachments', [\App\Http\Controllers\Admin\ProcessPrintAttachmentController::class, 'store'])->name('process-print-attachments.store');
+        Route::delete('process_names/{processName}/print-attachments/{media}', [\App\Http\Controllers\Admin\ProcessPrintAttachmentController::class, 'destroy'])->name('process-print-attachments.destroy');
+        Route::get('process_names/{processName}/print-attachments/{media}/image', [\App\Http\Controllers\Admin\ProcessPrintAttachmentController::class, 'image'])->name('process-print-attachments.image');
         Route::patch('{directory}/{id}/field/{field}', [DirectoryController::class, 'updateField'])->name('directories.field.update');
 
         foreach (array_keys(config('directories')) as $slug) {

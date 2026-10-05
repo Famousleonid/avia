@@ -325,6 +325,8 @@
 </head>
 
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'transfer', 'printMarkWorkorder' => $sourceWo ?? ($transfer->workorderSource ?? null)])
+
 <!-- Кнопка для печати -->
 <div class="text-center m-3 no-print">
     <button class="btn btn-primary" onclick="window.print()">

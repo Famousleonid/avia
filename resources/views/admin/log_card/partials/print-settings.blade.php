@@ -1,4 +1,5 @@
 @include('partials.user-scoped-storage')
+<style>.log-card-empty-row[hidden]{display:none!important}</style>
 
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" type="button" onclick="window.print()">
@@ -25,6 +26,10 @@
                     <label for="logCardTableFontSize" class="form-label">Table Font (px)</label>
                     <input type="number" class="form-control" id="logCardTableFontSize" min="8" max="22" step="0.5" value="14">
                 </div>
+                <div class="mt-3">
+                    <label for="logCardEmptyRows" class="form-label">Empty rows at end</label>
+                    <input type="number" class="form-control" id="logCardEmptyRows" min="0" max="20" step="1" value="0">
+                </div>
             </div>
             <div class="modal-footer py-2">
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="logCardPrintSettingsReset">Reset</button>
@@ -38,7 +43,7 @@
 <script>
     (function () {
         const storageKey = 'log_card_print_settings';
-        const defaultSettings = { descriptionFontSize: 14, tableFontSize: 14 };
+        const defaultSettings = { descriptionFontSize: 14, tableFontSize: 14, emptyRows: null };
 
         function normalizeFontSize(value, fallback) {
             const parsed = Number.parseFloat(String(value ?? fallback));
@@ -47,6 +52,13 @@
             }
 
             return Math.min(22, Math.max(8, parsed));
+        }
+
+        function normalizeEmptyRows(value) {
+            const fallback = Number(document.querySelector('.log-card-empty-row')?.dataset.defaultEmptyRows || 0);
+            if (value === null || value === undefined || value === '') return fallback;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? Math.min(20, Math.max(0, Math.trunc(parsed))) : fallback;
         }
 
         function readSettings() {
@@ -64,6 +76,11 @@
         }
 
         function applySettings(settings) {
+            const emptyRows = normalizeEmptyRows(settings.emptyRows);
+            document.querySelectorAll('.log-card-empty-row').forEach(row => {
+                row.hidden = Number(row.dataset.emptyIndex) >= emptyRows;
+            });
+            document.getElementById('logCardEmptyRows').value = String(emptyRows);
             const descriptionFontSize = normalizeFontSize(settings.descriptionFontSize, defaultSettings.descriptionFontSize);
             const tableFontSize = normalizeFontSize(settings.tableFontSize, defaultSettings.tableFontSize);
             document.documentElement.style.setProperty('--log-card-description-font-size', descriptionFontSize + 'px');
@@ -82,6 +99,7 @@
 
         function settingsFromInputs() {
             return {
+                emptyRows: normalizeEmptyRows(document.getElementById('logCardEmptyRows')?.value),
                 descriptionFontSize: normalizeFontSize(
                     document.getElementById('logCardDescriptionFontSize')?.value,
                     defaultSettings.descriptionFontSize
@@ -113,6 +131,10 @@
             });
 
             document.getElementById('logCardTableFontSize')?.addEventListener('input', function () {
+                applySettings(settingsFromInputs());
+            });
+
+            document.getElementById('logCardEmptyRows')?.addEventListener('input', function () {
                 applySettings(settingsFromInputs());
             });
 

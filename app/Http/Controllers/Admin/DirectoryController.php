@@ -226,6 +226,10 @@ class DirectoryController extends Controller
 
         $modelClass = $dir['model'];
         $query = $modelClass::query();
+        if ($slug === 'process_names') {
+            $query->withCount(['media as print_images_count' => fn ($mediaQuery) =>
+                $mediaQuery->where('collection_name', \App\Models\ProcessName::PRINT_ATTACHMENT_COLLECTION)]);
+        }
         if ($slug === 'vendors') {
             $query->withCount([
                 'media as media_count' => function ($mediaQuery) {

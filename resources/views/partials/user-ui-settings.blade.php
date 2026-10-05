@@ -34,7 +34,7 @@
             return Object.prototype.hasOwnProperty.call(settings, key) ? settings[key] : fallback;
         }
 
-        async function set(scope, key, value) {
+        async function set(scope, key, value, options = {}) {
             if (!Object.prototype.hasOwnProperty.call(cache, scope)) {
                 cache[scope] = {};
             }
@@ -44,6 +44,7 @@
             try {
                 await fetch(storeUrl, {
                     method: 'POST',
+                    keepalive: Boolean(options.keepalive),
                     headers: {
                         'X-CSRF-TOKEN': csrf,
                         'Accept': 'application/json',

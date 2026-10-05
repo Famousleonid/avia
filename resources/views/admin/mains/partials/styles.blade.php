@@ -298,6 +298,7 @@
         50% { box-shadow: 0 0 0 5px rgba(255, 193, 7, .9); }
     }
 
+    html[data-main-tab="ro"] .main-tab-btn[data-main-tab="ro"],
     html[data-main-tab="overview"] .main-tab-btn[data-main-tab="overview"],
     html[data-main-tab="tasks"] .main-tab-btn[data-main-tab="tasks"],
     html[data-main-tab="std"] .main-tab-btn[data-main-tab="std"],
@@ -313,6 +314,7 @@
         box-shadow: 0 -2px 8px rgba(0, 0, 0, .45), 0 0 12px rgba(0, 0, 0, .35);
     }
 
+    html[data-main-tab="ro"] .main-tab-btn[data-main-tab="ro"]::after,
     html[data-main-tab="overview"] .main-tab-btn[data-main-tab="overview"]::after,
     html[data-main-tab="tasks"] .main-tab-btn[data-main-tab="tasks"]::after,
     html[data-main-tab="std"] .main-tab-btn[data-main-tab="std"]::after,
@@ -331,6 +333,55 @@
     .main-right-title-parts {
         display: none;
     }
+
+    .main-ro-panel { display: none; }
+    html[data-main-tab="ro"] .main-tabs-shell > .bottom-row,
+    html[data-main-tab="ro"] .main-tabs-toolbar { display: none !important; }
+    html[data-main-tab="ro"] .main-ro-panel {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0;
+        min-height: 0;
+        min-width: 0;
+        width: min(var(--main-tab-panel-width), 100%);
+        overflow: hidden;
+        color: var(--main-pane-text);
+        background: var(--main-pane-bg);
+    }
+    .main-ro-content { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+    .main-ro-scroll { flex: 1 1 0; min-height: 0; overflow: auto; }
+    .main-ro-table {
+        width: max-content; min-width: 0;
+        table-layout: auto; border-collapse: separate; border-spacing: 0;
+        color: var(--main-pane-text); font-size: .8rem;
+    }
+    .main-ro-table th, .main-ro-table td {
+        font-weight: 400;
+        border-right: 1px solid var(--avia-border); border-bottom: 1px solid var(--avia-border);
+        padding: .3rem .6rem; vertical-align: top; text-align: center; white-space: nowrap;
+    }
+    .main-ro-table thead {
+        --ro-cell-bg: #253745;
+        position: sticky; top: 0; z-index: 3; background: var(--ro-cell-bg);
+    }
+    html[data-bs-theme="light"] .main-ro-table thead { --ro-cell-bg: #e8eef2; }
+    .main-ro-table thead th { background: var(--ro-cell-bg); }
+    .main-ro-table thead tr:last-child th { border-bottom: 1px solid #526d7c; }
+    .main-ro-table tr > :first-child {
+        position: sticky; left: 0; text-align: left;
+        z-index: 2; background: var(--ro-cell-bg, var(--avia-surface));
+    }
+    .main-ro-orders { display: inline-flex; align-items: baseline; }
+    .main-ro-entry { display: inline-flex; align-items: baseline; }
+    .main-ro-entry + .main-ro-entry::before { content: ', '; white-space: pre; }
+    .main-ro-number {
+        padding: 0; border: 0; background: transparent; color: inherit;
+        font: inherit; font-weight: 400; cursor: pointer;
+    }
+    .main-ro-number:hover { color: var(--bs-info); text-decoration: underline; }
+    .main-ro-number:focus-visible { outline: 2px solid var(--bs-info); outline-offset: 3px; }
+    .main-ro-popover { font-size: .8rem; line-height: 1.5; }
+    .main-ro-popover span { white-space: nowrap; }
 
     html[data-main-tab="tasks"] .main-tabs-shell .bottom-col.right,
     html[data-main-tab="bushings"] .main-tabs-shell .bottom-col.right,

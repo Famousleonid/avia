@@ -1,3 +1,6 @@
+@php
+    $printMarkFormKey = 'stress_std';
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>

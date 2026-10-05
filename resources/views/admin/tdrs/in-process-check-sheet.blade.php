@@ -63,6 +63,8 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'check_sheet'])
+
 <nav class="toolbar" aria-label="Form actions">
     @if($available)<button type="button" onclick="window.print()">Print</button>@endif
 </nav>

@@ -569,6 +569,8 @@
 </head>
 
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'log_card'])
+
 <script>
     console.log('Inline script in body works!');
     showNotification('Inline script works!', 'info');

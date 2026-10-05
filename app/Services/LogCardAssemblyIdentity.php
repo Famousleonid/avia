@@ -11,14 +11,72 @@ use Illuminate\Support\Collection;
 
 class LogCardAssemblyIdentity
 {
+    /** A BOM is not a list of alternatives. Only suffix variants share a radio row. */
+    public function logCardFamilyKey(array $choice): string
+    {
+        $ipl = trim((string) ($choice['ipl_num'] ?? ''));
+        if (preg_match('/^([A-Za-z0-9]+-\d+)[A-Za-z]*$/', $ipl, $matches)) {
+            return $matches[1];
+        }
+
+        return 'component_'.(int) $choice['component_id'];
+    }
+
     public function isExplicitSelection(array $row): bool
     {
         return (string) ($row['assy_selection_explicit'] ?? '') === '1';
     }
 
-    /** Only own assembly identities, not every ancestor in a BOM. */
+    /** An explicitly empty selection must stay empty on save, reopen and print. */
+    public function isExplicitNoAssembly(array $row): bool
+    {
+        return $this->isExplicitSelection($row)
+            && ($row['manual_part_group_choice'] ?? '') === 'component'
+            && (int) ($row['manual_part_group_id'] ?? 0) === 0
+            && (int) ($row['assy_option_id'] ?? 0) === 0
+            && (int) ($row['manual_part_group_option_id'] ?? 0) === 0;
+    }
+
+    public function withoutAssembly(array $row): array
+    {
+        $row['assy_selection_explicit'] = '1';
+        $row['manual_part_group_choice'] = 'component';
+        foreach (['manual_part_group_id', 'manual_part_group_option_id', 'assy_option_id',
+            'component_assembly_id', 'assy_part_number', 'assy_ipl_num', 'assy_serial_number'] as $key) {
+            $row[$key] = '';
+        }
+        return $row;
+    }
+
+    /** New groups are authoritative. Traverse variant families, but stop at a nested ASSY. */
     public function assemblyChoicesByComponent(Collection $groups, Collection $components, ?Workorder $workorder = null): array
     {
+        $optionTypes = collect();
+        foreach ($groups as $group) {
+            foreach ($group->options as $option) {
+                $optionTypes->put((int) $option->id, $group->type);
+            }
+        }
+        $configured = $workorder ? app(WorkorderAssyConfiguration::class)->selectedCoverageIds($workorder) : null;
+        $groups = $groups->map(function ($group) use ($optionTypes, $configured) {
+            $copy = clone $group;
+            $copy->setRelation('options', $group->options->map(function ($option) use ($optionTypes, $configured) {
+                $copy = clone $option;
+                $coverages = $configured === null ? $option->coverages
+                    : app(WorkorderAssyConfiguration::class)->members($option, $configured);
+                $copy->setRelation('coverages', $coverages->reject(fn ($coverage) =>
+                    $optionTypes->get((int) $coverage->covered_manual_part_group_option_id) === ManualPartGroup::TYPE_ASSY
+                )->map(function ($coverage) {
+                    // Assembly identity follows the actual catalog member, not
+                    // every letter variant used by BOM/PRL family expansion.
+                    $copy = clone $coverage;
+                    $copy->expand_ipl_family = false;
+                    return $copy;
+                })->values());
+                return $copy;
+            }));
+            return $copy;
+        });
         $members = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups, $workorder);
         $choices = [];
         foreach ($groups->where('type', ManualPartGroup::TYPE_ASSY) as $group) {
@@ -35,8 +93,8 @@ class LogCardAssemblyIdentity
                 }
                 foreach ($components as $component) {
                     if ((int) $component->id !== (int) $option->component_id
-                        && $optionMembers->contains((int) $component->id)
-                        && $this->hasOwnAssembly($component, (string) $option->part_number)) {
+                        && (int) $component->manual_id === (int) $group->manual_id
+                        && $optionMembers->contains((int) $component->id)) {
                         $choices[(int) $component->id][] = [
                             'group_id' => (int) $group->id,
                             'option_id' => (int) $option->id,
@@ -58,6 +116,33 @@ class LogCardAssemblyIdentity
             $matches = $matches->where('option_id', (int) $row['assy_option_id']);
         }
         return $matches->count() === 1 ? $matches->first() : null;
+    }
+
+    public function needsAssemblyChoice(array $row): bool
+    {
+        return ($row['manual_part_group_choice'] ?? '') !== 'assy'
+            && (int) ($row['manual_part_group_id'] ?? 0) === 0
+            && (int) ($row['manual_part_group_option_id'] ?? 0) === 0
+            && (int) ($row['assy_option_id'] ?? 0) === 0;
+    }
+
+    /** A single catalog parent is automatic; multiple parents require a choice. */
+    public function withAutomaticAssembly(array $row, array $choices): array
+    {
+        if ($this->isExplicitNoAssembly($row) || ! $this->needsAssemblyChoice($row) || count($choices) !== 1) {
+            return $row;
+        }
+        $choice = $choices[0];
+        return array_merge($row, [
+            'manual_part_group_choice' => 'component',
+            'manual_part_group_id' => (string) $choice['group_id'],
+            'manual_part_group_option_id' => '',
+            'assy_option_id' => (string) $choice['option_id'],
+            'assy_selection_explicit' => '1',
+            'component_assembly_id' => '',
+            'assy_part_number' => $choice['part_number'],
+            'assy_ipl_num' => $choice['ipl_num'],
+        ]);
     }
 
     /** Incoming Log Card follows the received WO scope, not a later R&M conversion. */
@@ -96,6 +181,7 @@ class LogCardAssemblyIdentity
             ->values();
     }
 
+    /** Legacy identity lookup for historical rows only; never gates new group choices. */
     public function hasOwnAssembly(Component $component, string $partNumber): bool
     {
         $partNumber = trim($partNumber);
@@ -116,23 +202,20 @@ class LogCardAssemblyIdentity
             ->pluck('component_id')->filter()->unique())->get()->keyBy('id');
 
         $scopedChoices = [];
+        $groupChoices = [];
+        if ($components->isNotEmpty()) {
+            $groups = ManualPartGroup::whereIn('manual_id', $components->pluck('manual_id')->unique())
+                ->with('options.coverages')->get();
+            $groupChoices = $this->assemblyChoicesByComponent($groups, $components, $workorder);
+        }
         if ($workorder && ! $workorder->done_at && $workorder->scope_type === Unit::SCOPE_PART_GROUP_OPTION && $components->isNotEmpty()) {
             $scope = ManualPartGroupOption::with('group')->find($workorder->scope_part_group_option_id);
             $groups = ManualPartGroup::where('manual_id', $scope?->group?->manual_id)
                 ->with('options.coverages')->get();
-            $members = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups, $workorder);
-            foreach ($this->groupsForWorkorder($groups, $workorder)->where('type', ManualPartGroup::TYPE_ASSY) as $group) {
-                $option = $group->options->first();
-                if (! $option) {
-                    continue;
-                }
-                foreach ($components as $component) {
-                    if (($members[$group->id] ?? collect())->contains((int) $component->id)
-                        && (int) $component->id !== (int) $option->component_id
-                        && $this->hasOwnAssembly($component, (string) $option->part_number)) {
-                        $scopedChoices[(int) $component->id][] = $option;
-                    }
-                }
+            $allowedGroups = $this->groupsForWorkorder($groups, $workorder)->pluck('id');
+            foreach ($groupChoices as $componentId => $choices) {
+                $scopedChoices[$componentId] = array_values(array_filter($choices,
+                    fn ($choice) => $allowedGroups->contains($choice['group_id'])));
             }
         }
 
@@ -140,8 +223,11 @@ class LogCardAssemblyIdentity
             if (! is_array($row) || ($row['manual_part_group_choice'] ?? '') !== 'component') {
                 continue;
             }
+            if (! $workorder?->done_at) {
+                $row = $this->withAutomaticAssembly($row, $groupChoices[(int) ($row['component_id'] ?? 0)] ?? []);
+            }
             // An explicitly selected, server-validated identity is a saved snapshot.
-            if ($this->isExplicitSelection($row)) {
+            if ($this->isExplicitSelection($row) || $workorder?->done_at) {
                 continue;
             }
             $component = $components->get((int) ($row['component_id'] ?? 0));
@@ -149,11 +235,16 @@ class LogCardAssemblyIdentity
             // Correct only an unambiguous scoped identity. Reading never writes history.
             if (count($choices) === 1) {
                 $option = $choices[0];
-                $row['manual_part_group_id'] = (string) $option->manual_part_group_id;
+                $row['manual_part_group_id'] = (string) $option['group_id'];
                 unset($row['manual_part_group_option_id']);
                 $row['component_assembly_id'] = '';
-                $row['assy_part_number'] = (string) $option->part_number;
-                $row['assy_ipl_num'] = (string) $option->ipl_num;
+                $row['assy_part_number'] = (string) $option['part_number'];
+                $row['assy_ipl_num'] = (string) $option['ipl_num'];
+                continue;
+            }
+            // A valid new-group identity does not need duplicate legacy links.
+            $selected = $this->selectedAssemblyChoice($row, $groupChoices[(int) ($row['component_id'] ?? 0)] ?? []);
+            if ($selected && strcasecmp(trim((string) ($row['assy_part_number'] ?? '')), $selected['part_number']) === 0) {
                 continue;
             }
             if (! $component || $this->hasOwnAssembly($component, (string) ($row['assy_part_number'] ?? ''))) {

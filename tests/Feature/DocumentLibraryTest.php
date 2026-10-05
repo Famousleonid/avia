@@ -67,7 +67,11 @@ class DocumentLibraryTest extends TestCase
         $this->actingAs($admin)->postJson($url, ['pdf' => $this->makeUploadedFile('report.pdf', "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF", 'application/pdf')])->assertOk();
         $media = $wo->fresh()->getMedia('pdfs')->first();
         $this->get(route('workorders.pdf.show', [$wo->id, $media->id]))->assertOk()->assertHeader('Content-Type', 'application/pdf');
-        $this->postJson($url, ['pdf' => $this->makeUploadedFile('report.pdf', "%PDF-1.4\n".str_repeat(' ', 10241 * 1024), 'application/pdf')])->assertUnprocessable();
+        foreach ([26, 50] as $megabytes) {
+            $header = "%PDF-1.4\n";
+            $this->postJson($url, ['pdf' => $this->makeUploadedFile('large-report.pdf', $header.str_repeat(' ', $megabytes * 1024 * 1024 - strlen($header)), 'application/pdf')])->assertOk();
+        }
+        $this->postJson($url, ['pdf' => $this->makeUploadedFile('report.pdf', "%PDF-1.4\n".str_repeat(' ', 51201 * 1024), 'application/pdf')])->assertUnprocessable();
         $this->postJson($url, ['pdf' => $this->makeUploadedFile('script.svg', '<svg xmlns="http://www.w3.org/2000/svg"></svg>', 'image/svg+xml')])->assertUnprocessable();
         $this->postJson($url, ['pdf' => $this->makeUploadedImage('scan.png'), 'doc_kind' => 'fc'])->assertUnprocessable();
     }

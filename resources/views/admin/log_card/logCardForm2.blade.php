@@ -566,6 +566,8 @@
 </head>
 
 <body>
+@include('shared.print-mark.qr', ['printMarkFormKey' => 'log_card'])
+
 <!-- Кнопка для печати -->
 @include('admin.log_card.partials.print-settings')
 <div class="container-fluid">
@@ -977,8 +979,9 @@
                 </div>
             @endforeach
 
-            @for($i=0; $i<$continuationPrintPageRows-count($componentDataPage); $i++)
-                <div class="log-card-record-row">
+            @if($loop->last)
+            @for($i=0; $i<20; $i++)
+                <div class="log-card-record-row log-card-empty-row" data-empty-index="{{ $i }}" data-default-empty-rows="{{ max(0, $continuationPrintPageRows-count($componentDataPage)) }}" @if($i >= max(0, $continuationPrintPageRows-count($componentDataPage))) hidden @endif>
                 <div class="div13 border-l-b-r" style="height: 27px"></div>
                 <div class="div14 border-b-r" > </div>
                 <div class="div15 border-b-r" > </div>
@@ -991,6 +994,7 @@
                 <div class="div22 border-b-r" > </div>
                 </div>
             @endfor
+            @endif
 
             @if($loop->last)
             <div class="div51 mt-2" style="height: auto; page-break-inside: avoid;">NOTES:</div>

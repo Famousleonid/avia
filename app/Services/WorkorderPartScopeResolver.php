@@ -75,6 +75,87 @@ class WorkorderPartScopeResolver
         return $quantities === null || isset($quantities[$componentId]);
     }
 
+    /**
+     * Picker candidates are not the effective BOM. Expand reachable catalog
+     * groups for inspection without changing quantities or print coverage.
+     * NULL retains the complete-manual scope. Never traverse parent ASSYs.
+     *
+     * @return array<int, bool>|null
+     */
+    public function tdrSelectableComponentIds(Workorder $workorder): ?array
+    {
+        $quantities = $this->componentQuantities($workorder);
+        if ($quantities === null) {
+            return null;
+        }
+
+        $options = ManualPartGroupOption::query()
+            ->whereHas('group', fn ($q) => $q
+                ->whereIn('manual_id', $workorder->usedManualIds())
+                ->whereIn('type', [ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_ALTERNATIVE, ManualPartGroup::TYPE_OVERSIZE]))
+            ->with('coverages')->get()->keyBy('id');
+        $byGroup = $options->groupBy('manual_part_group_id');
+        $byComponent = $options->whereNotNull('component_id')->groupBy('component_id');
+        $result = [];
+        $visited = [];
+        $componentQueue = array_keys($quantities);
+        $optionQueue = array_filter([
+            (int) ($workorder->modified_scope_part_group_option_id
+                ?: ($workorder->scope_type === Unit::SCOPE_PART_GROUP_OPTION ? $workorder->scope_part_group_option_id : 0)),
+        ]);
+
+        while ($componentQueue !== [] || $optionQueue !== []) {
+            while ($componentQueue !== []) {
+                $id = (int) array_pop($componentQueue);
+                if ($id <= 0 || isset($result[$id])) {
+                    continue;
+                }
+                $result[$id] = true;
+                foreach ($byComponent->get($id, collect()) as $option) {
+                    $optionQueue[] = (int) $option->id;
+                }
+            }
+            if ($optionQueue === []) {
+                continue;
+            }
+            $id = (int) array_pop($optionQueue);
+            if (isset($visited[$id]) || ! $options->has($id)) {
+                continue;
+            }
+            $visited[$id] = true;
+            $option = $options->get($id);
+            foreach ($byGroup->get($option->manual_part_group_id, collect()) as $variant) {
+                if (! isset($visited[$variant->id])) {
+                    $optionQueue[] = (int) $variant->id;
+                }
+            }
+            $componentQueue[] = (int) $option->component_id;
+            // All candidates, including unselected ASSY choice slots, belong
+            // in the picker. The effective BOM still uses members() above.
+            foreach ($option->coverages as $coverage) {
+                $componentQueue[] = (int) $coverage->component_id;
+                $optionQueue[] = (int) $coverage->covered_manual_part_group_option_id;
+            }
+        }
+
+        return $result;
+    }
+
+    public function filterTdrComponents(Collection $components, Workorder $workorder): Collection
+    {
+        $ids = $this->tdrSelectableComponentIds($workorder);
+
+        return $ids === null ? $components->values() : $components
+            ->filter(fn (Component $component): bool => isset($ids[(int) $component->id]))->values();
+    }
+
+    public function allowsTdrComponent(Workorder $workorder, int $componentId): bool
+    {
+        $ids = $this->tdrSelectableComponentIds($workorder);
+
+        return $ids === null || isset($ids[$componentId]);
+    }
+
     public function displayLabelForUnit(Unit $unit): string
     {
         $unit->loadMissing(['defaultScopeComponent', 'defaultScopePartGroupOption.group']);

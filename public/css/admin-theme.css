@@ -187,6 +187,18 @@ html[data-bs-theme="dark"] .btn-info {
 /* =========================================================
    THEME TOKENS — LIGHT
    ========================================================= */
+/* Workorder identity must stay readable on light table and card surfaces. */
+html[data-bs-theme="light"] #show-workorder tbody > tr > td:first-child a > span,
+html[data-bs-theme="light"] .main-workorder-jump-trigger,
+html[data-bs-theme="light"] .tdr-show-back-btn,
+html[data-bs-theme="light"] .tdr-show-back-arrow {
+    color: #173f73 !important;
+}
+
+html[data-bs-theme="light"] .tdr-show-back-btn {
+    border-color: #173f73 !important;
+}
+
 html[data-bs-theme="light"] {
     --dir-bg: #ffffff;
 

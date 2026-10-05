@@ -4,6 +4,8 @@
 
     <style>
         .page-wrap { max-width: 800px; margin: 0 auto; }
+        .password-edit-row > div { flex: 1 1 330px; min-width: 0; }
+        #edit-user-password-requirements li:last-child { white-space: nowrap; }
         .form-actions{
             position: sticky;
             bottom: 0;
@@ -161,33 +163,7 @@
                             </div>
                         </div>
 
-                        <div class="col-12 col-md-4 d-flex align-items-end">
-                            <div class="form-check">
-                                <input type="checkbox"
-                                       name="can_sign_certificates"
-                                       id="can_sign_certificates"
-                                       class="form-check-input"
-                                    {{ old('can_sign_certificates', $user->can_sign_certificates) ? 'checked' : '' }}>
-                                <label for="can_sign_certificates" class="form-check-label"
-                                       title="SCA qualification: SCA training view, SCA form variants, training approval (with Manager/Admin role)">
-                                    SCA (can sign certificates)
-                                </label>
-                            </div>
-                        </div>
 
-                        <div class="col-12 col-md-4 d-flex align-items-end">
-                            <div class="form-check">
-                                <input type="checkbox"
-                                       name="can_manage_approved_trainings"
-                                       id="can_manage_approved_trainings"
-                                       class="form-check-input"
-                                    {{ old('can_manage_approved_trainings', $user->can_manage_approved_trainings) ? 'checked' : '' }}>
-                                <label for="can_manage_approved_trainings" class="form-check-label"
-                                       title="Designated: may delete/edit/unapprove approved trainings">
-                                    Manage approved trainings
-                                </label>
-                            </div>
-                        </div>
 
                         <div class="col-12 col-md-4 d-flex align-items-end">
                             <div class="form-check">
@@ -203,7 +179,7 @@
                     </div>
 
                     {{-- Password --}}
-                    <div class="row g-3 mt-0">
+                    <div class="row g-3 mt-0 password-edit-row">
                         <div class="col-12 col-md-6">
                             <x-password-field id="edit-user-password"
                                               name="password"

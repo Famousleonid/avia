@@ -143,7 +143,7 @@ class TdrController extends Controller
             }
 
             if ($field === 'component_id'
-                && ! app(WorkorderPartScopeResolver::class)->allowsComponent($workorder, $componentId)) {
+                && ! app(WorkorderPartScopeResolver::class)->allowsTdrComponent($workorder, $componentId)) {
                 $errors[$field] = __('Selected part is outside this workorder Work Scope.');
             }
         }
@@ -585,7 +585,8 @@ class TdrController extends Controller
 
         $components = $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
             $componentsQuery->get(),
-            $current_wo
+            $current_wo,
+            true
         ));
 
         // Условия для Component - без фильтрации
@@ -632,7 +633,7 @@ class TdrController extends Controller
         $components = $componentsQuery->get();
 
         if ($workorder && $workorder->unit) {
-            $components = $this->filterComponentsForUnit($components, $workorder);
+            $components = $this->filterComponentsForUnit($components, $workorder, true);
         }
 
         $components = $this->sortComponentsForIplSelection($components);
@@ -2015,6 +2016,15 @@ class TdrController extends Controller
 
         $showLogCardTab = true;
 
+        // Broader inspection choices must not inflate the KIT/PRL counters above.
+        $components = $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
+            Component::where('manual_id', $manual_id)
+                ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+                ->get(),
+            $current_wo,
+            true
+        ));
+
         return compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
@@ -2149,7 +2159,8 @@ class TdrController extends Controller
                     ->whereIn('manual_id', $current_tdr->workorder->usedManualIds())
                     ->select('id', 'part_number', 'name', 'ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code')
                     ->get(),
-                $current_tdr->workorder
+                $current_tdr->workorder,
+                true
             );
 
             if ($current_tdr->component && ! $components->contains('id', $current_tdr->component->id)) {
@@ -2841,11 +2852,13 @@ class TdrController extends Controller
         return count(app(TdrInspectionLinesBuilder::class)->build($workorder));
     }
 
-    private function filterComponentsForUnit($components, Workorder $workorder)
+    private function filterComponentsForUnit($components, Workorder $workorder, bool $forTdrSelection = false)
     {
         $resolver = app(ManualIplBranchRuleResolver::class);
-        $components = app(WorkorderPartScopeResolver::class)
-            ->filterComponents(collect($components), $workorder);
+        $scopeResolver = app(WorkorderPartScopeResolver::class);
+        $components = $forTdrSelection
+            ? $scopeResolver->filterTdrComponents(collect($components), $workorder)
+            : $scopeResolver->filterComponents(collect($components), $workorder);
         $manualId = (int) ($workorder->unit->manual_id ?? 0);
         $unitEff = (string) ($workorder->unit->eff_code ?? '');
 

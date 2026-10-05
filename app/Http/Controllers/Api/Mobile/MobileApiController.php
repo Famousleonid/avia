@@ -193,7 +193,8 @@ class MobileApiController extends Controller
             ->filterComponents($groupComponents, $workorder)
             ->groupBy(fn (Component $c) => $c->manual_id . '|' . $this->mobileLogCardGroupKey((string) $c->ipl_num));
 
-        $payloadRows = collect($rows)->values()->map(function ($row, $index) use (
+        $rows = app(\App\Services\ManualLogCardOrder::class)->displayRows($rows, $workorder);
+        $payloadRows = collect($rows)->map(function ($row, $index) use (
             $components, $tdrByComponent, $missingCode, $orderNew, $groupComponents, $resolver, $workorder, $primaryManualId
         ) {
             if (! is_array($row)) {
@@ -380,6 +381,8 @@ class MobileApiController extends Controller
             'assy_groups' => $assyGroups->values(),
             'groups' => $groups,
             'separate' => $separate->values(),
+            'order_ranks' => $manual && app(\App\Services\ManualLogCardOrder::class)->followsManualOrder($workorder)
+                ? app(\App\Services\ManualLogCardOrder::class)->ranks($manual) : [],
         ]);
     }
 
@@ -694,19 +697,27 @@ class MobileApiController extends Controller
                 );
             }
 
+            $identity = app(LogCardAssemblyIdentity::class);
+            $choices = $explicitChoices[(int) $component->id] ?? [];
+            abort_if(!$identity->isExplicitNoAssembly($inputRow) && $identity->needsAssemblyChoice($inputRow) && count($choices) > 1,
+                422, 'Select an ASSY for part '.$component->part_number.'.');
+            $inputRow = $identity->withAutomaticAssembly($inputRow, $choices);
             $partGroupId = (int) ($inputRow['manual_part_group_id'] ?? 0);
             $partGroupOptionId = (int) ($inputRow['manual_part_group_option_id'] ?? 0);
             $partGroupChoice = (string) ($inputRow['manual_part_group_choice'] ?? '');
             $explicit = app(LogCardAssemblyIdentity::class)->isExplicitSelection($inputRow);
+            $noAssembly = app(LogCardAssemblyIdentity::class)->isExplicitNoAssembly($inputRow);
             $explicitChoice = app(LogCardAssemblyIdentity::class)->selectedAssemblyChoice($inputRow, $explicitChoices[(int) $component->id] ?? []);
-            abort_if($explicit && ($partGroupChoice !== 'component'
+            abort_if($explicit && ! $noAssembly && ($partGroupChoice !== 'component'
                 || ! $explicitChoice),
                 422, 'Invalid explicit ASSY selection for this component.');
             abort_if(! $explicit && (int) ($inputRow['assy_option_id'] ?? 0) > 0, 422, 'ASSY selection must be explicit.');
             $partGroup = ($explicit ? $allAssyGroupsById : $assyGroupsById)->get($partGroupId);
             $partGroupOption = $explicit
-                ? $partGroup?->options->firstWhere('id', $explicitChoice['option_id'])
-                : $partGroup?->options->first();
+                ? $partGroup?->options->firstWhere('id', $explicitChoice['option_id'] ?? 0)
+                : ($partGroupChoice === 'component'
+                    ? $partGroup?->options->firstWhere('id', $explicitChoice['option_id'] ?? 0)
+                    : $partGroup?->options->first());
             if ($partGroupId > 0 || $partGroupOptionId > 0) {
                 abort_unless(
                     $partGroup
@@ -738,8 +749,8 @@ class MobileApiController extends Controller
                 'reason' => $this->mobileLogCardText($inputRow['reason'] ?? null),
                 'new_serial_number' => $this->mobileLogCardText($inputRow['new_serial_number'] ?? null),
                 'manual_id' => (string) $manualId,
-                'assy_selection_explicit' => $explicit ? '1' : '0',
-                'assy_option_id' => $explicit ? (string) $partGroupOption->id : null,
+                'assy_selection_explicit' => ($explicit || ($partGroupChoice === 'component' && $partGroupOption)) ? '1' : '0',
+                'assy_option_id' => ! $noAssembly && ($explicit || ($partGroupChoice === 'component' && $partGroupOption)) ? (string) $partGroupOption->id : null,
             ];
             if ($unitIndex > 0) {
                 $row['unit_index'] = (string) $unitIndex;
@@ -748,7 +759,11 @@ class MobileApiController extends Controller
                 $row['ipl_group'] = (string) ($inputRow['ipl_group'] ?? $this->mobileLogCardGroupKey((string) $component->ipl_num));
             }
 
-            if ($partGroupId > 0) {
+            if ($noAssembly) {
+                $row = app(LogCardAssemblyIdentity::class)->withoutAssembly($row);
+                $row['part_number'] = (string) $component->part_number;
+                $row['name'] = (string) $component->name;
+            } elseif ($partGroupId > 0) {
                 $row['manual_part_group_id'] = (string) $partGroupId;
                 $row['manual_part_group_choice'] = $partGroupChoice;
                 $row['part_number'] = (string) ($component->part_number ?? '');
@@ -850,6 +865,8 @@ class MobileApiController extends Controller
                     ->filter(fn (int $id): bool => $id > 0
                         && $componentsById->has($id)
                         && (int) ($componentsById->get($id)->units_assy ?? 1) === 1
+                        && ($id === (int) $option->component_id
+                            || collect($assemblyChoices[$id] ?? [])->contains('group_id', (int) $group->id))
                         && ! $assignedComponentIds->contains($id))
                     ->unique()
                     ->values();
@@ -868,13 +885,15 @@ class MobileApiController extends Controller
                 ): array {
                     $component = $componentsById->get($componentId);
                     $isAssyPart = $componentId === $assyComponentId;
+                    $ownChoice = collect($assemblyChoices[$componentId] ?? [])
+                        ->firstWhere('group_id', (int) $group->id);
 
                     return array_merge($componentPayload($component), [
                         'choice_kind' => $isAssyPart ? 'assy' : 'component',
                         'manual_part_group_id' => (int) $group->id,
                         'manual_part_group_option_id' => $isAssyPart ? (int) $option->id : null,
-                        'assy_part_number' => $isAssyPart ? '' : $assyPartNumber,
-                        'assy_ipl_num' => $isAssyPart ? '' : $assyIplNumber,
+                        'assy_part_number' => $isAssyPart ? '' : ($ownChoice['part_number'] ?? $assyPartNumber),
+                        'assy_ipl_num' => $isAssyPart ? '' : ($ownChoice['ipl_num'] ?? $assyIplNumber),
                         'is_assy_part' => $isAssyPart,
                         'assembly_choices' => $isAssyPart ? [] : ($assemblyChoices[$componentId] ?? []),
                     ]);
@@ -897,6 +916,14 @@ class MobileApiController extends Controller
             })
             ->filter()
             ->values();
+
+        $groups = $groups->flatMap(function (array $row) {
+            return collect($row['choices'])->groupBy(fn ($choice) => app(LogCardAssemblyIdentity::class)->logCardFamilyKey($choice))
+                ->map(fn ($choices, $family) => array_merge($row, [
+                    'group_key' => $row['group_key'].'_family_'.$family,
+                    'choices' => $choices->values()->all(),
+                ]))->values();
+        })->values();
 
         return [$groups, $assignedComponentIds->unique()->values()];
     }
@@ -1313,7 +1340,6 @@ class MobileApiController extends Controller
         $existingUnitName = trim((string) ($unit?->name ?? ''));
         $description = $submittedUnitName !== '' ? $submittedUnitName : $existingUnitName;
         $data['description'] = $description !== '' ? $description : null;
-        $unit?->forceFill(['name' => $description !== '' ? $description : null])->save();
 
         $workorder = Workorder::createDraft($data);
         app(WorkorderNotifyService::class)->draftCreated(
