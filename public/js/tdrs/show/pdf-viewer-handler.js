@@ -38,9 +38,21 @@ const PdfViewerHandler = {
 
         const image = document.getElementById('documentViewerImage');
         const isImage = mimeType.startsWith('image/');
-        iframe.classList.toggle('d-none', isImage);
-        iframe.classList.toggle('d-block', !isImage);
-        iframe.src = isImage ? 'about:blank' : pdfUrl;
+        const isVideo = mimeType.startsWith('video/');
+        iframe.classList.toggle('d-none', isImage || isVideo);
+        iframe.classList.toggle('d-block', !isImage && !isVideo);
+        iframe.src = isImage || isVideo ? 'about:blank' : pdfUrl;
+        const video = document.getElementById('documentViewerVideo');
+        if (video) {
+            video.pause();
+            video.classList.toggle('d-none', !isVideo);
+            if (isVideo) video.src = pdfUrl;
+            else video.removeAttribute('src');
+            video.load();
+            video.onerror = () => {
+                if (isVideo && typeof showNotification === 'function') showNotification('This video format cannot be played in this browser. Use Download to open it.', 'warning');
+            };
+        }
         if (image) {
             image.classList.toggle('d-none', !isImage);
             if (isImage) image.src = pdfUrl;
@@ -64,6 +76,8 @@ const PdfViewerHandler = {
      * Закрывает просмотрщик и очищает iframe
      */
     closePdfViewer() {
+        const video = document.getElementById('documentViewerVideo');
+        if (video) { video.pause(); video.onerror = null; video.removeAttribute('src'); video.load(); }
         document.getElementById('documentViewerImage')?.removeAttribute('src');
         const iframe = document.getElementById('pdfViewerFrame');
         const downloadLink = document.getElementById('pdfDownloadLink');

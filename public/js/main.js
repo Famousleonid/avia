@@ -98,6 +98,7 @@
         const target = e.target.closest('[data-spinner], .press-spinner');
         if (!target) return;
 
+        if (e.defaultPrevented) return;
         if (typeof window.safeShowSpinner === 'function') {
 
             window.safeShowSpinner();
@@ -614,6 +615,7 @@ window.confirmDialog = function ({
                                      title = 'Confirm',
                                      message = 'Are you sure?',
                                      highlightText = '',
+                                     discardText = '',
                                      okText = 'OK',
                                      cancelText = 'Cancel',
                                      danger = false
@@ -649,6 +651,13 @@ window.confirmDialog = function ({
         const okBtn    = modalEl.querySelector('[data-ok]');
         const cancelBtn= modalEl.querySelector('[data-cancel]');
 
+        let discardBtn = modalEl.querySelector('[data-discard]');
+        if (!discardBtn) {
+            discardBtn = document.createElement('button');
+            discardBtn.type = 'button'; discardBtn.className = 'btn btn-outline-warning';
+            discardBtn.dataset.discard = ''; okBtn.before(discardBtn);
+        }
+        discardBtn.hidden = !discardText; discardBtn.textContent = discardText;
         titleEl.textContent = title;
         bodyEl.textContent = message;
         if (highlightText && message.includes(highlightText)) {
@@ -670,6 +679,7 @@ window.confirmDialog = function ({
 
         const cleanup = () => {
             okBtn.removeEventListener('click', onOk);
+            discardBtn.removeEventListener('click', onDiscard);
             cancelBtn.removeEventListener('click', onCancel);
             modalEl.removeEventListener('hidden.bs.modal', onHidden);
         };
@@ -698,6 +708,8 @@ window.confirmDialog = function ({
             finish(false);
         };
 
+        const onDiscard = () => { bsModal.hide(); finish('discard'); };
+        discardBtn.addEventListener('click', onDiscard);
         okBtn.addEventListener('click', onOk);
         cancelBtn.addEventListener('click', onCancel);
         modalEl.addEventListener('hidden.bs.modal', onHidden);

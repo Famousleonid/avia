@@ -41,6 +41,11 @@
         <td>{{ format_project_date($line->returned_date) ?? '--' }}</td>
         <td class="text-nowrap">qty - {{ $quantumRoQty($line->qty_repair) }} / {{ $quantumRoQty($line->qty_reserved) }} / {{ $quantumRoQty($line->qty_repaired) }}</td>
         <td class="quantum-buffer-action-col">
+            @if(auth()->user()?->roleIs('Admin') && $line->apply_status === 'unresolved' && !empty($line->applied_targets) && preg_match('/^T\d*$/i', trim((string) $line->bom_ref)))
+                <button type="button" class="btn btn-outline-warning btn-sm js-quantum-rebind-traveler"
+                    data-url="{{ route('vendor-tracking.quantum-lines.rebind', ['quantumRoLine' => $line->id]) }}"
+                    title="Review and rebind this RO to the current Traveler">Rebind</button>
+            @endif
             <button
                 type="button"
                 class="btn btn-outline-secondary btn-sm js-quantum-dismiss-row"

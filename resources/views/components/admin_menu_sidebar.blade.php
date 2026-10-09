@@ -109,9 +109,9 @@
         </a>
     </li>
 
-    @if($sidebarUser?->roleIs(['Admin', 'Manager']))
+    @if($sidebarUser?->roleIs(['Admin', 'Manager']) || $sidebarUser?->can('feature.wo_status.efficiency'))
         <li class="nav-item">
-            <a class="nav-link press-spinner {{ request()->routeIs('workorders.status') ? 'active' : '' }}" href="{{ route('workorders.status') }}">
+            <a class="nav-link press-spinner {{ request()->routeIs('workorders.status', 'workorders.status.efficiency') ? 'active' : '' }}" href="{{ route($sidebarUser?->roleIs(['Admin', 'Manager']) ? 'workorders.status' : 'workorders.status.efficiency') }}">
                 <i class="bi bi-speedometer2 me-2"></i> <span>WO Status</span>
             </a>
         </li>

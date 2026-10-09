@@ -212,15 +212,24 @@
                 });
             }
 
-            document.getElementById('training_create_form').addEventListener('submit', function(e) {
+            document.getElementById('training_create_form').addEventListener('submit', async function(e) {
                 if (isLegacyMode()) {
                     const selected = document.querySelectorAll('#legacy_manuals_ids option:checked').length;
                     if (selected === 0) {
                         e.preventDefault();
-                        alert(@json(__('Select at least one unit for Old training.')));
+                        window.showNotification(@json(__('Select at least one unit for Old training.')), 'warning');
                         return false;
                     }
                     return; // даты не валидируются — их нет
+                }
+                if (this.dataset.weekChecked !== '1') {
+                    e.preventDefault();
+                    if (!window.TrainingWeekAvailability || !await window.TrainingWeekAvailability.checkAll(this)) return;
+                    if (!validateSubsequentDates()) return;
+                    this.dataset.weekChecked = '1';
+                    this.requestSubmit();
+                    delete this.dataset.weekChecked;
+                    return;
                 }
                 if (!validateSubsequentDates()) {
                     e.preventDefault();
@@ -231,4 +240,5 @@
         });
     </script>
     @include('admin.trainings.partials.friday-snap')
+    @include('admin.trainings.partials.week-availability')
 @endsection

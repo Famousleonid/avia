@@ -43,7 +43,7 @@ class WorkorderAssyConfiguration
      */
     public function members(ManualPartGroupOption $option, array $selected, ?string $scope = null): Collection
     {
-        $members = $option->coverages;
+        $members = $this->eligibleMembers($option, $selected);
         $chosen = $members->groupBy(fn (ManualPartGroupCoverage $member): string =>
             filled($member->choice_slot) ? 'slot:'.$member->choice_slot : 'edge:'.$member->id
         )->flatMap(function (Collection $candidates) use ($option, $selected): Collection {
@@ -62,6 +62,32 @@ class WorkorderAssyConfiguration
         return ($scope === null ? $chosen : $chosen->filter(
             fn (ManualPartGroupCoverage $member): bool => $member->appliesTo($scope)
         ))->values();
+    }
+
+    /** Companion parts depend on a selected sibling ASSY, not on ordering that ASSY alone. */
+    public function eligibleMembers(ManualPartGroupOption $option, array $selected): Collection
+    {
+        $selectedOptions = [];
+        $unconditional = $option->coverages->filter(fn ($member): bool =>
+            empty($member->requires_selected_option_ids)
+        );
+        foreach ($unconditional->groupBy(fn ($member): string =>
+            filled($member->choice_slot) ? 'slot:'.$member->choice_slot : 'edge:'.$member->id
+        ) as $candidates) {
+            $slot = trim((string) $candidates->first()->choice_slot);
+            $chosenId = $selected[self::key((int) $option->id, $slot)] ?? 0;
+            foreach ($candidates as $candidate) {
+                if (($slot === '' || $candidates->count() === 1 || (int) $candidate->id === $chosenId)
+                    && $candidate->covered_manual_part_group_option_id) {
+                    $selectedOptions[] = (int) $candidate->covered_manual_part_group_option_id;
+                }
+            }
+        }
+
+        return $option->coverages->filter(fn ($member): bool =>
+            empty($member->requires_selected_option_ids)
+                || array_intersect(array_map('intval', $member->requires_selected_option_ids), $selectedOptions) !== []
+        )->values();
     }
 
     /** @return Collection<int, ManualPartGroupOption> */
@@ -107,7 +133,7 @@ class WorkorderAssyConfiguration
             $visited[$option->id] = true;
             $option->loadMissing(['group', 'coverages.coveredOption.group', 'coverages.component']);
 
-            foreach ($option->coverages->groupBy(fn ($coverage): string =>
+            foreach ($this->eligibleMembers($option, $selected)->groupBy(fn ($coverage): string =>
                 filled($coverage->choice_slot) ? 'slot:'.$coverage->choice_slot : 'edge:'.$coverage->id
             ) as $candidates) {
                 $slot = trim((string) $candidates->first()->choice_slot);

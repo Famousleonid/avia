@@ -1535,6 +1535,10 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    document.addEventListener('traveler-template-applied', function (event) {
+        loadProcessesAndBind(event.detail.tdrId, activeProcessesContainer || body);
+    });
+
     function loadProcessesAndBind(tdrId, container) {
         var target = container || body;
         var isTabTarget = target === body;
@@ -1543,6 +1547,7 @@ document.addEventListener('DOMContentLoaded', function() {
         disposePartProcessesFigSummary(target);
         target.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         if (isTabTarget) {
+            document.querySelector('[data-process-header-toolbar]')?.replaceChildren();
             if (woNum) woNum.textContent = '-';
             if (itemName) itemName.textContent = '-';
             if (itemIpl) itemIpl.textContent = '-';
@@ -1609,6 +1614,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     bindProcessHandlers(wrapper, target);
                     if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
                     if (typeof CombinedProcessFormHandler !== 'undefined') CombinedProcessFormHandler.init(target);
+                    if (isTabTarget && wrapper) {
+                        var toolbar = wrapper.querySelector('.processes-toolbar');
+                        var headerToolbar = document.querySelector('[data-process-header-toolbar]');
+                        if (toolbar && headerToolbar) {
+                            headerToolbar.replaceChildren(toolbar);
+                            wrapper.dataset.headerToolbar = '1';
+                        }
+                    }
                     initTravelerGroupHandlers(target);
                     initPartProcessesFigSummary(target);
                     if (isTabTarget && addProcessBtn) {
@@ -1652,6 +1665,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var selectedProcessCanCreate = false;
         var selectedProcessCreateMessage = '';
         var closeInlineProcessTimer = null;
+        var processNamePickerOpen = false;
 
         if (!addRow || !createRow || !addBtn || !nameSelect || !saveBtn) return;
 
@@ -1697,6 +1711,9 @@ document.addEventListener('DOMContentLoaded', function() {
         function resetInlineProcessRow() {
             selectedProcessId = '';
             nameSelect.value = '';
+            if (window.jQuery && jQuery(nameSelect).hasClass('select2-hidden-accessible')) {
+                jQuery(nameSelect).select2('close').trigger('change.select2');
+            }
             if (processOptions) {
                 processOptions.innerHTML = '';
                 processOptions.classList.add('d-none');
@@ -1731,6 +1748,7 @@ document.addEventListener('DOMContentLoaded', function() {
             closeInlineProcessTimer = window.setTimeout(function() {
                 if (createRow.classList.contains('d-none')) return;
                 if (createRow.dataset.saving === '1') return;
+                if (processNamePickerOpen) return;
                 if (document.getElementById('inlineProcessDefinitionModal')?.classList.contains('show')) return;
                 if (createRow.matches(':hover')) return;
                 if (createRow.contains(document.activeElement)) return;
@@ -1761,7 +1779,28 @@ document.addEventListener('DOMContentLoaded', function() {
             addRow.classList.add('d-none');
             reserveInlineProcessScrollSpace();
             scrollInlineProcessRowIntoView();
-            nameSelect.focus();
+            if (window.jQuery && jQuery.fn.select2) {
+                var picker = jQuery(nameSelect);
+                if (!picker.hasClass('select2-hidden-accessible')) {
+                    picker.select2({theme: 'bootstrap-5', width: '100%', minimumResultsForSearch: 0,
+                        dropdownAutoWidth: true, dropdownParent: jQuery(document.body)})
+                        .on('select2:open.inlineProcess', function() {
+                            processNamePickerOpen = true;
+                            window.clearTimeout(closeInlineProcessTimer);
+                            window.setTimeout(function() {
+                                var search = document.querySelector('.select2-container--open .select2-search__field');
+                                if (search) { search.placeholder = '{{ __("Search process name…") }}'; search.focus(); }
+                            }, 0);
+                        })
+                        .on('select2:close.inlineProcess', function() { processNamePickerOpen = false; })
+                        .on('select2:select.inlineProcess', function() {
+                            nameSelect.dispatchEvent(new Event('change', {bubbles: true}));
+                        });
+                }
+                picker.select2('open');
+            } else {
+                nameSelect.focus();
+            }
         });
 
         nameSelect.addEventListener('change', function() {
@@ -3532,8 +3571,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <script src="{{ asset('js/tdrs/show/workorder-form-handler.js') }}"></script>
 <script src="{{ asset('js/tdrs/show/pdf-badge-handler.js') }}"></script>
-<script src="{{ asset('js/tdrs/show/pdf-library-handler.js') }}"></script>
-<script src="{{ asset('js/tdrs/show/pdf-viewer-handler.js') }}"></script>
+<script src="{{ asset('js/tdrs/show/pdf-library-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-library-handler.js')) }}"></script>
+<script src="{{ asset('js/tdrs/show/pdf-viewer-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-viewer-handler.js')) }}"></script>
 <script src="{{ asset('js/tdrs/show/pdf-upload-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-upload-handler.js')) }}"></script>
 <script src="{{ asset('js/tdrs/show/pdf-delete-handler.js') }}"></script>
 <script src="{{ asset('js/tdrs/show/show-main.js') }}"></script>

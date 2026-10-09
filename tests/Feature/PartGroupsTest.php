@@ -742,7 +742,7 @@ class PartGroupsTest extends TestCase
         $this->assertSame('Included in KIT KIT-500', $coverage[$base->id]['reason']);
     }
 
-    public function test_all_std_snapshots_keep_fully_covered_row_for_visible_crossout_and_exclude_it_from_qty(): void
+    public function test_all_std_snapshots_omit_fully_covered_rows(): void
     {
         $stdFlags = [
             StdProcess::STD_NDT => 'ndt_list',
@@ -767,12 +767,14 @@ class PartGroupsTest extends TestCase
             $rows = app(WorkorderStdProcessItemsService::class)->snapshotRowsForWorkorder($workorder, $std);
             $row = collect($rows)->firstWhere('component_id', $member->id);
 
-            $this->assertNotNull($row, "Missing {$std} group row");
-            $this->assertTrue($row['group_crossed_out'], "{$std} row was not crossed out");
-            $this->assertSame(0, $row['qty']);
-            $this->assertSame(2, $row['group_covered_qty']);
-            $this->assertSame('Included in ASSY ASSY-100', $row['group_crossout_reason']);
+            $this->assertNull($row, "Fully covered {$std} row must not appear on the process sheet");
         }
+        $this->actingAs($admin)->withSession([
+            'auth.version' => (int) $admin->auth_version,
+            'password_hash_web' => $admin->getAuthPassword(),
+        ])->get(route('tdrs.ndtStd', $workorder->id))
+            ->assertOk()
+            ->assertDontSee('Part MEMBER');
     }
 
     public function test_kit_prl_crosses_out_group_member_only_when_selected_bundle_covers_required_quantity(): void
@@ -915,8 +917,12 @@ class PartGroupsTest extends TestCase
                 $rows = collect(app(WorkorderStdProcessItemsService::class)->snapshotRowsForWorkorder($wo, $std));
                 foreach ($family as $part) {
                     $row = $rows->firstWhere('component_id', $part->id);
+                    if ($orderedQty === 2) {
+                        $this->assertNull($row);
+                        continue;
+                    }
                     $this->assertNotNull($row);
-                    $this->assertSame($orderedQty === 2, $row['group_crossed_out']);
+                    $this->assertFalse($row['group_crossed_out']);
                     $this->assertSame(2 - $orderedQty, $row['qty']);
                 }
             }

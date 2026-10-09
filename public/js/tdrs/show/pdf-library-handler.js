@@ -38,6 +38,7 @@ const PdfLibraryHandler = {
                 select.value = Array.from(select.options).some(option => option.value === value) ? value : select.options[0]?.value;
             };
             updateOptions('pdfUploadCategory', data.upload_categories);
+            if (typeof PdfUploadHandler !== 'undefined') PdfUploadHandler.updateFileTypes();
             updateOptions('pdfCategoryFilter', data.document_categories,
                 [{key:'uploaded',name:'Uploaded only'},{key:'all',name:'All documents'}],
                 [{key:'ec_draft',name:'EC Draft (generated)'},{key:'fc',name:'F&C (generated)'},{key:'machining',name:'Machining (generated)'}]);
@@ -94,7 +95,7 @@ const PdfLibraryHandler = {
 
                 html += `
                     <div class="pdf-list-row pdf-card" data-pdf-id="${pdf.id}">
-                        <div class="pdf-list-icon" aria-hidden="true">${pdf.mime_type?.startsWith('image/') ? 'IMG' : 'PDF'}</div>
+                        <div class="pdf-list-icon" aria-hidden="true">${pdf.mime_type?.startsWith('video/') ? 'VID' : (pdf.mime_type?.startsWith('image/') ? 'IMG' : 'PDF')}</div>
                         <div class="min-w-0">
                             <div class="pdf-list-title" title="${displayTitle}">${displayName} <span class="badge ${pdf.is_generated ? 'bg-secondary' : (pdf.kind === 'ec_approved' ? 'bg-success' : 'bg-info')}" style="font-size:9px;vertical-align:middle">${escape(pdf.kind_label || 'General')}</span></div>
                             <div class="pdf-list-meta">${fileSize} · ${uploadDate}</div>

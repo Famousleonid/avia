@@ -1984,7 +1984,7 @@
         </div>
     </div>
 
-    <div class="modal fade quantum-buffer-modal" id="quantumRoBufferModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade quantum-buffer-modal" id="quantumRoBufferModal" tabindex="-1" aria-hidden="true" data-bs-focus="false">
         <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
@@ -3559,6 +3559,61 @@
                 }
 
                 dismissQuantumRows(button.dataset.dismissUrl || '');
+            });
+
+            quantumUnparsedBody?.addEventListener('click', async function (event) {
+                const button = event.target.closest('.js-quantum-rebind-traveler');
+                if (!button || button.disabled) return;
+                if (typeof window.confirmDialog !== 'function') {
+                    window.notifyError?.('Confirmation dialog is unavailable');
+                    setQuantumSearchStatus('Confirmation dialog is unavailable', 'text-danger');
+                    return;
+                }
+                button.disabled = true;
+                try {
+                    const headers = { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
+                    const previewResponse = await fetch(button.dataset.url, { headers, credentials: 'same-origin' });
+                    const preview = await previewResponse.json();
+                    if (!previewResponse.ok) throw new Error(preview.message || 'Preview failed');
+                    const value = function (key, val) {
+                        if (val === null || val === '') return 'empty';
+                        if (key === 'vendor_id') return preview.vendors?.[val] || String(val);
+                        if (key === 'date_start' || key === 'date_finish') {
+                            const match = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+                            if (match) return `${match[3]}/${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(match[2])-1]}/${match[1]}`;
+                        }
+                        return String(val);
+                    };
+                    const labels = { repair_order: 'RO', vendor_id: 'Vendor', date_start: 'Sent', date_finish: 'Returned',
+                        date_start_user: 'Sent by', date_finish_user: 'Returned by', date_start_user_id: 'Sent user ID', date_finish_user_id: 'Returned user ID' };
+                    const describe = row => `${row.process}: ` + Object.keys(row.after)
+                        .filter(key => String(row.before[key] ?? '') !== String(row.after[key] ?? ''))
+                        .map(key => `${labels[key] || key}: ${value(key, row.before[key])} → ${value(key, row.after[key])}`).join('; ');
+                    const message = `${preview.ro} / ${preview.wo} / ${preview.pn} / ${preview.ref}\n\nRelease previous processes:\n${preview.release.map(describe).join('\n')}\n\nApply to current Traveler:\n${preview.apply.map(describe).join('\n')}\n\nApply these changes now? This action is recorded in the activity log.`;
+                    const confirmation = window.confirmDialog({ title: 'Rebind Quantum Traveler?', message,
+                        okText: 'Rebind', cancelText: 'Cancel', danger: true });
+                    // Keep long process lists readable inside the shared confirmation dialog.
+                    const body = document.getElementById('globalConfirmBody');
+                    const oldStyle = body?.getAttribute('style');
+                    if (body) { body.style.whiteSpace = 'pre-line'; body.style.maxHeight = '60vh'; body.style.overflowY = 'auto'; }
+                    let confirmed;
+                    try { confirmed = await confirmation; }
+                    finally {
+                        if (body) { if (oldStyle === null) body.removeAttribute('style'); else body.setAttribute('style', oldStyle); }
+                    }
+                    if (!confirmed) return;
+                    const response = await fetch(button.dataset.url, {
+                        method: 'POST', credentials: 'same-origin',
+                        headers: { ...headers, 'Content-Type': 'application/json', 'X-CSRF-TOKEN': currentCsrfToken() },
+                        body: JSON.stringify({ token: preview.token }),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.message || 'Rebind failed');
+                    window.location.reload();
+                } catch (error) {
+                    window.notifyError?.(error.message || 'Rebind failed');
+                    setQuantumSearchStatus(error.message || 'Rebind failed', 'text-danger');
+                } finally { button.disabled = false; }
             });
 
             quantumRecentBody?.addEventListener('click', async function (event) {

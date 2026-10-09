@@ -140,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             baseline = snapshot();
             form.addEventListener('submit', async event => {
                 event.preventDefault(); if (busy || !form.reportValidity()) return;
+                if (!window.TrainingWeekAvailability || !await window.TrainingWeekAvailability.checkAll(form)) return;
                 busy = true; save.disabled = true; save.style.visibility = 'hidden'; form.inert = true; modal.querySelector('#addUnitError').classList.add('d-none');
                 try {
                     const response = await fetch(form.action, {method: 'POST', headers: {'Accept': 'application/json'}, body: new FormData(form)});
@@ -187,5 +188,4 @@ document.addEventListener('DOMContentLoaded', () => {
             document.dispatchEvent(new CustomEvent('training:select-component', {detail: {manualId}}));
         }
     });
-    window.addEventListener('beforeunload', event => { if (dirty()) { event.preventDefault(); event.returnValue = ''; } });
 });

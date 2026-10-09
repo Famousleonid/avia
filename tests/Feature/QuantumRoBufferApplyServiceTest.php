@@ -1383,6 +1383,90 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame(0, $secondStats['scanned']);
     }
 
+    public function test_admin_rebind_repairs_rebuilt_traveler_and_records_before_after(): void
+    {
+        [$line, $old, $kept, $added] = $this->rebuiltTravelerFixture();
+        $admin = $this->createUserWithRole('Admin');
+        $url = route('vendor-tracking.quantum-lines.rebind', $line);
+        $preview = $this->actingAs($admin)->getJson($url)->assertOk()->json();
+        $this->assertSame([$old->id], array_column($preview['release'], 'id'));
+        $this->assertCount(2, $preview['apply']);
+        $this->assertSame('R-REBUILD', $old->fresh()->repair_order);
+        $this->postJson($url, ['token' => $preview['token']])->assertOk();
+        $this->assertNull($old->fresh()->repair_order);
+        $this->assertNull($old->fresh()->vendor_id);
+        $this->assertNull($old->fresh()->date_start_user);
+        foreach ([$kept, $added] as $target) {
+            $this->assertSame('R-REBUILD', $target->fresh()->repair_order);
+            $this->assertSame('2026-06-01', $target->fresh()->date_start->format('Y-m-d'));
+        }
+        $this->assertSame('applied', $line->fresh()->apply_status);
+        $this->assertCount(2, $line->fresh()->applied_targets);
+        $this->assertDatabaseHas('activity_log', ['event' => 'traveler_rebound', 'causer_id' => $admin->id, 'subject_id' => $line->id]);
+        $this->postJson($url, ['token' => $preview['token']])->assertStatus(422);
+    }
+
+    public function test_rebind_rejects_non_admin(): void
+    {
+        [$line, $old, $kept] = $this->rebuiltTravelerFixture();
+        $url = route('vendor-tracking.quantum-lines.rebind', $line);
+        $this->actingAs($this->createUserWithRole('Manager'))->getJson($url)->assertForbidden();
+        $this->postJson($url, ['token' => str_repeat('a', 64)])->assertForbidden();
+    }
+
+    public function test_rebind_rejects_stale_preview_without_clearing_old_ro(): void
+    {
+        [$line, $old, $kept] = $this->rebuiltTravelerFixture();
+        $url = route('vendor-tracking.quantum-lines.rebind', $line);
+        $preview = $this->actingAs($this->createUserWithRole('Admin'))->getJson($url)->assertOk()->json();
+        $kept->update(['date_start' => '2026-06-02']);
+        $this->postJson($url, ['token' => $preview['token']])->assertStatus(409);
+        $this->assertSame('R-REBUILD', $old->fresh()->repair_order);
+        $this->assertSame('unresolved', $line->fresh()->apply_status);
+    }
+
+    public function test_rebind_rejects_foreign_ro_and_manual_changes_on_released_process(): void
+    {
+        [$line, $old, $kept] = $this->rebuiltTravelerFixture();
+        $url = route('vendor-tracking.quantum-lines.rebind', $line);
+        $this->actingAs($this->createUserWithRole('Admin'));
+        $kept->update(['repair_order' => 'R-OTHER']);
+        $this->getJson($url)->assertStatus(422);
+        $kept->update(['repair_order' => null]);
+        $old->update(['date_start' => '2026-06-09']);
+        $this->getJson($url)->assertStatus(422);
+        $this->assertSame('R-REBUILD', $old->fresh()->repair_order);
+    }
+
+    private function rebuiltTravelerFixture(): array
+    {
+        $wo = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Rebuild Vendor '.uniqid()]);
+        $component = Component::query()->create(['manual_id' => $wo->unit->manual_id,
+            'part_number' => 'REBUILD-'.uniqid(), 'name' => 'Cylinder', 'ipl_num' => '1-1', 'eff_code' => 'ALL']);
+        $tdr = Tdr::query()->create(['workorder_id' => $wo->id, 'component_id' => $component->id,
+            'serial_number' => 'REBUILD-SN', 'qty' => 1, 'use_tdr' => true, 'use_process_forms' => true]);
+        $rows = collect(['Silver plating', 'NDT', 'Stress Relief'])->map(function ($name, $i) use ($tdr) {
+            $process = ProcessName::query()->create(['name' => $name.' '.uniqid(), 'process_sheet_name' => 'TEST', 'form_number' => '001']);
+            return TdrProcess::query()->create(['tdrs_id' => $tdr->id, 'process_names_id' => $process->id,
+                'in_traveler' => $i < 2, 'traveler_group' => $i < 2 ? 1 : null, 'sort_order' => $i]);
+        });
+        $line = $this->createQuantumLine(['ro_number' => 'R-REBUILD', 'wo_number' => 'W'.$wo->number,
+            'vendor_name' => $vendor->name, 'pn' => $component->part_number, 'serial_number' => 'REBUILD-SN',
+            'class' => 'DETAIL_PART', 'bom_ref' => 'T1', 'returned_date' => null]);
+        app(QuantumRoBufferApplyService::class)->apply(1);
+        $this->assertSame('applied', $line->fresh()->apply_status);
+        [$old, $kept, $added] = $rows->all();
+        $old->refresh()->update(['in_traveler' => false, 'traveler_group' => null, 'date_start' => null]);
+        $kept->refresh()->update(['repair_order' => null, 'date_start' => null]);
+        $added->update(['in_traveler' => true, 'traveler_group' => 1]);
+        // Force the next scheduled pass just as a changed mapping is revisited.
+        $line->refresh()->update(['apply_status' => 'pending']);
+        app(QuantumRoBufferApplyService::class)->apply(1);
+        $this->assertSame('unresolved', $line->fresh()->apply_status);
+        return [$line->fresh(), $old->fresh(), $kept->fresh(), $added->fresh()];
+    }
+
     private function createQuantumLine(array $attributes = []): QuantumRoLine
     {
         $sourceUid = 'rod:test:'.uniqid('', true);

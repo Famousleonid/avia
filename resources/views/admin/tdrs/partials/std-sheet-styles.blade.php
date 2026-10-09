@@ -682,6 +682,13 @@
             padding: 3px 8px;
         }
 
+        /* Reserve room for the full instruction within the printable Letter width. */
+        .std-instruction-row--stress {
+            grid-template-columns: minmax(0, 1fr) max-content 140px;
+            column-gap: 8px;
+            font-size: 12px;
+        }
+
         .std-instruction-row--cad {
             grid-template-columns: minmax(0, 1fr) 96px 180px;
             column-gap: 4px;

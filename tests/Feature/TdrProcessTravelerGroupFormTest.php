@@ -160,12 +160,14 @@ class TdrProcessTravelerGroupFormTest extends TestCase
             'tdrs_id' => $tdr->id,
             'process_names_id' => $processName->id,
             'processes' => [$groupTwoProcess->id],
+            'description' => "Machining\n".$groupTwoProcess->process."\nKeep this additional instruction.",
             'in_traveler' => true,
             'traveler_group' => 2,
             'ignore_row' => false,
             'sort_order' => 1,
         ]);
 
+        $this->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()]);
         $response = $this->actingAs($admin)->get(route('tdr-processes.travelForm', [
             'id' => $tdr->id,
             'traveler_group' => 2,
@@ -174,12 +176,17 @@ class TdrProcessTravelerGroupFormTest extends TestCase
         $response
             ->assertOk()
             ->assertSee($groupTwoProcess->process)
+            ->assertSee('Keep this additional instruction.')
             ->assertSeeInOrder([$groupTwoProcess->process, 'Receiving inspection'])
-            ->assertSee('data-screen-placement="viewport"', false)
+            ->assertSee('data-screen-placement="page"', false)
             ->assertSee('system-print-qr__label">T2</span><span class="system-print-qr__code"', false)
-            ->assertSee('332px 108px', false)
+            ->assertSee('<thead>', false)
+            ->assertSee('font-size: 14px !important', false)
             ->assertSee('right: 2mm;', false)
             ->assertSee('top: 1mm;', false);
+
+        $this->assertSame(1, substr_count($response->getContent(), $groupTwoProcess->process));
+        $this->assertDoesNotMatchRegularExpression('/class="fs-8 process-description"[^>]*>\s*Machining/', $response->getContent());
 
         $this->actingAs($admin)
             ->get(route('tdr-processes.processesBody', ['tdrId' => $tdr->id]))
@@ -255,6 +262,7 @@ class TdrProcessTravelerGroupFormTest extends TestCase
             'sort_order' => 2,
         ]);
 
+        $this->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()]);
         $response = $this->actingAs($admin)->get(route('tdr-processes.travelForm', [
             'id' => $tdr->id,
             'traveler_group' => 1,

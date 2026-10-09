@@ -159,10 +159,10 @@
         width: 3.25rem !important;
     }
     .tdr-processes-table col:nth-child(3) {
-        width: 36% !important;
+        width: 20% !important;
     }
     .tdr-processes-table col:nth-child(7) {
-        width: 19% !important;
+        width: 13rem !important;
     }
     .tdr-processes-table th,
     .tdr-processes-table td {
@@ -178,6 +178,9 @@
     }
     .tdr-processes-table .process-description-cell {
         white-space: pre-line !important;
+        font-size: 12px;
+        line-height: 1.3;
+        text-align: left !important;
     }
     .tdr-processes-table .process-action-col,
     .tdr-processes-table .process-action-cell,
@@ -309,8 +312,9 @@
      data-traveler-group-url="{{ route('tdr-processes.traveler-group', ['tdrId' => $current_tdr->id]) }}"
      data-traveler-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $current_tdr->id]) }}">
     <div class="processes-toolbar gap-2">
+        @include('admin.tdr-processes.partials.traveler-template-picker')
         <button type="button"
-                class="btn btn-sm btn-outline-primary"
+                class="btn btn-sm btn-outline-primary text-nowrap"
                 data-combined-form-button
                 disabled
                 title="{{ __('Select at least two processes with the same name') }}">
@@ -321,12 +325,12 @@
         <table class="display table table-sm table-hover align-middle bg-gradient dir-table sortable-table tdr-processes-table">
             <colgroup>
                 <col class="process-row-number-col">{{-- Row number --}}
-                <col style="width: 11%">{{-- Process Name --}}
-                <col style="width: 42%">{{-- Process (поглощает остаток) --}}
-                <col style="width: 17%">{{-- Description --}}
-                <col style="width: 9%">{{-- Traveler --}}
-                <col style="width: 8%">{{-- Action --}}
-                <col style="width: 13%">{{-- Form --}}
+                <col style="width: 8rem">{{-- Process Name --}}
+                <col style="width: 20%">{{-- Process --}}
+                <col>{{-- Description receives remaining width --}}
+                <col style="width: 6rem">{{-- Traveler --}}
+                <col style="width: 78px">{{-- Action --}}
+                <col style="width: 13rem">{{-- Form --}}
             </colgroup>
             <thead>
             <tr>

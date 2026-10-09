@@ -635,8 +635,9 @@
                     </div>
 
                     <div class="modal-footer">
+                        <div class="d-flex align-items-center gap-2 me-auto">
                         @roles("Admin|Team Leader|Manager|Shop Certifying Authority (SCA)")
-                        <div class="form-check me-auto">
+                        <div class="form-check mb-0">
                             <input type="checkbox"
                                    class="form-check-input sign-in-toggle"
                                    id="showImage{{ $trainingList['first_training']->manuals_id }}"
@@ -647,6 +648,12 @@
                             </label>
                         </div>
                         @endroles
+                            <button type="button" class="btn btn-outline-info btn-sm training-week-calendar-btn"
+                                    data-user-id="{{ $selectedUserId }}" title="{{ __('Training week calendar') }}"
+                                    aria-label="{{ __('Training week calendar') }}">
+                                <i class="bi bi-calendar3" aria-hidden="true"></i>
+                            </button>
+                        </div>
 
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             {{ __('Cancel') }}
@@ -909,7 +916,7 @@
                     rows.sort(function (a, b) {
                         const aVal = (a.cells[componentPnIndex]?.textContent || '').trim();
                         const bVal = (b.cells[componentPnIndex]?.textContent || '').trim();
-                        const cmp = aVal.localeCompare(bVal, undefined, { numeric: true });
+                        const cmp = aVal.localeCompare(bVal, 'en', { numeric: false, sensitivity: 'base' });
                         return sortOrder * cmp;
                     });
 
@@ -1110,15 +1117,8 @@
                     } finally { delete modal.dataset.closePrompt; }
                 });
             });
-            window.addEventListener('beforeunload', event => {
-                if (Array.from(document.querySelectorAll('.unit-training-modal')).some(trainingDirty)) {
-                    event.preventDefault();
-                    event.returnValue = '';
-                }
-            });
-
             // Add is a local draft operation. Only Save sends dates to the server.
-            trainingClick('.add-training-in-edit-btn', function () {
+            trainingClick('.add-training-in-edit-btn', async function () {
                 const modal = this.closest('.modal');
                 const source = modal.querySelector('.add-training-date-input');
                 if (!source.value.trim()) {
@@ -1132,6 +1132,7 @@
                     ], {duration: 600, iterations: 3, easing: 'ease-in-out'});
                     return;
                 }
+                if (!window.TrainingWeekAvailability || !await window.TrainingWeekAvailability.check(source)) return;
                 const ymd = projectDateInputToYmd(source);
                 if (!ymd) { showNotification('Enter a valid date: dd/Mmm/yyyy.', 'warning'); return; }
                 const today = new Date();
@@ -1161,6 +1162,7 @@
                 button.addEventListener('click', async function () {
                     const modal = document.getElementById(this.dataset.modalId);
                     if (!modal || modal.dataset.saving === '1') return;
+                    if (!window.TrainingWeekAvailability || !await window.TrainingWeekAvailability.checkAll(modal)) return;
                     const pending = Array.from(modal.querySelectorAll('.pending-training-row'));
                     const updates = Array.from(modal.querySelectorAll('.edit-training-row')).filter(row => {
                         const input = row.querySelector('.edit-training-date-input');
@@ -1460,6 +1462,23 @@
                 if (new URLSearchParams(window.location.search).has('manual_id')) rememberTrainingSearch();
             }
 
+            // Calendar overlap links open the existing date editor for the selected record.
+            const requestedTraining = new URLSearchParams(window.location.search).get('edit_training');
+            if (requestedTraining && /^\d+$/.test(requestedTraining)) {
+                const row = document.querySelector('.edit-training-row[data-training-id="' + requestedTraining + '"]');
+                const editor = row?.closest('.modal');
+                if (editor) {
+                    editor.addEventListener('shown.bs.modal', () => {
+                        row.scrollIntoView({block: 'center'});
+                        row.animate([{backgroundColor: 'rgba(229,79,94,.25)'}, {backgroundColor: 'transparent'}], {duration: 1800});
+                        row.querySelector('.edit-training-date-input')?.focus({preventScroll: true});
+                    }, {once: true});
+                    bootstrap.Modal.getOrCreateInstance(editor).show();
+                } else {
+                    window.showNotification('This training is not available in your date editor.', 'warning');
+                }
+            }
+
             // Удаление всех training records
             let currentUserId = null;
             let currentManualId = null;
@@ -1537,4 +1556,5 @@
         });
     </script>
     @include('admin.trainings.partials.friday-snap')
+    @include('admin.trainings.partials.week-availability')
 @endsection

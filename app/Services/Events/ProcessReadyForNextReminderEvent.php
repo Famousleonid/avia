@@ -123,7 +123,9 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
 
         $workorder = $this->workorderFor($subject);
 
-        return $workorder instanceof Workorder && ! empty($workorder->approve_at);
+        return $workorder instanceof Workorder
+            && empty($workorder->done_at)
+            && ! empty($workorder->approve_at);
     }
 
     private function workorderFor(TdrProcess|WorkorderStdProcess $process): ?Workorder

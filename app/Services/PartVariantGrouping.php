@@ -90,8 +90,7 @@ class PartVariantGrouping
         $identity = trim((string) ($row['variant_group_key'] ?? ''));
         if ($identity === '') {
             $family = self::iplFamily((string) ($row['ipl_num'] ?? ''));
-            $identity = 'ipl|'.$manual.'|'.($family ?: 'component-'.($row['component_id'] ?? 0))
-                .'|'.trim((string) ($row['process'] ?? ''));
+            $identity = 'ipl|'.$manual.'|'.($family ?: 'component-'.($row['component_id'] ?? 0));
         }
         return $identity.'|'.(! empty($row['group_crossed_out']) ? 'crossed' : 'open');
     }

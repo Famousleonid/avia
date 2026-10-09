@@ -898,6 +898,47 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertSame(4, $withoutZero->viewData('processes')->values()->get(3)['number_line']);
     }
 
+    public function test_full_unit_sp_cat_one_keeps_std_totals_when_head_pn_is_in_manual(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id, 'part_number' => '190-70250-409']);
+        $wo = $this->createWorkorder([
+            'unit_id' => $unit->id, 'user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+            'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT,
+        ]);
+        $head = Component::query()->create([
+            'manual_id' => $manual->id, 'ipl_num' => '1-1A',
+            'part_number' => $unit->part_number, 'name' => 'Head assembly',
+            'ndt_list' => false, 'cad_list' => false, 'units_assy' => 1,
+        ]);
+        foreach ([['1-40', '1 / 4', 2], ['1-805', '4', 3]] as [$ipl, $process, $qty]) {
+            $part = Component::query()->create([
+                'manual_id' => $manual->id, 'ipl_num' => $ipl,
+                'part_number' => 'CAT1-'.$ipl, 'name' => 'Cat one detail',
+                'ndt_list' => true, 'cad_list' => true, 'units_assy' => $qty,
+            ]);
+            foreach ([StdProcess::STD_NDT => $process, StdProcess::STD_CAD => 'CAD'] as $std => $spec) {
+                StdProcess::query()->updateOrCreate([
+                    'manual_id' => $manual->id, 'component_id' => $part->id, 'std' => $std,
+                ], ['process' => $spec, 'qty' => $qty]);
+            }
+        }
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR, 'workorder_id' => $wo->id,
+            'component_id' => $head->id, 'qty' => 1, 'serial_number' => 'TEST',
+            'use_tdr' => true, 'use_process_forms' => true,
+        ]);
+        $this->actingAs($admin)->withSession([
+            'auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword(),
+        ])->get(route('tdrs.specProcessForm', $wo->id))
+            ->assertOk()
+            ->assertViewHas('ndtSums', ['total' => 5, 'mpi' => 2, 'fpi' => 3])
+            ->assertViewHas('cadSum', ['total_qty' => 5, 'total_components' => 2])
+            ->assertSeeInOrder(['Cat #1', '2', 'RO', '3', 'RO No.', '5'], false);
+    }
+
     public function test_spec_process_form_uses_one_cat_one_qty_when_unit_part_is_not_in_cat_two(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -921,6 +962,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'ndt_list' => true,
             'cad_list' => true,
         ]);
+        $workorder->update(['scope_type' => \App\Models\Unit::SCOPE_COMPONENT, 'scope_component_id' => $unitPart->id]);
         $catTwoDetail = Component::query()->create([
             'manual_id' => $manual->id,
             'ipl_num' => '3-20',
@@ -991,6 +1033,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'ndt_list' => true,
             'cad_list' => true,
         ]);
+        $workorder->update(['scope_type' => \App\Models\Unit::SCOPE_COMPONENT, 'scope_component_id' => $unitPart->id]);
         $manualCatOnePart = Component::query()->create([
             'manual_id' => $manual->id,
             'ipl_num' => '12-510',
@@ -1350,6 +1393,47 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
 
         $response->assertOk();
         $response->assertSeeInOrder(['Total QTY:', '5'], false);
+    }
+
+    public function test_ipl_family_uses_log_card_variant_process_and_keeps_kit_crossouts(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id,
+            'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT]);
+        $parts = [];
+        foreach ([['1-805', '2821-8021', '4'], ['1-805A', '190-70254-005', '1'], ['1-805B', '190-70254-007', '4']] as [$ipl, $pn, $process]) {
+            $part = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => $ipl,
+                'part_number' => $pn, 'name' => 'UPPER STAY', 'units_assy' => 1, 'ndt_list' => true, 'kit' => true]);
+            StdProcess::updateOrCreate(['manual_id' => $part->manual_id, 'component_id' => $part->id, 'std' => 'ndt'], ['process' => $process, 'qty' => 1]);
+            $parts[] = $part;
+        }
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()]);
+        $before = $this->get(route('tdrs.ndtStd', $wo->id))->assertOk();
+        $this->assertCount(1, $before->viewData('ndt_components'));
+        foreach ($parts as $part) { $before->assertSee($part->part_number); }
+        $card = \App\Models\LogCard::create(['workorder_id' => $wo->id, 'component_data' => json_encode([
+            ['component_id' => $parts[2]->id, 'included' => '1', 'ipl_group' => '1-805'],
+            ['component_id' => $parts[1]->id, 'included' => '0'],
+        ])]);
+        $after = $this->get(route('tdrs.ndtStd', $wo->id))->assertOk();
+        $this->assertCount(1, $after->viewData('ndt_components'));
+        $this->assertSame('4', $after->viewData('ndt_components')[0]->process_name);
+        $after->assertSee($parts[2]->part_number)->assertDontSee($parts[0]->part_number)->assertDontSee($parts[1]->part_number);
+        $after->assertViewHas('ndtSums', ['total' => 1, 'mpi' => 0, 'fpi' => 1]);
+        $kit = $this->get(route('tdrs.kitForm', $wo->id))->assertOk()->getContent();
+        foreach ($parts as $index => $part) {
+            $this->assertMatchesRegularExpression('/data-kit-prl-component-id="'.$part->id.'".*?data-kit-prl-controller-crossed-out="'.($index === 2 ? '0' : '1').'"/s', $kit);
+        }
+        $card->update(['component_data' => json_encode([['component_id' => $parts[1]->id, 'included' => '1']])]);
+        $changed = $this->get(route('tdrs.ndtStd', $wo->id))->assertOk();
+        $changed->assertViewHas('ndtSums', ['total' => 1, 'mpi' => 1, 'fpi' => 0]);
+        $this->assertSame('1', $changed->viewData('ndt_components')[0]->process_name);
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[1]->id,
+            'order_component_id' => $parts[2]->id, 'qty' => 1]);
+        $coverage = app(\App\Services\PartGroupCoverageResolver::class)->coverageForWorkorder($wo, 'prl');
+        $this->assertArrayHasKey($parts[0]->id, $coverage);
+        $this->assertArrayHasKey($parts[1]->id, $coverage);
+        $this->assertArrayNotHasKey($parts[2]->id, $coverage);
     }
 
     public function test_ndt_std_form_collapses_letter_suffix_ipl_variants_into_one_row(): void

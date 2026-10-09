@@ -18,6 +18,34 @@ class CombinedPrlTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_prl_omits_fully_crossed_bushing_rows_but_keeps_active_family_alternatives(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
+        $parts = [];
+        foreach ([['1-586', '1-586', '5035-0403'], ['1-587', '1-586', '5035-0403FS01'],
+            ['1-588', '1-586', '5035-0403FS02'], ['1-840', '1-840', '170-70251-301'], ['1-842', '1-842', '170-70275-301']] as [$ipl, $family, $pn]) {
+            $parts[] = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => $ipl,
+                'bush_ipl_num' => $family, 'part_number' => $pn, 'name' => 'BUSHING',
+                'is_bush' => true, 'kit' => false, 'units_assy' => 1]);
+        }
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        $line = WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
+            'component_id' => $parts[0]->id, 'qty' => 1, 'qty_remaining' => 1, 'do_not_order' => false]);
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()]);
+        $response = $this->get(route('tdrs.prlForm', $wo))->assertOk();
+        $rows = collect($response->viewData('ordersParts'));
+        $this->assertCount(1, $rows);
+        $this->assertFalse($rows[0]['prl_crossed_out']);
+        $this->assertSame([false, true, true], array_column($rows[0]['prl_part_numbers'], 'crossed_out'));
+        $response->assertSee('5035-0403FS01')->assertDontSee('170-70251-301')->assertDontSee('170-70275-301');
+        $controller = app(\App\Http\Controllers\Admin\TdrPrintFormController::class);
+        $this->assertSame(1, $controller->countBushingPrlRows($wo));
+        $line->update(['do_not_order' => true]);
+        $this->assertCount(0, $controller->prlRows($wo));
+        $this->assertSame(0, $controller->countBushingPrlRows($wo));
+    }
+
     /** @dataProvider sleeveBushingQuantities */
     public function test_manufacture_sleeve_order_does_not_get_a_crossed_out_bushing_duplicate(?int $bushingQty): void
     {

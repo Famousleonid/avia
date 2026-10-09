@@ -34,6 +34,212 @@ class QuantumRoBufferApplyService
 
     private array $columnExistsCache = [];
 
+    /** Read-only diagnostic view. Uses exactly the same resolver as the parser. */
+    public function inspectMapping(QuantumRoLine $line): array
+    {
+        $route = $this->routeForLine($line);
+        $workorder = $this->findWorkorder($line->wo_number);
+        $vendor = $this->findVendor($line->vendor_name);
+        $resolved = ['status' => 'unresolved', 'message' => $route['message'] ?? 'No applicable target.'];
+        if ($workorder && ! in_array($route['type'], [self::TARGET_UNSUPPORTED, self::STATUS_ECO_FEE], true)) {
+            $resolved = $this->findTarget($line, $workorder, $route, $this->processNameCodeMap());
+        }
+        $targets = ($resolved['status'] ?? '') === 'ok'
+            ? collect($resolved['models'] ?? [$resolved['model']]) : collect();
+        $current = $targets->map(fn (Model $target) => $this->describeDiagnosticTarget($target))->values();
+        $candidates = collect();
+        if ($workorder && $route['type'] === self::TARGET_TDR) {
+            // Keep unmatched P/N and serial candidates visible: a failed resolution
+            // must not hide the actual WO structure that explains the failure.
+            $candidates = \App\Models\Tdr::query()->with('component')->where('workorder_id', $workorder->id)->get()
+                ->map(fn ($tdr) => ['tdr_id' => $tdr->id, 'part_number' => $tdr->component?->part_number,
+                    'serial_number' => $tdr->serial_number,
+                    'pn_matches' => $this->normalizePartNumber($tdr->component?->part_number) === $this->normalizePartNumber($line->pn),
+                    'processes' => TdrProcess::query()->where('tdrs_id', $tdr->id)->with('processName')->orderBy('id')->get()
+                        ->map(fn ($p) => ['id' => $p->id, 'name' => $p->processName?->name,
+                            'ref_code' => $p->processName?->code, 'ro' => $p->repair_order,
+                            'in_traveler' => (bool) $p->in_traveler,
+                            'traveler_group' => $p->in_traveler ? ($p->traveler_group ?: 1) : null])->all()]);
+        }
+        $snapshots = collect($line->applied_targets ?? []);
+        if ($snapshots->isEmpty() && $line->applied_target_table && $line->applied_target_id) {
+            $snapshots->push(['table' => $line->applied_target_table, 'id' => $line->applied_target_id, 'values' => []]);
+        }
+        $previous = $snapshots->map(function (array $snapshot) use ($current): array {
+            $table = (string) ($snapshot['table'] ?? '');
+            $id = (int) ($snapshot['id'] ?? 0);
+            $target = $this->findAppliedTarget($table, $id, false);
+            $key = $this->targetKey($table, $id);
+            $saved = (array) ($snapshot['values'] ?? []);
+            $differences = [];
+            if ($target) {
+                foreach ($saved as $column => $expected) {
+                    $actual = $target->getAttributes()[$column] ?? null;
+                    if (! $this->snapshotValueMatches($column, $actual, $expected)) {
+                        $differences[] = ['field' => $column, 'saved' => $expected, 'current' => $actual];
+                    }
+                }
+            }
+            return ['key' => $key, 'table' => $table, 'id' => $id, 'exists' => $target !== null,
+                'still_current_target' => $current->contains('key', $key), 'saved_values' => $saved,
+                'current' => $target ? $this->describeDiagnosticTarget($target) : null,
+                'differences' => $differences];
+        })->values();
+        $blockers = $previous->where('still_current_target', false)->filter(fn ($old) =>
+            empty($line->applied_targets) || ! in_array($old['table'], ['tdr_processes', 'workorder_std_processes', 'wo_bushing_batches'], true)
+            || ($old['exists'] && ($old['saved_values'] === [] || $old['differences'] !== [])))
+            ->map(fn ($old) => ['target_key' => $old['key'], 'process' => $old['current']['process'] ?? null,
+                'reason' => empty($line->applied_targets) || $old['saved_values'] === [] ? 'No safety snapshot for releasing the previous target.'
+                    : ($old['differences'] !== [] ? 'Previous values differ from the saved snapshot; automatic release would discard later changes.' : 'Unsupported previous target table.'),
+                'blocking_fields' => $old['differences']])->values()->all();
+        $rebind = ['available' => false];
+        try {
+            $preview = $this->travelerRebindPlan($line, false)['preview'];
+            // Never give the agent a write token. The admin opens a fresh UI preview.
+            $rebind = ['available' => true, 'release' => $preview['release'], 'apply' => $preview['apply'],
+                'vendors' => $preview['vendors']];
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $rebind['reason'] = $e->getMessage();
+        }
+        return ['route' => $route, 'workorder_found' => (bool) $workorder,
+            'workorder_closed' => (bool) $workorder?->done_at, 'vendor_found' => (bool) $vendor,
+            'resolution' => ['status' => $resolved['status'], 'message' => $resolved['message'] ?? null],
+            'workorder_parts' => $candidates->all(),
+            'current_targets' => $current->all(), 'previous_targets' => $previous->all(),
+            'removed_target_keys' => $previous->where('still_current_target', false)->pluck('key')->all(),
+            'added_target_keys' => $current->whereNotIn('key', $previous->pluck('key'))->pluck('key')->all(),
+            'automatic_release_blockers' => $blockers,
+            'interpretation' => 'A changed target set alone does NOT block sync. With a resolved current target, automatic_release_blockers explain why the old target cannot safely be released. Other previous-target differences show drift but may not block release.',
+            'rebind' => $rebind];
+    }
+
+    private function describeDiagnosticTarget(Model $target): array
+    {
+        $processNameId = $target->process_names_id ?? $target->process_name_id;
+        $name = $processNameId ? ProcessName::query()->find($processNameId)?->name : null;
+        if ($target instanceof WoBushingBatch) {
+            $name = \App\Models\Process::query()->find($target->process_id)?->process_name?->name;
+        }
+        return ['key' => $this->targetKey($target->getTable(), (int) $target->id),
+            'table' => $target->getTable(), 'id' => $target->id, 'process' => $name,
+            'tdr_id' => $target instanceof TdrProcess ? $target->tdrs_id : null,
+            'part_number' => $target instanceof TdrProcess ? $target->tdr?->component?->part_number : null,
+            'serial_number' => $target instanceof TdrProcess ? $target->tdr?->serial_number : null,
+            'in_traveler' => $target instanceof TdrProcess ? (bool) $target->in_traveler : null,
+            'traveler_group' => $target instanceof TdrProcess && $target->in_traveler ? ($target->traveler_group ?: 1) : null,
+            'values' => $this->targetSnapshots(collect([$target]))[0]['values']];
+    }
+
+    public function previewTravelerRebind(int $lineId): array
+    {
+        return DB::transaction(function () use ($lineId): array {
+            $line = QuantumRoLine::query()->lockForUpdate()->findOrFail($lineId);
+            return $this->travelerRebindPlan($line)['preview'];
+        });
+    }
+
+    public function rebindTraveler(int $lineId, string $token, \App\Models\User $actor): void
+    {
+        abort_unless($actor->roleIs('Admin'), 403);
+        DB::transaction(function () use ($lineId, $token, $actor): void {
+            $line = QuantumRoLine::query()->lockForUpdate()->findOrFail($lineId);
+            $plan = $this->travelerRebindPlan($line);
+            abort_unless(hash_equals($plan['preview']['token'], $token), 409,
+                'Quantum data or processes changed. Open the preview again.');
+
+            foreach ($plan['release'] as $target) {
+                foreach ($this->quantumManagedColumns() as $column) {
+                    if ($this->hasColumn($target, $column)) {
+                        $target->setAttribute($column, null);
+                    }
+                }
+                $target->save();
+            }
+            foreach ($plan['targets'] as $target) {
+                $this->fillTarget($target, $line, $plan['vendor']);
+                $target->save();
+            }
+            $first = $plan['targets']->first();
+            $this->markLine($line, self::STATUS_APPLIED, 'Admin reconciled Traveler targets',
+                $first->getTable(), (int) $first->id, false, $this->targetSnapshots($plan['targets']));
+            activity('quantum_ro_line')->causedBy($actor)->performedOn($line)
+                ->event('traveler_rebound')->withProperties($plan['preview'])
+                ->log('Old Quantum targets released and current Traveler applied');
+        });
+    }
+
+    private function travelerRebindPlan(QuantumRoLine $line, bool $lock = true): array
+    {
+        abort_unless($line->apply_status === self::STATUS_UNRESOLVED
+            && $this->travelerGroupFromRef($line->bom_ref) !== null
+            && ! empty($line->applied_targets), 422, 'This row has no reviewed Traveler mapping to reconcile.');
+        $workorder = $this->findWorkorder($line->wo_number);
+        $vendor = $this->findVendor($line->vendor_name);
+        abort_unless($workorder && ! $workorder->done_at && $vendor, 422, 'An open workorder and matching vendor are required.');
+        $route = $this->routeForLine($line);
+        abort_unless($route['type'] === self::TARGET_TDR, 422, 'Only detail-part Travelers can be reconciled.');
+        // Serialize with edits to existing process rows, including group membership.
+        $all = TdrProcess::query()->whereHas('tdr', fn ($q) => $q->where('workorder_id', $workorder->id))
+            ->orderBy('id')->when($lock, fn ($q) => $q->lockForUpdate())->get();
+        $resolved = $this->findTarget($line, $workorder, $route, $this->processNameCodeMap());
+        abort_unless($resolved['status'] === 'ok', 422, $resolved['message'] ?? 'Traveler not found.');
+        $targets = collect($resolved['models'] ?? [$resolved['model']])->sortBy('id')->values();
+        $tdrId = $targets->first()->tdrs_id;
+        $release = collect();
+        foreach ($line->applied_targets as $snapshot) {
+            abort_unless(($snapshot['table'] ?? '') === 'tdr_processes'
+                && ! empty($snapshot['values']), 422, 'Previous target has no supported safety snapshot.');
+            $old = $all->firstWhere('id', $snapshot['id']);
+            abort_unless($old && $old->tdrs_id === $tdrId, 422, 'Previous target is missing or belongs to another component.');
+            if (! $targets->contains('id', $old->id)) {
+                abort_if($old->in_traveler, 422, 'A previous process now belongs to another Traveler.');
+                // Reconcile cleared values only; never erase newly entered business values.
+                foreach ($this->quantumManagedColumns() as $column) {
+                    if (! $this->hasColumn($old, $column)) {
+                        continue;
+                    }
+                    abort_unless(array_key_exists($column, $snapshot['values']), 422, 'Previous target snapshot is incomplete.');
+                    $expected = $snapshot['values'][$column];
+                    $current = $old->getAttributes()[$column] ?? null;
+                    abort_if($current !== null && $current !== '' && ! $this->snapshotValueMatches($column, $current, $expected),
+                        422, "{$old->processName?->name}: {$column} was replaced manually; separate review required.");
+                }
+                $release->push($old);
+            }
+        }
+        abort_if($release->isEmpty(), 422, 'No previous processes need to be released.');
+        foreach ($targets as $target) {
+            abort_if(trim((string) $target->repair_order) !== '' && $target->repair_order !== $line->ro_number,
+                422, 'A current Traveler process already has another RO.');
+            abort_if($target->vendor_id && (int) $target->vendor_id !== (int) $vendor->id,
+                422, 'A current Traveler process already has another vendor.');
+        }
+        $describe = function (Model $target, bool $clear) use ($line, $vendor): array {
+            $after = clone $target;
+            if ($clear) {
+                foreach ($this->quantumManagedColumns() as $column) {
+                    if ($this->hasColumn($after, $column)) {
+                        $after->setAttribute($column, null);
+                    }
+                }
+            } else {
+                $this->fillTarget($after, $line, $vendor);
+            }
+            return ['id' => $target->id, 'process' => $target->processName?->name,
+                'before' => $this->targetSnapshots(collect([$target]))[0]['values'],
+                'after' => $this->targetSnapshots(collect([$after]))[0]['values']];
+        };
+        $preview = ['source_uid' => $line->source_uid, 'source_hash' => $line->source_hash,
+            'ro' => $line->ro_number, 'wo' => $line->wo_number, 'pn' => $line->pn,
+            'ref' => $line->bom_ref, 'snapshots' => $line->applied_targets,
+            'vendors' => Vendor::query()->whereIn('id', $targets->merge($release)->pluck('vendor_id')->push($vendor->id)->filter()->unique())
+                ->pluck('name', 'id')->all(),
+            'release' => $release->map(fn ($t) => $describe($t, true))->values()->all(),
+            'apply' => $targets->map(fn ($t) => $describe($t, false))->values()->all()];
+        $preview['token'] = hash_hmac('sha256', json_encode($preview), (string) config('app.key'));
+        return compact('preview', 'release', 'targets', 'vendor');
+    }
+
     public function apply(int $limit = 1000, bool $dryRun = false): array
     {
         $stats = [
@@ -88,7 +294,8 @@ class QuantumRoBufferApplyService
             $stats['scanned']++;
 
             try {
-                $result = DB::transaction(fn (): array => $this->applyLine($line->fresh(), $codeMap, $dryRun));
+                $result = DB::transaction(fn (): array => $this->applyLine(
+                    QuantumRoLine::query()->lockForUpdate()->findOrFail($line->id), $codeMap, $dryRun));
                 $stats[$result['status']]++;
             } catch (\Throwable $e) {
                 $stats['errors']++;
@@ -944,7 +1151,7 @@ class QuantumRoBufferApplyService
         return ['status' => 'ok', 'message' => '', 'released' => $released];
     }
 
-    private function findAppliedTarget(string $table, int $id): ?Model
+    private function findAppliedTarget(string $table, int $id, bool $lock = true): ?Model
     {
         $modelClass = match ($table) {
             'tdr_processes' => TdrProcess::class,
@@ -953,7 +1160,7 @@ class QuantumRoBufferApplyService
             default => null,
         };
 
-        return $modelClass ? $modelClass::query()->lockForUpdate()->find($id) : null;
+        return $modelClass ? $modelClass::query()->when($lock, fn ($q) => $q->lockForUpdate())->find($id) : null;
     }
 
     /** @param  Collection<int, Model>  $targets */

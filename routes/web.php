@@ -256,6 +256,7 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
 
 Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/wo-status', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'index'])->name('workorders.status');
+    Route::get('/wo-status/efficiency', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'efficiency'])->middleware('can:feature.wo_status.efficiency')->name('workorders.status.efficiency');
     Route::patch('/wo-status/{workorder}/completion-date', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'updateCompletionDate'])->name('workorders.status.completion-date');
 
     Route::get('/cabinet', [CabinetController::class, 'index'])->name('cabinet.index');
@@ -422,7 +423,15 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::delete('/manuals/{manual}/force', [ManualController::class, 'forceDestroy'])->name('manuals.force-destroy');
     Route::patch('/manuals/{manual}/additional-manuals', [ManualController::class, 'updateAdditionalManuals'])->name('manuals.additional-manuals.update');
+    Route::get('/manuals/{manual}/parts-rows', [ManualController::class, 'partsRows'])->name('manuals.parts-rows');
     Route::resource('/manuals', ManualController::class);
+    Route::get('/manuals/{manual}/traveler-templates', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'index'])->name('manuals.traveler-templates.index');
+    Route::post('/manuals/{manual}/traveler-templates', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'store'])->name('manuals.traveler-templates.store');
+    Route::post('/manuals/{manual}/traveler-templates/metadata', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'metadata'])->name('manuals.traveler-templates.metadata.create');
+    Route::patch('/manuals/{manual}/traveler-templates/{template}/metadata', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'metadata'])->name('manuals.traveler-templates.metadata');
+    Route::post('/manuals/{manual}/traveler-templates/{template}/step', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'step'])->name('manuals.traveler-templates.step');
+    Route::put('/manuals/{manual}/traveler-templates/{template}', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'update'])->name('manuals.traveler-templates.update');
+    Route::post('/tdr/{tdr}/traveler-template', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'apply'])->name('tdr.traveler-template.apply');
 
     // --- Dimension Figures (Manual settings) ---
     Route::get('/manuals/{manual}/dimension-figures', [ManualDimensionFigureController::class, 'index'])->name('manuals.dimension-figures.index');
@@ -577,6 +586,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::post('/trainings/createTraining', [TrainingController::class, 'createTraining'])->name('trainings.createTraining');
         Route::post('/trainings/updateToToday', [TrainingController::class, 'updateToToday'])->name('trainings.updateToToday');
         Route::post('/trainings/delete-all', [TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
+        Route::get('/trainings/week-calendar', [TrainingController::class, 'weekCalendar'])->name('trainings.weekCalendar');
+        Route::post('/trainings/week-availability', [TrainingController::class, 'weekAvailability'])->name('trainings.weekAvailability');
         Route::post('/trainings/exists', [TrainingController::class, 'exists'])->name('trainings.exists');
         Route::resource('/trainings', TrainingController::class)->except(['show', 'edit']);
 
@@ -701,6 +712,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/vendor-tracking/quantum-ro-lines/find-workorder', [VendorTrackingController::class, 'findQuantumRoLineByWorkorder'])->name('vendor-tracking.quantum-lines.find-workorder');
     Route::patch('/vendor-tracking/quantum-ro-lines/{quantumRoLine}/restore', [VendorTrackingController::class, 'restoreQuantumRoLine'])->name('vendor-tracking.quantum-lines.restore');
     Route::patch('/vendor-tracking/quantum-ro-lines/{quantumRoLine}/dismiss', [VendorTrackingController::class, 'dismissQuantumRoLine'])->name('vendor-tracking.quantum-lines.dismiss');
+    Route::get('/vendor-tracking/quantum-ro-lines/{quantumRoLine}/rebind-traveler', [VendorTrackingController::class, 'previewQuantumTravelerRebind'])->name('vendor-tracking.quantum-lines.rebind-preview');
+    Route::post('/vendor-tracking/quantum-ro-lines/{quantumRoLine}/rebind-traveler', [VendorTrackingController::class, 'rebindQuantumTraveler'])->name('vendor-tracking.quantum-lines.rebind');
 
     Route::get('/quality-assurance', [QualityAssuranceController::class, 'index'])->name('quality.index');
     Route::get('/quality-assurance/workorder', [QualityAssuranceController::class, 'workorder'])->name('quality.workorder');

@@ -63,11 +63,13 @@ class WorkorderAssyConfigurationController extends Controller
             // A changed parent can make an earlier axle/child choice unreachable.
             // Do not silently reactivate that stale choice if the parent returns.
             $reachable = collect($configuration->slots($workorder))->mapWithKeys(fn (array $slot): array => [
-                $configuration::key($slot['parent_option_id'], $slot['slot']) => true,
+                $configuration::key($slot['parent_option_id'], $slot['slot'])
+                    => array_column($slot['candidates'], 'coverage_id'),
             ]);
             WorkorderAssyConfigurationChoice::query()->where('workorder_id', $workorder->id)
                 ->get()->each(function (WorkorderAssyConfigurationChoice $choice) use ($reachable, $configuration): void {
-                    if (! $reachable->has($configuration::key((int) $choice->parent_option_id, (string) $choice->choice_slot))) {
+                    $candidates = $reachable->get($configuration::key((int) $choice->parent_option_id, (string) $choice->choice_slot), []);
+                    if (! in_array((int) $choice->selected_coverage_id, $candidates, true)) {
                         $choice->delete();
                     }
                 });

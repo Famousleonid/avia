@@ -2,6 +2,31 @@
 
 @section('content')
     <style>
+        #manualSearchLoading:not([hidden]) { display: flex; }
+        #manualSearchLoading { position: absolute; right: .6rem; top: 50%; transform: translateY(-50%); gap: 4px; pointer-events: none; color: var(--bs-info); }
+        #manualSearchLoading span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: manual-search-dot 1.2s infinite cubic-bezier(.37, 0, .63, 1); }
+        #manualSearchLoading span:nth-child(2) { animation-delay: -.2s; }
+        #manualSearchLoading span:nth-child(3) { animation-delay: -.4s; }
+        @keyframes manual-search-dot {
+            0%, 100% { opacity: .3; transform: translateY(3px); }
+            50% { opacity: 1; transform: translateY(-3px); }
+        }
+        @media (prefers-reduced-motion: reduce) { #manualSearchLoading span { animation: none; } }
+        #manualSearchChoices {
+            position: fixed;
+            z-index: 1080;
+            overflow-y: auto;
+            max-height: 280px;
+            padding: 6px;
+            border: 1px solid var(--bs-border-color);
+            border-radius: 6px;
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            box-shadow: 0 4px 16px #0004;
+        }
+        #manualSearchChoices a { display: block; padding: 6px 8px; border-radius: 4px; text-decoration: none; }
+        #manualSearchChoices a:hover, #manualSearchChoices a:focus { background: rgba(var(--bs-info-rgb), .15); }
+        #manualSearchChoices small { display: block; color: var(--bs-secondary-color); overflow-wrap: anywhere; }
         .table-wrapper {
             flex: 1 1 auto;
             min-height: 0;
@@ -204,6 +229,17 @@
             --bs-offcanvas-width: min(1240px, 100vw);
         }
 
+        #createCmmOffcanvas,
+        #editCmmOffcanvas {
+            background-color: var(--avia-surface);
+            color: var(--avia-text);
+        }
+
+        html[data-bs-theme="dark"] #createCmmOffcanvas .btn-close,
+        html[data-bs-theme="dark"] #editCmmOffcanvas .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+
         #createCmmOffcanvas .offcanvas-body,
         #editCmmOffcanvas .offcanvas-body {
             flex: 1 1 auto;
@@ -224,7 +260,7 @@
         }
 
         .cmm-drawer-right {
-            border-left: 1px solid rgba(255, 255, 255, .08);
+            border-left: 1px solid var(--avia-border);
         }
 
         .cmm-drawer-units,
@@ -252,7 +288,7 @@
         @media (max-width: 991.98px) {
             .cmm-drawer-right {
                 border-left: 0;
-                border-top: 1px solid rgba(255, 255, 255, .08);
+                border-top: 1px solid var(--avia-border);
                 padding-top: 1rem;
             }
         }
@@ -269,6 +305,7 @@
                 </h5>
 
                 <div class="clearable-input">
+                    <span id="manualSearchLoading" role="status" aria-label="{{ __('Loading manual') }}" hidden><span></span><span></span><span></span></span>
                     <input id="searchInput"
                            type="text"
                            class="form-control form-control-sm w-100"
@@ -509,10 +546,10 @@
         </div>
     @endif
 
-    <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="createCmmOffcanvas" aria-labelledby="createCmmOffcanvasLabel">
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="createCmmOffcanvas" aria-labelledby="createCmmOffcanvasLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title text-info" id="createCmmOffcanvasLabel">{{ __('Create new CMM') }}</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
         </div>
         <div class="offcanvas-body">
             <form method="POST" action="{{ route('manuals.store') }}" enctype="multipart/form-data" id="createCmmDrawerForm" novalidate>
@@ -624,10 +661,10 @@
         </div>
     </div>
 
-    <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="editCmmOffcanvas" aria-labelledby="editCmmOffcanvasLabel">
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="editCmmOffcanvas" aria-labelledby="editCmmOffcanvasLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title text-info" id="editCmmOffcanvasLabel">{{ __('Edit CMM') }}</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
         </div>
         <div class="offcanvas-body">
             <form method="POST" enctype="multipart/form-data" id="editCmmDrawerForm" novalidate>
@@ -817,6 +854,96 @@
             const headers = document.querySelectorAll('.sortable');
 
             let inputTimer = null;
+            let openingManual = false;
+            const searchLoading = document.getElementById('manualSearchLoading');
+            function setOpeningManual(busy) {
+                openingManual = busy;
+                searchLoading.hidden = !busy;
+                if (searchInput) { searchInput.readOnly = busy; searchInput.setAttribute('aria-busy', String(busy)); }
+                if (clearBtn) { clearBtn.hidden = busy; clearBtn.disabled = busy; }
+            }
+            function openManual(url) {
+                if (openingManual) return;
+                closeChoices();
+                setOpeningManual(true);
+                // Let the indicator paint before starting document navigation.
+                requestAnimationFrame(() => requestAnimationFrame(() => window.location.assign(url)));
+            }
+            window.addEventListener('pageshow', () => setOpeningManual(false));
+
+            // Outside the scrolling card so the chooser cannot be clipped by its parents.
+            const choices = document.createElement('div');
+            choices.id = 'manualSearchChoices';
+            choices.hidden = true;
+            choices.setAttribute('aria-label', '{{ __('Choose manual') }}');
+            document.body.appendChild(choices);
+            searchInput?.setAttribute('aria-controls', choices.id);
+            searchInput?.setAttribute('aria-expanded', 'false');
+            function closeChoices() {
+                choices.hidden = true;
+                searchInput?.setAttribute('aria-expanded', 'false');
+            }
+            function positionChoices() {
+                if (choices.hidden || !searchInput) return;
+                const rect = searchInput.getBoundingClientRect();
+                const width = Math.min(Math.max(rect.width, 320), window.innerWidth - 16);
+                choices.style.width = width + 'px';
+                choices.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) + 'px';
+                choices.style.top = (rect.bottom + 4) + 'px';
+                choices.style.maxHeight = Math.max(60, Math.min(280, window.innerHeight - rect.bottom - 16)) + 'px';
+            }
+            document.addEventListener('pointerdown', event => {
+                if (!choices.contains(event.target) && !searchInput?.contains(event.target)) closeChoices();
+            });
+            document.addEventListener('keydown', event => {
+                if (choices.hidden) return;
+                if (event.key === 'Escape') { closeChoices(); searchInput.focus(); }
+                if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+                if (event.target !== searchInput && !choices.contains(event.target)) return;
+                const links = [...choices.querySelectorAll('a')];
+                if (!links.length) return;
+                event.preventDefault();
+                const index = links.indexOf(document.activeElement);
+                links[(index + (event.key === 'ArrowDown' ? 1 : links.length - 1) + links.length) % links.length].focus();
+            });
+            window.addEventListener('resize', positionChoices);
+            window.addEventListener('scroll', positionChoices, true);
+            searchInput?.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' || event.isComposing) return;
+                event.preventDefault();
+                if (openingManual) return;
+                clearTimeout(inputTimer);
+                const value = searchInput.value.trim();
+                applySearch(value);
+                hideTableLoader();
+                closeChoices();
+                if (!value) return;
+                const matches = rows.filter(row => row.style.display !== 'none')
+                    .map(row => ({ row, link: row.cells[0]?.querySelector('a[href]') })).filter(item => item.link);
+                if (matches.length === 1) { openManual(matches[0].link.href); return; }
+                choices.replaceChildren();
+                if (!matches.length) {
+                    choices.textContent = '{{ __('No matching manuals available to open.') }}';
+                }
+                matches.forEach(({row, link}) => {
+                    const option = document.createElement('a');
+                    option.href = link.href;
+                    option.addEventListener('click', event => {
+                        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                        event.preventDefault();
+                        openManual(option.href);
+                    });
+                    option.className = 'text-info';
+                    option.textContent = link.textContent.trim();
+                    const title = document.createElement('small');
+                    title.textContent = [row.cells[1]?.textContent.trim(), row.cells[2]?.textContent.trim()].filter(Boolean).join(' · ');
+                    option.appendChild(title);
+                    choices.appendChild(option);
+                });
+                choices.hidden = false;
+                searchInput.setAttribute('aria-expanded', 'true');
+                positionChoices();
+            });
 
             function showGlobalSpinner() {
                 if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
@@ -920,6 +1047,7 @@
 
             if (searchInput) {
                 searchInput.addEventListener('input', () => {
+                    closeChoices();
                     const value = searchInput.value.trim();
                     saveSearchValue(value);
 
@@ -936,6 +1064,7 @@
             if (clearBtn) {
                 clearBtn.addEventListener('click', (e) => {
                     e.preventDefault();
+                    closeChoices();
 
                     if (searchInput) {
                         searchInput.value = '';

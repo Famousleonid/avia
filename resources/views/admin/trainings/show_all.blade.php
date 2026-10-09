@@ -93,6 +93,20 @@
             font-weight: 400;
         }
 
+        .training-table .training-person-calendar {
+            display: block;
+            width: 100%;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            text-align: center;
+            cursor: pointer;
+        }
+        .training-table .training-person-calendar:hover .training-person-name { text-decoration: underline; }
+        .training-table .training-person-calendar:focus-visible { outline: 2px solid var(--bs-info, #0dcaf0); outline-offset: 3px; }
+
         /* Строка-заголовок группы — как зелёные секции в Excel.
            Ячейка шириной во всю таблицу, поэтому текст прижат влево
            и прилипает к левому краю видимой области при скролле. */
@@ -326,8 +340,13 @@
                                 <th class="col-part text-center">PART NUMBER APPROVED</th>
                                 @foreach($users as $user)
                                     <th class="user-column">
-                                        {{ $user->selection_name }}
-                                        <span class="stamp-no">{{ $user->stamp }}</span>
+                                        <button type="button" class="training-person-calendar training-week-calendar-btn"
+                                                data-user-id="{{ $user->id }}"
+                                                title="{{ __('Training weeks') }} — {{ $user->selection_name }}"
+                                                aria-label="{{ __('Training weeks') }} — {{ $user->selection_name }}">
+                                            <span class="training-person-name">{{ $user->selection_name }}</span>
+                                            <span class="stamp-no">{{ $user->stamp }}</span>
+                                        </button>
                                     </th>
                                 @endforeach
                             </tr>
@@ -593,6 +612,8 @@
                     document.getElementById('matrixTrainInfo').textContent =
                         td.dataset.trainPn + ' — ' + td.dataset.trainUserName;
                     const dateInput = document.getElementById('matrixTrainDate');
+                    dateInput.dataset.trainingUserId = trainCtx.user;
+                    dateInput.classList.remove('is-invalid');
                     dateInput.value = '{{ now()->format('d/M/Y') }}';
                     if (window.initProjectDatePickers) {
                         window.initProjectDatePickers(modalEl);
@@ -800,6 +821,9 @@
                 input.setAttribute('data-project-date', '');
                 input.autocomplete = 'off';
                 input.value = rec.date;
+                input.dataset.trainingWeek = '';
+                input.dataset.trainingId = rec.id;
+                input.dataset.trainingUserId = trainCtx.user;
 
                 const saveBtn = document.createElement('button');
                 saveBtn.type = 'button';
@@ -818,6 +842,7 @@
 
                 cancelBtn.addEventListener('click', function () { loadPairHistory(); });
                 saveBtn.addEventListener('click', async function () {
+                    if (!window.TrainingWeekAvailability || !await window.TrainingWeekAvailability.check(input)) return;
                     const picked = input._projectDatePicker?.selectedDates?.[0];
                     if (!picked) return;
                     const ymd = picked.getFullYear() + '-'
@@ -914,6 +939,7 @@
                 }
                 // flatpickr показывает 24/Aug/2026; на сервер шлём Y-m-d
                 const dateInput = document.getElementById('matrixTrainDate');
+                if (!window.TrainingWeekAvailability || !await window.TrainingWeekAvailability.check(dateInput)) return;
                 const picked = dateInput._projectDatePicker?.selectedDates?.[0];
                 if (!picked) {
                     errEl.textContent = @json(__('Select a date.'));
@@ -1169,4 +1195,5 @@
             }
         </script>
     @endif
+    @include('admin.trainings.partials.week-availability')
 @endsection

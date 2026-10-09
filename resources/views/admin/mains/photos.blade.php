@@ -191,6 +191,20 @@
                 <div id="photoPageContent" class="row g-3">
                     <div class="col-12 text-muted small">Loading...</div>
                 </div>
+                <section id="workorderVideos" class="mt-3 pt-3 border-top" aria-label="Video">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                        <h6 class="text-primary text-uppercase mb-0">Video</h6>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-info" id="addWorkorderVideo">Add video</button>
+                            <button type="button" class="btn btn-sm btn-outline-info" id="recordWorkorderVideo">Record video</button>
+                        </div>
+                    </div>
+                    <input type="file" id="workorderVideoFile" class="d-none" accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm">
+                    <input type="file" id="workorderVideoCapture" class="d-none" accept="video/*" capture="environment">
+                    <p class="small text-muted mb-2">MP4, MOV or WebM · max 50 MB per video. Shared with Documents → Video.</p>
+                    <div id="workorderVideoProgress" class="small text-info mb-2" role="status" aria-live="polite"></div>
+                    <div id="workorderVideoList" class="row g-3"><div class="col-12 text-muted small">Loading videos…</div></div>
+                </section>
             </div>
         </div>
 
@@ -232,4 +246,5 @@
         window.currentWorkorderId = {{ (int) $workorder->id }};
     </script>
     @include('admin.mains.partials.js.mains-photos-page')
+    <script src="{{ asset('js/workorder-videos.js') }}?v={{ filemtime(public_path('js/workorder-videos.js')) }}"></script>
 @endsection

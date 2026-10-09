@@ -43,6 +43,7 @@ html[data-bs-theme=light] .ws-ecd-calendar{--ws-cal-bg:#fff;--ws-cal-text:#17324
 @endsection
 @section('content')
 <div class="wo-status ws-restoring">
+    @include('admin.workorders.partials.status-tabs')
     <header class="ws-header"><div><h1>WO Status</h1></div><div class="ws-total"><strong id="wsTotal">{{ $workorders->total() }}</strong> workorders</div></header>
     <form method="get" action="{{ route('workorders.status') }}" class="ws-filters" id="woStatusFilters" data-no-spinner>
         <div><label for="wsCustomer">Customer</label><select id="wsCustomer" name="customer_id" class="form-select"><option value="">All customers</option>@foreach($customers as $customer)<option value="{{ $customer->id }}" @selected(request('customer_id') == $customer->id)>{{ $customer->name }}</option>@endforeach</select></div>

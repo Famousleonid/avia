@@ -423,7 +423,7 @@
     ]);
 </script>
 
-@php($hideAiWidget = request()->routeIs('paint.index', 'machining.index', 'vendor-tracking.*'))
+@php($hideAiWidget = request()->routeIs('paint.index', 'machining.index'))
 @if(! $hideAiWidget)
     @include('admin.ai_widget')
 @endif

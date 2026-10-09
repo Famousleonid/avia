@@ -3,7 +3,7 @@
 @section('content')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"/>
     @php
-        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'revision', 'dimensions', 'fc'];
+        $manualTabKeys = ['components', 'parts', 'processes', 'traveler', 'std', 'sb', 'revision', 'dimensions', 'fc'];
         $manualShowTab = in_array($manualShowTab ?? null, $manualTabKeys, true) ? $manualShowTab : 'components';
 
         $manualUrlParts = route('manuals.show', ['manual' => $cmm, 'tab' => 'parts']);
@@ -838,6 +838,16 @@
             40% { opacity: 1; transform: scale(1); }
         }
 
+        .manual-parts-search-loading span {
+            animation: manual-parts-search-wave 1.2s infinite cubic-bezier(.37, 0, .63, 1);
+        }
+        .manual-parts-search-loading span:nth-child(2) { animation-delay: -.2s; }
+        .manual-parts-search-loading span:nth-child(3) { animation-delay: -.4s; }
+        @keyframes manual-parts-search-wave {
+            0%, 100% { opacity: .3; transform: translateY(3px); }
+            50% { opacity: 1; transform: translateY(-3px); }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .manual-tabs-loading-dots span {
                 animation: none;
@@ -978,8 +988,8 @@
             </div>
             <script>
                 (function () {
-                    var allowedTabs = ['components', 'parts', 'processes', 'std', 'sb', 'revision', 'dimensions', 'fc'];
-                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std', '#nav-sb': 'sb', '#nav-revision': 'revision', '#nav-dimensions': 'dimensions'};
+                    var allowedTabs = ['components', 'parts', 'processes', 'traveler', 'std', 'sb', 'revision', 'dimensions', 'fc'];
+                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-traveler': 'traveler', '#nav-std': 'std', '#nav-sb': 'sb', '#nav-revision': 'revision', '#nav-dimensions': 'dimensions'};
                     var params = new URLSearchParams(location.search);
                     var q = params.get('tab');
                     var desiredKey = (q && allowedTabs.indexOf(q) !== -1)
@@ -1005,6 +1015,8 @@
                         </button>
                         <button class="nav-link @if($manualShowTab === 'processes') active @endif" id="nav-processes-tab" data-bs-toggle="tab" data-bs-target="#nav-processes"
                                 type="button" role="tab" aria-controls="nav-processes" aria-selected="{{ $manualShowTab === 'processes' ? 'true' : 'false' }}">Processes <span class="manual-parts-tab-count">({{ $manualProcessesCount }})</span></button>
+                        <button class="nav-link @if($manualShowTab === 'traveler') active @endif" id="nav-traveler-tab" data-bs-toggle="tab" data-bs-target="#nav-traveler"
+                                type="button" role="tab" aria-controls="nav-traveler" aria-selected="{{ $manualShowTab === 'traveler' ? 'true' : 'false' }}">Traveler templates</button>
                         <button class="nav-link @if($manualShowTab === 'std') active @endif" id="nav-std-tab" data-bs-toggle="tab" data-bs-target="#nav-std"
                                 type="button" role="tab" aria-controls="nav-std" aria-selected="{{ $manualShowTab === 'std' ? 'true' : 'false' }}">STD Processes</button>
                         <button class="nav-link @if($manualShowTab === 'sb') active @endif" id="nav-sb-tab" data-bs-toggle="tab" data-bs-target="#nav-sb"
@@ -1095,6 +1107,9 @@
                 </div>
             </nav>
             <div class="tab-content" id="nav-tabContent">
+                <div class="tab-pane fade @if($manualShowTab === 'traveler') show active @endif" id="nav-traveler" role="tabpanel" aria-labelledby="nav-traveler-tab">
+                    @include('admin.manuals.partials.traveler-templates')
+                </div>
                 <div class="tab-pane justify-content-start fade @if($manualShowTab === 'components') show active @endif" id="nav-components" role="tabpanel"
                      aria-labelledby="nav-components-tab" tabindex="0">
                     <div class=" component-table-container m-2">
@@ -1132,7 +1147,7 @@
                 </div>
                 <div class="tab-pane fade @if($manualShowTab === 'parts') show active @endif" id="nav-parts" role="tabpanel" aria-labelledby="nav-parts-tab" tabindex="0">
                     <div class="parts-table-container m-2">
-                        <table class="table table-sm table-hover table-bordered dir-table align-middle" id="manualPartsTable">
+                        <table class="table table-sm table-hover table-bordered dir-table align-middle" id="manualPartsTable" data-rows-url="{{ route('manuals.parts-rows', $cmm) }}" data-total="{{ $manualPartsCount }}">
                             <colgroup>
                                 <col class="manual-part-select-col">
                                 <col style="width: 8%;">
@@ -1181,7 +1196,7 @@
                             </thead>
                             <tbody class="text-center">
                                 @include('admin.components.partials.index-rows', [
-                                    'components' => $parts,
+                                    'components' => $parts->take(60),
                                     'showManualColumn' => false,
                                     'showEffCodeColumn' => true,
                                     'showSelectionColumn' => true,
@@ -1198,6 +1213,7 @@
                                 @endif
                             </tbody>
                         </table>
+                        <button type="button" class="btn btn-sm btn-outline-info w-100" id="manual-parts-more" hidden>Load more</button>
                     </div>
                     @include('admin.manuals.partials.part-groups-modal', [
                         'partGroups' => $partGroups,
@@ -2655,7 +2671,8 @@
 
                         var countEl = document.querySelector('#nav-parts-tab .manual-parts-tab-count');
                         if (countEl && tbody) {
-                            countEl.textContent = '(' + tbody.querySelectorAll('tr:not(.components-empty-row)').length + ')';
+                            table.dataset.total = Math.max(0, Number(table.dataset.total) - 1);
+                            countEl.textContent = '(' + table.dataset.total + ')';
                         }
 
                         table.dispatchEvent(new CustomEvent('manual-parts:row-deleted'));
@@ -2703,147 +2720,7 @@
             });
 
             if (input && table) {
-                const tbody = table.querySelector('tbody');
-                const sortableHeaders = Array.from(table.querySelectorAll('th.sortable'));
-                const partsSearchStorageKey = 'partsSearch:' + manualId;
-                let sortCol = 1;
-                let sortDir = 'asc';
-                let searchFrame = null;
-
-                input.value = await window.UserUiSettings.get(manualUiScope, partsSearchStorageKey, '');
-
-                function visiblePartRows() {
-                    return Array.from(tbody?.querySelectorAll('tr') || []).filter(function (row) {
-                        return !row.classList.contains('components-empty-row');
-                    });
-                }
-
-                function partRowCellText(row, columnIndex) {
-                    return (row.children[columnIndex]?.textContent || '').trim();
-                }
-
-                function iplSortKey(value) {
-                    const match = String(value || '').trim().match(/^(\d+)([A-Za-z]*)-(\d+)\s*([A-Za-z][A-Za-z0-9]*)?$/);
-                    if (!match) {
-                        return [1, 0, 0, String(value || '').trim().toUpperCase()];
-                    }
-
-                    return [
-                        0,
-                        Number(match[1]),
-                        match[2].toUpperCase(),
-                        Number(match[3]),
-                        (match[4] || '').toUpperCase(),
-                    ];
-                }
-
-                function compareIplValues(a, b) {
-                    const ak = iplSortKey(a);
-                    const bk = iplSortKey(b);
-
-                    for (let i = 0; i < ak.length; i++) {
-                        if (typeof ak[i] === 'number' || typeof bk[i] === 'number') {
-                            const diff = Number(ak[i]) - Number(bk[i]);
-                            if (diff !== 0) return diff;
-                        } else {
-                            const diff = String(ak[i]).localeCompare(String(bk[i]));
-                            if (diff !== 0) return diff;
-                        }
-                    }
-
-                    return 0;
-                }
-
-                function partRowSearchText(row) {
-                    if (!row.dataset.searchText) {
-                        row.dataset.searchText = [
-                            partRowCellText(row, 1),
-                            partRowCellText(row, 2),
-                            partRowCellText(row, 3),
-                            partRowCellText(row, 4),
-                            partRowCellText(row, 7),
-                        ].join(' ').toLowerCase();
-                    }
-
-                    return row.dataset.searchText;
-                }
-
-                function applyPartsSearch() {
-                    const query = input.value.trim().toLowerCase();
-
-                    visiblePartRows().forEach(function (row) {
-                        const visible = !query || partRowSearchText(row).includes(query);
-                        if (row.hidden === visible) {
-                            row.hidden = !visible;
-                        }
-                    });
-                }
-
-                function queuePartsSearch() {
-                    if (searchFrame) {
-                        cancelAnimationFrame(searchFrame);
-                    }
-                    window.UserUiSettings.set(manualUiScope, partsSearchStorageKey, input.value);
-                    searchFrame = requestAnimationFrame(function () {
-                        searchFrame = null;
-                        applyPartsSearch();
-                    });
-                }
-
-                function updateSortHeaders() {
-                    sortableHeaders.forEach(function (th) {
-                        th.classList.remove('sorted-asc', 'sorted-desc');
-                    });
-                        const active = sortableHeaders.find(function (th) {
-                            return th.cellIndex === sortCol;
-                        });
-                    if (active) active.classList.add(sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
-                }
-
-                function sortPartsTable(columnIndex) {
-                    if (!tbody) return;
-                    if (sortCol === columnIndex) {
-                        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        sortCol = columnIndex;
-                        sortDir = 'asc';
-                    }
-
-                    visiblePartRows()
-                        .sort(function (a, b) {
-                            const av = partRowCellText(a, columnIndex).toLowerCase();
-                            const bv = partRowCellText(b, columnIndex).toLowerCase();
-                            const header = sortableHeaders.find(function (th) {
-                                return th.cellIndex === columnIndex;
-                            });
-                            const result = header?.dataset.sortType === 'ipl'
-                                ? compareIplValues(av, bv)
-                                : av.localeCompare(bv, undefined, { numeric: true });
-
-                            return sortDir === 'asc' ? result : -result;
-                        })
-                        .forEach(function (row) {
-                            tbody.appendChild(row);
-                        });
-
-                    updateSortHeaders();
-                    applyPartsSearch();
-                }
-
-                input.addEventListener('input', queuePartsSearch);
-                clearInput?.addEventListener('click', function () {
-                    input.value = '';
-                    window.UserUiSettings.set(manualUiScope, partsSearchStorageKey, '');
-                    applyPartsSearch();
-                    input.focus();
-                });
-                sortableHeaders.forEach(function (th) {
-                    th.addEventListener('click', function () {
-                        sortPartsTable(th.cellIndex);
-                    });
-                });
-                updateSortHeaders();
-                applyPartsSearch();
+                await window.initManualPartsScroll({ table, input, clearInput, scope: manualUiScope, manualId });
                 partsSearchReady = true;
                 partsSearchSlot?.setAttribute('aria-busy', 'false');
             }
@@ -2867,6 +2744,7 @@
                 });
                 table.addEventListener('change', refresh);
                 table.addEventListener('manual-parts:row-deleted', refresh);
+                table.addEventListener('manual-parts:rows-loaded', refresh);
                 document.getElementById('parts-search')?.addEventListener('input', () => requestAnimationFrame(refresh));
                 refresh();
             })();
@@ -3244,6 +3122,7 @@
             if (fcOpenBtn) {
                 fcOpenBtn.addEventListener('click', function () {
                     if (fcVisible) showDimensions(); else showFcTable();
+                    window.UserUiSettings.set(manualUiScope, 'activeTab:' + manualId, fcVisible ? 'fc' : 'dimensions', { keepalive: true });
                 });
             }
 
@@ -3273,6 +3152,7 @@
                 components: '#nav-components',
                 parts: '#nav-parts',
                 processes: '#nav-processes',
+                traveler: '#nav-traveler',
                 std: '#nav-std',
                 sb: '#nav-sb',
                 revision: '#nav-revision',
@@ -3284,13 +3164,23 @@
             const serverTab = @json($manualShowTab);
             const manualActiveTabStorageKey = 'activeTab:' + manualId;
             let storedTab = await window.UserUiSettings.get(manualUiScope, manualActiveTabStorageKey, null);
+            const stdInnerKey = 'stdInnerTab:' + manualId;
+            const savedStdInner = await window.UserUiSettings.get(manualUiScope, stdInnerKey, 'ndt');
+            document.querySelectorAll('#std-process-inner-tab [data-bs-toggle="tab"]').forEach(button => {
+                button.addEventListener('shown.bs.tab', () => {
+                    window.UserUiSettings.set(manualUiScope, stdInnerKey, button.id.replace('std-process-inner-tab-', ''), { keepalive: true });
+                });
+            });
 
             function rememberManualShowTab(target) {
-                const key = Object.keys(tabKeyToPane).find(function (name) {
+                const key = target === '#nav-dimensions' && fcVisible ? 'fc' : Object.keys(tabKeyToPane).find(function (name) {
                     return tabKeyToPane[name] === target;
                 });
                 if (key) {
-                    window.UserUiSettings.set(manualUiScope, manualActiveTabStorageKey, key);
+                    window.UserUiSettings.set(manualUiScope, manualActiveTabStorageKey, key, { keepalive: true });
+                    const url = new URL(window.location.href);
+                    url.hash = target;
+                    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
                 }
             }
 
@@ -3355,7 +3245,7 @@
             }
 
             function activateStdInnerTabIfRequested() {
-                var inner = initialParams.get('std_inner');
+                var inner = initialParams.get('std_inner') || savedStdInner;
                 if (!inner) {
                     return;
                 }
@@ -3378,6 +3268,7 @@
 
             function finishManualShowTabsBoot() {
                 activeTab = document.querySelector('#nav-tab .nav-link.active');
+                if (activeTab?.id === 'nav-dimensions-tab' && (tabFromQuery || storedTab || serverTab) === 'fc') showFcTable();
                 if (activeTab) {
                     var target = activeTab.getAttribute('data-bs-target');
                     updateTabActions(target);
@@ -3809,6 +3700,8 @@
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/manuals/parts-scroll.js') }}?v={{ filemtime(public_path('js/manuals/parts-scroll.js')) }}" defer></script>
+    <script src="{{ asset('js/traveler-process-templates.js') }}?v={{ filemtime(public_path('js/traveler-process-templates.js')) }}" defer></script>
     {{-- ÐšÐ¾Ð½Ñ‚ÐµÐºÑÑ‚ CMM Ð´Ð»Ñ AI: Ð½Ð¾Ð¼ÐµÑ€ Ð¸ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸Ðµ â€” Ð±ÐµÐ· manual_id Ð² Ð¾Ñ‚Ð²ÐµÑ‚Ð°Ñ… Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»ÑŽ --}}
     <script>
         window.aiCurrentManual = @json([

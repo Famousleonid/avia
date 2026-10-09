@@ -429,14 +429,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     setHiddenInput('use_process_forms', '1');
                 }
 
-                if (
-                    @json($current_wo->isOverhaul())
-                    && (codeName === 'missing' || necessaryName === 'order new')
-                    && $('#order_component_id option:selected').attr('data-kit') === '1'
-                ) {
-                    e.preventDefault();
-                    (window.tdrShowNotify || function(m) { console.warn(m); })('{{ __('This part is already included in KIT and must not be duplicated in PRL.') }}', 'warning');
-                }
             });
         }
     };
@@ -1490,16 +1482,6 @@ function initTdrInlineCreate() {
             return;
         }
 
-        const selectedOrderOption = orderComponentSelect?.options[orderComponentSelect.selectedIndex] || null;
-        if (
-            @json($current_wo->isOverhaul())
-            && (codeName === 'missing' || necessaryName === 'order new')
-            && selectedOrderOption?.dataset?.kit === '1'
-        ) {
-            event.preventDefault();
-            (window.tdrShowNotify || function(m) { console.warn(m); })('{{ __('This part is already included in KIT and must not be duplicated in PRL.') }}', 'warning');
-            return;
-        }
 
         event.preventDefault();
 

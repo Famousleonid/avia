@@ -62,7 +62,9 @@ window.PLANE_TYPES = @json($planes->pluck('type', 'id'));
         targetBox = document.querySelector(this.dataset.planePicker);
         if (!targetBox) return;
         const picked = new Set([...targetBox.querySelectorAll('input[name="planes[]"]')].map(i => i.value));
-        const options = Object.entries(window.PLANE_TYPES).filter(([id]) => !picked.has(String(id)));
+        const options = Object.entries(window.PLANE_TYPES)
+            .filter(([id]) => !picked.has(String(id)))
+            .sort(([, a], [, b]) => String(a).trim().localeCompare(String(b).trim(), 'en', { sensitivity: 'base', numeric: true }));
         sel.innerHTML = options.map(([id, t]) => '<option value="' + id + '"></option>').join('');
         [...sel.options].forEach((o, i) => { o.textContent = options[i][1]; }); // text via DOM — no HTML injection
         sel.classList.toggle('d-none', options.length === 0);

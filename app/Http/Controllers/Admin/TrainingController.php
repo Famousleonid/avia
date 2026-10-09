@@ -16,6 +16,87 @@ use Illuminate\Support\Facades\Auth;
 
 class TrainingController extends Controller
 {
+    public function callAction($method, $parameters)
+    {
+        if (!in_array($method, ['store', 'createTraining', 'updateToToday', 'update', 'matrixCourseDateStore'], true)) {
+            return parent::callAction($method, $parameters);
+        }
+
+        // Wrap the action itself: Laravel renders validation exceptions inside the middleware pipeline.
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($method, $parameters) {
+            $userId = $method === 'updateToToday' ? auth()->id() : $this->resolveTargetUserId(request());
+            if ($method === 'update') {
+                $userId = Training::findOrFail(request()->route('training'))->user_id;
+            }
+            User::whereKey($userId)->lockForUpdate()->firstOrFail();
+            return parent::callAction($method, $parameters);
+        });
+    }
+
+    private function createTrainingRecord(array $attributes): Training
+    {
+        if (!empty($attributes['date_training']) && empty($attributes['is_legacy'])
+            && ((string) ($attributes['form_type'] ?? '') === '112' || !empty($attributes['matrix_row_id']))) {
+            app(\App\Services\TrainingWeekAvailability::class)->assertAvailable(
+                (int) $attributes['user_id'], $attributes['date_training']
+            );
+        }
+
+        return Training::create($attributes);
+    }
+
+    public function weekCalendar(Request $request)
+    {
+        $data = $request->validate([
+            'user_id' => 'nullable|integer|exists:users,id',
+            'month' => 'required|date_format:Y-m',
+        ]);
+        $target = User::findOrFail($data['user_id'] ?? auth()->id());
+        // Same employee visibility as Trainings; team leaders can also inspect their team.
+        abort_unless(auth()->user()->canManageTrainingsFor($target)
+            || auth()->user()->roleIs(['Admin', 'Manager']), 403);
+
+        $calendar = app(\App\Services\TrainingWeekAvailability::class)->calendar($target->id, $data['month']);
+        $viewer = auth()->user();
+        $canEdit = $viewer->id === $target->id || $viewer->roleIs(['Admin', 'Manager']);
+        foreach ($calendar['weeks'] as &$week) {
+            foreach ($week['trainings'] as &$training) {
+                $training['edit_url'] = $canEdit && (!$training['approved'] || $viewer->canManageApprovedTrainings())
+                    ? route('trainings.index', ['user_id' => $target->id, 'edit_training' => $training['id']]) : null;
+            }
+            unset($training);
+        }
+        unset($week);
+        return response()->json(array_merge($calendar, ['employee' => $target->selection_name]));
+    }
+
+    public function weekAvailability(Request $request)
+    {
+        $data = $request->validate([
+            'user_id' => 'nullable|integer|exists:users,id',
+            'date_training' => 'required|date|before_or_equal:today',
+            'training_id' => 'nullable|integer|exists:trainings,id',
+            'reserved_dates' => 'nullable|array|max:200',
+            'reserved_dates.*' => 'required|date|before_or_equal:today',
+        ]);
+        $target = User::findOrFail($data['user_id'] ?? auth()->id());
+        $ignoreId = $data['training_id'] ?? null;
+        // Match the existing date-edit permission as well as the add-training permission.
+        abort_unless(auth()->user()->canManageTrainingsFor($target)
+            || ($ignoreId && auth()->user()->roleIs(['Admin', 'Manager'])), 403);
+        if ($ignoreId) {
+            $training = Training::findOrFail($ignoreId);
+            abort_unless((int) $training->user_id === (int) $target->id, 403);
+            if ((string) $training->form_type === '132') {
+                return response()->json(['available' => true, 'date' => $this->fridayOf($data['date_training'])]);
+            }
+        }
+
+        return response()->json(app(\App\Services\TrainingWeekAvailability::class)->check(
+            $target->id, $data['date_training'], $ignoreId, $data['reserved_dates'] ?? []
+        ));
+    }
+
     /**
      * Любая введённая дата определяет НЕДЕЛЮ обучения: в БД и на формах
      * (112 и 132) дата хранится пятницей — формы печатают период Пн–Пт
@@ -24,16 +105,7 @@ class TrainingController extends Controller
      */
     private function fridayOf($date): string
     {
-        $friday = \Carbon\Carbon::parse($date)
-            ->startOfWeek(\Carbon\Carbon::MONDAY)
-            ->addDays(4)
-            ->startOfDay();
-
-        if ($friday->isAfter(\Carbon\Carbon::today())) {
-            $friday->subWeek();
-        }
-
-        return $friday->format('Y-m-d');
+        return app(\App\Services\TrainingWeekAvailability::class)->friday($date);
     }
 
 
@@ -282,7 +354,7 @@ class TrainingController extends Controller
                     ->where('manuals_id', $manualId)
                     ->exists();
                 if (!$exists) {
-                    Training::create([
+                    $this->createTrainingRecord([
                         'user_id' => $userId,
                         'manuals_id' => $manualId,
                         'date_training' => null,
@@ -290,7 +362,7 @@ class TrainingController extends Controller
                         'is_legacy' => true,
                     ]);
                     if ($withForm132) {
-                        Training::create([
+                        $this->createTrainingRecord([
                             'user_id' => $userId,
                             'manuals_id' => $manualId,
                             'date_training' => $form132Date,
@@ -337,7 +409,7 @@ class TrainingController extends Controller
             ->first();
 
         if (!$existingForm132) {
-            Training::create([
+            $this->createTrainingRecord([
                 'user_id' => $userId,
                 'manuals_id' => $manualId,
                 'date_training' => $firstDate->format('Y-m-d'),
@@ -352,7 +424,7 @@ class TrainingController extends Controller
                 ->where('form_type', '112')
                 ->exists();
             if (!$exists) {
-                Training::create([
+                $this->createTrainingRecord([
                     'user_id' => $userId,
                     'manuals_id' => $manualId,
                     'date_training' => $dateYmd,
@@ -392,8 +464,10 @@ class TrainingController extends Controller
     {
         try {
             $validatedData = $request->validate([
-                'manuals_id.*' => 'required',
-                'date_training.*' => 'required|date',
+                'manuals_id' => 'required|array|min:1',
+                'manuals_id.*' => 'required|integer|exists:manuals,id',
+                'date_training' => 'required|array|min:1',
+                'date_training.*' => 'required|date|before_or_equal:today',
                 'form_type.*' => 'required|in:112',
                 'user_id' => 'nullable|integer|exists:users,id',
                 'create_form_132' => 'nullable|boolean',
@@ -432,7 +506,7 @@ class TrainingController extends Controller
 
                 if (!$existingTraining112) {
                     // Создаем тренировку формы 112
-                    Training::create([
+                    $this->createTrainingRecord([
                         'user_id' => $userId,
                         'manuals_id' => $manualId,
                         'date_training' => $trainingDate,
@@ -449,7 +523,7 @@ class TrainingController extends Controller
                 // Берем дату первой тренировки для формы 132
                 $firstTrainingDate = $this->fridayOf($validatedData['date_training'][0]);
 
-                Training::create([
+                $this->createTrainingRecord([
                     'user_id' => $userId,
                     'manuals_id' => $manualId,
                     'date_training' => $firstTrainingDate,
@@ -494,7 +568,7 @@ class TrainingController extends Controller
                 'submitted_dates' => array_map(fn ($date) => $this->fridayOf($date), $validatedData['date_training']),
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            throw $e; // Let the transaction roll back the whole batch, including Form 132.
         }
     }
 
@@ -522,8 +596,10 @@ class TrainingController extends Controller
     {
         try {
             $validatedData = $request->validate([
-                'manuals_id.*' => 'required',
-                'date_training.*' => 'required|date',
+                'manuals_id' => 'required|array|min:1',
+                'manuals_id.*' => 'required|integer|exists:manuals,id',
+                'date_training' => 'required|array|min:1',
+                'date_training.*' => 'required|date|before_or_equal:today',
                 'form_type.*' => 'required|in:112'
             ]);
 
@@ -543,7 +619,7 @@ class TrainingController extends Controller
 
                 if (!$existingTraining112) {
                     // Создаем тренировку формы 112 на сегодняшнюю дату
-                    Training::create([
+                    $this->createTrainingRecord([
                         'user_id' => $userId,
                         'manuals_id' => $manualId,
                         'date_training' => $trainingDate,
@@ -567,7 +643,7 @@ class TrainingController extends Controller
                 'skipped' => $skippedCount
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            throw $e; // Let the transaction roll back the whole batch, including Form 132.
         }
     }
 
@@ -729,7 +805,11 @@ class TrainingController extends Controller
             'date_training' => 'required|date|before_or_equal:today',
         ]);
 
-        $training->date_training = $this->fridayOf($validated['date_training']);
+        $newDate = $this->fridayOf($validated['date_training']);
+        if ((string) $training->form_type !== '132' && $newDate !== $training->date_training) {
+            app(\App\Services\TrainingWeekAvailability::class)->assertAvailable($training->user_id, $newDate, $training->id);
+        }
+        $training->date_training = $newDate;
         $training->save();
 
         return response()->json([
@@ -1004,7 +1084,7 @@ class TrainingController extends Controller
             ->exists();
 
         if (!$exists) {
-            Training::create([
+            $this->createTrainingRecord([
                 'user_id' => $data['user_id'],
                 'manuals_id' => $data['manual_id'],
                 'date_training' => null,
@@ -1070,7 +1150,7 @@ class TrainingController extends Controller
             ->exists();
 
         if (!$exists) {
-            Training::create([
+            $this->createTrainingRecord([
                 'user_id' => $data['user_id'],
                 'manuals_id' => null,
                 'matrix_row_id' => $row->id,

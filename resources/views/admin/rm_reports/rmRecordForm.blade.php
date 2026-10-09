@@ -334,7 +334,17 @@
     </style>
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkFormKey' => 'rm'])
+@include('shared.print-mark.qr', [
+    'printMarkFormKey' => 'rm',
+    'printMarkQrTop' => '-40px',
+    'printMarkQrPrintTop' => '0',
+])
+@if(app(\App\Services\PrintFormQrSettings::class)->enabled('rm'))
+    <style>
+        /* Keep the QR above the WO box, within the printable page. */
+        @media print { .container-fluid > .title { padding-top: 44px; } }
+    </style>
+@endif
 
 <!-- Кнопки для печати и настроек -->
 <div class="text-start m-3">

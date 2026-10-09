@@ -11,6 +11,18 @@ const PdfUploadHandler = {
         form.dataset.bound = '1';
         form.addEventListener('submit', (event) => event.preventDefault());
         this.bindDropZone();
+        document.getElementById('pdfUploadCategory')?.addEventListener('change', () => this.updateFileTypes());
+        this.updateFileTypes();
+    },
+
+    updateFileTypes() {
+        const video = document.getElementById('pdfUploadCategory')?.value === 'video';
+        const input = document.getElementById('pdfFileInput');
+        if (input) input.accept = video ? '.mp4,.mov,.webm,video/mp4,video/quicktime,video/webm' : '.pdf,.jpg,.jpeg,.png,.webp';
+        const title = document.querySelector('#pdfDropZone .pdf-drop-title');
+        const meta = document.querySelector('#pdfDropZone .pdf-drop-meta');
+        if (title) title.textContent = video ? 'Drop video here, or click to upload' : 'Drop PDF or scan here, or click to upload';
+        if (meta) meta.textContent = (video ? 'MP4, MOV or WebM.' : 'PDF, JPG/JPEG, PNG or WebP.') + ' One file, max 50 MB. Upload starts automatically.';
     },
 
     bindDropZone() {
@@ -106,7 +118,9 @@ const PdfUploadHandler = {
         }
 
         if (!this.isSupportedFile(file)) {
-            showNotification('Please select a PDF, JPG/JPEG, PNG or WebP file (max 50 MB).', 'warning');
+            showNotification(document.getElementById('pdfUploadCategory')?.value === 'video'
+                ? 'Please select an MP4, MOV or WebM video (max 50 MB).'
+                : 'Please select a PDF, JPG/JPEG, PNG or WebP file (max 50 MB). For videos, choose the Video category.', 'warning');
             this.clearFormFile();
             return;
         }
@@ -199,7 +213,8 @@ const PdfUploadHandler = {
 
     isSupportedFile(file) {
         const name = (file?.name || '').toLowerCase();
-        return file && /\.(pdf|jpe?g|png|webp)$/.test(name) && file.size <= 50 * 1024 * 1024;
+        const pattern = document.getElementById('pdfUploadCategory')?.value === 'video' ? /\.(mp4|mov|webm)$/ : /\.(pdf|jpe?g|png|webp)$/;
+        return file && pattern.test(name) && file.size <= 50 * 1024 * 1024;
     },
 
     updateSelectedFile(file) {

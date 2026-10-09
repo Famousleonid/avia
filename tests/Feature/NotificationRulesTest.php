@@ -822,6 +822,63 @@ class NotificationRulesTest extends TestCase
         \Carbon\Carbon::setTestNow();
     }
 
+    public function test_closed_workorders_skip_initial_and_repeated_process_notifications(): void
+    {
+        $recipient = $this->createUserWithRole('Technician');
+        $rule = $this->createRule('tdr_process.ready_for_next', [
+            ['type' => 'user', 'value' => $recipient->id],
+        ], ['exclude_actor' => false]);
+        $name = $this->createProcessName('STD Paint List');
+
+        foreach ([TdrProcess::class, WorkorderStdProcess::class] as $processClass) {
+            Notification::fake();
+            $workorder = $this->createWorkorder([
+                'user_id' => $recipient->id,
+                'approve_at' => now()->subMonth(),
+            ]);
+            $workorder->forceFill(['done_at' => now()->subWeek()->toDateString()])->save();
+            if ($processClass === WorkorderStdProcess::class) {
+                $process = WorkorderStdProcess::create([
+                    'workorder_id' => $workorder->id, 'std_type' => 'paint',
+                    'process_name_id' => $name->id, 'ignore_row' => false,
+                ]);
+            } else {
+                $component = Component::create([
+                    'manual_id' => $workorder->unit->manual_id,
+                    'part_number' => 'CLOSED-' . uniqid(), 'name' => 'Closed WO part',
+                    'ipl_num' => '1-10', 'eff_code' => 'ALL',
+                ]);
+                $tdr = Tdr::create([
+                    'workorder_id' => $workorder->id, 'component_id' => $component->id, 'qty' => 1,
+                ]);
+                $process = TdrProcess::create([
+                    'tdrs_id' => $tdr->id, 'process_names_id' => $name->id,
+                    'sort_order' => 1, 'ignore_row' => false,
+                ]);
+            }
+            // Reproduce the stale reminder left behind when a WO is closed.
+            $log = EventLog::create([
+                'event_key' => 'tdr_process.ready_for_next',
+                'notification_event_rule_id' => $rule->id,
+                'subject_type' => $processClass, 'subject_id' => $process->id,
+                'recipient_user_id' => $recipient->id,
+                'first_sent_at' => now()->subMonth(), 'last_sent_at' => now()->subWeek(),
+                'sent_count' => 10,
+            ]);
+            Notification::fake(); // Ignore assignment notifications from fixture creation.
+            $this->assertNotNull($workorder->fresh()->done_at);
+            app(\App\Services\ProcessSequenceNotifier::class)->notifyReady($process, $process);
+            app(EventRunner::class)->run([new ProcessReadyForNextReminderEvent()]);
+            Notification::assertNothingSent();
+            $this->assertSame(10, (int) $log->fresh()->sent_count);
+
+            $workorder->forceFill(['done_at' => null])->save();
+            app(EventRunner::class)->run([new ProcessReadyForNextReminderEvent()]);
+            Notification::assertSentToTimes($recipient, NewMessageNotification::class, 1);
+            $this->assertSame(11, (int) $log->fresh()->sent_count);
+        }
+    }
+
     public function test_ready_for_next_reminder_skips_process_without_workorder(): void
     {
         Notification::fake();

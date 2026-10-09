@@ -193,48 +193,49 @@ class TdrInlinePartWorkflowTest extends TestCase
         ]);
     }
 
-    public function test_order_new_rejects_a_part_that_is_already_in_kit(): void
+    public function test_order_new_kit_part_is_saved_in_tdr_without_prl_duplicate_and_excluded_from_ndt(): void
     {
         $admin = $this->createUserWithRole('Admin');
-        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
         $manualId = $workorder->unit->manual_id;
-        $inspectedComponent = Component::query()->create([
-            'manual_id' => $manualId,
-            'ipl_num' => '1-100',
-            'part_number' => 'INSPECTED-100',
-            'name' => 'Inspected Part',
-        ]);
         $kitComponent = Component::query()->create([
             'manual_id' => $manualId,
-            'ipl_num' => '1-110',
-            'part_number' => 'KIT-110',
-            'name' => 'Kit Part',
+            'ipl_num' => '1-530',
+            'part_number' => '170-70266-001',
+            'name' => 'PIN',
+            'units_assy' => 1,
+            'ndt_list' => true,
             'kit' => true,
         ]);
-        $code = Code::query()->firstOrCreate(['name' => 'Damaged'], ['code' => 'DMG']);
+        $code = Code::query()->firstOrCreate(['name' => 'Worn'], ['code' => 'WRN']);
         $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
 
-        $response = $this->actingAs($admin)->postJson(route('tdrs.store'), [
+        $before = \App\Models\StdProcess::snapshotComponentsForWorkorder($workorder, \App\Models\StdProcess::STD_NDT);
+        $this->assertCount(1, $before);
+        $response = $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])->postJson(route('tdrs.store'), [
             'workorder_id' => $workorder->id,
             'inline_create' => 1,
-            'component_id' => $inspectedComponent->id,
+            'component_id' => $kitComponent->id,
             'codes_id' => $code->id,
             'necessaries_id' => $orderNew->id,
             'order_component_id' => $kitComponent->id,
+            'assy_serial_number' => null,
+            'description' => null,
+            'use_tdr' => 1,
+            'use_process_forms' => 0,
             'qty' => 1,
         ]);
 
-        $response
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('order_component_id')
-            ->assertJsonPath(
-                'errors.order_component_id.0',
-                'This part is already included in KIT and must not be duplicated in PRL.'
-            );
-        $this->assertDatabaseMissing('tdrs', [
+        $response->assertOk()->assertJsonPath('success', true);
+        $this->assertDatabaseHas('tdrs', [
             'workorder_id' => $workorder->id,
+            'component_id' => $kitComponent->id,
             'order_component_id' => $kitComponent->id,
+            'use_tdr' => 1,
         ]);
+        $this->assertCount(0, app(\App\Http\Controllers\Admin\TdrPrintFormController::class)->prlRows($workorder));
+        $after = \App\Models\StdProcess::snapshotComponentsForWorkorder($workorder, \App\Models\StdProcess::STD_NDT);
+        $this->assertCount(0, $after);
     }
 
     public function test_part_image_is_replaced_and_can_be_deleted_from_edit_part(): void

@@ -19,6 +19,7 @@ class CombinedProcessFormHandler {
         }
 
         container.dataset.combinedFormInitialized = '1';
+        container.combinedFormButton = button;
         container.addEventListener('change', (event) => {
             if (event.target.matches('.combined-form-select')) {
                 CombinedProcessFormHandler.refresh(container);
@@ -35,7 +36,7 @@ class CombinedProcessFormHandler {
     static refresh(container) {
         const selected = CombinedProcessFormHandler.selected(container);
         const selectedProcessNameId = selected[0]?.dataset.processNameId || null;
-        const button = container.querySelector('[data-combined-form-button]');
+        const button = container.combinedFormButton || container.querySelector('[data-combined-form-button]');
 
         container.querySelectorAll('.combined-form-select').forEach((checkbox) => {
             checkbox.disabled = selectedProcessNameId !== null
@@ -46,6 +47,8 @@ class CombinedProcessFormHandler {
         if (button) {
             button.disabled = selected.length < 2;
             button.textContent = `Combined Form (${selected.length})`;
+            button.classList.toggle('btn-outline-info', selected.length > 0);
+            button.classList.toggle('btn-outline-primary', selected.length === 0);
             button.title = selected.length < 2
                 ? 'Select at least two processes with the same name'
                 : `Open one form for ${selected.length} processes`;

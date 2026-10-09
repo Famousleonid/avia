@@ -13,6 +13,14 @@
  */
 return [
 
+    'wo_status.efficiency' => [
+        'label' => 'WO Status — Efficiency',
+        'group' => 'Pages',
+        'managed' => true,
+        'roles' => [],
+        'allow_is_admin' => false,
+    ],
+
     'paint' => [
         'label' => 'Paint',
         'roles' => ['Admin', 'Manager', 'Paint'],

@@ -469,14 +469,20 @@
             overflow: auto;
         }
 
+        .tdr-show-card:has(#content-part-processes.active) { flex: 1 1 0; min-height: 0; }
+        .tdr-show-card:has(#content-part-processes.active) > .card-header,
+        .tdr-show-card:has(#content-part-processes.active) #tdrShowTabsHeader { flex-shrink: 0; }
+        .tdr-show-card:has(#content-part-processes.active) > .card-body { display: flex; flex-direction: column; min-height: 0; }
+        #tdrShowTabContent:has(#content-part-processes.active) { flex: 1 1 0; min-height: 0; }
+        #content-part-processes { height: 100%; min-height: 0; }
         #content-part-processes .card {
-            height: calc(100dvh - 216px);
+            height: 100%;
             min-height: 0;
             overflow: hidden;
         }
 
         #componentProcessesTabBody {
-            height: calc(100dvh - 275px) !important;
+            flex: 1 1 0;
             min-height: 0 !important;
             overflow: hidden !important;
         }
@@ -486,6 +492,30 @@
             grid-template-rows: auto minmax(0, 1fr) auto;
             height: 100%;
             min-height: 0;
+        }
+
+        #componentProcessesTabBody .processes-modal-body[data-header-toolbar] {
+            grid-template-rows: minmax(0, 1fr) auto;
+        }
+        #content-part-processes .card > .card-header { flex-shrink: 0; }
+        #partProcessesHeaderActions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-left: auto; }
+        #partProcessesHeaderActions .processes-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin: 0; }
+        .tdr-show-card:has(#content-part-processes.active) #partProcessesShortcutActions { display: none !important; }
+
+        #componentProcessesTabBody .processes-modal-body:has(> [data-traveler-picker]) {
+            grid-template-rows: auto auto minmax(0, 1fr) auto;
+        }
+
+        .processes-modal-body > [data-traveler-picker] {
+            min-width: 0;
+            max-height: 30dvh;
+            overflow: auto;
+        }
+
+        [data-traveler-picker] label {
+            flex: 1 1 18rem;
+            max-width: 32rem;
+            min-width: 0;
         }
 
         #componentProcessesTabBody .processes-modal-body > .table-wrapper {
@@ -931,7 +961,7 @@
                     </div>
                     {{-- Temporary Part Processes tab content --}}
                     <div class="tab-pane fade" id="content-part-processes" role="tabpanel">
-                        <div class="card bg-gradient h-100">
+                        <div class="card bg-gradient">
                             <div class="card-header d-flex flex-wrap align-items-center gap-2">
                                 <div class="d-flex flex-wrap align-items-baseline gap-2">
                                     <h6 class="mb-0">{{ __('Part Processes') }}, {{ __('Work Order') }}: <span
@@ -941,6 +971,11 @@
                                             id="compProcessesIpl">-</span> | PN: <span id="compProcessesPn">-</span> |
                                         SN: <span id="compProcessesSn">-</span>
                                     </small>
+                                </div>
+                                <div id="partProcessesHeaderActions">
+                                    <div data-process-header-toolbar></div>
+                                    <button type="button" class="btn btn-outline-primary btn-sm text-nowrap"
+                                            onclick="document.getElementById('tab-extra-parts-processes')?.click()">{{ __('Fix fuckup') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}</button>
                                 </div>
                             </div>
                             <div class="card-body p-2" id="componentProcessesTabBody">
@@ -1080,5 +1115,6 @@
     @include('admin.tdrs.partials.assy-configuration-modal')
     @include('admin.tdrs.partials.group-process-modal')
     @include('admin.tdrs.partials.show-scripts')
+    <script src="{{ asset('js/traveler-process-templates.js') }}?v={{ filemtime(public_path('js/traveler-process-templates.js')) }}" defer></script>
 
 @endsection

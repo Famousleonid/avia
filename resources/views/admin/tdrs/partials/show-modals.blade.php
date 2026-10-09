@@ -402,7 +402,7 @@
                         <div class="pdf-upload-actions d-flex flex-wrap align-items-center gap-2">
                             <label class="form-label mb-0" for="pdfUploadCategory">Upload category:</label>
                             <select id="pdfUploadCategory" class="form-select form-select-sm" style="width:auto;font-size:12px" title="Document category">
-                                @foreach(\App\Models\DocumentCategory::orderBy('name')->get() as $category)
+                                @foreach(\App\Models\DocumentCategory::libraryCategories() as $category)
                                     <option value="{{ $category->key }}" @selected($category->key === 'general')>{{ $category->name }}</option>
                                 @endforeach
                             </select>
@@ -464,6 +464,7 @@
             </div>
             <div class="modal-body p-0 flex-grow-1 d-flex flex-column" style="min-height: 0; min-width: 0; overflow: hidden;">
                 <img id="documentViewerImage" class="d-none w-100" alt="Document scan" style="flex:1 1 0; min-height:0; object-fit:contain;">
+                <video id="documentViewerVideo" class="d-none w-100" controls playsinline preload="metadata" style="flex:1 1 0;min-height:0;object-fit:contain;"></video>
                 <iframe id="pdfViewerFrame" title="PDF" class="w-100 border-0 flex-grow-1 d-block" src="" style="flex: 1 1 0; min-height: 0; min-width: 0; width: 100%;"></iframe>
             </div>
             <div class="modal-footer flex-shrink-0">

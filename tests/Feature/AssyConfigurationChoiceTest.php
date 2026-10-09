@@ -223,6 +223,111 @@ class AssyConfigurationChoiceTest extends TestCase
         $this->assertSame(0, $slot['selected_coverage_id']);
     }
 
+    public function test_spacers_depend_on_sibling_tube_and_are_not_in_a_separately_ordered_tube(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $wo = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $root = $this->assy($manual->id, $this->part($manual->id, '1-780', 'ROOT'));
+        $old = $this->assy($manual->id, $this->part($manual->id, '9-390', 'TUBE-401'));
+        $new = $this->assy($manual->id, $this->part($manual->id, '9-390B', 'TUBE-601'));
+        $oldTube = $root->coverages()->create(['covered_manual_part_group_option_id' => $old->id,
+            'choice_slot' => 'sliding_tube', 'applies_to' => ManualPartGroup::validScopes()]);
+        $newTube = $root->coverages()->create(['covered_manual_part_group_option_id' => $new->id,
+            'choice_slot' => 'sliding_tube', 'applies_to' => ManualPartGroup::validScopes()]);
+        $oldPart = $this->part($manual->id, '9-140', 'SPACER-001');
+        $newPart = $this->part($manual->id, '9-140A', 'SPACER-003');
+        $oldSpacer = $root->coverages()->create(['component_id' => $oldPart->id, 'qty' => 2,
+            'choice_slot' => 'wheel_axle_spacer', 'expand_ipl_family' => false,
+            'requires_selected_option_ids' => [$old->id], 'applies_to' => ManualPartGroup::validScopes()]);
+        $root->coverages()->create(['component_id' => $newPart->id, 'qty' => 2,
+            'choice_slot' => 'wheel_axle_spacer', 'expand_ipl_family' => false,
+            'requires_selected_option_ids' => [$old->id, $new->id], 'applies_to' => ManualPartGroup::validScopes()]);
+        $wo->update(['scope_type' => Unit::SCOPE_PART_GROUP_OPTION, 'scope_part_group_option_id' => $root->id]);
+        $order = Tdr::create(['workorder_id' => $wo->id, 'component_id' => $root->component_id,
+            'order_component_id' => $root->component_id, 'qty' => 1,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id]);
+        $configuration = app(\App\Services\WorkorderAssyConfiguration::class);
+        $this->assertSame(['sliding_tube'], array_column($configuration->slots($wo), 'slot'));
+        $this->actingAs($admin)->patchJson(route('workorders.assy-configuration.update', $wo), [
+            'parent_option_id' => $root->id, 'choice_slot' => 'sliding_tube', 'selected_coverage_id' => $oldTube->id,
+        ])->assertOk();
+        $this->patchJson(route('workorders.assy-configuration.update', $wo), [
+            'parent_option_id' => $root->id, 'choice_slot' => 'wheel_axle_spacer', 'selected_coverage_id' => $oldSpacer->id,
+        ])->assertOk();
+        $this->assertSame(2, app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, 'prl')[$oldPart->id]['covered_qty']);
+        $this->patchJson(route('workorders.assy-configuration.update', $wo), [
+            'parent_option_id' => $root->id, 'choice_slot' => 'sliding_tube', 'selected_coverage_id' => $newTube->id,
+        ])->assertOk();
+        $this->assertDatabaseMissing('workorder_assy_configuration_choices', [
+            'workorder_id' => $wo->id, 'choice_slot' => 'wheel_axle_spacer',
+        ]);
+        foreach (ManualPartGroup::validScopes() as $scope) {
+            $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, $scope);
+            $this->assertSame(2, $coverage[$newPart->id]['covered_qty']);
+            $this->assertArrayNotHasKey($oldPart->id, $coverage);
+        }
+        $this->assertSame(2, app(WorkorderPartScopeResolver::class)->componentQuantities($wo)[$newPart->id]);
+        $groups = ManualPartGroup::where('manual_id', $manual->id)->with('options.coverages')->get();
+        $members = app(ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups, $wo);
+        $this->assertContains($newPart->id, $members[$root->manual_part_group_id]->all());
+        $this->assertNotContains($oldPart->id, $members[$root->manual_part_group_id]->all());
+        $this->assertNotContains($newPart->id, $members[$new->manual_part_group_id]->all());
+        $order->update(['component_id' => $new->component_id, 'order_component_id' => $new->component_id]);
+        $wo->update(['scope_part_group_option_id' => $new->id]);
+        $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, 'prl');
+        $this->assertArrayNotHasKey($newPart->id, $coverage);
+        $this->assertArrayNotHasKey($oldPart->id, $coverage);
+    }
+
+    public function test_ordered_cam_assy_includes_its_seals_with_the_existing_alternative_group(): void
+    {
+        $manual = $this->createManual();
+        $admin = $this->createUserWithRole('Admin');
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $wo = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $admin->id]);
+        $alternative = ManualPartGroup::create(['manual_id' => $manual->id, 'code' => uniqid('CAM-ALT-'),
+            'name' => 'Existing Cam alternatives', 'type' => 'alternative_pn', 'behavior' => 'choose_one',
+            'applies_to' => ManualPartGroup::validScopes()]);
+        $map = ['9-280' => ['9-340' => 2, '9-350' => 2],
+            '9-280A' => ['9-340' => 2, '9-350' => 2, '9-355' => 1],
+            '9-280B' => ['9-340' => 2, '9-350' => 2],
+            '9-281' => ['9-341' => 2, '9-350' => 2, '9-355' => 1],
+            '9-282' => ['9-342' => 2, '9-351' => 2, '9-356' => 1],
+            '9-283' => ['9-343' => 2, '9-351' => 2, '9-356' => 1]];
+        $seals = []; $cams = [];
+        foreach ($map as $ipl => $members) {
+            $head = $this->part($manual->id, $ipl, 'CAM-'.$ipl);
+            $cams[$ipl] = $this->assy($manual->id, $head);
+            $alternative->options()->create(['component_id' => $head->id, 'part_number' => $head->part_number,
+                'ipl_num' => $ipl, 'option_kind' => 'alternate']);
+            foreach ($members as $memberIpl => $qty) {
+                $seals[$memberIpl] ??= $this->part($manual->id, $memberIpl, 'SEAL-'.$memberIpl);
+                $cams[$ipl]->coverages()->create(['component_id' => $seals[$memberIpl]->id, 'qty' => $qty,
+                    'expand_ipl_family' => false, 'applies_to' => ManualPartGroup::validScopes()]);
+            }
+        }
+        $order = Tdr::create(['workorder_id' => $wo->id, 'component_id' => $cams['9-280']->component_id,
+            'order_component_id' => $cams['9-280']->component_id, 'qty' => 1,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id]);
+        foreach ($cams as $ipl => $cam) {
+            $order->update(['component_id' => $cam->component_id, 'order_component_id' => $cam->component_id]);
+            foreach (ManualPartGroup::validScopes() as $scope) {
+                $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, $scope);
+                foreach ($seals as $sealIpl => $seal) {
+                    if (isset($map[$ipl][$sealIpl])) {
+                        $this->assertSame($map[$ipl][$sealIpl], $coverage[$seal->id]['covered_qty']);
+                    } else {
+                        $this->assertArrayNotHasKey($seal->id, $coverage);
+                    }
+                }
+            }
+        }
+        $this->assertSame(6, $alternative->options()->count());
+        $this->assertSame('alternative_pn', $alternative->fresh()->type);
+    }
+
     private function part(int $manualId, string $ipl, string $pn): Component
     {
         return Component::create(['manual_id' => $manualId, 'ipl_num' => $ipl,

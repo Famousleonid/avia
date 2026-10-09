@@ -23,7 +23,7 @@ class ProcessSequenceNotifier
         }
 
         $workorder = $this->workorderFor($nextProcess);
-        if (! $workorder || ! $workorder->approve_at) {
+        if (! $workorder || $workorder->done_at || ! $workorder->approve_at) {
             return;
         }
 

@@ -107,7 +107,12 @@ class PartGroupCoverageResolver
     {
         $orderedIds = Tdr::where('workorder_id', $workorder->id)->whereNotNull('order_component_id')
             ->pluck('order_component_id')->map(fn ($id) => (int) $id)->all();
-        if ($orderedIds === []) {
+        $logCardData = \App\Models\LogCard::where('workorder_id', $workorder->id)->value('component_data');
+        $logCardRows = is_string($logCardData) ? json_decode($logCardData, true) : $logCardData;
+        $logCardIds = collect(is_array($logCardRows) ? $logCardRows : [])
+            ->filter(fn ($row): bool => is_array($row) && ! empty($row['included']) && ! empty($row['component_id']))
+            ->pluck('component_id')->map(fn ($id) => (int) $id)->unique()->all();
+        if ($orderedIds === [] && $logCardIds === []) {
             return [];
         }
         $parts = \App\Models\Component::whereIn('manual_id', $workorder->usedManualIds())
@@ -116,10 +121,15 @@ class PartGroupCoverageResolver
         $coverage = [];
         foreach ($parts->groupBy(fn ($p) => $p->manual_id.'|'.PartVariantGrouping::iplFamily($p->ipl_num)) as $family) {
             $selected = $family->whereIn('id', $orderedIds);
+            // A replacement ordered in TDR takes precedence over the received
+            // Log Card variant. Otherwise use the actual installed variant.
+            if ($selected->isEmpty()) {
+                $selected = $family->whereIn('id', $logCardIds);
+            }
             if ($selected->isEmpty()) {
                 continue;
             }
-            foreach ($family->whereNotIn('id', $orderedIds) as $part) {
+            foreach ($family->whereNotIn('id', $selected->pluck('id')->all()) as $part) {
                 $coverage[(int) $part->id] = [
                     'covered_qty' => PHP_INT_MAX, 'group_id' => 0, 'option_id' => 0,
                     'reason' => 'IPL alternative not selected; selected P/N: '.$selected->pluck('part_number')->implode(', '),

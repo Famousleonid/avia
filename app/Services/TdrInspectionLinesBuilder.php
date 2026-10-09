@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Code;
 use App\Models\Condition;
 use App\Models\Necessary;
+use App\Models\Tdr;
 use App\Models\Workorder;
 use App\Models\WorkorderUnitInspection;
 use Illuminate\Support\Facades\Log;
@@ -82,6 +83,17 @@ class TdrInspectionLinesBuilder
             ->all();
 
         foreach ($current_wo->tdrs as $tdr) {
+            // Manufacture has an ordering row and a process row for the same parts.
+            // Print the ordering row once, but retain an unpaired process row.
+            if ($tdr->tdr_type === Tdr::TYPE_MANUFACTURE_REPAIR && filled($tdr->manufacture_pair_id)
+                && $current_wo->tdrs->contains(fn ($order) =>
+                    $order->tdr_type === Tdr::TYPE_MANUFACTURE_ORDER
+                    && $order->manufacture_pair_id === $tdr->manufacture_pair_id
+                    && $order->component_id === $tdr->component_id
+                    && $order->necessaries_id == $necessary?->id
+                    && $order->component && $order->codes)) {
+                continue;
+            }
             // Missing-coded rows are summarised by a single line further down.
             if ($code && $tdr->codes_id == $code->id) {
                 $hasMissingComponents = true;
@@ -122,11 +134,13 @@ class TdrInspectionLinesBuilder
                 $reason = $tdr->codes;
                 if ($component && $reason) {
                     $reasonName = $reason->name;
-                    $reasonPrefix = strcasecmp((string) $reasonName, 'Customer Request') === 0
+                    $isManufacture = strcasecmp((string) $reasonName, 'Manufacture') === 0;
+                    $reasonPrefix = ($isManufacture || strcasecmp((string) $reasonName, 'Customer Request') === 0)
                         ? $reasonName . ': '
                         : $reasonName . ' (scrap): ';
 
-                    if (! empty($tdr->description)) {
+                    if (! empty($tdr->description) && !($isManufacture
+                        && strcasecmp(trim($tdr->description), trim($component->name)) === 0)) {
                         $componentString = sprintf(
                             "(%s%s)<b> %s </b>: ( %s)",
                             strtoupper($component->ipl_num),

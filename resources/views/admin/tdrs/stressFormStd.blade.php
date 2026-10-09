@@ -84,7 +84,7 @@
                     </div>
                 </div>
 
-                <div class="std-instruction std-instruction-row">
+                <div class="std-instruction std-instruction-row std-instruction-row--stress">
                     <div>Perform the Stress Relief as specified under Process No. and in accordance with SMM No.</div>
                     <div class="std-manual-ref-label">MANUAL REF:</div>
                     <div class="std-manual-ref-box">{{ $manualNumber }}</div>

@@ -15,6 +15,7 @@ LEFT SIDEBAR (main navigation):
 - "Training All" — visible for Admin / Team Leader / Manager only.
 - "Techniks" — users (technicians).
 - "Materials" — materials.
+- "Vendor Tracking" (requires Vendor Tracking access) → "Quantum" opens the RO buffer. "Needs attention" shows unresolved rows. Admin can click "Rebind" on an eligible Traveler row, review old/new process values, and confirm. Other RO, newly entered old-target values, missing snapshots or ambiguous targets can block it. Diagnose first; Rebind does not choose the correct Traveler composition for you.
 - "Library" (expandable, Admin only): General Tasks, Tasks, Roles, Teams, Builders, Vendors, Codes, Process Names, Scopes, Planes, Instructions, Necessaries.
 - "Customers", "Manuals", "Component CMM", "Replaceable Parts", "Processes" — Admin only.
 - "Log" (activity log), "Mobile" — Admin / is_admin() only.
@@ -28,6 +29,7 @@ TXT
 - «Training All» — для Admin / Team Leader / Manager.
 - «Techniks» — пользователи (техники).
 - «Materials» — материалы.
+- «Vendor Tracking» (нужен доступ к Vendor Tracking) → «Quantum» открывает буфер RO. «Needs attention» содержит unresolved. У подходящей строки Traveler администратор может нажать «Rebind», проверить старые/новые значения процессов и подтвердить. Другой RO, новые значения старого процесса, отсутствие снимка или неоднозначная цель могут блокировать действие. Сначала выясните причину; правильность состава Traveler проверяет администратор.
 - «Library» (раскрывается, только Admin): General Tasks, Tasks, Roles, Teams, Builders, Vendors, Codes, Process Names, Scopes, Planes, Instructions, Necessaries.
 - «Customers», «Manuals», «Component CMM», «Replaceable Parts», «Processes» — только Admin.
 - «Log», «Mobile» — только для админов (как в меню).

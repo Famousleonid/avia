@@ -1468,7 +1468,7 @@ class WorkorderController extends Controller
                 'fc_document'      => ['kind' => 'fc',         'label' => 'F&C'],
                 'machining_final'  => ['kind' => 'machining',  'label' => 'Machining'],
             ];
-            $uploadCategories = \App\Models\DocumentCategory::withTrashed()->orderBy('name')->get();
+            $uploadCategories = \App\Models\DocumentCategory::libraryCategories(true);
             $uploadLabels = $uploadCategories->pluck('name', 'key')->all();
 
             $pdfs = $workorder->getMedia('pdfs')

@@ -158,6 +158,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
     };
 
     function applyPrintSettings(settings) {
+        if (IS_TRAVEL_FORM) applyTravelerTableRows(settings.otherTableRows);
         const root = document.documentElement;
         root.style.setProperty('--print-page-margin', settings.pageMargin || defaultSettings.pageMargin);
         root.style.setProperty('--print-body-width', settings.bodyWidth || defaultSettings.bodyWidth);
@@ -180,6 +181,21 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
         root.style.setProperty('--ndt-table-data-font-size', tableDataFontSize + 'px');
         root.style.setProperty('--stress-table-data-font-size', tableDataFontSize + 'px');
         root.style.setProperty('--other-table-data-font-size', tableDataFontSize + 'px');
+    }
+
+    function applyTravelerTableRows(value) {
+        const body = document.querySelector('.traveler-process-table tbody');
+        const meta = document.getElementById('traveler-table-meta');
+        const template = document.getElementById('traveler-empty-rows-fragment');
+        if (!body || !meta || !template) return;
+        const dataRows = Number(meta.dataset.dateRows) || 0;
+        const requested = parseInt(value, 10);
+        if (!Number.isFinite(requested) || requested < 1) return;
+        const target = Math.max(dataRows, Math.min(100, requested));
+        // Only trailing blank rows may be removed; populated process rows stay intact.
+        while (body.rows.length > target) body.deleteRow(body.rows.length - 1);
+        while (body.rows.length < target) body.appendChild(template.content.cloneNode(true));
+        meta.dataset.totalRows = String(body.rows.length);
     }
 
     function addEmptyRowNDT(rowIndex, container) {
@@ -333,6 +349,11 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
             const settings = loadPrintSettings();
             applyPrintSettings(settings);
             loadSettingsToForm(settings);
+            if (IS_TRAVEL_FORM) {
+                document.getElementById('otherTableRows')?.addEventListener('input', event => {
+                    applyTravelerTableRows(event.target.value);
+                });
+            }
             // Применяем лимиты строк при загрузке (из Print Settings), не только при печати
             setTimeout(function() {
                 const wrappers = document.querySelectorAll('.form-wrapper');

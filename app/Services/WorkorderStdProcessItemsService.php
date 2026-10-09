@@ -244,6 +244,10 @@ class WorkorderStdProcessItemsService
 
                 return $row;
             })
+            // Process sheets contain work to perform, not rejected alternatives.
+            // Filter before grouping/pagination; KIT keeps its own crossout display.
+            ->reject(fn (array $row): bool => ! empty($row['group_crossed_out']))
+            ->values()
             ->all();
 
         return StdProcess::sortRowsForSnapshot(app(PartVariantGrouping::class)->annotateStdRows($rows, $std));

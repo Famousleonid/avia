@@ -258,11 +258,14 @@ class MediaController extends Controller
     public function store_pdf_workorders(Request $request, $id)
     {
         $workorder = Workorder::findOrFail($id);
+        $isVideo = $request->input('doc_kind') === 'video';
 
         $request->validate([
-            'pdf' => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:51200',
+            'pdf' => $isVideo
+                ? 'required|file|mimetypes:video/mp4,video/quicktime,video/webm|max:51200'
+                : 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:51200',
             'document_name' => 'nullable|string|max:255',
-            'doc_kind' => ['nullable', \Illuminate\Validation\Rule::exists('document_categories', 'key')->whereNull('deleted_at')],
+            'doc_kind' => ['nullable', $isVideo ? \Illuminate\Validation\Rule::in(['video']) : \Illuminate\Validation\Rule::exists('document_categories', 'key')->whereNull('deleted_at')],
         ]);
 
         if ($request->hasFile('pdf')) {

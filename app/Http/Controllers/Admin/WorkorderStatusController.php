@@ -9,6 +9,12 @@ use Illuminate\Http\Request;
 
 class WorkorderStatusController extends Controller
 {
+    public function efficiency(Request $request, \App\Services\WorkorderEfficiency $efficiency)
+    {
+        $data = $request->validate(['part_number' => ['nullable', 'string', 'max:255']]);
+        return view('admin.workorders.efficiency', $efficiency->report($data['part_number'] ?? null));
+    }
+
     public function updateCompletionDate(Request $request, Workorder $workorder)
     {
         abort_unless($request->user()?->roleIs(['Admin', 'Manager']), 403);

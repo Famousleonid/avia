@@ -13,6 +13,27 @@ class DocumentLibraryTest extends TestCase
     use DatabaseTransactions;
     use BuildsDomainData;
 
+    public function test_video_upload_is_restricted_to_video_category_and_can_be_viewed_and_downloaded(): void
+    {
+        $wo = $this->createWorkorder();
+        $this->actingAs($this->createUserWithRole('Admin'));
+        $url = route('workorders.pdf.store', $wo);
+        $mp4 = pack('N', 24).'ftypmp42'.pack('N', 0).'mp42isom';
+        $this->postJson($url, ['pdf' => $this->makeUploadedFile('inspection.mp4', $mp4, 'video/mp4'), 'doc_kind' => 'general'])->assertUnprocessable();
+        $this->postJson($url, ['pdf' => $this->makeUploadedImage('photo.png'), 'doc_kind' => 'video'])->assertUnprocessable();
+        $this->postJson($url, ['pdf' => $this->makeUploadedFile('fake.mp4', 'not a video', 'video/mp4'), 'doc_kind' => 'video'])->assertUnprocessable();
+        $this->postJson($url, ['pdf' => $this->makeUploadedFile('inspection.mp4', $mp4, 'video/mp4'), 'doc_kind' => 'video'])->assertOk();
+        $media = $wo->fresh()->getMedia('pdfs')->first();
+        $this->assertSame('video', $media->getCustomProperty('doc_kind'));
+        $this->assertSame('video/mp4', $media->mime_type);
+        $this->get(route('workorders.pdf.show', [$wo->id, $media->id]))->assertOk()->assertHeader('Content-Type', 'video/mp4');
+        $this->get(route('workorders.pdf.download', [$wo->id, $media->id]))->assertOk();
+        $list = $this->getJson(route('workorders.pdfs', $wo))->assertOk();
+        $list->assertJsonPath('pdfs.0.kind', 'video')->assertJsonPath('pdfs.0.kind_label', 'Video');
+        $this->assertContains('video', array_column($list->json('upload_categories'), 'key'));
+        $this->postJson($url, ['pdf' => $this->makeUploadedFile('huge.mp4', $mp4.str_repeat(' ', 51201 * 1024), 'video/mp4'), 'doc_kind' => 'video'])->assertUnprocessable();
+    }
+
     public function test_only_system_admin_can_manage_categories(): void
     {
         $category = DocumentCategory::create(['name' => 'Scans access test']);

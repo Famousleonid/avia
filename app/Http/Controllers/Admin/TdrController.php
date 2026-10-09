@@ -929,11 +929,8 @@ class TdrController extends Controller
                 ]);
             }
 
-            if ($workorder->isOverhaul() && $orderComponent?->kit) {
-                throw ValidationException::withMessages([
-                    'order_component_id' => __('This part is already included in KIT and must not be duplicated in PRL.'),
-                ]);
-            }
+            // KIT supplies the replacement, but the defect must remain in TDR
+            // for inspection history and STD exclusions. PRL deducts KIT itself.
         }
 
         // Проверяем наличие записей с Missing до создания (для оптимизации)

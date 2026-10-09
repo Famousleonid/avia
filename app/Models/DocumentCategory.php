@@ -13,6 +13,14 @@ class DocumentCategory extends Model
 
     protected $fillable = ['name'];
 
+    public static function libraryCategories(bool $includeRemoved = false)
+    {
+        $query = static::query();
+        if ($includeRemoved) $query->withTrashed();
+        return $query->where('key', '<>', 'video')->orderBy('name')->get()
+            ->push((new static())->forceFill(['key' => 'video', 'name' => 'Video']));
+    }
+
     protected static function booted(): void
     {
         static::creating(function (self $category) {

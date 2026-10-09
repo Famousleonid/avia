@@ -288,6 +288,22 @@ class VendorTrackingController extends Controller
         ]);
     }
 
+    public function previewQuantumTravelerRebind(QuantumRoLine $quantumRoLine, \App\Services\QuantumRoBufferApplyService $service): JsonResponse
+    {
+        $this->authorizeVendorTracking();
+        abort_unless(auth()->user()?->roleIs('Admin'), 403);
+        return response()->json($service->previewTravelerRebind($quantumRoLine->id));
+    }
+
+    public function rebindQuantumTraveler(Request $request, QuantumRoLine $quantumRoLine, \App\Services\QuantumRoBufferApplyService $service): JsonResponse
+    {
+        $this->authorizeVendorTracking();
+        abort_unless(auth()->user()?->roleIs('Admin'), 403);
+        $data = $request->validate(['token' => ['required', 'string', 'size:64']]);
+        $service->rebindTraveler($quantumRoLine->id, $data['token'], auth()->user());
+        return response()->json(['success' => true]);
+    }
+
     public function dismissQuantumRoLine(QuantumRoLine $quantumRoLine): JsonResponse
     {
         $this->authorizeVendorTracking();

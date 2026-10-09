@@ -258,7 +258,7 @@ class ManualController extends Controller
         $this->ensureManualAccess($cmm);
         $cmm->load('partLock.lockedBy');
 
-        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'revision', 'dimensions', 'fc'];
+        $manualTabKeys = ['components', 'parts', 'processes', 'traveler', 'std', 'sb', 'revision', 'dimensions', 'fc'];
         $requestedTab = (string) request('tab', '');
         $savedTab = UserUiSetting::query()
             ->where('user_id', auth()->id())
@@ -796,6 +796,63 @@ class ManualController extends Controller
 
         $allowed = $manual->permittedUsers()->where('users.id', $user->id)->exists();
         abort_unless($allowed, 403);
+    }
+
+    public function partsRows(Request $request, Manual $manual): JsonResponse
+    {
+        $this->ensureManualAccess($manual);
+        $input = $request->validate([
+            'offset' => ['nullable', 'integer', 'min:0'],
+            'q' => ['nullable', 'string', 'max:255'],
+            'sort' => ['nullable', 'in:ipl_num,part_number,name'],
+            'direction' => ['nullable', 'in:asc,desc'],
+            'part_id' => ['nullable', 'integer'],
+        ]);
+        $groups = ManualPartGroup::where('manual_id', $manual->id)->with('options')->get();
+        $byComponent = collect();
+        foreach ($groups as $group) {
+            foreach ($group->options->pluck('component_id')->filter()->unique() as $id) {
+                $byComponent->put($id, collect($byComponent->get($id, []))->push($group));
+            }
+        }
+        $parts = Component::where('manual_id', $manual->id)->with('assemblies')->get();
+        $total = $parts->count();
+        $query = mb_strtolower(trim($input['q'] ?? ''));
+        if ($query !== '') {
+            $parts = $parts->filter(function ($part) use ($query, $byComponent) {
+                $text = implode(' ', [$part->ipl_num, $part->part_number, $part->name,
+                    $part->assemblies->pluck('assy_ipl_num')->implode(' '),
+                    $part->assemblies->pluck('assy_part_number')->implode(' '),
+                    collect($byComponent->get($part->id, []))->pluck('name')->implode(' ')]);
+                return str_contains(mb_strtolower($text), $query);
+            });
+        }
+        $sort = $input['sort'] ?? 'ipl_num';
+        $direction = ($input['direction'] ?? 'asc') === 'desc' ? -1 : 1;
+        $parts = $parts->sort(function ($a, $b) use ($sort, $direction) {
+            $result = $sort === 'ipl_num'
+                ? $this->componentIplSortKey($a->ipl_num) <=> $this->componentIplSortKey($b->ipl_num)
+                : strnatcasecmp((string) $a->$sort, (string) $b->$sort);
+            return ($result ?: $a->id <=> $b->id) * $direction;
+        })->values();
+        $offset = (int) ($input['offset'] ?? 0);
+        if (!empty($input['part_id'])) {
+            $index = $parts->search(fn ($part) => $part->id === (int) $input['part_id']);
+            if ($index !== false) $offset = (int) floor($index / 60) * 60;
+        }
+        $page = $parts->slice($offset, 60);
+        $page->load(['manual.partLock.lockedBy', 'media']);
+        $html = view('admin.components.partials.index-rows', [
+            'components' => $page, 'showManualColumn' => false, 'showEffCodeColumn' => true,
+            'showSelectionColumn' => true, 'showKitChoiceGroupColumn' => true,
+            'partGroupsByComponent' => $byComponent,
+            'editButtonClass' => 'open-manual-edit-component-drawer',
+            'deleteRedirect' => route('manuals.show', ['manual' => $manual, 'tab' => 'parts']),
+            'useProjectDeleteConfirm' => true,
+        ])->render();
+        $next = $offset + $page->count();
+        return response()->json(['html' => $html, 'total' => $total, 'matched' => $parts->count(),
+            'offset' => $offset, 'next' => $next, 'has_more' => $next < $parts->count()]);
     }
 
     private function componentIplSortKey(?string $ipl): array

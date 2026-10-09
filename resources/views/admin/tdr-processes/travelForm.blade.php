@@ -62,7 +62,7 @@
             /* Фиксированный размер страницы Letter в альбомной ориентации (11 x 8.5 дюймов = 279.4 x 215.9 мм) */
             @page {
                 size: letter landscape;
-                margin: var(--print-page-margin, 8mm);
+                margin: var(--print-page-margin, 8mm) var(--print-page-margin, 8mm) 16mm;
                 padding: 0;
             }
 
@@ -94,7 +94,7 @@
             }
 
             /* Отключаем разрывы страниц внутри элементов */
-            table, h1, h2, h3, h4, h5, h6, p {
+            h1, h2, h3, h4, h5, h6, p {
                 page-break-inside: avoid !important;
             }
 
@@ -103,10 +103,10 @@
                 display: none !important;
             }
 
-            /* Колонтитул внизу страницы с фиксированными размерами */
+            /* Keep the form revision in document flow; never cover a process row. */
             footer {
-                position: fixed !important;
-                bottom: var(--print-footer-bottom, 0) !important;
+                position: static !important;
+                break-inside: avoid;
                 width: var(--print-footer-width, 100%) !important;
                 max-width: 27cm !important;
                 text-align: center !important;
@@ -298,20 +298,10 @@
         .parent {
             display: grid;
             grid-template-columns:
-            60px 100px   /* WO No. */
-            280px 350px   /* Description - больше места */
-            60px 150px    /* P/N */
+            6% 12% 12% 42% 6% 22%;
         }
         .table {
-            display: grid;
             text-align: center;
-
-            grid-template-columns:
-        40px 160px
-        332px 108px
-        120px 100px
-        60px 100px;
-            /*min-height: 42px; !* Опционально: для единой высоты строк *!*/
         }
 
         .traveler-title,
@@ -320,14 +310,31 @@
             font-size: var(--component-name-font-size, 16px);
         }
 
-        .traveler-process-table > div {
+        .traveler-process-table td {
             font-size: var(--other-table-data-font-size, 13px) !important;
         }
 
-        .traveler-process-table > .traveler-table-header {
+        .traveler-process-table .traveler-table-header {
             font-size: var(--traveler-table-header-font-size, 12px) !important;
         }
 
+
+        /* A real table paginates as whole rows and repeats its headings. */
+        .traveler-process-table { display: table; table-layout: fixed; width: 100%; }
+        .traveler-process-table td { height: 36px; vertical-align: middle; padding: 3px; overflow-wrap: anywhere; }
+        .traveler-process-table td.div2 { font-size: 14px !important; }
+        .traveler-process-table td.div3,
+        .traveler-process-table .process-description { font-size: 14px !important; line-height: 1.15; text-align: left; }
+        .traveler-process-table tr { break-inside: avoid; page-break-inside: avoid; }
+        .traveler-process-table thead { display: table-header-group; }
+        .traveler-process-table .traveler-table-header { font-size: 12px !important; }
+        @media print {
+            .container-fluid > .row { display: block; margin: 0; }
+            .container-fluid > .row > .col-4 { float: left; }
+            .container-fluid > .row > .col-8 { margin-left: 33.333%; }
+            .traveler-process-table { break-inside: auto !important; page-break-inside: auto !important; }
+            .container-fluid { padding-bottom: 10mm !important; }
+        }
     </style>
 </head>
 <body>
@@ -338,7 +345,9 @@
     'printMarkQrRight' => '2mm',
     'printMarkQrPrintTop' => '0',
     'printMarkQrPrintRight' => '2mm',
-    'printMarkQrScreenPlacement' => 'viewport',
+    'printMarkQrScreenPlacement' => 'page',
+    'printMarkQrHostSelector' => '.container-fluid',
+    'printMarkQrPageRight' => '4mm',
 ])
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" type="button" onclick="window.print()">Print Form</button>
@@ -379,16 +388,16 @@
             <div class="div12 border-b ps-2" >{{ $current_tdr->serial_number }} · QTY: {{ max(1, (int) $current_tdr->qty) }}</div>
         </div>
 
-        <div class="table mt-2 traveler-process-table">
-            <div class="div1 border-all traveler-table-header" style="min-height: 36px;  align-content: center"></div>
-            <div class="div2 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Task require</strong>d</div>
-            <div class="div3 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Process</strong></div>
-            <div class="div4 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>RO No.</strong></div>
-            <div class="div5 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Vendor Name</strong></div>
-            <div class="div6 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Date
-                    completed</strong></div>
-            <div class="div7 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Vendor stamp</strong></div>
-            <div class="div8 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Note</strong></div>
+<table class="table mt-2 traveler-process-table"><colgroup><col style="width:4%"><col style="width:14%"><col style="width:36%"><col style="width:9%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:9%"></colgroup><thead>
+            <tr><td class="div1 border-all traveler-table-header" style="min-height: 36px;  align-content: center"></td>
+            <td class="div2 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Task require</strong>d</td>
+            <td class="div3 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Process</strong></td>
+            <td class="div4 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>RO No.</strong></td>
+            <td class="div5 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Vendor Name</strong></td>
+            <td class="div6 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Date
+                    completed</strong></td>
+            <td class="div7 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Vendor stamp</strong></td>
+            <td class="div8 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Note</strong></td></tr></thead><tbody>
 
             @php
                 $dateRows = 0;
@@ -452,14 +461,14 @@
                         $receivingInspectionRenderedForBlock = false;
                         $dateRows++;
                     @endphp
-                    <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
-                    <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Outcoming inspection') }}</strong></div>
-                    <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{ __('Visual') }}</div>
-                    <div class="div4 border-r-b " style="min-height: 36px; align-content: center">{{ __('N/A') }}</div>
-                    <div class="div5 border-r-b " style="min-height: 36px; align-content: center">{{ __('AT') }}</div>
-                    <div class="div6 border-r-b " style="min-height: 36px; align-content: center"></div>
-                    <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
-                    <div class="div8 border-r-b " style="min-height: 36px; align-content: center"></div>
+                    <tr><td class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{ $dateRows }}</td>
+                    <td class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Outcoming inspection') }}</strong></td>
+                    <td class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{ __('Visual') }}</td>
+                    <td class="div4 border-r-b " style="min-height: 36px; align-content: center">{{ __('N/A') }}</td>
+                    <td class="div5 border-r-b " style="min-height: 36px; align-content: center">{{ __('AT') }}</td>
+                    <td class="div6 border-r-b " style="min-height: 36px; align-content: center"></td>
+                    <td class="div7 border-r-b" style="min-height: 36px; align-content: center"></td>
+                    <td class="div8 border-r-b " style="min-height: 36px; align-content: center"></td></tr>
                 @endif
 
                 @if($isNdt6TravelerLine && !$receivingInspectionRenderedForBlock)
@@ -479,8 +488,8 @@
                 @endif
 
                 @php $dateRows++; @endphp
-                <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
-                <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
+                <tr><td class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{ $dateRows }}</td>
+                <td class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
                     <strong>
                         @if($tp->processName->hasIdentity(['NDT-1', 'NDT-4']))
                             {{ __('NDT') }}
@@ -488,15 +497,24 @@
                             {{ $processName }}
                         @endif
                     </strong>
-                </div>
-                <div class="div3 border-r-b fs-75" style="min-height: 36px; align-content: center">
+                </td>
+                <td class="div3 border-r-b fs-75" style="min-height: 36px; align-content: center">
                     @if($subLabel !== '')
-                        {{ $subLabel }}
+                        <span class="process-specification" style="white-space: pre-wrap; overflow-wrap: anywhere;">{{ $subLabel }}</span>
                         @if($tp->ec) ( EC ) @endif
                     @endif
-                    <div class="fs-8 process-description" style="white-space: pre-line; overflow-wrap: anywhere;">{{ $tp->description }}</div>
-                </div>
-                <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
+                    @php
+                        $additionalDescription = \App\Services\TravelerPrintDescription::additional(
+                            $tp->description, $subLabel,
+                            [$processName, $tp->processName->name, $tp->processName->identityName(),
+                                $tp->processName->hasIdentity(['NDT-1', 'NDT-4']) ? 'NDT' : '']
+                        );
+                    @endphp
+                    @if($additionalDescription !== '')
+                        <div class="fs-8 process-description" style="white-space: pre-line; overflow-wrap: anywhere;">{{ $additionalDescription }}</div>
+                    @endif
+                </td>
+                <td class="div4 border-r-b " style="min-height: 36px; align-content: center">
                     @if(!empty($tp->repair_order))
                         {{ $tp->repair_order }}
                     @elseif(!$inTraveler)
@@ -504,21 +522,21 @@
                     @elseif($tp->processName->hasIdentity('Paint'))
                         W{{ $current_wo->number }}
                     @endif
-                </div>
-                <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
+                </td>
+                <td class="div5 border-r-b " style="min-height: 36px; align-content: center">
                     @if($inTraveler)
                         {{ $vendorName ?: ($tp->vendor?->name ?? '') }}
                     @else
                         {{ __('AT') }}
                     @endif
-                </div>
-                <div class="div6 border-r-b " style="min-height: 36px; align-content: center"></div>
-                <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
-                <div class="div8 border-r-b fs-8" style="min-height: 36px; align-content: center">
+                </td>
+                <td class="div6 border-r-b " style="min-height: 36px; align-content: center"></td>
+                <td class="div7 border-r-b" style="min-height: 36px; align-content: center"></td>
+                <td class="div8 border-r-b fs-8" style="min-height: 36px; align-content: center">
                     @foreach(collect([$tp->notes, $travelerTemplateNotes->get($tp->process_names_id)])->filter(fn ($note) => filled($note))->unique() as $note)
                         <div style="white-space: pre-wrap; overflow-wrap: anywhere">{{ $note }}</div>
                     @endforeach
-                </div>
+                </td></tr>
 
                 @php $prevTraveler = $inTraveler; @endphp
             @endforeach
@@ -536,63 +554,28 @@
                 $emptyRow = $totalRow - $dateRows;
             @endphp
             @for($i=0; $i < $emptyRow; $i++)
-                <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center"></div>
-                <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong></strong></div>
-                <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center"></div>
-                <div class="div4 border-r-b " style="min-height: 36px; align-content: center"></div>
-                <div class="div5 border-r-b " style="min-height: 36px; align-content: center"></div>
-                <div class="div6 border-r-b " style="min-height: 36px; align-content: center"></div>
-                <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
-                <div class="div8 border-r-b " style="min-height: 36px; align-content: center"></div>
-            @endfor
-
-        </div>
+                <tr><td class="div1 border-l-b-r " style="min-height: 36px; align-content: center"></td>
+                <td class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong></strong></td>
+                <td class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center"></td>
+                <td class="div4 border-r-b " style="min-height: 36px; align-content: center"></td>
+                <td class="div5 border-r-b " style="min-height: 36px; align-content: center"></td>
+                <td class="div6 border-r-b " style="min-height: 36px; align-content: center"></td>
+                <td class="div7 border-r-b" style="min-height: 36px; align-content: center"></td>
+                <td class="div8 border-r-b " style="min-height: 36px; align-content: center"></td></tr>
+            @endfor</tbody></table>
         <div id="traveler-table-meta" class="d-none" data-date-rows="{{ $dateRows }}" data-total-rows="{{ $totalRow }}" aria-hidden="true"></div>
 
         <template id="traveler-empty-rows-fragment">
-            <div class="div1 border-l-b-r traveler-empty-line" style="min-height: 36px; align-content: center"></div>
-            <div class="div2 border-r-b fs-9 traveler-empty-line" style="min-height: 36px; align-content: center"><strong></strong></div>
-            <div class="div3 border-r-b fs-9 traveler-empty-line" style="min-height: 36px; align-content: center"></div>
-            <div class="div4 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
-            <div class="div5 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
-            <div class="div6 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
-            <div class="div7 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
-            <div class="div8 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
+            <tr><td class="div1 border-l-b-r traveler-empty-line" style="min-height: 36px; align-content: center"></td>
+            <td class="div2 border-r-b fs-9 traveler-empty-line" style="min-height: 36px; align-content: center"><strong></strong></td>
+            <td class="div3 border-r-b fs-9 traveler-empty-line" style="min-height: 36px; align-content: center"></td>
+            <td class="div4 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></td>
+            <td class="div5 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></td>
+            <td class="div6 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></td>
+            <td class="div7 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></td>
+            <td class="div8 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></td></tr>
         </template>
-        <script>
-            (function () {
-                function applyTravelerRowsFromPrintSettings() {
-                    var table = document.querySelector('.traveler-process-table');
-                    var meta = document.getElementById('traveler-table-meta');
-                    var tpl = document.getElementById('traveler-empty-rows-fragment');
-                    if (!table || !meta || !tpl || !tpl.content) return;
-                    var dateRows = parseInt(meta.getAttribute('data-date-rows'), 10) || 0;
-                    var serverTotal = parseInt(meta.getAttribute('data-total-rows'), 10) || 0;
-                    var target = serverTotal;
-                    try {
-                        var key = @json($formConfig['storage_key'] ?? 'travelForm_print_settings');
-                        var raw = window.UserScopedStorage.getItem(key);
-                        if (raw) {
-                            var saved = JSON.parse(raw);
-                            var w = parseInt(String(saved.otherTableRows != null ? saved.otherTableRows : '').replace(/\D/g, ''), 10);
-                            if (w > 0) {
-                                target = Math.max(serverTotal, dateRows, w);
-                            }
-                        }
-                    } catch (e) {}
-                    var extra = target - serverTotal;
-                    for (var i = 0; i < extra; i++) {
-                        table.appendChild(tpl.content.cloneNode(true));
-                    }
-                    meta.setAttribute('data-total-rows', String(serverTotal + extra));
-                }
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', applyTravelerRowsFromPrintSettings);
-                } else {
-                    applyTravelerRowsFromPrintSettings();
-                }
-            })();
-        </script>
+
 
 
 

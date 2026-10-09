@@ -296,6 +296,80 @@ or date error.
 
 ## Date Mapping
 
+### 07/Oct/2026 R9374 / W107967: Traveler rebuilt without Silver plating
+
+Read-only production and direct Oracle verification confirms rod:33668,
+WOB 725033, PN 190-70954-005, REF T1, OUT_DATE 17/Sep/2026, no return.
+Production staging 4060 retains the same source/applied hash and seven saved
+target snapshots; current status is unresolved on tdr_processes:4697 date_start.
+
+- Activity 40436: Fouxman Alexander created Traveler 1 on 16/Sep/2026 15:23:43
+  for TDR 2318, including Silver plating 4697.
+- Activities 40586–40592: Quantum applied R9374 and sent date 17/Sep/2026
+  to all seven members on 17/Sep/2026 11:45:01.
+- Activity 40697: Yushkevich Viacheslav ungrouped it on 17/Sep/2026 15:32:09;
+  this cleared date_start/date_start_user_id while retaining RO/vendor.
+- Activity 40698: the same user recreated Traveler 1 at 15:33:01, replacing
+  Silver plating 4697 with Stress Relief 5042. Creation cleared repair_order
+  on selected members; excluded Silver plating retained R9374.
+
+Current Traveler members are 5042, 4691–4695, 4723 with empty RO/sent date.
+Silver plating 4697 is outside the Traveler with R9374 and null date_start,
+which differs from its saved Quantum snapshot. The deployed remap guard
+therefore blocks release/reapply. The message "Quantum target changed" here
+means local Traveler membership changed, not that Quantum REF changed.
+No production changes were made. Diagnostic scripts:
+`storage/app/codex/audit-107967.php`, `quantum/log/audit-107967-oracle.php`.
+
+Local implementation added on 07/Oct/2026 (not deployed by Codex): Admin-only
+`Rebind` in Needs attention previews release/current Traveler values, then
+uses the shared confirmDialog before an atomic release/apply. Only unresolved
+detail-part Traveler rows with complete prior snapshots qualify. Old targets
+must belong to the same TDR, be outside every current Traveler, and contain
+only saved values or cleared fields; new targets cannot contain another RO
+or vendor. Missing targets and changed nonempty old values require separate
+review. The server verifies a signed preview fingerprint and records
+`quantum_ro_line / traveler_rebound` with actor and before/after values.
+Ordinary Reapply/Restore retains its existing safety behavior.
+
+### 07/Oct/2026 in-app AI diagnosis (local implementation)
+
+`diagnoseQuantumRo` is a read-only System Admin tool, additionally requiring
+Vendor Tracking and applicable workorder view access. It accepts exact WO/RO,
+P/N, S/N and source_uid filters. Separate source details sharing an RO remain
+separate reports. It uses `QuantumRoBufferApplyService::inspectMapping`, not
+a second copy of the routing rules, and provides:
+
+- Bridge receipt status/timestamps and staged REF/part/date/quantity values.
+- Actual current resolver result, WO part/Traveler candidates, previous saved
+  targets, current values, added/removed targets and field-level differences.
+- Explicit automatic-release blockers. Changed membership alone is not a
+  blocker; missing safety snapshots or changed old-target values can be.
+- Paginated complete matching process, Traveler and source-line audit history,
+  including deleted prior target IDs, actors, cleared fields and before values.
+- Rebind eligibility and planned effects using the same validation as the UI,
+  without a write token, mutations, or row locks. The administrator must open
+  a fresh UI preview and confirm the action; the agent cannot execute it.
+
+Agent instructions require cause → dated evidence → exact blocking difference
+→ correction effect. They distinguish AVIA received data from live Oracle,
+bridge success from parser application, and `applied` from intact current
+values. Missing history/actors remain unknown. Source and audit pagination
+must be completed or the unexamined portion explicitly reported.
+`markLine` updates applied_at/applied_source_hash on unresolved attempts too;
+these fields must not be described as the last successful application.
+Target snapshots contain no historical REF, so the agent must not describe
+the current T1 as a newly changed REF without separate historical evidence.
+
+Validation: local W107967/R9374 data yields Silver plating removed and Stress
+Relief added, the cleared sent-date conflict and the recorded ungroup/recreate
+events. Local staging status differs from the previously checked production
+status; the tool reports that difference instead of silently changing it.
+Dedicated tests cover read-only behavior, permissions, same-RO isolation,
+missing/deleted targets, applied drift, pagination and agent dispatch. A live
+model check used synthetic WO/RO/actors only; actual business records were not
+sent to the external model in that check. No production deployment performed.
+
 ### 2026-09-11 W107855: RO date versus physical dispatch
 
 Production staging last received both lines at 11/Sep/2026 07:23 Toronto:

@@ -15,6 +15,7 @@ class ManualPartGroupCoverage extends Model
         'qty',
         'expand_ipl_family',
         'choice_slot',
+        'requires_selected_option_ids',
         'applies_to',
     ];
 
@@ -25,6 +26,7 @@ class ManualPartGroupCoverage extends Model
         'qty' => 'integer',
         'expand_ipl_family' => 'boolean',
         'applies_to' => 'array',
+        'requires_selected_option_ids' => 'array',
     ];
 
     public function option(): BelongsTo
