@@ -88,7 +88,7 @@ class Workorder extends Model implements HasMedia
             'wo_bushing_line_id',
             'id',
             'id'
-        );
+        )->where('wo_bushing_lines.selection_active', true);
     }
 
     public function user()

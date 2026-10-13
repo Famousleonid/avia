@@ -13,9 +13,11 @@ use Illuminate\Support\Collection;
 class PartGroupCoverageResolver
 {
     /**
+     * KIT supply excludes a bundle's own head and shares nested bushing supply
+     * across ordered sizes. Other forms retain the full composition.
      * @return array<int, array{covered_qty:int, reason:string, group_id:int, option_id:int}>
      */
-    public function coverageForWorkorder(Workorder $workorder, string $scope): array
+    public function coverageForWorkorder(Workorder $workorder, string $scope, bool $excludeSelectedHead = false, bool $includeBushingChoices = true): array
     {
         if (! in_array($scope, ManualPartGroup::validScopes(), true)) {
             throw new \InvalidArgumentException("Invalid part group scope: {$scope}");
@@ -42,9 +44,16 @@ class PartGroupCoverageResolver
 
         $selected = $this->explicitSelections($workorder, $groups);
         $selected = $this->inferSelectionsFromTdrs($workorder, $groups, $selected);
-        $coverage = $this->bushingCoverageFromLines($workorder, $groups) + $automaticCoverage;
+        $coverage = ($includeBushingChoices ? $this->bushingCoverageFromLines($workorder, $groups) : []) + $automaticCoverage;
         $iplFamilies = $this->bundleIplFamilies($workorder, $allGroups);
         $configuredMembers = app(WorkorderAssyConfiguration::class)->selectedCoverageIds($workorder);
+        $selectedBushingQuantities = $excludeSelectedHead
+            ? WoBushingLine::query()->where(function ($query) use ($workorder): void {
+                $query->where('workorder_id', $workorder->id)
+                    ->orWhereHas('woBushing', fn ($bushing) => $bushing->where('workorder_id', $workorder->id));
+            })->where('do_not_order', false)->get()->groupBy('component_id')
+                ->map(fn ($lines): int => $lines->sum(fn ($line): int => max(1, (int) $line->qty)))->all()
+            : [];
 
         foreach ($selected as $groupId => $selection) {
             /** @var ManualPartGroup|null $group */
@@ -94,8 +103,58 @@ class PartGroupCoverageResolver
                     $optionsById,
                     [(int) $option->id => true],
                     $iplFamilies,
-                    $configuredMembers
+                    $configuredMembers,
+                    $excludeSelectedHead,
+                    $selectedBushingQuantities
                 );
+            }
+        }
+
+        return $this->excludeBundleIplAlternatives($workorder, $groups, $coverage);
+    }
+
+    /**
+     * Receiving a part through an ordered bundle is also an order of its IPL
+     * position. Exact composition flags restrict supplied P/Ns, not exclusion
+     * of unselected letter variants in the work lists.
+     */
+    private function excludeBundleIplAlternatives(Workorder $workorder, Collection $groups, array $coverage): array
+    {
+        $supplied = collect($coverage)->filter(fn (array $entry): bool =>
+            $entry['covered_qty'] > 0 && $entry['covered_qty'] < PHP_INT_MAX
+            && $groups->get((int) $entry['group_id'])?->behavior === ManualPartGroup::BEHAVIOR_BUNDLE
+        );
+        if ($supplied->isEmpty()) {
+            return $coverage;
+        }
+
+        // Bushings have a separate Original/Oversize quantity-pool rule.
+        $bushingIds = $groups->where('type', ManualPartGroup::TYPE_OVERSIZE)
+            ->flatMap(fn ($group) => $group->options->pluck('component_id'))->filter();
+        $parts = \App\Models\Component::whereIn('manual_id', $workorder->usedManualIds())
+            ->whereNotIn('id', \App\Models\Component::query()->bushingCandidates()->select('components.id'))
+            ->whereNotIn('id', $bushingIds)
+            ->get(['id', 'manual_id', 'ipl_num']);
+        $orderedIds = Tdr::where('workorder_id', $workorder->id)->whereNotNull('order_component_id')
+            ->pluck('order_component_id')->map(fn ($id) => (int) $id)->all();
+
+        foreach ($parts->groupBy(function ($part): string {
+            $ipl = PartVariantGrouping::iplFamily((string) $part->ipl_num);
+            return $part->manual_id.'|'.($ipl !== '' ? $ipl : 'component-'.$part->id);
+        }) as $family) {
+            $member = $family->first(fn ($part): bool => $supplied->has((int) $part->id));
+            if (! $member) {
+                continue;
+            }
+            foreach ($family as $variant) {
+                $id = (int) $variant->id;
+                if (isset($coverage[$id]) || in_array($id, $orderedIds, true)) {
+                    continue;
+                }
+                $coverage[$id] = array_replace($supplied->get((int) $member->id), [
+                    'covered_qty' => PHP_INT_MAX,
+                    'reason' => 'IPL alternative not selected; '.$supplied->get((int) $member->id)['reason'],
+                ]);
             }
         }
 
@@ -341,7 +400,9 @@ class PartGroupCoverageResolver
         Collection $optionsById,
         array $optionPath,
         array $iplFamilies,
-        array $configuredMembers
+        array $configuredMembers,
+        bool $excludeSelectedHead = false,
+        array $selectedBushingQuantities = []
     ): void {
         if (! $member->appliesTo($scope)) {
             return;
@@ -358,6 +419,12 @@ class PartGroupCoverageResolver
             $memberIds = $member->expandsIplFamily() && ! $isAssyHead
                 ? ($iplFamilies[$componentId] ?? [$componentId]) : [$componentId];
             foreach ($memberIds as $variantId) {
+                // A selected bundle is the supply, not a duplicate of itself.
+                // Do not erase coverage from a different/nested assembly.
+                if ($excludeSelectedHead && count($optionPath) === 1
+                    && $variantId === (int) $selectedOption->component_id) {
+                    continue;
+                }
                 $this->addCoverage($coverage, $variantId, $memberQty, $reason, $selectedGroup, $selectedOption);
             }
             if ($isAssyHead) {
@@ -387,16 +454,29 @@ class PartGroupCoverageResolver
         }
 
         if ($coveredGroup->type === ManualPartGroup::TYPE_OVERSIZE) {
-            foreach ($coveredGroup->options as $bushingOption) {
+            $selectedSizes = $coveredGroup->options->filter(fn ($option): bool => isset($selectedBushingQuantities[(int) $option->component_id]));
+            $sharedSupply = $memberQty;
+            foreach ($coveredGroup->options->sortBy('component_id') as $bushingOption) {
                 $bushingComponentId = (int) ($bushingOption->component_id ?? 0);
                 if ($bushingComponentId <= 0) {
                     continue;
                 }
 
+                $coveredQty = $memberQty;
+                if ($selectedSizes->isNotEmpty()) {
+                    // One supplied family quantity is shared by the chosen sizes.
+                    // Existing coverage from other bundles also consumes demand.
+                    $demand = $selectedBushingQuantities[$bushingComponentId] ?? 0;
+                    $remaining = max(0, $demand - ($coverage[$bushingComponentId]['covered_qty'] ?? 0));
+                    $coveredQty = min($sharedSupply, $remaining);
+                    $sharedSupply -= $coveredQty;
+                    if ($coveredQty === 0) continue;
+                }
+
                 $this->addCoverage(
                     $coverage,
                     $bushingComponentId,
-                    $memberQty,
+                    $coveredQty,
                     $reason,
                     $selectedGroup,
                     $selectedOption
@@ -444,7 +524,9 @@ class PartGroupCoverageResolver
                 $optionsById,
                 $optionPath,
                 $iplFamilies,
-                $configuredMembers
+                $configuredMembers,
+                $excludeSelectedHead,
+                $selectedBushingQuantities
             );
         }
     }

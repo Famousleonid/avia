@@ -410,6 +410,7 @@
 
     @include('admin.wo_bushings.partials.process-selects')
     @include('admin.wo_bushings.partials.replacement-code-assets')
+    @include('admin.wo_bushings.partials.selection-assets')
 <script>
         window.initEditBushingForm = function(root) {
             root = root || document;
@@ -542,14 +543,14 @@
                     if (doNotOrder) doNotOrder.disabled = !checkbox.checked;
                     if (need) {
                         need.disabled = !checkbox.checked;
-                        if (!checkbox.checked) need.checked = false;
+                        // Retain process choices while the shared selection is off.
                     }
 
                     row.querySelectorAll('.bushing-process-line[data-component-id="' + componentId + '"]').forEach(function(line) {
                         line.classList.toggle('is-hidden', !showProcesses);
                         line.querySelectorAll('.bushing-process-control').forEach(function(control) {
                             control.disabled = !showProcesses;
-                            if (!showProcesses) control.value = '';
+                            // Do not erase processes when their controls are hidden.
                             if (window.jQuery) window.jQuery(control).trigger('change.select2');
                         });
                         });
@@ -614,6 +615,7 @@
                     danger: true
                 });
                 if (!confirmed) return;
+                if (window.BushingSelection) { await window.BushingSelection.clear(form); return; }
                 form.querySelectorAll('.bushing-row').forEach(function(row) {
                     row.querySelectorAll('.component-checkbox').forEach(function(selected) { selected.checked = false; });
                     row.querySelectorAll('.bushing-do-not-order').forEach(function(noOrder) { noOrder.checked = false; });
@@ -652,7 +654,7 @@
                         });
                     });
 
-                if (selectedRows.length === 0 && !form.querySelector('.bushing-history-row')) {
+                if (selectedRows.length === 0 && !form.querySelector('.bushing-history-row') && !window.BushingSelection) {
                     e.preventDefault();
                     notify('{{ __("Please select at least one component before submitting.") }}');
                     hideGlobalSpinner();

@@ -18,6 +18,7 @@ class WoBushingLine extends Model
         'do_not_order',
         'group_key',
         'sort_order',
+        'selection_active',
     ];
 
     protected $casts = [
@@ -26,7 +27,14 @@ class WoBushingLine extends Model
         'qty_remaining' => 'integer',
         'do_not_order' => 'boolean',
         'sort_order' => 'integer',
+        'selection_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        // Deselection retains the line and its processes for a later restore.
+        static::addGlobalScope('selected', fn ($query) => $query->where('wo_bushing_lines.selection_active', true));
+    }
 
     public function woBushing(): BelongsTo
     {

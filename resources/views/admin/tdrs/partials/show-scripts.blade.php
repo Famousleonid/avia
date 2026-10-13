@@ -327,6 +327,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var transfersTabActions = document.getElementById('transfersTabActions');
     var bushingTabBody = document.getElementById('bushingTabBody');
     var bushingPartialUrl = '{{ route("wo_bushings.partial", ["workorder_id" => $current_wo->id]) }}';
+    window.refreshSharedBushingView = function () {
+        if (bushingTabBody && bushingTabBody.dataset.loaded === '1') loadBushingPartial();
+    };
     var rmReportsTabBody = document.getElementById('rmReportsTabBody');
     var rmReportsPartialUrl = '{{ route("rm_reports.partial", ["workorder_id" => $current_wo->id]) }}';
     var logCardStoreUrl = '{{ route("log_card.store") }}';
@@ -2551,7 +2554,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     });
 
-                if (selectedRows.length === 0) {
+                if (selectedRows.length === 0 && !window.BushingSelection) {
                     window.tdrShowNotify('{{ __("Please select at least one component before submitting.") }}', 'warning');
                     hideGlobalSpinner();
                     return;

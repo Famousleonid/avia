@@ -2942,7 +2942,7 @@ class TdrsTest extends TestCase
                 return empty($prlRow['prl_crossed_out'])
                     && empty($untouchedRow['prl_crossed_out'])
                     && empty($selectedBushingGroup['prl_crossed_out'])
-                    && empty($selectedOptions->get('KIT-BUSH-SHARED-PN')['crossed_out'])
+                    && ! empty($selectedOptions->get('KIT-BUSH-SHARED-PN')['crossed_out'])
                     && empty($selectedOptions->get('KIT-BUSH-OVERSIZE-SELECTED')['crossed_out'])
                     && empty($unselectedBushingGroup['prl_crossed_out']);
             })
@@ -2952,7 +2952,7 @@ class TdrsTest extends TestCase
             ->assertSee('KIT-NOT-CROSSED');
 
         $this->assertSame(0, substr_count($response->getContent(), 'data-prl-crossed-out="1"'));
-        $this->assertSame(0, substr_count($response->getContent(), 'data-prl-part-number-crossed-out="1"'));
+        $this->assertSame(1, substr_count($response->getContent(), 'data-prl-part-number-crossed-out="1"'));
     }
 
     public function test_kit_position_can_be_manually_crossed_out_and_restored_per_component(): void

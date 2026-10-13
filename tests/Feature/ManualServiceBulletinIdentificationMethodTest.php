@@ -17,7 +17,10 @@ class ManualServiceBulletinIdentificationMethodTest extends TestCase
         $manual = $this->createWorkorder()->unit->manual;
         $acceptedValue = str_repeat('A', 600);
 
-        $accepted = $this->actingAs($admin)->post(
+        $accepted = $this->actingAs($admin)->withSession([
+            'auth.version' => (int) $admin->auth_version,
+            'password_hash_web' => $admin->getAuthPassword(),
+        ])->post(
             route('manuals.service-bulletins.store', ['manual' => $manual]),
             ['identification_method' => $acceptedValue]
         );

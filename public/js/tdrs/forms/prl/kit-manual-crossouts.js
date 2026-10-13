@@ -127,6 +127,8 @@
         const target = origin?.closest('.kit-prl-manual-toggle[data-kit-prl-toggle-url]');
         if (!target) return;
 
+        if (target.dataset.bushingSelectionId) return; // Shared bushing selection owns this interaction.
+
         event.preventDefault();
 
         if (target.dataset.kitPrlControllerCrossedOut === '1') return;

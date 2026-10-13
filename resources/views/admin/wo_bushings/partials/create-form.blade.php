@@ -295,6 +295,7 @@
 
 @include('admin.wo_bushings.partials.process-selects')
 @include('admin.wo_bushings.partials.replacement-code-assets')
+@include('admin.wo_bushings.partials.selection-assets')
 <script>
 (function() {
     function initCreateBushingForm(root) {
@@ -402,14 +403,14 @@
                 if (doNotOrder) doNotOrder.disabled = !checkbox.checked;
                 if (need) {
                     need.disabled = !checkbox.checked;
-                    if (!checkbox.checked) need.checked = false;
+                    // Keep draft process choices when a bushing is deselected.
                 }
 
                 row.querySelectorAll('.bushing-process-line[data-component-id="' + componentId + '"]').forEach(function(line) {
                     line.classList.toggle('is-hidden', !showProcesses);
                     line.querySelectorAll('.bushing-process-control').forEach(function(control) {
                         control.disabled = !showProcesses;
-                        if (!showProcesses) control.value = '';
+                        // Hidden process values are restored with the selection.
                         if (window.jQuery) window.jQuery(control).trigger('change.select2');
                     });
                 });
@@ -464,6 +465,7 @@
                 danger: true
             });
             if (!confirmed) return;
+            if (window.BushingSelection) { await window.BushingSelection.clear(form); return; }
             form.querySelectorAll('.bushing-row').forEach(function(row) {
                 row.querySelectorAll('.component-checkbox').forEach(function(selected) { selected.checked = false; });
                 row.querySelectorAll('.bushing-do-not-order').forEach(function(noOrder) { noOrder.checked = false; });

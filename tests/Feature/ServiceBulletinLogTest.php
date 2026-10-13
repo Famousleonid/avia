@@ -22,7 +22,10 @@ class ServiceBulletinLogTest extends TestCase
         $workorder = $this->createWorkorder(['user_id' => $manager->id]);
         $this->createManualServiceBulletinForWorkorder($workorder);
 
-        $response = $this->actingAs($manager)->get(
+        $response = $this->actingAs($manager)->withSession([
+            'auth.version' => (int) $manager->auth_version,
+            'password_hash_web' => $manager->getAuthPassword(),
+        ])->get(
             route('tdrs.serviceBulletinLog', ['workorder' => $workorder->id])
         );
 
@@ -123,6 +126,56 @@ class ServiceBulletinLogTest extends TestCase
             'status' => WorkorderServiceBulletinLog::STATUS_AT_CARRIED_OUT,
             'notes' => 'Manager edit is allowed',
         ]);
+    }
+
+    public function test_notes_preserve_stamp_and_only_status_changes_replace_signer(): void
+    {
+        $technician = $this->createUserWithRole('Technician', ['stamp' => '42']);
+        $admin = $this->createUserWithRole('Admin', ['stamp' => '00']);
+        $workorder = $this->createWorkorder();
+        $bulletin = $this->createManualServiceBulletinForWorkorder($workorder);
+        $url = route('tdrs.serviceBulletinLog.update', $workorder);
+        $save = function ($user, ?string $status, string $notes, array $extra = []) use ($url, $bulletin): void {
+            $this->actingAs($user)->withSession([
+                'auth.version' => (int) $user->auth_version,
+                'password_hash_web' => $user->getAuthPassword(),
+            ])->post($url, $extra + ['rows' => [$bulletin->id => compact('status', 'notes')]])
+                ->assertRedirect()->assertSessionHasNoErrors();
+        };
+
+        $this->travelTo(now()->startOfSecond());
+        $save($technician, WorkorderServiceBulletinLog::STATUS_AT_CARRIED_OUT, 'Initial note');
+        $log = WorkorderServiceBulletinLog::where('workorder_id', $workorder->id)->firstOrFail();
+        $originalTime = $log->stamped_at->toDateTimeString();
+        $this->assertSame($technician->id, (int) $log->stamp_user_id);
+
+        $this->travel(5)->minutes();
+        foreach (['Edited by admin', 'Edited by admin', ''] as $notes) {
+            $save($admin, WorkorderServiceBulletinLog::STATUS_AT_CARRIED_OUT, $notes);
+            $log->refresh();
+            $this->assertSame($technician->id, (int) $log->stamp_user_id);
+            $this->assertSame($originalTime, $log->stamped_at->toDateTimeString());
+            $this->assertSame($notes !== '' ? $notes : null, $log->notes);
+        }
+        $this->get(route('tdrs.serviceBulletinLog', $workorder))->assertOk()
+            ->assertSee('is-selected">42</span>', false)->assertDontSee('is-selected">00</span>', false);
+
+        $save($admin, WorkorderServiceBulletinLog::STATUS_PREVIOUSLY_CARRIED_OUT, 'Status changed');
+        $log->refresh();
+        $this->assertSame($admin->id, (int) $log->stamp_user_id);
+        $this->assertSame(now()->toDateTimeString(), $log->stamped_at->toDateTimeString());
+
+        $save($admin, WorkorderServiceBulletinLog::STATUS_PREVIOUSLY_CARRIED_OUT, 'Keep note',
+            ['clear_status_bulletin_id' => $bulletin->id]);
+        $log->refresh();
+        $this->assertNull($log->status);
+        $this->assertNull($log->stamp_user_id);
+        $this->assertNull($log->stamped_at);
+        $save($technician, null, 'Notes only');
+        $this->assertNull($log->fresh()->stamp_user_id);
+        $save($technician, WorkorderServiceBulletinLog::STATUS_AT_CARRIED_OUT, 'Signed again');
+        $this->assertSame($technician->id, (int) $log->fresh()->stamp_user_id);
+        $this->travelBack();
     }
 
     private function createManualServiceBulletinForWorkorder($workorder): ManualServiceBulletin

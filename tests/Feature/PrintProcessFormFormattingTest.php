@@ -77,12 +77,13 @@ class PrintProcessFormFormattingTest extends TestCase
     public function test_process_form_header_grows_for_a_wrapped_workorder_description(): void
     {
         $unit = (new Unit())->forceFill([
-            'name' => 'Shock Strut Assy, Dressed, NLG',
+            'name' => 'Unit catalog name',
             'part_number' => '52000-31',
         ]);
         $workorder = (new Workorder())->forceFill([
             'number' => 107849,
             'serial_number' => 'MA1713',
+            'description' => 'Shock Strut Assy, Dressed, NLG',
         ]);
         $workorder->setRelation('unit', $unit);
 
@@ -100,6 +101,7 @@ class PrintProcessFormFormattingTest extends TestCase
         $this->assertStringNotContainsString('style="height: 32px"', $html);
         $this->assertStringContainsString('.header-page .process-header-field-row { min-height: 32px; }', $styles);
         $this->assertStringContainsString('Shock Strut Assy, Dressed, NLG', $html);
+        $this->assertStringNotContainsString('Unit catalog name', $html);
         $this->assertStringContainsString('52000-31', $html);
     }
 

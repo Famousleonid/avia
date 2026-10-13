@@ -139,6 +139,11 @@ class WoBushingRelationalSync
             // До удаления строк: запомнить party/даты по (component_id × колонка шапки), иначе после Update из модалки теряются batch_id и «Grp».
             $preserveByComponent = [];
             $existingLines = $state['lines'];
+            $selectedIds = collect($bushDataArray)->pluck('bushing')->all();
+            $existingLines = $existingLines->concat($woBushing->lines()->withoutGlobalScope('selected')
+                ->where('selection_active', false)->whereIn('component_id', $selectedIds)
+                ->whereNotIn('component_id', $existingLines->pluck('component_id'))
+                ->with(['processes.process.process_name', 'processes.batch'])->get());
             $routeBatches = app(BushingRouteBatches::class);
             $protectedIds = $routeBatches->protectedLineIds($existingLines);
             $protectedComponents = $existingLines->whereIn('id', $protectedIds)->pluck('component_id')->all();
@@ -166,7 +171,10 @@ class WoBushingRelationalSync
                 }
             }
 
-            $woBushing->lines()->whereNotIn('id', $protectedIds)->delete();
+            // Keep deselected drafts and their processes for the shared KIT restore.
+            $woBushing->lines()->whereNotIn('id', $protectedIds)->whereNotIn('component_id', $selectedIds)
+                ->update(['selection_active' => false]);
+            $woBushing->lines()->withoutGlobalScope('selected')->whereNotIn('id', $protectedIds)->whereIn('component_id', $selectedIds)->delete();
 
             $sortOrder = 0;
             foreach ($groupBushingsData as $groupKey => $groupData) {
@@ -264,6 +272,15 @@ class WoBushingRelationalSync
                 }
             }
             $routeBatches->rebuild($woBushing);
+            $selection = app(WorkorderBushingSelection::class);
+            $workorder = $woBushing->workorder;
+            foreach ($selection->families($workorder) as $key => $family) {
+                $ids = $family->pluck('id');
+                if ($existingLines->whereIn('component_id', $ids)->isNotEmpty() || $ids->intersect($selectedIds)->isNotEmpty()) {
+                    $selection->decide($workorder, $key);
+                    \App\Models\WorkorderKitPrlCrossout::where('workorder_id', $workorderId)->whereIn('component_id', $ids)->delete();
+                }
+            }
         });
 
         return $bushDataArray;
@@ -311,9 +328,11 @@ class WoBushingRelationalSync
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function bushDataFromLines(WoBushing $woBushing): array
+    public function bushDataFromLines(WoBushing $woBushing, bool $includeInactive = false): array
     {
-        $lines = $woBushing->lines()->with(['processes.process.process_name', 'component'])->orderBy('sort_order')->get();
+        $query = $woBushing->lines();
+        if ($includeInactive) $query->withoutGlobalScope('selected');
+        $lines = $query->with(['processes.process.process_name', 'component'])->orderBy('sort_order')->get();
 
         $out = [];
         foreach ($lines as $line) {

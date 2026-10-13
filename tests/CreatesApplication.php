@@ -18,6 +18,10 @@ trait CreatesApplication
     {
         $this->forceTestingEnvironment();
 
+        // Load APP_KEY before bootstrap/app.php's web fallback can overwrite the
+        // PHPUnit environment with .env values on the first application boot.
+        \Dotenv\Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+
         $app = require __DIR__.'/../bootstrap/app.php';
 
         $app->make(Kernel::class)->bootstrap();

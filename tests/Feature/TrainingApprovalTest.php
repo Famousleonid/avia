@@ -156,7 +156,7 @@ class TrainingApprovalTest extends TestCase
         $this->assertNull($training->fresh()->approved_by);
     }
 
-    public function test_form_132_date_editable_by_admin_only(): void
+    public function test_form_132_date_editable_by_admin_and_manager(): void
     {
         $training = $this->makeTraining();
         $form132 = Training::query()->create([
@@ -169,7 +169,7 @@ class TrainingApprovalTest extends TestCase
         $manager = $this->createUserWithRole('Manager', ['stamp' => 'MG', 'is_admin' => false]);
         $this->actingAs($manager)
             ->putJson(route('trainings.update', ['training' => $form132->id]), ['date_training' => '2026-08-14'])
-            ->assertStatus(422);
+            ->assertOk();
 
         $admin = $this->createUserWithRole('Admin', ['stamp' => 'AD']);
         $this->actAsFresh($admin)
@@ -177,6 +177,16 @@ class TrainingApprovalTest extends TestCase
             ->assertOk();
 
         // Дата нормализуется к пятнице своей недели (14.08.2026 — пятница)
+        $this->assertSame('2026-08-14', $form132->fresh()->date_training);
+
+        $owner = \App\Models\User::findOrFail($form132->user_id);
+        $this->actAsFresh($owner)
+            ->putJson(route('trainings.update', ['training' => $form132->id]), ['date_training' => '2026-08-07'])
+            ->assertStatus(422);
+        $form132->update(['approved_by' => $admin->id, 'approved_at' => now()]);
+        $this->actAsFresh($manager)
+            ->putJson(route('trainings.update', ['training' => $form132->id]), ['date_training' => '2026-08-07'])
+            ->assertStatus(422);
         $this->assertSame('2026-08-14', $form132->fresh()->date_training);
     }
 

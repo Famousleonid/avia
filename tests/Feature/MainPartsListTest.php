@@ -70,7 +70,7 @@ class MainPartsListTest extends TestCase
         $this->assertSame(['2026-09-23', '2026-09-23'], $service->rows($wo)->pluck('received')->all());
         $this->assertSame([2, 2], $service->rows($wo)->pluck('received_qty')->map(fn ($q) => (int) $q)->all());
         $this->get(route('tdrs.kitForm', $wo))->assertOk()->assertSee('PO-123');
-        $this->get(route('tdrs.prlForm', $wo))->assertOk()->assertSee('PO-123');
+        $this->get(route('tdrs.prlForm', $wo))->assertOk()->assertDontSee('BUSH-TEST');
         $this->get(route('mains.show', $wo))->assertOk()->assertSee('PO-123')->assertSee('2026-09-23', false);
     }
 

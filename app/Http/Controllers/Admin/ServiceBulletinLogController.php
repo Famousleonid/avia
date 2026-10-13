@@ -102,18 +102,18 @@ class ServiceBulletinLogController extends Controller
                 continue;
             }
 
-            WorkorderServiceBulletinLog::query()->updateOrCreate(
-                [
-                    'workorder_id' => $workorder->id,
-                    'manual_service_bulletin_id' => $bulletinId,
-                ],
-                [
-                    'status' => $status,
-                    'stamp_user_id' => $status ? Auth::id() : null,
-                    'stamped_at' => $status ? now() : null,
-                    'notes' => $notes !== '' ? $notes : null,
-                ]
-            );
+            $log = WorkorderServiceBulletinLog::query()->firstOrNew([
+                'workorder_id' => $workorder->id,
+                'manual_service_bulletin_id' => $bulletinId,
+            ]);
+            // Saving notes or an unchanged row must not replace its sign-off.
+            if ($log->status !== $status) {
+                $log->stamp_user_id = $status ? Auth::id() : null;
+                $log->stamped_at = $status ? now() : null;
+            }
+            $log->status = $status;
+            $log->notes = $notes !== '' ? $notes : null;
+            $log->save();
         }
 
         return redirect()

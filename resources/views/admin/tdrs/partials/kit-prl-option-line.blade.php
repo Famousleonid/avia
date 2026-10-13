@@ -4,7 +4,8 @@
     $controllerCrossedOut = ! empty($option['controller_crossed_out']);
     $manualCrossedOut = ! empty($option['manual_crossed_out']);
     $crossedOut = ! empty($option['crossed_out']);
-    $interactive = ($kitInteractive ?? false) && ! $controllerCrossedOut && $componentId > 0;
+    $sharedBushing = !empty($option['bushing_selection']);
+    $interactive = ($kitInteractive ?? false) && (! $controllerCrossedOut || $sharedBushing) && $componentId > 0;
     $showControllerLock = ($kitInteractive ?? false) && $controllerCrossedOut;
     $partNumberMode = ! empty($kitPrlPartNumberMode);
     $classes = trim(implode(' ', array_filter([
@@ -18,6 +19,7 @@
 @endphp
 <span class="{{ $classes }}"
       data-kit-prl-component-id="{{ $componentId }}"
+      @if($sharedBushing) data-bushing-selection-id="{{ $componentId }}" @endif
       data-kit-prl-manual-crossed-out="{{ $manualCrossedOut ? '1' : '0' }}"
       data-kit-prl-controller-crossed-out="{{ $controllerCrossedOut ? '1' : '0' }}"
       data-kit-prl-option-label="{{ $kitPrlLabel ?? '' }}"

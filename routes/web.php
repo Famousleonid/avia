@@ -404,6 +404,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/bushPrlForm/{id}', [TdrPrintFormController::class, 'bushPrlForm'])->name('tdrs.bushPrlForm');
         Route::get('tdrs/kitForm/{id}', [TdrPrintFormController::class, 'kitForm'])->name('tdrs.kitForm');
         Route::patch('workorders/{workorder}/kit-prl-crossouts/{component}', [WorkorderKitPrlCrossoutController::class, 'update'])->name('tdrs.kit-crossouts.update');
+        Route::get('workorders/{workorder}/bushing-selection', [\App\Http\Controllers\Admin\WorkorderBushingSelectionController::class, 'show'])->name('workorders.bushing-selection.show');
+        Route::patch('workorders/{workorder}/bushing-selection/{component}', [\App\Http\Controllers\Admin\WorkorderBushingSelectionController::class, 'update'])->name('workorders.bushing-selection.update');
         Route::get('tdrs/specProcessForm/{id}', [TdrPrintFormController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
     Route::get('tdrs/specProcessFormEmp/{id}', [TdrPrintFormController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
         Route::get('workorders/{workorder}/log-card-transfer', [\App\Http\Controllers\Admin\LogCardTransferController::class, 'sources'])->name('workorders.log-card-transfer.sources');
@@ -784,6 +786,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::put('manuals/{manual}/std-processes/{stdProcess}', [ManualStdProcessController::class, 'update'])->name('manuals.std-processes.update');
     Route::delete('manuals/{manual}/std-processes/{stdProcess}', [ManualStdProcessController::class, 'destroy'])->name('manuals.std-processes.destroy');
     Route::post('manuals/{manual}/service-bulletins', [ManualServiceBulletinController::class, 'store'])->name('manuals.service-bulletins.store');
+    Route::patch('manuals/{manual}/service-bulletins/reorder', [ManualServiceBulletinController::class, 'reorder'])->name('manuals.service-bulletins.reorder');
     Route::put('manuals/{manual}/service-bulletins/{serviceBulletin}', [ManualServiceBulletinController::class, 'update'])->name('manuals.service-bulletins.update');
     Route::delete('manuals/{manual}/service-bulletins/{serviceBulletin}', [ManualServiceBulletinController::class, 'destroy'])->name('manuals.service-bulletins.destroy');
     Route::post('manuals/{manual}/revision-checks', [ManualController::class, 'storeRevisionCheck'])->name('manuals.revision-checks.store');

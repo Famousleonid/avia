@@ -352,9 +352,8 @@ class PartGroupsTest extends TestCase
                 $bushingRow = collect($rows)->first(fn ($row): bool => (int) ($row->order_component_id ?? 0) === $bushing->id);
 
                 return $assyRow
-                    && $bushingRow
                     && empty($assyRow->prl_crossed_out)
-                    && ! empty($bushingRow->prl_crossed_out);
+                    && ! $bushingRow; // Fully supplied members are omitted from the order PRL.
             });
     }
 
@@ -991,7 +990,7 @@ class PartGroupsTest extends TestCase
         $this->assertSame(4, $alternative->options()->count());
     }
 
-    public function test_assy_does_not_expand_a_restricted_explicit_letter_subset(): void
+    public function test_assy_restricted_subset_supplies_only_its_members_but_excludes_other_ipl_variants(): void
     {
         [$admin, $wo, $head, $group, $option] = $this->bundleFixture(['prl'], 1);
         $parts = collect(['5-70A', '5-70B', '5-70C', '5-70D'])->map(
@@ -1015,11 +1014,15 @@ class PartGroupsTest extends TestCase
         $resolver = app(PartGroupCoverageResolver::class);
         $coverage = $resolver->coverageForWorkorder($wo, 'prl');
         foreach ($parts->take(2) as $part) $this->assertSame(2, $coverage[$part->id]['covered_qty']);
-        foreach ($parts->skip(2) as $part) $this->assertArrayNotHasKey($part->id, $coverage);
-        // Even a directly listed representative must not escape the restriction.
+        foreach ($parts->skip(2) as $part) {
+            $this->assertSame(PHP_INT_MAX, $coverage[$part->id]['covered_qty']);
+            $this->assertStringStartsWith('IPL alternative not selected;', $coverage[$part->id]['reason']);
+        }
+        // Restrict the supplied part while still excluding other IPL variants.
         $edge->update(['covered_manual_part_group_option_id' => null, 'component_id' => $parts[0]->id]);
         $coverage = $resolver->coverageForWorkorder($wo, 'prl');
-        foreach ($parts->skip(1) as $part) $this->assertArrayNotHasKey($part->id, $coverage);
+        $this->assertSame(2, $coverage[$parts[0]->id]['covered_qty']);
+        foreach ($parts->skip(1) as $part) $this->assertSame(PHP_INT_MAX, $coverage[$part->id]['covered_qty']);
     }
 
     public function test_log_card_composition_keeps_letter_variants_after_group_retirement(): void
@@ -1076,7 +1079,8 @@ class PartGroupsTest extends TestCase
             $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, $scope);
             $this->assertSame(12, $coverage[$member->id]['covered_qty']);
             $this->assertSame(6, $coverage[$a->id]['covered_qty']);
-            $this->assertArrayNotHasKey($b->id, $coverage);
+            $this->assertSame(PHP_INT_MAX, $coverage[$b->id]['covered_qty']);
+            $this->assertStringStartsWith('IPL alternative not selected;', $coverage[$b->id]['reason']);
         }
         $groups = ManualPartGroup::where('manual_id', $member->manual_id)->with('options.coverages')->get();
         $composition = app(\App\Services\ManualPartGroupCompositionResolver::class)->componentIdsByGroup($groups);

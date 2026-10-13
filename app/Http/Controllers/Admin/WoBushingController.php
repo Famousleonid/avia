@@ -534,6 +534,12 @@ class WoBushingController extends Controller
                 'group_bushings' => __('A selected bushing is outside this workorder Work Scope.'),
             ]);
         }
+        $selection = app(\App\Services\WorkorderBushingSelection::class)->snapshot($workorder);
+        foreach (collect($selection['groups'])->flatMap(fn ($group) => $group['options']) as $option) {
+            if ($componentIds->contains($option['id']) && $option['locked'] && !$option['selected']) {
+                throw ValidationException::withMessages(['group_bushings' => $option['reason']]);
+            }
+        }
     }
 
     /**
@@ -673,6 +679,9 @@ class WoBushingController extends Controller
         $isAjax = $request->ajax();
 
         if ($existingWoBushing) {
+            if ($request->filled('draft_token')) {
+                return $this->update($request, $existingWoBushing->id);
+            }
             $snapshot = $this->bushingSnapshot($existingWoBushing);
             $this->logBushingSaveResult(
                 $workorder,

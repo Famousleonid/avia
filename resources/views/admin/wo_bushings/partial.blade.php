@@ -6,3 +6,4 @@
      data-spec-form-url="{{ ($woBushing && ($hasBushingSpecProcessBatches ?? false)) ? route('wo_bushings.specProcessForm', $woBushing->id) : '' }}">
     @include('admin.wo_bushings.partials.bushing-content')
 </div>
+@include('admin.wo_bushings.partials.selection-assets')

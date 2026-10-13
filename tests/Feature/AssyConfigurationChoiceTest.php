@@ -53,7 +53,10 @@ class AssyConfigurationChoiceTest extends TestCase
             $this->assertArrayNotHasKey($member->id, $before);
         }
 
-        $this->actingAs($admin)->patchJson(route('workorders.assy-configuration.update', $wo), [
+        $this->actingAs($admin)->withSession([
+            'auth.version' => (int) $admin->auth_version,
+            'password_hash_web' => $admin->getAuthPassword(),
+        ])->patchJson(route('workorders.assy-configuration.update', $wo), [
             'parent_option_id' => $parent->id, 'choice_slot' => 'upper_torque_link',
             'selected_coverage_id' => $children['8-150B'][2]->id,
         ])->assertOk()->assertJsonPath('slots.0.selected_coverage_id', $children['8-150B'][2]->id);
@@ -148,8 +151,10 @@ class AssyConfigurationChoiceTest extends TestCase
             $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, $scope);
             $this->assertSame(1, $coverage[$axle303->id]['covered_qty']);
             $this->assertSame(1, $coverage[$spacerNew->id]['covered_qty']);
-            foreach ([$axle305, $axle309, $spacerOld] as $excluded) {
-                $this->assertArrayNotHasKey($excluded->id, $coverage);
+            $this->assertArrayNotHasKey($axle305->id, $coverage);
+            foreach ([$axle309, $spacerOld] as $excluded) {
+                $this->assertSame(PHP_INT_MAX, $coverage[$excluded->id]['covered_qty']);
+                $this->assertStringStartsWith('IPL alternative not selected;', $coverage[$excluded->id]['reason']);
             }
         }
         $this->patchJson(route('workorders.assy-configuration.update', $wo), [
@@ -266,7 +271,8 @@ class AssyConfigurationChoiceTest extends TestCase
         foreach (ManualPartGroup::validScopes() as $scope) {
             $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($wo, $scope);
             $this->assertSame(2, $coverage[$newPart->id]['covered_qty']);
-            $this->assertArrayNotHasKey($oldPart->id, $coverage);
+            $this->assertSame(PHP_INT_MAX, $coverage[$oldPart->id]['covered_qty']);
+            $this->assertStringStartsWith('IPL alternative not selected;', $coverage[$oldPart->id]['reason']);
         }
         $this->assertSame(2, app(WorkorderPartScopeResolver::class)->componentQuantities($wo)[$newPart->id]);
         $groups = ManualPartGroup::where('manual_id', $manual->id)->with('options.coverages')->get();

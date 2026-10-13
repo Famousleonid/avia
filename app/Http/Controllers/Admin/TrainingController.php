@@ -253,7 +253,12 @@ class TrainingController extends Controller
             $trainingSearch = $searchRow ? (string) $searchRow['first_training']->manual->unit_name_training : '';
         }
 
+        $savedSort = \App\Models\UserUiSetting::where('user_id', $user->id)
+            ->where('scope', 'trainings')->where('key', 'sort')->first()?->value;
+        $trainingSort = in_array($savedSort, ['asc', 'desc'], true) ? $savedSort : null;
+
         return view('admin.trainings.index', compact(
+            'trainingSort',
             'trainingSearch', 'trainingSelectedManual',
             'formattedTrainingLists',
             'planes',
@@ -752,7 +757,7 @@ class TrainingController extends Controller
                     && ($t->isApproved()
                         ? $viewer->canManageApprovedTrainings()
                         : ($viewer->roleIs(['Admin', 'Manager']) || $t->user_id === $viewer->id))
-                    && ((string) $t->form_type !== '132' || $viewer->roleIs('Admin') || $viewer->isAdmin()),
+                    && ((string) $t->form_type !== '132' || $viewer->roleIs(['Admin', 'Manager']) || $viewer->isAdmin()),
             ]);
 
         return response()->json([
@@ -791,13 +796,13 @@ class TrainingController extends Controller
             ], 422);
         }
 
-        // Дату Form 132 правит только Admin (принятую — только назначенный, см. выше)
+        // Дату Form 132 правят Admin и Manager (принятую — только назначенный, см. выше)
         if ((string) $training->form_type === '132'
-            && !auth()->user()->roleIs('Admin')
+            && !auth()->user()->roleIs(['Admin', 'Manager'])
             && !auth()->user()->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => __('Form 132 date can be edited by Admin only.'),
+                'message' => __('Form 132 date can be edited by Admin or Manager only.'),
             ], 422);
         }
 

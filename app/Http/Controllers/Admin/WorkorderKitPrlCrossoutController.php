@@ -32,14 +32,11 @@ class WorkorderKitPrlCrossoutController extends Controller
         )->filter(fn (Component $part): bool => $branchRules->allowsComponentForUnit(
             $workorder->unit, (string) $part->ipl_num, (int) $part->manual_id
         ));
-        $familyInKit = BushingPrlGrouping::groups(
-            BushingPrlGrouping::candidates($available)
-        )->contains(fn ($family): bool => $family->contains('id', $component->id)
-            && $family->contains(fn (Component $part): bool => (bool) $part->kit));
+        $isBushing = BushingPrlGrouping::candidates($available)->contains('id', $component->id);
         $belongsToKit = $workorder->isOverhaul()
             && $workorder->scope_type !== Unit::SCOPE_COMPONENT
             && $available->contains('id', $component->id)
-            && ((bool) $component->kit || $familyInKit)
+            && ((bool) $component->kit || $isBushing)
             && in_array((int) $component->manual_id, $workorder->usedManualIds(), true)
             && $branchRules->allowsComponentForUnit(
                 $workorder->unit,
@@ -54,6 +51,17 @@ class WorkorderKitPrlCrossoutController extends Controller
         }
 
         $crossedOut = (bool) $validated['crossed_out'];
+
+        if ($isBushing) {
+            $selection = app(\App\Services\WorkorderBushingSelection::class);
+            $state = $selection->snapshot($workorder);
+            $option = collect($state['groups'])->flatMap(fn ($group) => $group['options'])->firstWhere('id', $component->id);
+            $selection->update($workorder, $component, [$component->id => [
+                'selected' => !$crossedOut, 'qty' => $option['qty'],
+                'do_not_order' => $crossedOut ? $option['do_not_order'] : false,
+            ]], $state['revision']);
+            return response()->json(['component_id' => $component->id, 'crossed_out' => $crossedOut]);
+        }
 
         if ($crossedOut) {
             WorkorderKitPrlCrossout::query()->updateOrCreate(

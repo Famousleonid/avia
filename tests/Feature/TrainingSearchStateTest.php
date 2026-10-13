@@ -12,6 +12,19 @@ class TrainingSearchStateTest extends TestCase
 {
     use BuildsDomainData, DatabaseTransactions;
 
+    public function test_sort_is_saved_for_viewer_and_restored_when_viewing_another_employee(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $other = $this->createUserWithRole('Technician');
+        $this->actingAs($manager)->withSession(['auth.version' => (int) $manager->auth_version, 'password_hash_web' => $manager->getAuthPassword()]);
+        foreach (['asc', 'desc'] as $direction) {
+            $this->postJson(route('user-ui-settings.store'), ['scope' => 'trainings', 'key' => 'sort', 'value' => $direction])->assertOk();
+            $this->get(route('trainings.index', ['user_id' => $other->id]))->assertOk()->assertViewHas('trainingSort', $direction);
+        }
+        $this->actingAs($other)->withSession(['auth.version' => (int) $other->auth_version, 'password_hash_web' => $other->getAuthPassword()]);
+        $this->get(route('trainings.index'))->assertOk()->assertViewHas('trainingSort', null);
+    }
+
     public function test_saved_search_is_rendered_before_javascript_and_is_user_scoped(): void
     {
         $user = $this->createUserWithRole('Technician');

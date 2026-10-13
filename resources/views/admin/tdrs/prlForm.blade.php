@@ -520,6 +520,22 @@
             min-height: 1.2em;
         }
 
+        .prl-col-qty.kit-bushing-qty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        .kit-bushing-qty h6 { margin: 0; }
+
+        .kit-extra-heading {
+            font-size: 22px;
+            line-height: 1.25;
+            padding: 8px 4px;
+        }
+
         .prl-part-number-crossed-out {
             text-decoration-line: line-through;
             text-decoration-thickness: 1px;
@@ -709,7 +725,19 @@
                     // Проверяем, является ли $tdr массивом или объектом
                     $isArray = is_array($tdr);
                     $isSectionRow = $isArray && (($tdr['kind'] ?? null) === 'section');
+                    $isExtraBushing = $isArray && ! empty($tdr['kit_extra_bushing']);
                 @endphp
+
+                @if($isExtraBushing && !($extraBushingsStarted ?? false))
+                    <div class="row data-row-prl ms-3 manual-row" style="width: 100%" data-row-index="{{ $rowIndex }}" data-kit-extra-heading="1">
+                        <div class="kit-extra-heading border-l-b-r text-center align-content-center"><strong>Extra parts</strong></div>
+                    </div>
+                    @php
+                        $extraBushingsStarted = true;
+                        $previousManual = null;
+                        $rowIndex++;
+                    @endphp
+                @endif
 
                 @if($isSectionRow)
                     <div class="row data-row-prl ms-3 manual-row" style="width: 100%" data-row-index="{{ $rowIndex }}">
@@ -783,6 +811,7 @@
                     $kitComponentOptions = $isArray ? ($tdr['kit_component_options'] ?? []) : [];
                     $groupCrossoutReason = $isArray ? ($tdr['group_crossout_reason'] ?? '') : ($tdr->group_crossout_reason ?? '');
                     $bushingKitNote = $isArray && ! empty($tdr['bushing_kit_note']);
+                    $showKitBushingQty = ($printSettingsProfile ?? '') === 'kit' && $isArray && isset($tdr['bushing_kit_capacity']);
                 @endphp
 
                 @if($shouldInsertManualRow)
@@ -828,6 +857,7 @@
                 <div class="row data-row-prl ms-3 {{ $isCrossedOut ? 'prl-row-crossed-out' : '' }}"
                      style="width: 100%"
                      data-row-index="{{ $rowIndex }}"
+                     @if($isExtraBushing) data-kit-extra-bushing="1" @endif
                      @if($bushingGroup !== null) data-prl-bushing-group="{{ $bushingGroup }}" @endif
                     @if($groupCrossoutReason !== '') title="{{ $groupCrossoutReason }}" @endif
                     @if($isCrossedOut) data-prl-crossed-out="1" @endif>
@@ -874,7 +904,7 @@
                     <div class="col-3 prl-col-desc border-l-b text-center pt-1 align-content-center">
                                 {!! nl2br(e($descriptionDisplay)) !!}
                                 @if($isArray && isset($tdr['bushing_kit_capacity']))
-                                    <div class="small" data-bushing-kit-capacity="{{ $tdr['bushing_kit_capacity'] }}">KIT total: {{ $tdr['bushing_kit_capacity'] }} — Original / Oversize</div>
+                                    <div class="small" data-bushing-kit-capacity="{{ $tdr['bushing_kit_capacity'] }}">{{ $isExtraBushing ? 'Total' : 'KIT total' }}: {{ $tdr['bushing_kit_capacity'] }} — Original / Oversize</div>
                                 @endif
                             </div>
                     <div class="col-3 prl-col-part border-l-b text-center pt-2 align-content-center">
@@ -916,8 +946,10 @@
                                     <h6> </h6>
                                 @endif
                             </div>
-                    <div class="col-1 prl-col-qty border-l-b text-center pt-2 align-content-center">
-                                @if(!empty($partNumberOptions))
+                    <div class="col-1 prl-col-qty border-l-b text-center {{ $showKitBushingQty ? 'kit-bushing-qty' : 'pt-2 align-content-center' }}">
+                                @if($showKitBushingQty)
+                                    <h6 data-kit-original-qty="{{ $tdr['bushing_kit_capacity'] }}">{{ $tdr['bushing_kit_capacity'] }}</h6>
+                                @elseif(!empty($partNumberOptions))
                                     <h6>
                                         @foreach($partNumberOptions as $partNumberOption)
                                             @php
@@ -1537,6 +1569,7 @@
         };
     </script>
     <script src="{{ asset('js/tdrs/forms/prl/kit-manual-crossouts.js') }}?v={{ filemtime(public_path('js/tdrs/forms/prl/kit-manual-crossouts.js')) }}"></script>
+    @include('admin.wo_bushings.partials.selection-assets')
 @endif
 </body>
 </html>

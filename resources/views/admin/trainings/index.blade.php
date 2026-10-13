@@ -513,13 +513,13 @@
                         @php
                             $viewerCanApprove = auth()->user()->canApproveTrainings();
                             $viewerIsDesignated = auth()->user()->canManageApprovedTrainings();
-                            $viewerIsAdmin = auth()->user()->roleIs('Admin') || auth()->user()->isAdmin();
+                            $viewerCanEdit132 = auth()->user()->roleIs(['Admin', 'Manager']) || auth()->user()->isAdmin();
                         @endphp
                         @foreach($trainingList['trainings'] as $training)
                             @php
                                 $frozen = $training->isApproved() && !$viewerIsDesignated;
-                                // 132 редактирует только Admin; принятые — только назначенный
-                                $dateLocked = $frozen || ((string) $training->form_type === '132' && !$viewerIsAdmin);
+                                // 132 редактируют Admin и Manager; принятые — только назначенный
+                                $dateLocked = $frozen || ((string) $training->form_type === '132' && !$viewerCanEdit132);
                             @endphp
                             <div class="training-date-grid edit-training-row"
                                  data-training-id="{{ $training->id }}"
@@ -528,7 +528,7 @@
                                     <span class="text-muted">{{ __('Form') }} {{ $training->form_type }}</span>
                                 </div>
 
-                                <div class="col" title="{{ $frozen ? __('Approved: only the designated manager can edit') : ((string) $training->form_type === '132' ? __('Date: Admin only') : __('Date: employee, Admin or Manager; approved dates require designated permission')) }}">
+                                <div class="col" title="{{ $frozen ? __('Approved: only the designated manager can edit') : ((string) $training->form_type === '132' ? __('Date: Admin or Manager') : __('Date: employee, Admin or Manager; approved dates require designated permission')) }}">
                                     @if($dateLocked)
                                         <input type="text"
                                                class="form-control form-control-sm {{ (string) $training->form_type === '132' ? 'training-locked-base-date' : '' }}"
@@ -906,9 +906,11 @@
             const table = document.getElementById('trainingsTable');
 
             if (sortTh && table) {
-                let sortOrder = 1;
+                let currentSort = @json($trainingSort);
+                let saveSort = Promise.resolve();
 
-                sortTh.addEventListener('click', function () {
+                function applySort(direction) {
+                    const sortOrder = direction === 'asc' ? 1 : -1;
                     const tbody = table.querySelector('tbody');
                     const rows = Array.from(tbody.querySelectorAll('tr'));
                     const componentPnIndex = 1;
@@ -920,15 +922,22 @@
                         return sortOrder * cmp;
                     });
 
-                    sortOrder *= -1;
+                    currentSort = direction;
                     rows.forEach(function (row) {
                         tbody.appendChild(row);
                     });
 
                     const icon = sortTh.querySelector('i');
                     if (icon) {
-                        icon.className = (sortOrder > 0 ? 'bi bi-arrow-down' : 'bi bi-arrow-up') + ' text-muted small ms-1';
+                        icon.className = (direction === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down') + ' text-muted small ms-1';
                     }
+                    sortTh.setAttribute('aria-sort', direction === 'asc' ? 'ascending' : 'descending');
+                }
+                if (currentSort) applySort(currentSort);
+                sortTh.addEventListener('click', function () {
+                    const direction = currentSort === 'asc' ? 'desc' : 'asc';
+                    applySort(direction);
+                    saveSort = saveSort.then(() => window.UserUiSettings.set('trainings', 'sort', direction, {keepalive: true}));
                 });
             }
 

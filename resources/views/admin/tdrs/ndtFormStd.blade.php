@@ -7,8 +7,7 @@
     @include('partials.user-scoped-storage')
     @php
         $tdrFormConfig = config('tdr_forms.ndtFormStd');
-        $componentName = $current_wo->unit->name;
-        $componentName = (string) $componentName;
+        $componentName = (string) $current_wo->displayDescription();
         $manualNumber = collect($manuals ?? [$manual])
             ->map(fn ($item) => format_cmm_number($item->number ?? ''))
             ->filter()
@@ -28,8 +27,8 @@
                 ->implode("\n");
         };
         $ndtProcessMap = [
-            1 => $findNdtProcess($ndt1_name_id ?? null),
-            4 => $findNdtProcess($ndt4_name_id ?? null),
+            1 => 'ASTM E1444M and MIL-STD-1907.',
+            4 => 'ASTM E1417',
             5 => $findNdtProcess($ndt5_name_id ?? null),
             6 => $findNdtProcess($ndt6_name_id ?? null),
         ];

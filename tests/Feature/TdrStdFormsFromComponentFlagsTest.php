@@ -519,12 +519,17 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
 
     public function test_ndt_std_form_opens_from_component_flag_snapshot(): void
     {
+        $this->assertTrue($this->app->runningUnitTests());
+        $this->assertSame('testing', $this->app->environment());
+        $this->assertSame('array', config('session.driver'));
+
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
-        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $unit = $this->createUnit(['manual_id' => $manual->id, 'name' => null]);
         $workorder = $this->createWorkorder([
             'unit_id' => $unit->id,
             'user_id' => $admin->id,
+            'description' => 'MLG Shock Strut',
         ]);
 
         Component::query()->create([
@@ -540,6 +545,9 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('PN-NDT-ROUTE');
+        $response->assertSee('MLG Shock Strut');
+        $response->assertSee('ASTM E1444M and MIL-STD-1907.');
+        $response->assertSee('ASTM E1417');
     }
 
     public function test_ndt_std_form_keeps_a_cmm_suffix_attached_without_a_space(): void
@@ -2010,7 +2018,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         }
     }
 
-    public function test_prl_qr_is_shifted_up_from_workorder_number_box(): void
+    public function test_prl_qr_is_shifted_up_on_screen_and_fixed_at_the_print_top(): void
     {
         ProjectSetting::setBoolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true);
         Necessary::query()->firstOrCreate(['name' => 'Order New']);
@@ -2023,7 +2031,10 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('top: -8px;', false);
-        $response->assertSee('top: -2mm;', false);
+        $this->assertMatchesRegularExpression(
+            '/@media print\s*\{\s*\.system-print-qr\s*\{[^}]*position:\s*fixed;[^}]*top:\s*0\s*!important;/s',
+            $response->getContent()
+        );
     }
 
     public function test_paint_std_form_uses_component_flags_not_csv_snapshot(): void

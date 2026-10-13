@@ -396,6 +396,19 @@
         #nav-sb .manual-sb-actions {
             white-space: nowrap;
         }
+        #nav-sb .sb-drag-handle { cursor: grab; }
+        #nav-sb .sb-drag-handle:active { cursor: grabbing; }
+        #nav-sb .manual-sb-table tbody td {
+            transition: background-color .5s ease, box-shadow .5s ease;
+        }
+        #nav-sb .manual-sb-table .sb-row-dragging > td,
+        #nav-sb .manual-sb-table .sb-row-moved > td {
+            background-color: rgba(13, 202, 240, .16);
+            box-shadow: inset 0 2px rgba(13, 202, 240, .65), inset 0 -2px rgba(13, 202, 240, .65);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #nav-sb .manual-sb-table tbody td { transition: none; }
+        }
         #nav-processes .table th:nth-child(1),
         #nav-processes .table td:nth-child(1) { width: 7%; }
         #nav-processes .table th:nth-child(2),
@@ -1440,9 +1453,9 @@
                         </div>
 
                         <div class="manual-sb-table-wrap">
-                            <table class="table table-sm table-hover table-bordered dir-table manual-sb-table">
+                            <table class="table table-sm table-hover table-bordered dir-table manual-sb-table" data-reorder-url="{{ route('manuals.service-bulletins.reorder', $cmm) }}">
                                 <colgroup>
-                                    <col style="width: 70px;">
+                                    <col style="width: 46px;"><col style="width: 70px;">
                                     <col style="width: 130px;">
                                     <col style="width: 170px;">
                                     <col style="width: 170px;">
@@ -1455,7 +1468,7 @@
                                 </colgroup>
                                 <thead class="bg-gradient">
                                 <tr>
-                                    <th class="text-center bg-gradient">{{ __('Sort') }}</th>
+                                    <th class="text-center bg-gradient" aria-label="Move row"></th><th class="text-center bg-gradient">{{ __('Sort') }}</th>
                                     <th class="text-center bg-gradient">{{ __('Year Introduced') }}</th>
                                     <th class="text-center bg-gradient">{{ __('A/C MFG SB No.') }}</th>
                                     <th class="text-center bg-gradient">{{ __('OEM SB No.') }}</th>
@@ -1469,7 +1482,7 @@
                                 </thead>
                                 <tbody>
                                 <tr class="table-secondary">
-                                    <td><input form="create-sb-row" type="number" min="0" name="sort_order" class="form-control form-control-sm" value="{{ ($serviceBulletins->max('sort_order') ?? 0) + 1 }}"></td>
+                                    <td></td><td class="text-center">—</td>
                                     <td><input form="create-sb-row" type="text" name="year_introduced" class="form-control form-control-sm"></td>
                                     <td><input form="create-sb-row" type="text" name="ac_mfg_service_bulletin_no" class="form-control form-control-sm"></td>
                                     <td><input form="create-sb-row" type="text" name="oem_service_bulletin_no" class="form-control form-control-sm"></td>
@@ -1494,7 +1507,7 @@
 
                                 @forelse($serviceBulletins as $bulletin)
                                     <tr>
-                                        <td><input form="update-sb-{{ $bulletin->id }}" type="number" min="0" name="sort_order" class="form-control form-control-sm" value="{{ $bulletin->sort_order }}"></td>
+                                        <td><button type="button" class="btn btn-sm btn-outline-secondary sb-drag-handle" draggable="true" data-sb-id="{{ $bulletin->id }}" aria-label="Move SB row" title="Drag to reorder; use Up/Down arrow keys"><i class="bi bi-grip-vertical"></i></button></td><td class="text-center" data-sb-sort>{{ $loop->iteration }}</td>
                                         <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="year_introduced" class="form-control form-control-sm" value="{{ $bulletin->year_introduced }}"></td>
                                         <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="ac_mfg_service_bulletin_no" class="form-control form-control-sm" value="{{ $bulletin->ac_mfg_service_bulletin_no }}"></td>
                                         <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="oem_service_bulletin_no" class="form-control form-control-sm" value="{{ $bulletin->oem_service_bulletin_no }}"></td>
@@ -1523,7 +1536,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="10" class="text-center text-muted py-4">{{ __('No Service Bulletin rows yet.') }}</td>
+                                        <td colspan="11" class="text-center text-muted py-4">{{ __('No Service Bulletin rows yet.') }}</td>
                                     </tr>
                                 @endforelse
                                 </tbody>
@@ -1531,7 +1544,7 @@
                         </div>
                         <form id="create-sb-row" method="post" action="{{ route('manuals.service-bulletins.store', ['manual' => $cmm]) }}" class="d-none">@csrf</form>
                         @foreach($serviceBulletins as $bulletin)
-                            <form id="update-sb-{{ $bulletin->id }}" method="post" action="{{ route('manuals.service-bulletins.update', ['manual' => $cmm, 'serviceBulletin' => $bulletin]) }}" class="d-none">
+                            <form id="update-sb-{{ $bulletin->id }}" data-no-spinner method="post" action="{{ route('manuals.service-bulletins.update', ['manual' => $cmm, 'serviceBulletin' => $bulletin]) }}" class="d-none">
                                 @csrf
                                 @method('PUT')
                             </form>
@@ -3700,6 +3713,7 @@
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/manuals/service-bulletins.js') }}?v={{ filemtime(public_path('js/manuals/service-bulletins.js')) }}" defer></script>
     <script src="{{ asset('js/manuals/parts-scroll.js') }}?v={{ filemtime(public_path('js/manuals/parts-scroll.js')) }}" defer></script>
     <script src="{{ asset('js/traveler-process-templates.js') }}?v={{ filemtime(public_path('js/traveler-process-templates.js')) }}" defer></script>
     {{-- ÐšÐ¾Ð½Ñ‚ÐµÐºÑÑ‚ CMM Ð´Ð»Ñ AI: Ð½Ð¾Ð¼ÐµÑ€ Ð¸ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸Ðµ â€” Ð±ÐµÐ· manual_id Ð² Ð¾Ñ‚Ð²ÐµÑ‚Ð°Ñ… Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»ÑŽ --}}
