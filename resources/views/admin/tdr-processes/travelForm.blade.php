@@ -73,10 +73,10 @@
                 print-color-adjust: exact !important;
             }
 
-            /* Фиксированные размеры для body и html */
+            /* Let the printed document follow its content instead of reserving a full extra page height. */
             html, body {
                 width: var(--print-body-width, 100%) !important;
-                height: var(--print-body-height, 100%) !important;
+                height: auto !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 font-size: 16px !important; /* Фиксированный размер шрифта */
@@ -107,6 +107,7 @@
             footer {
                 position: static !important;
                 break-inside: avoid;
+                margin-top: 0 !important;
                 width: var(--print-footer-width, 100%) !important;
                 max-width: 27cm !important;
                 text-align: center !important;
@@ -332,8 +333,8 @@
             .container-fluid > .row { display: block; margin: 0; }
             .container-fluid > .row > .col-4 { float: left; }
             .container-fluid > .row > .col-8 { margin-left: 33.333%; }
-            .traveler-process-table { break-inside: auto !important; page-break-inside: auto !important; }
-            .container-fluid { padding-bottom: 10mm !important; }
+            .traveler-process-table { break-inside: auto !important; page-break-inside: auto !important; margin-bottom: 0 !important; }
+            .container-fluid { padding-bottom: 0 !important; }
         }
     </style>
 </head>

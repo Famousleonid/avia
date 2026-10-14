@@ -292,7 +292,7 @@ class TdrPrintFormController extends Controller
         if (! $current_wo->isOverhaul()) {
             return redirect()->route('tdrs.prlForm', ['id' => $current_wo->id]);
         }
-        return $this->renderPrlForm($current_wo, $this->kitRows($current_wo, includeExtraBushings: true), 'PARTS REPLACEMENT LIST - KIT', false, 'kit', true);
+        return $this->renderPrlForm($current_wo, $this->kitRows($current_wo, includeExtraBushings: true), 'PARTS REPLACEMENT LIST', false, 'kit', true);
     }
 
     public function kitRows(Workorder $workorder, bool $includeExtraBushings = false)
@@ -454,7 +454,7 @@ class TdrPrintFormController extends Controller
         ];
     }
 
-    private function selectedBushingComponents(Workorder $workorder)
+    private function selectedBushingComponents(Workorder $workorder, bool $includeDoNotOrder = false)
     {
         return WoBushingLine::query()
             ->where(function ($query) use ($workorder): void {
@@ -463,7 +463,7 @@ class TdrPrintFormController extends Controller
             })
             ->with('codes')
             ->whereHas('component')
-            ->where('do_not_order', false)
+            ->when(!$includeDoNotOrder, fn ($query) => $query->where('do_not_order', false))
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
@@ -690,15 +690,26 @@ class TdrPrintFormController extends Controller
         $extraBushings = $bushingFamilies
             ->reject(fn ($family): bool => $family->contains(fn (Component $part): bool => (bool) $part->kit))
             ->flatten(1)->values();
+        $extraBushingCodes = $this->selectedBushingComponents($workorder, includeDoNotOrder: true);
         $extraRows = $this->buildBushingPrlRowsForComponents(
             $extraBushings,
             $this->selectedBushingComponents($workorder),
             'KIT',
             $partGroupCrossouts,
             $manualCrossedOutComponentIds
-        )->map(function (array $row): array {
+        )->map(function (array $row) use ($extraBushingCodes): array {
             $row['kit_extra_bushing'] = true;
-            $row['codes'] = ['code' => 'K'];
+            $selectedCodes = collect($row['prl_part_numbers'])
+                ->map(fn ($option) => $extraBushingCodes->get($option['component_id'])['code'] ?? '')
+                ->filter()->unique()->values();
+            $row['codes'] = ['code' => $selectedCodes->first() ?: 'K'];
+            // Keep one family/quantity row; align different codes with their P/Ns.
+            if ($selectedCodes->count() > 1) {
+                $row['bushing_option_codes'] = array_map(fn ($option) => [
+                    'component_id' => $option['component_id'],
+                    'code' => $extraBushingCodes->get($option['component_id'])['code'] ?? '',
+                ], $row['prl_part_numbers']);
+            }
             $row['receipt_key'] = 'extra-'.$row['receipt_key'];
             return $row;
         });

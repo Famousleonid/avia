@@ -54,7 +54,7 @@ class WorkorderStatusTest extends TestCase
         }
     }
 
-    public function test_traveler_group_uses_fallback_and_actual_group_completion(): void
+    public function test_traveler_group_uses_longest_member_and_actual_group_completion(): void
     {
         $wo = $this->createWorkorder(['approve_at'=>'2026-09-01']);
         $component = $this->createComponent($wo->unit->manual);
@@ -69,13 +69,76 @@ class WorkorderStatusTest extends TestCase
         }
         $this->mock(WorkorderPartsList::class, fn($m)=>$m->shouldReceive('rows')->andReturn(collect()));
         $status = app(WorkorderStatus::class);
-        $this->assertSame(60, $status->forWorkorder($wo)['duration_days']);
+        $this->assertSame(120, $status->forWorkorder($wo)['duration_days']);
         $rows[0]->update(['date_finish'=>'2026-09-11']);
-        $this->assertSame(60, $status->forWorkorder($wo)['duration_days']);
+        $this->assertSame(120, $status->forWorkorder($wo)['duration_days']);
         $traveler->update(['std_days'=>45]);
-        $this->assertSame(45, $status->forWorkorder($wo)['duration_days']);
+        $this->assertSame(120, $status->forWorkorder($wo)['duration_days']);
         $rows[1]->update(['date_finish'=>'2026-09-21']);
         $this->assertSame(20, $status->forWorkorder($wo)['duration_days']);
+    }
+
+    public function test_rod_traveler_is_one_current_shipment_followed_by_silver_plating(): void
+    {
+        // W107912 / 190-70974-005: all seven Traveler members share the same RO and sent date.
+        $wo = $this->createWorkorder(['approve_at'=>'2026-09-08']);
+        $component = $this->createComponent($wo->unit->manual, ['part_number'=>'190-70974-005', 'ipl_num'=>'1-375B', 'name'=>'ROD']);
+        $tdr = Tdr::create(['workorder_id'=>$wo->id, 'component_id'=>$component->id, 'qty'=>1]);
+        $vendor = \App\Models\Vendor::firstOrCreate(['name'=>'Airco Plating Co., Inc.']);
+        $members = collect();
+        $order = 0;
+        foreach (['Chrome stripping'=>21, 'NDT-1'=>3, 'Shot peening'=>14, 'Chrome plating'=>45,
+            'Chrome plating, Thin Dens'=>45, 'NDT-4'=>3, 'Passivation'=>21, 'Silver plating'=>21, 'Paint'=>5] as $name=>$days) {
+            $type = ProcessName::firstOrCreate(['name'=>$name], ['process_sheet_name'=>$name, 'form_number'=>'TEST']);
+            $type->update(['std_days'=>$days, 'show_in_process_picker'=>true]);
+            $isTraveler = ++$order <= 7;
+            $row = TdrProcess::create(['tdrs_id'=>$tdr->id, 'process_names_id'=>$type->id, 'sort_order'=>$order,
+                'in_traveler'=>$isTraveler, 'traveler_group'=>$isTraveler ? 1 : null,
+                'date_start'=>$isTraveler ? '2026-09-10' : null, 'repair_order'=>$isTraveler ? 'R9345' : null,
+                'vendor_id'=>$isTraveler ? $vendor->id : null]);
+            if ($isTraveler) $members->push($row);
+        }
+        $this->mock(WorkorderPartsList::class, fn ($m) => $m->shouldReceive('rows')->andReturn(collect()));
+        $status = app(WorkorderStatus::class);
+        $card = $status->forWorkorder($wo);
+        $part = $card['processes']->first();
+        $this->assertSame(68, $card['duration_days']); // max(21,3,14,45,45,3,21) + 2 transfer + 21 Silver.
+        $this->assertSame('2026-11-15', $card['isd']->format('Y-m-d'));
+        $this->assertSame(['Traveler', 'Silver plating'], $part['pending']->pluck('name')->all());
+        $this->assertSame([45,21], $part['pending']->pluck('days')->all());
+        $this->assertSame('Traveler', $part['current']['name']);
+        $this->assertSame('R9345', $part['current']['ro']);
+        $this->assertSame($vendor->name, $part['current']['vendor']);
+        $this->assertSame(1, $part['ahead']);
+        $this->assertSame(0, $part['earlier_pending']);
+        $this->assertSame(1, $card['sent_qty']);
+        $html = view('admin.workorders.partials.status-cards', ['cards'=>collect([$card])])->render();
+        $this->assertStringContainsString('Traveler', $html);
+        $this->assertStringContainsString('Silver plating', $html);
+        $this->assertStringNotContainsString('Passivation', $html);
+        foreach (['2026-10-14'=>11, '2026-10-25'=>0, '2026-10-26'=>-1] as $today=>$remaining) {
+            $this->travelTo(\Illuminate\Support\Carbon::parse($today.' 23:00:00'));
+            try {
+                $timed = $status->forWorkorder($wo);
+                $current = $timed['processes']->first()['current'];
+                $this->assertSame($remaining, $current['remaining_days']);
+                $this->assertSame('2026-10-25', $current['due']->format('Y-m-d'));
+                $this->assertNull($timed['processes']->first()['pending'][1]['remaining_days']);
+                $timedHtml = view('admin.workorders.partials.status-cards', ['cards'=>collect([$timed])])->render();
+                $this->assertStringContainsString($remaining.' days left', $timedHtml);
+                $this->assertSame($remaining < 0, str_contains($timedHtml, 'class="ws-process-remaining ws-process-overdue"'));
+            } finally {
+                $this->travelBack();
+            }
+        }
+        // A partial return must not release the following standalone operation.
+        $members->first()->update(['date_finish'=>'2026-10-01']);
+        $this->assertSame('Traveler', $status->forWorkorder($wo)['processes']->first()['current']['name']);
+        foreach ($members as $member) $member->update(['date_finish'=>'2026-10-10']);
+        $returned = $status->forWorkorder($wo);
+        $this->assertSame('Silver plating', $returned['processes']->first()['current']['name']);
+        $this->assertFalse($returned['processes']->first()['current']['sent']);
+        $this->assertSame('2026-11-02', $returned['isd']->format('Y-m-d'));
     }
 
     public function test_independent_part_bushing_and_std_routes_use_sequential_steps(): void

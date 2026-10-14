@@ -29,7 +29,7 @@
                     <input type="number" min="1900" max="9998" step="1" class="form-control" aria-label="Calendar year" data-year>
                     <button type="button" class="btn btn-outline-secondary" data-step="1" aria-label="Next year"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
                 </div>
-                <div class="training-calendar-legend"><span data-legend="free">● Free</span><span data-legend="occupied">▣ Occupied</span><span data-legend="conflict">▣ Overlap</span><span data-legend="draft">◷ Unsaved</span><span data-legend="future">— Future</span></div>
+                <div class="training-calendar-legend"><span data-legend="free">● Free</span><span data-legend="occupied">▣ Up to 40 hrs</span><span data-legend="conflict">▣ Over 40 hrs</span><span data-legend="draft">◷ Unsaved</span><span data-legend="future">— Future</span></div>
                 <div class="small text-muted mb-2" data-range></div>
                 <div class="training-timeline-scroll" tabindex="0" aria-label="54 training weeks; scroll horizontally"><div data-weeks aria-live="polite"></div></div>
                 <div data-conflicts hidden></div>
@@ -104,12 +104,12 @@
         const panel = modal.querySelector('[data-conflicts]');
         panel.replaceChildren(); panel.hidden = false;
         const title = document.createElement('div'); title.className = 'fw-bold mb-2';
-        title.textContent = `${week.label} — overlapping trainings. Choose a training to correct:`;
+        title.textContent = `${week.label} — ${week.total_hours} / ${week.capacity_hours} hrs. Choose a training to correct:`;
         panel.append(title);
         week.trainings.forEach(training => {
             const button = document.createElement('button');
             button.type = 'button'; button.className = 'btn btn-outline-danger btn-sm d-block w-100 mb-2';
-            button.textContent = [training.name, training.description].filter(Boolean).join(' — ')
+            button.textContent = [training.name, training.description].filter(Boolean).join(' — ') + ' · ' + hoursLabel(training.hours)
                 + (training.edit_url ? ' · Edit dates' : ' · Locked / no edit permission');
             button.disabled = !training.edit_url;
             button.addEventListener('click', () => editConflict(training));
@@ -117,20 +117,52 @@
         });
         panel.scrollIntoView({block: 'nearest', behavior: 'smooth'});
     }
+    function hoursLabel(hours) { return hours == null ? 'Hours not set' : `${hours} hrs`; }
     function showTooltip(button, week, status) {
         hideTooltip();
         activeWeek = button;
         const tooltip = document.createElement('div');
         tooltip.className = 'training-week-tooltip'; tooltip.dataset.weekTooltip = '';
         tooltip.id = 'trainingWeekTooltip'; tooltip.setAttribute('role', 'tooltip');
-        const heading = document.createElement('strong'); heading.textContent = `${week.label} · ${status}`;
-        tooltip.append(heading);
+        const header = document.createElement('div');
+        header.className = 'training-week-tooltip-header';
+        const heading = document.createElement('strong');
+        heading.textContent = week.label;
+        const total = document.createElement('span');
+        total.textContent = ` · ${week.total_hours} / ${week.capacity_hours} hrs · ${week.remaining_hours} hrs available`;
+        header.append(heading, total);
+        tooltip.append(header);
         week.trainings.forEach(training => {
             const line = document.createElement('div');
-            line.textContent = [training.name, training.description].filter(Boolean).join(' — ');
+            line.className = 'training-week-tooltip-training';
+            const name = document.createElement('span');
+            name.className = 'training-week-tooltip-name text-info';
+            name.textContent = training.name;
+            name.title = training.name;
+            line.append(name);
+            const separator = () => {
+                const dot = document.createElement('span');
+                dot.className = 'training-week-tooltip-separator';
+                dot.textContent = '·';
+                return dot;
+            };
+            if (training.description) {
+                const description = document.createElement('span');
+                description.className = 'training-week-tooltip-description';
+                description.textContent = training.description;
+                line.append(separator(), description);
+            }
+            const hours = document.createElement('span');
+            hours.className = 'text-info';
+            hours.textContent = hoursLabel(training.hours);
+            line.append(separator(), hours);
             tooltip.append(line);
         });
         modal.append(tooltip);
+        // Keep the complete date/hour summary on one line within narrow viewports.
+        if (header.scrollWidth > header.clientWidth) {
+            header.style.fontSize = `${parseFloat(getComputedStyle(header).fontSize) * header.clientWidth / header.scrollWidth}px`;
+        }
         button.setAttribute('aria-describedby', tooltip.id);
         const rect = button.getBoundingClientRect();
         tooltip.style.left = Math.max(8, Math.min(innerWidth - tooltip.offsetWidth - 8, rect.left + rect.width / 2 - tooltip.offsetWidth / 2)) + 'px';
@@ -168,21 +200,23 @@
                 const status = week.status === 'free' && drafts.has(week.friday) ? 'draft' : week.status;
                 const button = document.createElement('button');
                 button.type = 'button'; button.className = 'training-timeline-week'; button.dataset.status = status;
-                const name = {free: 'Free', occupied: 'Occupied', conflict: 'Overlap — click to correct', draft: 'Unsaved', future: 'Future'}[status];
-                button.setAttribute('aria-label', `${week.label}: ${name}`);
+                const name = {free: 'Free', occupied: 'Training hours', conflict: 'Over 40 hours — click to correct', draft: 'Unsaved', future: 'Future'}[status];
+                button.setAttribute('aria-label', `${week.label}: ${name}, ${week.total_hours} / ${week.capacity_hours} hrs`);
                 const column = document.createElement('span'); column.className = 'training-timeline-column';
+                if (status === 'occupied' || status === 'conflict') column.style.height = `${Math.max(8, Math.min(120, week.total_hours / week.capacity_hours * 96))}px`;
                 button.append(column);
                 const show = () => showTooltip(button, week, name);
                 button.addEventListener('mouseenter', show);
                 button.addEventListener('focus', show);
                 button.dataset.friday = week.friday;
-                if (status === 'free' && context.onSelect) {
+                const selectable = (status === 'free' || status === 'occupied') && week.remaining_hours > 0 && week.friday <= data.today && context.onSelect;
+                if (selectable) {
                     button.dataset.selectable = 'true';
-                    button.setAttribute('aria-label', `${week.label}: Free. Select this week`);
+                    button.setAttribute('aria-label', `${week.label}: ${week.total_hours} / ${week.capacity_hours} hrs. Select this week`);
                 }
                 button.addEventListener('click', () => {
                     if (status === 'conflict') { showConflicts(week); return; }
-                    if (status !== 'free' || !context?.onSelect) { show(); return; }
+                    if (!selectable || !context?.onSelect) { show(); return; }
                     if (context.selecting) return;
                     context.selecting = true;
                     const select = context.onSelect;
@@ -249,8 +283,8 @@
         const parent = opener?.closest('.modal.show');
         context = {userId, opener, scope: scope || parent, parent, wasInert: parent?.inert, onSelect};
         modal.querySelector('[data-calendar-help]').textContent = onSelect
-            ? '54 weeks · Click a free week to use its Friday. Hover or tap an occupied column for training details.'
-            : '54 weeks · Hover or tap a column for dates and training details.';
+            ? '40 hrs per week · Click a week with capacity to use its Friday. Hover or tap for training hours.'
+            : '40 hrs per week · Hover or tap a column for trainings, individual hours and the weekly total.';
         if (parent) {
             parent.inert = true;
             bootstrap.Modal.getInstance(parent)?._focustrap?.deactivate();

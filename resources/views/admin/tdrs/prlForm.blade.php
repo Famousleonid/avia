@@ -379,6 +379,11 @@
             align-items: center; /* Выравнивание элементов по вертикали */
             height: var(--prl-row-height, 32px); /* Высота строки — настраивается в Print Settings */
         }
+        .prl-mfr-col,
+        .prl-wo-col {
+            flex: 0 0 auto;
+            width: 29.166667%; /* Share the seven columns remaining after P/N. */
+        }
         .details-cell {
             flex-grow: 1; /* Позволяет колонкам растягиваться и занимать доступное пространство */
             display: flex;
@@ -499,6 +504,7 @@
         .prl-row-crossed-out .prl-col-item h6,
         .prl-row-crossed-out .prl-col-desc,
         .prl-row-crossed-out .prl-col-part h6,
+        .prl-row-crossed-out .prl-col-qty h6,
         .prl-row-crossed-out .prl-col-code h6,
         .prl-row-crossed-out .prl-col-po h6,
         .prl-row-crossed-out .prl-col-notes h6 {
@@ -519,16 +525,6 @@
             line-height: 1.2;
             min-height: 1.2em;
         }
-
-        .prl-col-qty.kit-bushing-qty {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-
-        .kit-bushing-qty h6 { margin: 0; }
 
         .kit-extra-heading {
             font-size: 22px;
@@ -620,22 +616,18 @@
                         <h6 class=""><strong> {{$current_wo->unit->part_number}}</strong></h6>
                     </div>
                 </div>
-                <div class="col-3 align-content-end" >
-                    <div class="row mb-2">
-                        <div class="col-10 border-b ">
-                            <div class="d-flex ">
-                                <h6 class="pe-2 "><strong>MFR: </strong></h6>
-                                @foreach($manuals as $manual)
-                                    @if($manual->id == $current_wo->unit->manual_id)
-                                        <h6 class=" ms-2"><strong> {{$manual->builder->name}}</strong></h6>
-                                    @endif
-                                @endforeach
-                            </div>
-                        </div>
-                        <div class="col-2 "> </div>
+                <div class="prl-mfr-col align-content-end">
+                    <div class="border-b mb-2 prl-manufacturer">
+                        <h6 class="text-nowrap"><strong>MFR:
+                            @foreach($manuals as $manual)
+                                @if($manual->id == $current_wo->unit->manual_id)
+                                    {{ $manual->builder->name }}
+                                @endif
+                            @endforeach
+                        </strong></h6>
                     </div>
                 </div>
-                <div class="col-4 ps-4 align-content-end ">
+                <div class="prl-wo-col ps-4 align-content-end ">
                     <h5 class=" border-all justify-content-center fs-11 d-flex pt-3" style="height: 50px;">
                         <strong class="pe-5">{{__('WO No:')}}</strong>
                         <strong>{{__(('W'))}}{{$current_wo->number}}</strong>
@@ -903,9 +895,6 @@
                             </div>
                     <div class="col-3 prl-col-desc border-l-b text-center pt-1 align-content-center">
                                 {!! nl2br(e($descriptionDisplay)) !!}
-                                @if($isArray && isset($tdr['bushing_kit_capacity']))
-                                    <div class="small" data-bushing-kit-capacity="{{ $tdr['bushing_kit_capacity'] }}">{{ $isExtraBushing ? 'Total' : 'KIT total' }}: {{ $tdr['bushing_kit_capacity'] }} — Original / Oversize</div>
-                                @endif
                             </div>
                     <div class="col-3 prl-col-part border-l-b text-center pt-2 align-content-center">
                                 @if(!empty($partNumberOptions))
@@ -946,17 +935,22 @@
                                     <h6> </h6>
                                 @endif
                             </div>
-                    <div class="col-1 prl-col-qty border-l-b text-center {{ $showKitBushingQty ? 'kit-bushing-qty' : 'pt-2 align-content-center' }}">
-                                @if($showKitBushingQty)
-                                    <h6 data-kit-original-qty="{{ $tdr['bushing_kit_capacity'] }}">{{ $tdr['bushing_kit_capacity'] }}</h6>
-                                @elseif(!empty($partNumberOptions))
+                    <div class="col-1 prl-col-qty border-l-b text-center pt-2 align-content-center">
+                                @if(!empty($partNumberOptions))
                                     <h6>
                                         @foreach($partNumberOptions as $partNumberOption)
                                             @php
                                                 $option = is_array($partNumberOption) ? $partNumberOption : (array) $partNumberOption;
                                                 $optionQty = $option['qty'] ?? null;
+                                                if ($showKitBushingQty) {
+                                                    // Keep the crossed manual total only when the entire row is excluded.
+                                                    $optionQty = $isCrossedOut
+                                                        ? ($loop->first ? $tdr['bushing_kit_capacity'] : null)
+                                                        : (!empty($option['crossed_out']) ? null : $optionQty);
+                                                }
                                             @endphp
                                             <span class="prl-qty-line"
+                                                  @if($showKitBushingQty) data-bushing-qty-component-id="{{ $option['component_id'] ?? '' }}" @endif
                                                   data-prl-component-id="{{ $option['component_id'] ?? '' }}"
                                                   @if($optionQty !== null) data-prl-option-qty="{{ $optionQty }}" @else data-prl-option-qty-empty="1" @endif>@if($optionQty !== null){{ $optionQty }}@else&nbsp;@endif</span>
                                         @endforeach
@@ -973,7 +967,11 @@
                                         $code = $tdr->codes->code ?? '';
                                     }
                                 @endphp
-                                <h6>{{ $code }}</h6>
+                                <h6>@if($isArray && !empty($tdr['bushing_option_codes']))
+                                    @foreach($tdr['bushing_option_codes'] as $optionCode)
+                                        <span class="prl-qty-line" data-prl-code-component-id="{{ $optionCode['component_id'] }}">{{ $optionCode['code'] ?: "\u{00A0}" }}</span>
+                                    @endforeach
+                                @else{{ $code }}@endif</h6>
                             </div>
                     <div class="col-1 prl-col-po border-l-b text-center pt-1 align-content-center">
                                 @php

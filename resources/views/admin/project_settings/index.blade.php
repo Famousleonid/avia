@@ -135,6 +135,8 @@
         .user-background-preview-wrap {
             min-width: 0;
         }
+        .user-background-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 14px; }
+        .user-background-photo { min-width: 0; }
 
         .user-background-preview {
             align-items: center;
@@ -186,6 +188,28 @@
             }
         }
     </style>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('submit', async event => {
+    const form = event.target.closest('form[data-background-confirm]');
+    if (!form || form.dataset.confirmed === '1') return;
+    event.preventDefault();
+    if (form.dataset.confirming === '1') return;
+    if (!window.confirmDialog) {
+        window.showNotification?.('Confirmation dialog is unavailable.', 'error');
+        return;
+    }
+    form.dataset.confirming = '1';
+    try {
+        if (await window.confirmDialog({title: 'Background photos', message: form.dataset.backgroundConfirm, okText: 'Continue', cancelText: 'Cancel'})) {
+            form.dataset.confirmed = '1';
+            form.requestSubmit();
+        }
+    } finally { delete form.dataset.confirming; }
+});
+</script>
 @endsection
 
 @section('content')
@@ -336,7 +360,7 @@
                 @else
                     <div class="project-settings-panel-header">
                         <h5>Fon for user</h5>
-                        <div class="text-muted small mt-1">Upload a shared project background for one selected user.</div>
+                        <div class="text-muted small mt-1">Add photos for this user. One photo per day, in the order below; after the last photo the cycle starts again.</div>
                     </div>
                     <div class="project-settings-panel-body">
                         @if($selectedUser)
@@ -364,27 +388,29 @@
                                         method="POST"
                                         action="{{ route('admin.project-settings.user-background.store') }}"
                                         enctype="multipart/form-data"
+                                        data-background-confirm="Add the selected photos to this user's daily background rotation?"
                                     >
                                         @csrf
                                         <input type="hidden" name="user_id" value="{{ $selectedUser->id }}">
 
-                                        <label class="form-label fw-semibold" for="userBackgroundImage">Background image</label>
+                                        <label class="form-label fw-semibold" for="userBackgroundImage">Background images</label>
                                         <input
                                             id="userBackgroundImage"
-                                            name="background_image"
+                                            name="background_images[]"
                                             type="file"
                                             class="form-control @error('background_image') is-invalid @enderror"
                                             accept="image/jpeg,image/png,image/webp"
+                                            multiple
                                             required
                                         >
-                                        <div class="form-text">JPG, PNG or WEBP, up to 10 MB. A wide landscape image works best.</div>
-                                        @error('background_image')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
+                                        <div class="form-text">Select one or more JPG, PNG or WEBP files, up to 10 MB each; maximum 20 photos. Changes daily at midnight ({{ config('app.timezone') }}).</div>
+                                        @foreach($errors->get('background_images*') as $messages)
+                                            @foreach($messages as $message)<div class="text-danger small">{{ $message }}</div>@endforeach
+                                        @endforeach
 
                                         <button type="submit" class="btn btn-outline-primary mt-3">
                                             <i class="bi bi-upload me-1"></i>
-                                            {{ $userBackgroundUrl ? 'Replace background' : 'Upload background' }}
+                                            Add photos
                                         </button>
                                     </form>
 
@@ -393,35 +419,40 @@
                                             method="POST"
                                             action="{{ route('admin.project-settings.user-background.destroy', ['user' => $selectedUser->id]) }}"
                                             class="mt-2"
-                                            data-app-confirm="Remove the project background for this user?"
+                                            data-background-confirm="Remove all background photos for this user?"
                                         >
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-outline-danger">
-                                                <i class="bi bi-trash me-1"></i>Remove background
+                                                <i class="bi bi-trash me-1"></i>Remove all photos
                                             </button>
                                         </form>
                                     @endif
                                 </div>
 
                                 <div class="user-background-preview-wrap">
-                                    <div class="d-flex justify-content-between gap-2 mb-2">
-                                        <span class="fw-semibold">Preview</span>
-                                        @if($userBackgroundUrl)
-                                            <span class="text-muted small user-background-file-name">
-                                                {{ data_get($userBackground, 'original_name', 'Background image') }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                    <div class="user-background-preview">
-                                        @if($userBackgroundUrl)
-                                            <img src="{{ $userBackgroundUrl }}" alt="Project background for {{ $selectedUser->name }}">
-                                        @else
+                                    <div class="fw-semibold mb-2">Daily rotation · {{ count($userBackgroundImages) }} photos</div>
+                                    <div class="user-background-gallery">
+                                        @forelse($userBackgroundImages as $image)
+                                            <div class="user-background-photo">
+                                                <div class="d-flex justify-content-between gap-2 small mb-2">
+                                                    <span class="user-background-file-name">{{ $loop->iteration }}. {{ $image['name'] }}</span>
+                                                    @if($image['id'] === $userBackgroundCurrentId)<span class="text-info">Today</span>@endif
+                                                </div>
+                                                <div class="user-background-preview"><img src="{{ $image['url'] }}" alt="{{ $image['name'] }}" loading="lazy"></div>
+                                                <form method="POST" action="{{ route('admin.project-settings.user-background.destroy', ['user' => $selectedUser->id]) }}" class="mt-2" data-background-confirm="Remove this photo from the daily rotation?">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <input type="hidden" name="image" value="{{ $image['id'] }}">
+                                                    <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash me-1"></i>Remove photo</button>
+                                                </form>
+                                            </div>
+                                        @empty
                                             <div class="user-background-preview-empty">
                                                 <i class="bi bi-image"></i>
                                                 No personal project background for this user.
                                             </div>
-                                        @endif
+                                        @endforelse
                                     </div>
                                 </div>
                             </div>

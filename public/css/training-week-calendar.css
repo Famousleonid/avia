@@ -28,7 +28,13 @@
 #trainingWeekCalendar [data-status="draft"] .training-timeline-column { height: 64px; background: #55bed4; }
 #trainingWeekCalendar [data-status="future"] .training-timeline-column { height: 4px; background: #7b8794; opacity: .5; }
 #trainingWeekCalendar .training-timeline-months > span { min-width: 0; overflow: hidden; text-align: center; border-left: 1px solid var(--avia-border, #8090a0); padding-top: 9px; font-size: .75rem; }
-#trainingWeekCalendar .training-week-tooltip { position: fixed; z-index: 2; width: max-content; max-width: min(360px, calc(100vw - 16px)); padding: 12px 14px; background: var(--avia-modal, #fff); color: var(--avia-text, #212529); border: 1px solid var(--avia-border, #adb5bd); border-radius: 8px; box-shadow: 0 8px 24px #0004; font-size: .82rem; pointer-events: none; overflow-wrap: anywhere; }
+#trainingWeekCalendar .training-week-tooltip { position: fixed; z-index: 2; width: max-content; max-width: calc(100vw - 16px); padding: 12px 14px; background: var(--avia-modal, #fff); color: var(--avia-text, #212529); border: 1px solid var(--avia-border, #adb5bd); border-radius: 8px; box-shadow: 0 8px 24px #0004; font-size: .82rem; pointer-events: none; overflow-wrap: anywhere; }
 #trainingWeekCalendar .training-week-tooltip div { margin-top: 6px; }
+#trainingWeekCalendar .training-week-tooltip .training-week-tooltip-header { margin-top: 0; white-space: nowrap; }
+#trainingWeekCalendar .training-week-tooltip-training { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+#trainingWeekCalendar .training-week-tooltip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#trainingWeekCalendar .training-week-tooltip-training > span:last-child { flex-shrink: 0; }
+#trainingWeekCalendar .training-week-tooltip-description { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #fff; font-weight: 400; }
+#trainingWeekCalendar .training-week-tooltip-separator { flex-shrink: 0; color: #fff; font-weight: 400; }
 @media (max-width: 1100px) { #trainingWeekCalendar .modal-dialog { margin-left: .5rem; margin-right: .5rem; } }
 @media (max-width: 575.98px) { #trainingWeekCalendar .modal-body { padding: .75rem; } }

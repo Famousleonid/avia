@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\{ProcessName, Tdr, Workorder, WoBushingProcess};
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class WorkorderStatus
@@ -23,23 +24,22 @@ class WorkorderStatus
         $pendingProcesses = collect();
         $forecastRoutes = collect();
         $forecastRoutes->put('STD lists', $this->forecast->stdOperations($wo->stdProcesses()->with('processName')->get()));
-        $traveler = ProcessName::whereIdentityName(ProcessName::SYSTEM_TRAVELER_NAME)->first();
         $processTotalQty = 0;
         $tdrs = Tdr::where('workorder_id', $wo->id)->with(['component', 'tdrProcesses.processName', 'tdrProcesses.vendor'])->get();
         foreach ($tdrs as $tdr) {
-            $forecastRoutes->put('Part #'.$tdr->id.' / ('.$tdr->component?->ipl_num.') '.$tdr->component?->part_number, $this->forecast->tdrOperations($tdr->tdrProcesses, $traveler));
-            $processes = $tdr->tdrProcesses->sortBy([['sort_order', 'asc'], ['id', 'asc']])->filter(fn ($p) => !$p->ignore_row && $this->included($p->processName));
+            $processes = $this->forecast->tdrOperations($tdr->tdrProcesses);
+            $forecastRoutes->put('Part #'.$tdr->id.' / ('.$tdr->component?->ipl_num.') '.$tdr->component?->part_number, $processes);
             if ($processes->isNotEmpty()) {
                 $processTotalQty += max(0, (int) $tdr->qty);
             }
-            $pending = $processes->filter(fn ($p) => !$p->date_finish);
+            $pending = $processes->filter(fn ($p) => !$p['finish']);
             if ($pending->isEmpty()) continue;
             $pendingProcesses->push(['ipl' => $tdr->component?->ipl_num, 'pn' => $tdr->component?->part_number,
                 'name' => $tdr->component?->name, 'qty' => $tdr->qty, 'kind' => 'Part',
                 'done' => $processes->count() - $pending->count(), 'total' => $processes->count(),
-                'pending' => $pending->map(fn ($p) => ['name' => $p->processName->name, 'days' => max(0, (int) $p->processName->std_days),
-                    'sent' => (bool) $p->date_start, 'ro' => $p->repair_order,
-                    'vendor' => $p->vendor?->name, 'since' => $p->date_start])->values()]);
+                'pending' => $pending->map(fn ($p) => ['name' => $p['name'], 'days' => $p['days'],
+                    'sent' => (bool) $p['start'], 'ro' => $p['ro'],
+                    'vendor' => $p['vendor'], 'since' => $p['start']])->values()]);
         }
         $bushings = WoBushingProcess::whereHas('line', fn ($q) => $q->where('workorder_id', $wo->id))
             ->whereHas('batch')->with(['line.component', 'process.process_name', 'batch.vendor'])->get();
@@ -65,7 +65,14 @@ class WorkorderStatus
                     'vendor' => $p->batch->vendor?->name, 'since' => $p->batch->date_start])->values()]);
         }
         $pendingProcesses = $pendingProcesses->map(function ($row) {
-            $pending = $row['pending']->values();
+            $pending = $row['pending']->map(function ($process) {
+                $due = $process['sent'] && $process['since']
+                    ? Carbon::parse($process['since'])->startOfDay()->addDays($process['days']) : null;
+                $process['due'] = $due;
+                $process['remaining_days'] = $due ? (int) Carbon::today()->diffInDays($due, false) : null;
+                return $process;
+            })->values();
+            $row['pending'] = $pending;
             $index = $pending->keys()->filter(fn ($i) => $pending[$i]['sent'])->last() ?? 0;
             $row['current'] = $pending[$index];
             $row['ahead'] = $pending->count() - $index - 1;

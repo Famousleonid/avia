@@ -24,20 +24,24 @@ class WorkorderCompletionForecast
         return $days > 0 ? $days : max(0, (int) config('workorder_completion.fallback_days.'.$key, 0));
     }
 
-    public function tdrOperations(Collection $rows, ?ProcessName $traveler): Collection
+    public function tdrOperations(Collection $rows): Collection
     {
         return $rows->sortBy([['sort_order', 'asc'], ['id', 'asc']])
             ->filter(fn ($row) => !$row->ignore_row && $this->includes($row->processName))
             ->groupBy(fn ($row) => $row->in_traveler ? 'traveler:'.($row->traveler_group ?: 1) : 'process:'.$row->id)
-            ->map(function ($group, $key) use ($traveler) {
+            ->map(function ($group, $key) {
                 $isTraveler = str_starts_with($key, 'traveler:');
                 $first = $group->first();
+                $shipment = $group->first(fn ($row) => $row->date_start && !$row->date_finish) ?? $first;
                 return [
                     'name' => $isTraveler ? 'Traveler' : $first->processName->name,
-                    'days' => $this->days($isTraveler ? $traveler : $first->processName, $isTraveler ? 'Traveler' : null),
+                    // A Traveler is one shipment: use its longest member, then continue the route.
+                    'days' => (int) $group->max(fn ($row) => $this->days($row->processName)),
                     'start' => $group->pluck('date_start')->filter()->min(),
                     'finish' => $group->every(fn ($row) => (bool) $row->date_finish)
                         ? $group->pluck('date_finish')->max() : null,
+                    'ro' => $shipment->repair_order,
+                    'vendor' => $shipment->vendor?->name,
                 ];
             })->values();
     }

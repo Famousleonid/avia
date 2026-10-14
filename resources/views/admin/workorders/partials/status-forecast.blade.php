@@ -1,6 +1,6 @@
 <div class="ws-remaining-heading"><span>Process days · w{{ $wo->number }}</span><button type="button" data-ws-remaining-close aria-label="Close process days breakdown">×</button></div>
 <p class="ws-forecast-note">Approval: @projectDate($wo->approve_at) · Process days: {{ $card['duration_days'] }} · Calculated ECD: @projectDate($card['isd'])</p>
-<p class="ws-forecast-note">Routes run in parallel: the longest route determines the total, not the sum. Operations within each route run sequentially. Actual returns replace planned dates; the next operation follows after {{ config('workorder_completion.between_process_days', 2) }} days. Unset Traveler duration: {{ config('workorder_completion.fallback_days.traveler', 60) }} days.</p>
+<p class="ws-forecast-note">Routes run in parallel: the longest route determines the total, not the sum. Operations within each route run sequentially. Each Traveler group counts as one step using its longest included process duration. Actual returns replace planned dates; the next operation follows after {{ config('workorder_completion.between_process_days', 2) }} days.</p>
 @php
     $nextLongestDays = collect($card['forecast_routes'])->pluck('days')
         ->filter(fn ($days) => $days < $card['duration_days'])->max();

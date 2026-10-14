@@ -18,30 +18,28 @@ class TrainingController extends Controller
 {
     public function callAction($method, $parameters)
     {
-        if (!in_array($method, ['store', 'createTraining', 'updateToToday', 'update', 'matrixCourseDateStore'], true)) {
+        if (!in_array($method, ['store', 'createTraining', 'updateToToday', 'update', 'destroy', 'matrixCourseDateStore'], true)) {
             return parent::callAction($method, $parameters);
         }
 
         // Wrap the action itself: Laravel renders validation exceptions inside the middleware pipeline.
         return \Illuminate\Support\Facades\DB::transaction(function () use ($method, $parameters) {
             $userId = $method === 'updateToToday' ? auth()->id() : $this->resolveTargetUserId(request());
-            if ($method === 'update') {
+            if (in_array($method, ['update', 'destroy'], true)) {
                 $userId = Training::findOrFail(request()->route('training'))->user_id;
             }
             User::whereKey($userId)->lockForUpdate()->firstOrFail();
-            return parent::callAction($method, $parameters);
+            $availability = app(\App\Services\TrainingWeekAvailability::class);
+            $before = $availability->totals($availability->records($userId));
+            $response = parent::callAction($method, $parameters);
+            // Validate the final batch, including changes to subsequent refresh/update hours.
+            $availability->assertChangesAvailable($before, $userId);
+            return $response;
         });
     }
 
     private function createTrainingRecord(array $attributes): Training
     {
-        if (!empty($attributes['date_training']) && empty($attributes['is_legacy'])
-            && ((string) ($attributes['form_type'] ?? '') === '112' || !empty($attributes['matrix_row_id']))) {
-            app(\App\Services\TrainingWeekAvailability::class)->assertAvailable(
-                (int) $attributes['user_id'], $attributes['date_training']
-            );
-        }
-
         return Training::create($attributes);
     }
 
@@ -78,6 +76,8 @@ class TrainingController extends Controller
             'training_id' => 'nullable|integer|exists:trainings,id',
             'reserved_dates' => 'nullable|array|max:200',
             'reserved_dates.*' => 'required|date|before_or_equal:today',
+            'manuals_id' => 'nullable|integer|exists:manuals,id',
+            'matrix_row_id' => 'nullable|integer|exists:training_matrix_rows,id',
         ]);
         $target = User::findOrFail($data['user_id'] ?? auth()->id());
         $ignoreId = $data['training_id'] ?? null;
@@ -93,7 +93,7 @@ class TrainingController extends Controller
         }
 
         return response()->json(app(\App\Services\TrainingWeekAvailability::class)->check(
-            $target->id, $data['date_training'], $ignoreId, $data['reserved_dates'] ?? []
+            $target->id, $data['date_training'], $ignoreId, $data['reserved_dates'] ?? [], $data['manuals_id'] ?? null, $data['matrix_row_id'] ?? null
         ));
     }
 
@@ -811,9 +811,6 @@ class TrainingController extends Controller
         ]);
 
         $newDate = $this->fridayOf($validated['date_training']);
-        if ((string) $training->form_type !== '132' && $newDate !== $training->date_training) {
-            app(\App\Services\TrainingWeekAvailability::class)->assertAvailable($training->user_id, $newDate, $training->id);
-        }
         $training->date_training = $newDate;
         $training->save();
 

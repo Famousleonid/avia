@@ -301,8 +301,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection(self::PROJECT_BACKGROUND_COLLECTION)
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
-            ->singleFile();
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
     }
 
 }

@@ -32,7 +32,7 @@ html[data-bs-theme=light] .efficiency-table td{background:#fff}html[data-bs-them
         </select>
     </form>
     @if($partNumber)
-        <p class="efficiency-note">2. Disassembly · Working days, Ontario (after Start through Finish). Weekends and public holidays excluded; weekend holidays observed on the next available weekday. Missing or skipped dates are excluded from averages.</p>
+        <p class="efficiency-note">Disassembly · Working days, Ontario (after Start through Finish; weekends and public holidays excluded). If either Disassembly date is missing: WO Open date → WO Submitted to inspection, or Post Disassembly inspection if no submission date is available. Incomplete or invalid ranges and skipped steps are excluded from averages.</p>
         @if($workorders->isEmpty())
             <p>No workorders found.</p>
         @else

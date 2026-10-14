@@ -13,7 +13,9 @@
 @section('content')
 
     <div class="d-flex justify-content-center align-items-center vh-100">
-        <img src="{{ asset('img/avia190.png') }}" alt="ERJ-190" class="img-fluid " style="max-width: 40%;">
+        @if(empty($userProjectBackgroundUrl))
+            <img src="{{ asset('img/avia190.png') }}" alt="ERJ-190" class="img-fluid " style="max-width: 40%;">
+        @endif
     </div>
 
 @endsection

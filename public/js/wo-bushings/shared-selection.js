@@ -4,7 +4,12 @@
     let state = null, applying = false, busy = false, refreshing = false;
     const dirtyForms = new WeakSet(), staleForms = new WeakSet();
     const printStyle = document.createElement('style');
-    printStyle.textContent = '@media print { #bushing-selection-dialog, #bushing-selection-dialog::backdrop { display:none !important; } }';
+    printStyle.textContent = `
+        .bushing-select-cell[data-bushing-selection-blocked] { cursor: help; }
+        .bushing-select-cell[data-bushing-selection-blocked] > .component-checkbox { pointer-events: none; }
+        .bushing-select-cell[data-bushing-selection-blocked]:focus-visible { outline: 2px solid var(--bs-info, #0dcaf0); outline-offset: 3px; }
+        @media print { #bushing-selection-dialog, #bushing-selection-dialog::backdrop { display:none !important; } }
+    `;
     document.head.append(printStyle);
     const config = () => window.bushingSelectionConfig;
     const notify = (text, type = 'error') => window.showNotification?.(text, type);
@@ -41,6 +46,24 @@
                     checkbox.checked = option.selected;
                     checkbox.disabled = option.locked || option.history || busy;
                     checkbox.title = option.reason || 'Saved automatically; shared with KIT / Extra parts.';
+                    // Disabled inputs do not emit clicks. Their existing wrapper
+                    // explains the lock without enabling or changing the selection.
+                    const selectionCell = checkbox.closest('.bushing-select-cell');
+                    if (selectionCell) {
+                        if (option.locked || option.history) {
+                            selectionCell.dataset.bushingSelectionBlocked = option.id;
+                            selectionCell.tabIndex = 0;
+                            selectionCell.setAttribute('role', 'button');
+                            selectionCell.setAttribute('aria-label', option.ipl + ' — ' + option.reason);
+                            selectionCell.title = option.reason;
+                        } else {
+                            delete selectionCell.dataset.bushingSelectionBlocked;
+                            selectionCell.removeAttribute('tabindex');
+                            selectionCell.removeAttribute('role');
+                            selectionCell.removeAttribute('aria-label');
+                            selectionCell.removeAttribute('title');
+                        }
+                    }
                     const qty = field(checkbox, 'qty'), code = field(checkbox, 'codes_id'), noOrder = field(checkbox, 'do_not_order');
                     if (qty) qty.value = option.qty;
                     if (noOrder) noOrder.checked = option.do_not_order;
@@ -76,6 +99,23 @@
                     const crossed = group.options.every(o => o.crossed_out);
                     row.classList.toggle('prl-row-crossed-out', crossed);
                     if (crossed) row.dataset.prlCrossedOut = '1'; else delete row.dataset.prlCrossedOut;
+                }
+            });
+            document.querySelectorAll('[data-bushing-qty-component-id]').forEach(el => {
+                const option = options.get(Number(el.dataset.bushingQtyComponentId));
+                if (!option) return;
+                const group = groupFor(option.id);
+                const row = el.closest('.data-row-prl');
+                const allCrossed = group.options.every(o => o.crossed_out);
+                const first = row?.querySelector('[data-bushing-qty-component-id]') === el;
+                const qty = allCrossed ? (first ? group.capacity : null) : (option.crossed_out ? null : (option.order_qty ?? option.qty));
+                el.textContent = qty === null ? '\u00a0' : String(qty);
+                if (qty === null) {
+                    delete el.dataset.prlOptionQty;
+                    el.dataset.prlOptionQtyEmpty = '1';
+                } else {
+                    el.dataset.prlOptionQty = String(qty);
+                    delete el.dataset.prlOptionQtyEmpty;
                 }
             });
         } finally { applying = false; }
@@ -151,6 +191,21 @@
         actions.append(cancel, submit); dialog.append(error, actions); document.body.append(dialog);
         dialog.addEventListener('close', () => dialog.remove()); dialog.showModal();
     }
+    function explainBlockedSelection(event) {
+        const cell = event.target.closest?.('[data-bushing-selection-blocked]');
+        if (!cell || event.target.closest('.bushing-code-control')) return;
+        if (event.type === 'keydown' && (event.target !== cell || !['Enter', ' '].includes(event.key))) return;
+        const id = Number(cell.dataset.bushingSelectionBlocked);
+        const option = groupFor(id)?.options.find(o => o.id === id);
+        if (!option || (!option.locked && !option.history)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const message = document.createElement('span');
+        message.textContent = option.ipl + ' — ' + option.part_number + ': ' + option.reason;
+        notify(message.innerHTML, 'warning');
+    }
+    document.addEventListener('click', explainBlockedSelection, true);
+    document.addEventListener('keydown', explainBlockedSelection, true);
     document.addEventListener('change', async event => {
         if (applying) return;
         const control = event.target, form = control.closest('form#bushings-form');

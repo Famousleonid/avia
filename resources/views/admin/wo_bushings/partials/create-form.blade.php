@@ -45,7 +45,7 @@
         padding-right: .25rem !important;
     }
     .bushing-line-list { display: flex; flex-direction: column; gap: .45rem; }
-    .bushing-line-list > div { min-height: var(--bushing-line-height); display: flex; align-items: center; }
+    .bushing-line-list > div { height: var(--bushing-line-height); min-height: var(--bushing-line-height); flex: 0 0 var(--bushing-line-height); display: flex; align-items: center; }
     .bushing-part-cell { min-width: 0; white-space: normal; line-height: 1.25; }
     .bushing-part-cell .bushing-line-list > div { min-width: 0; width: 100%; }
     .bushing-part-label {
@@ -74,6 +74,7 @@
     .bushing-create-table .form-check-input {
         width: 1.05rem;
         height: 1.05rem;
+        margin-top: 0;
     }
     .bushing-process-line.is-hidden .bushing-process-control { display: none; }
     .bushing-readonly-qty { color: var(--bs-secondary-color); }
@@ -154,9 +155,6 @@
                                                     </span>
                                                 </div>
                                             @endforeach
-                                        </div>
-                                        <div class="small text-info mt-1 bushing-group-qty-summary" aria-live="polite">
-                                            {{ __('Ordered QTY') }}: <span class="bushing-group-ordered-qty">0</span> / {{ __('max') }} {{ $groupMaxOrderQty }}
                                         </div>
                                     </td>
                                     <td class="text-center bushing-readonly-qty">

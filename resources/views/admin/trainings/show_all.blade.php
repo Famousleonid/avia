@@ -613,6 +613,8 @@
                         td.dataset.trainPn + ' — ' + td.dataset.trainUserName;
                     const dateInput = document.getElementById('matrixTrainDate');
                     dateInput.dataset.trainingUserId = trainCtx.user;
+                    dateInput.dataset.trainingManualId = trainCtx.manual || '';
+                    dateInput.dataset.trainingCourseId = trainCtx.courseRow || '';
                     dateInput.classList.remove('is-invalid');
                     dateInput.value = '{{ now()->format('d/M/Y') }}';
                     if (window.initProjectDatePickers) {

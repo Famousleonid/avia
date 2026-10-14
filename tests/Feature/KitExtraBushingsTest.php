@@ -23,7 +23,7 @@ class KitExtraBushingsTest extends TestCase
     private function family(Workorder $wo, int $position, bool $kit): array
     {
         $group = ManualPartGroup::create(['manual_id' => $wo->unit->manual_id,
-            'code' => 'EXTRA-'.$position, 'name' => 'Bushing', 'type' => 'oversize',
+            'code' => 'EXTRA-'.$wo->id.'-'.$position, 'name' => 'Bushing', 'type' => 'oversize',
             'behavior' => 'choose_one', 'applies_to' => ['prl']]);
         $parts = [];
         foreach (['original', 'oversize'] as $index => $kind) {
@@ -39,6 +39,46 @@ class KitExtraBushingsTest extends TestCase
         return $parts;
     }
 
+    private function printedQuantity(string $html, int $componentId): string
+    {
+        $dom = new \DOMDocument();
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $node = (new \DOMXPath($dom))->query('//*[@data-bushing-qty-component-id="'.$componentId.'"]')->item(0);
+        $this->assertNotNull($node);
+        return trim(str_replace("\u{00A0}", '', $node->textContent));
+    }
+
+    public static function quantitySections(): array
+    {
+        return ['KIT' => [true], 'Extra parts' => [false]];
+    }
+
+    /** @dataProvider quantitySections */
+    public function test_quantities_follow_selected_original_and_oversize_in_kit_and_extra_parts(bool $kit): void
+    {
+        $wo = $this->setupWorkorder();
+        [$original, $oversize] = $this->family($wo, 360, $kit);
+        $bush = WoBushing::create(['workorder_id' => $wo->id]);
+        $lines = collect([$original, $oversize])->map(fn ($part) => WoBushingLine::create([
+            'workorder_id' => $wo->id, 'wo_bushing_id' => $bush->id, 'component_id' => $part->id,
+            'qty' => 1, 'qty_remaining' => 1, 'selection_active' => true, 'do_not_order' => false,
+        ]));
+        $html = $this->get(route('tdrs.kitForm', $wo))->assertOk()->getContent();
+        $this->assertSame('1', $this->printedQuantity($html, $original->id));
+        $this->assertSame('1', $this->printedQuantity($html, $oversize->id));
+
+        $lines[0]->update(['selection_active' => false]);
+        $lines[1]->update(['qty' => 2, 'qty_remaining' => 2]);
+        $html = $this->get(route('tdrs.kitForm', $wo))->assertOk()->getContent();
+        $this->assertSame('', $this->printedQuantity($html, $original->id));
+        $this->assertSame('2', $this->printedQuantity($html, $oversize->id));
+
+        $lines[1]->update(['do_not_order' => true]);
+        $html = $this->get(route('tdrs.kitForm', $wo))->assertOk()->getContent();
+        $this->assertSame('2', $this->printedQuantity($html, $original->id));
+        $this->assertSame('', $this->printedQuantity($html, $oversize->id));
+    }
+
     public function test_kit_print_includes_all_families_with_original_quantity_and_extra_section_last(): void
     {
         $wo = $this->setupWorkorder();
@@ -51,10 +91,11 @@ class KitExtraBushingsTest extends TestCase
         $this->assertSame([2, 2], $rows->pluck('bushing_kit_capacity')->all());
         $this->assertSame([$kit->id, $kitOs->id, $extra->id, $extraOs->id],
             $rows->flatMap(fn ($row) => $row['prl_part_numbers'])->pluck('component_id')->all());
-        $this->assertFalse($rows->last()['prl_crossed_out']);
+        $this->assertTrue($rows->every(fn ($row) => $row['prl_crossed_out']));
         $html = $response->getContent();
         $this->assertSame(1, substr_count($html, '>Extra parts</strong>'));
-        $this->assertSame(2, substr_count($html, 'data-kit-original-qty="2"'));
+        $this->assertSame('2', $this->printedQuantity($html, $kit->id));
+        $this->assertSame('2', $this->printedQuantity($html, $extra->id));
         $this->assertLessThan(strpos($html, '>Extra parts</strong>'), strpos($html, '>BUSH-200-original</span>'));
         $this->assertGreaterThan(strpos($html, '>Extra parts</strong>'), strpos($html, '>BUSH-100-original</span>'));
         // Showing an extra bushing in the printed KIT must not turn it into KIT supply.
@@ -77,7 +118,8 @@ class KitExtraBushingsTest extends TestCase
             $this->assertFalse($options[$original->id]['controller_crossed_out']);
             $this->assertSame($crossed, $options[$oversize->id]['crossed_out']);
             $this->assertSame($crossed, $row['prl_crossed_out']);
-            $response->assertSee('data-kit-original-qty="2"', false);
+            $this->assertSame($crossed ? '2' : '', $this->printedQuantity($response->getContent(), $original->id));
+            $this->assertSame($crossed ? '' : '1', $this->printedQuantity($response->getContent(), $oversize->id));
         }
         $other = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => '9-10',
             'part_number' => 'OTHER', 'name' => 'BOLT', 'units_assy' => 1]);
@@ -101,7 +143,7 @@ class KitExtraBushingsTest extends TestCase
         $extra = $response->viewData('ordersParts')->last();
         $this->assertTrue($extra['kit_extra_bushing']);
         $this->assertTrue(collect($extra['prl_part_numbers'])->firstWhere('component_id', $original->id)['controller_crossed_out']);
-        $response->assertSee('data-kit-original-qty="2"', false);
+        $this->assertSame('2', $this->printedQuantity($response->getContent(), $original->id));
     }
 
     public function test_extra_heading_is_absent_without_extra_bushings(): void
@@ -109,6 +151,39 @@ class KitExtraBushingsTest extends TestCase
         $wo = $this->setupWorkorder();
         $this->family($wo, 100, true);
         $this->get(route('tdrs.kitForm', $wo))->assertOk()->assertDontSee('Extra parts');
+    }
+
+    public function test_extra_parts_print_saved_replacement_codes_without_changing_kit_or_quantity(): void
+    {
+        $wo = $this->setupWorkorder();
+        [$original, $oversize] = $this->family($wo, 100, false);
+        [$kit] = $this->family($wo, 200, true);
+        $missing = \App\Models\Code::firstOrCreate(['code' => 'P'], ['name' => 'Missing']);
+        $worn = \App\Models\Code::firstOrCreate(['code' => 'K'], ['name' => 'Worn']);
+        $bush = WoBushing::create(['workorder_id' => $wo->id]);
+        foreach ([$original, $kit] as $part) {
+            WoBushingLine::create(['wo_bushing_id' => $bush->id, 'workorder_id' => $wo->id,
+                'component_id' => $part->id, 'qty' => 1, 'qty_remaining' => 1, 'codes_id' => $missing->id]);
+        }
+        $response = $this->get(route('tdrs.kitForm', $wo))->assertOk();
+        $this->assertSame('PARTS REPLACEMENT LIST', $response->viewData('formTitle'));
+        $response->assertDontSee('PARTS REPLACEMENT LIST - KIT');
+        $rows = collect($response->viewData('ordersParts'));
+        $this->assertSame(['KIT', 'P'], $rows->pluck('codes.code')->all());
+        $this->assertSame(2, $rows->last()['bushing_kit_capacity']);
+        $this->assertFalse($rows->last()['prl_crossed_out']);
+        WoBushingLine::create(['wo_bushing_id' => $bush->id, 'workorder_id' => $wo->id,
+            'component_id' => $oversize->id, 'qty' => 1, 'qty_remaining' => 1, 'codes_id' => $worn->id]);
+        $response = $this->get(route('tdrs.kitForm', $wo))->assertOk();
+        $rows = collect($response->viewData('ordersParts'));
+        $this->assertCount(2, $rows);
+        $this->assertSame(['P', 'K'], array_column($rows->last()['bushing_option_codes'], 'code'));
+        $response->assertSee('data-prl-code-component-id="'.$original->id.'">P</span>', false);
+        $response->assertSee('data-prl-code-component-id="'.$oversize->id.'">K</span>', false);
+        WoBushingLine::where('workorder_id', $wo->id)->update(['do_not_order' => true]);
+        $rows = collect($this->get(route('tdrs.kitForm', $wo))->assertOk()->viewData('ordersParts'));
+        $this->assertTrue($rows->last()['prl_crossed_out']);
+        $this->assertSame(['P', 'K'], array_column($rows->last()['bushing_option_codes'], 'code'));
     }
 
     public function test_overhaul_prl_routes_bushing_lines_and_direct_orders_only_to_kit(): void

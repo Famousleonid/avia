@@ -26,6 +26,13 @@
             && !input.closest('form')?.querySelector('#is_legacy:checked')
             && !(input.id === 'matrixTrainDate' && document.querySelector('#matrixTrainLegacy:checked'));
     }
+    function courseOf(input, scope) {
+        return {
+            manuals_id: input.dataset.trainingManualId || scope.querySelector('[name="manuals_id"], [name="manuals_id[]"]')?.value
+                || scope.querySelector('[data-manuals-id]')?.dataset.manualsId || null,
+            matrix_row_id: input.dataset.trainingCourseId || null
+        };
+    }
     async function run(input) {
         if (!applicable(input)) return true;
         const original = input.value;
@@ -44,12 +51,13 @@
                 'Content-Type': 'application/json', 'Accept': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             }, body: JSON.stringify({user_id: input.dataset.trainingUserId || scope.querySelector('[name="user_id"]')?.value || config.userId,
-                date_training: date, training_id: trainingId || null, reserved_dates: reserved})});
+                date_training: date, training_id: trainingId || null, reserved_dates: reserved, ...courseOf(input, scope)})});
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || 'Could not check the training week.');
             if (!input.isConnected || input.value !== original) return false;
             if (result.available) { setDate(input, result.date); input.classList.remove('is-invalid'); return true; }
             input.classList.add('is-invalid');
+            if (!result.suggested_date) { notify(result.message); return false; }
             if (!window.confirmDialog) throw new Error('Confirmation dialog is unavailable. The date has not been moved.');
             const ask = async () => {
                 if (!input.isConnected || input.value !== original) return false;
@@ -60,9 +68,9 @@
                     bootstrap.Modal.getInstance(parentModal)?._focustrap?.deactivate();
                 }
                 try {
-                    const answer = window.confirmDialog({title: 'Training week is occupied',
-                        message: result.message + ' Move this date to the nearest free week?',
-                        okText: 'Move to free week', cancelText: 'Choose another date'});
+                    const answer = window.confirmDialog({title: 'Weekly training hours exceeded',
+                        message: result.message + ' Move this date to the suggested week?',
+                        okText: 'Move to available week', cancelText: 'Choose another date'});
                     const dialog = document.getElementById('globalConfirmModal');
                     const title = dialog.querySelector('#globalConfirmTitle');
                     title.classList.add('text-warning');
@@ -93,7 +101,7 @@
                     const accepted = await answer;
                     await hidden;
                     calendarButton.remove();
-                    if (selectedFromCalendar && dateOf(input) === selectedFromCalendar) return true;
+                    if (selectedFromCalendar && dateOf(input) === selectedFromCalendar) return 'calendar';
                     if (accepted && input.isConnected && input.value === original) {
                         setDate(input, result.suggested_date);
                         input.classList.remove('is-invalid');
@@ -110,7 +118,8 @@
             };
             const answer = dialogs.then(ask);
             dialogs = answer.catch(() => false);
-            return await answer;
+            const decision = await answer;
+            return decision === 'calendar' ? run(input) : decision;
         } catch (error) { input.classList.add('is-invalid'); notify(error.message); return false; }
     }
     function check(input) {

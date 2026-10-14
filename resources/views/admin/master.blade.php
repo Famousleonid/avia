@@ -107,10 +107,11 @@
 
         @if(!empty($userProjectBackgroundUrl))
         body.has-user-project-background .content {
+            --user-project-background: url('{{ $userProjectBackgroundUrl }}');
             background-color: transparent !important;
             background-image:
                 linear-gradient(rgba(255, 255, 255, .38), rgba(255, 255, 255, .38)),
-                url('{{ $userProjectBackgroundUrl }}') !important;
+                var(--user-project-background) !important;
             background-position: center center !important;
             background-repeat: no-repeat !important;
             background-size: cover !important;
@@ -119,7 +120,7 @@
         html[data-bs-theme="dark"] body.has-user-project-background .content {
             background-image:
                 linear-gradient(rgba(10, 17, 26, .52), rgba(10, 17, 26, .52)),
-                url('{{ $userProjectBackgroundUrl }}') !important;
+                var(--user-project-background) !important;
         }
 
         body.has-user-project-background .content-inner,
@@ -140,6 +141,27 @@
 </head>
 
 <body class="p-0 m-0 g-0 {{ !empty($userProjectBackgroundUrl) ? 'has-user-project-background' : '' }}">
+@if(!empty($userProjectBackgroundUrl))
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const content = document.querySelector('.content');
+        const formatter = new Intl.DateTimeFormat('en-CA', {timeZone: @json(config('app.timezone')), year: 'numeric', month: '2-digit', day: '2-digit'});
+        let day = @json(now()->toDateString());
+        const refreshBackground = () => {
+            const parts = Object.fromEntries(formatter.formatToParts(new Date()).map(part => [part.type, part.value]));
+            const today = `${parts.year}-${parts.month}-${parts.day}`;
+            if (today === day) return;
+            day = today;
+            const url = new URL(@json($userProjectBackgroundUrl), location.origin);
+            url.searchParams.set('v', today);
+            content.style.setProperty('--user-project-background', `url("${url.href}")`);
+        };
+        setInterval(refreshBackground, 60000);
+        document.addEventListener('visibilitychange', refreshBackground);
+        refreshBackground();
+    });
+</script>
+@endif
 
 <div id="spinner-load" class="spinner-border text-warning spinner-win d-none" role="status">
     <span class="visually-hidden">Loading...</span>

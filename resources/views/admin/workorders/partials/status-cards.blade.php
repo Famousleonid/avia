@@ -19,7 +19,7 @@
                 <span class="ws-ecd-message" role="status"></span>
             </form>
             @if($wo->approve_at)
-                <span class="ws-estimate ws-secondary-data" title="Routes start at Approval in parallel. Each part follows its processes sequentially; STD lists follow their own sequence. Actual return dates adjust remaining time. Traveler: 60 days if unset.">Process days: <span>{{ $card['duration_days'] }}</span></span>
+                <span class="ws-estimate ws-secondary-data" title="Routes start at Approval in parallel. Each part follows its processes sequentially; STD lists follow their own sequence. Actual return dates adjust remaining time. Traveler uses its longest included process duration.">Process days: <span>{{ $card['duration_days'] }}</span></span>
                 @php
                     $esd = $card['isd']?->copy()->startOfDay();
                     $esdClass = !$esd ? '' : ($esd->lt(today()) ? 'ws-esd-overdue' : ($esd->lte(today()->addDays(14)) ? 'ws-esd-soon' : 'ws-esd-future'));

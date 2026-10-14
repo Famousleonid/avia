@@ -38,8 +38,10 @@ class WorkorderBushingSelection
         foreach ($this->families($wo) as $key => $family) {
             $capacity = BushingPrlGrouping::capacity($family);
             $familyLines = $lines->whereIn('component_id', $family->pluck('id'));
+            // Do Not Order excludes the chosen part from purchasing, not the
+            // size selection: unselected alternatives must remain excluded.
             $decided = $decisions->contains('family_key', $key)
-                || $familyLines->contains(fn ($line) => $line->selection_active && !$line->do_not_order);
+                || $familyLines->contains(fn ($line) => $line->selection_active);
             $options = [];
             foreach ($family as $part) {
                 $partLines = $familyLines->where('component_id', $part->id);
@@ -50,10 +52,13 @@ class WorkorderBushingSelection
                 $locked = $covered >= $required;
                 $history = $partLines->whereIn('id', $protected)->isNotEmpty();
                 $selected = $active->isNotEmpty() && !$crossouts->contains($part->id);
-                $excluded = $crossouts->contains($part->id) || ($decided && !$selected);
+                // No selection means no order, including untouched families.
+                // Keep "decided" as editing metadata, not a purchasing default.
+                $excluded = !$selected;
                 $options[] = [
                     'id' => $part->id, 'ipl' => $part->ipl_num, 'part_number' => $part->part_number,
                     'selected' => $selected, 'qty' => (int) ($active->sum('qty') ?: $partLines->sum('qty') ?: 1),
+                    'order_qty' => max(0, (int) $active->where('do_not_order', false)->sum('qty') - $covered),
                     'codes_id' => $partLines->first()?->codes_id,
                     'do_not_order' => (bool) $active->first()?->do_not_order,
                     'crossed_out' => $locked || $excluded || ($selected && (bool) $active->first()?->do_not_order),

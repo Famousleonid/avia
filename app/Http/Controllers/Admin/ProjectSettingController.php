@@ -7,6 +7,7 @@ use App\Models\ProjectSetting;
 use App\Models\User;
 use App\Models\UserUiSetting;
 use App\Services\MarketingWoEstimateNotificationService;
+use App\Services\UserProjectBackground;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -30,8 +31,9 @@ class ProjectSettingController extends Controller
         $selectedUserId = (int) $request->query('user_id', 0);
         $selectedUser = $users->firstWhere('id', $selectedUserId) ?? $users->first();
         $background = $selectedUser ? UserUiSetting::projectBackgroundFor((int) $selectedUser->id) : [];
-        $backgroundPath = $selectedUser ? $this->validBackgroundPath((int) $selectedUser->id, $background) : null;
-        $backgroundMedia = $selectedUser?->getFirstMedia(User::PROJECT_BACKGROUND_COLLECTION);
+        $backgrounds = app(UserProjectBackground::class);
+        $images = $selectedUser ? $backgrounds->images($selectedUser) : [];
+        $current = $selectedUser ? $backgrounds->current($selectedUser, $images) : null;
 
         return view('admin.project_settings.index', [
             'activeSection' => $activeSection,
@@ -43,9 +45,9 @@ class ProjectSettingController extends Controller
             'users' => $users,
             'selectedUser' => $selectedUser,
             'userBackground' => $background,
-            'userBackgroundUrl' => $selectedUser
-                ? $this->backgroundUrl($selectedUser, $backgroundMedia, $backgroundPath)
-                : null,
+            'userBackgroundImages' => array_map(fn ($image) => $image + ['url' => $backgrounds->url($selectedUser, $image)], $images),
+            'userBackgroundCurrentId' => $current['id'] ?? null,
+            'userBackgroundUrl' => $current ? $backgrounds->url($selectedUser, $current) : null,
         ]);
     }
 
@@ -114,60 +116,69 @@ class ProjectSettingController extends Controller
                 'integer',
                 Rule::exists('users', 'id')->whereNull('deleted_at'),
             ],
-            'background_image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'background_image' => ['required_without:background_images', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'background_images' => ['required_without:background_image', 'array', 'min:1', 'max:20'],
+            'background_images.*' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ]);
 
-        $user = User::query()->findOrFail((int) $data['user_id']);
-        $oldBackground = UserUiSetting::projectBackgroundFor((int) $user->id);
-        $oldPath = $this->validBackgroundPath((int) $user->id, $oldBackground);
-        $uploadedFile = $request->file('background_image');
-        $media = $user
-            ->addMedia($uploadedFile)
-            ->toMediaCollection(User::PROJECT_BACKGROUND_COLLECTION);
-
-        try {
-            UserUiSetting::query()->updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'scope' => UserUiSetting::PROJECT_APPEARANCE_SCOPE,
-                    'key' => UserUiSetting::PROJECT_BACKGROUND_KEY,
-                ],
-                [
-                    'value' => [
-                        'media_id' => $media->id,
-                        'original_name' => $uploadedFile->getClientOriginalName(),
-                    ],
-                ]
-            );
-        } catch (\Throwable $exception) {
-            $media->delete();
-            throw $exception;
-        }
-
-        if ($oldPath) {
-            Storage::disk('public')->delete($oldPath);
-        }
+        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($request, $data) {
+            $user = User::query()->lockForUpdate()->findOrFail((int) $data['user_id']);
+            $files = $request->file('background_images', []);
+            if ($request->hasFile('background_image')) $files[] = $request->file('background_image');
+            $images = app(UserProjectBackground::class)->images($user);
+            if (count($images) + count($files) > 20) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['background_images' => 'Maximum 20 backgrounds per user. Remove an image before adding more.']);
+            }
+            $setting = UserUiSetting::projectBackgroundFor($user->id);
+            $setting['rotation_started_on'] ??= now()->toDateString();
+            $created = [];
+            try {
+                foreach ($files as $file) {
+                    $media = $user->addMedia($file)->toMediaCollection(User::PROJECT_BACKGROUND_COLLECTION);
+                    $created[] = $media;
+                    if (!$images && count($created) === 1) {
+                        $setting['media_id'] = $media->id;
+                        $setting['original_name'] = $file->getClientOriginalName();
+                    }
+                }
+                UserUiSetting::updateOrCreate(['user_id' => $user->id,
+                    'scope' => UserUiSetting::PROJECT_APPEARANCE_SCOPE, 'key' => UserUiSetting::PROJECT_BACKGROUND_KEY], ['value' => $setting]);
+            } catch (\Throwable $exception) {
+                foreach ($created as $media) $media->delete();
+                throw $exception;
+            }
+            return $user;
+        });
 
         return redirect()
             ->route('admin.project-settings.index', ['section' => 'user-background', 'user_id' => $user->id])
             ->with('success', "Background updated for {$user->name}.");
     }
 
-    public function destroyUserBackground(User $user): RedirectResponse
+    public function destroyUserBackground(Request $request, User $user): RedirectResponse
     {
         $background = UserUiSetting::projectBackgroundFor((int) $user->id);
-        $path = $this->validBackgroundPath((int) $user->id, $background);
-
-        $user->clearMediaCollection(User::PROJECT_BACKGROUND_COLLECTION);
-
-        UserUiSetting::query()
+        $path = app(UserProjectBackground::class)->legacyPath($user, $background);
+        $image = $request->validate(['image' => ['nullable', 'regex:/^(legacy|[0-9]+)$/']])['image'] ?? null;
+        if ($image && $image !== 'legacy') {
+            $media = $user->media()->where('collection_name', User::PROJECT_BACKGROUND_COLLECTION)->findOrFail($image);
+            $media->delete();
+        } elseif (!$image) {
+            $user->clearMediaCollection(User::PROJECT_BACKGROUND_COLLECTION);
+        }
+        if ((!$image || $image === 'legacy') && $path) {
+            Storage::disk('public')->delete($path);
+            unset($background['path']);
+        }
+        $user->unsetRelation('media');
+        $settingsQuery = UserUiSetting::query()
             ->where('user_id', $user->id)
             ->where('scope', UserUiSetting::PROJECT_APPEARANCE_SCOPE)
-            ->where('key', UserUiSetting::PROJECT_BACKGROUND_KEY)
-            ->delete();
-
-        if ($path) {
-            Storage::disk('public')->delete($path);
+            ->where('key', UserUiSetting::PROJECT_BACKGROUND_KEY);
+        if ($user->getMedia(User::PROJECT_BACKGROUND_COLLECTION)->isEmpty() && empty($background['path'])) {
+            $settingsQuery->delete();
+        } else {
+            $settingsQuery->first()?->update(['value' => $background]);
         }
 
         return redirect()
@@ -182,19 +193,13 @@ class ProjectSettingController extends Controller
             403
         );
 
-        $media = $user->getFirstMedia(User::PROJECT_BACKGROUND_COLLECTION);
-        if ($media) {
-            $path = $media->getPath();
-            abort_unless($path && is_file($path), 404);
-
-            return response()->file($path, ['Content-Type' => $media->mime_type]);
-        }
-
-        $background = UserUiSetting::projectBackgroundFor((int) $user->id);
-        $legacyPath = $this->validBackgroundPath((int) $user->id, $background);
-        abort_unless($legacyPath && Storage::disk('public')->exists($legacyPath), 404);
-
-        return response()->file(Storage::disk('public')->path($legacyPath));
+        $backgrounds = app(UserProjectBackground::class);
+        $images = $backgrounds->images($user);
+        $image = $request->has('image')
+            ? collect($images)->firstWhere('id', (string) $request->query('image'))
+            : $backgrounds->current($user, $images);
+        abort_unless($image, 404);
+        return response()->file($image['path'], ['Cache-Control' => 'private, no-store']);
     }
 
     /**
@@ -210,31 +215,4 @@ class ProjectSettingController extends Controller
             ->all();
     }
 
-    private function validBackgroundPath(int $userId, array $background): ?string
-    {
-        $path = trim((string) data_get($background, 'path', ''));
-
-        return $path !== '' && str_starts_with($path, "user-backgrounds/{$userId}/")
-            ? $path
-            : null;
-    }
-
-    private function backgroundUrl(User $user, mixed $media, ?string $legacyPath): ?string
-    {
-        if ($media) {
-            return route('admin.project-settings.user-background.show', [
-                'user' => $user->id,
-                'v' => $media->updated_at?->getTimestamp() ?? $media->id,
-            ]);
-        }
-
-        if ($legacyPath && Storage::disk('public')->exists($legacyPath)) {
-            return route('admin.project-settings.user-background.show', [
-                'user' => $user->id,
-                'v' => Storage::disk('public')->lastModified($legacyPath),
-            ]);
-        }
-
-        return null;
-    }
 }

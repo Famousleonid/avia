@@ -10,8 +10,9 @@ class WorkorderEfficiency
     public function partFamily(string $number): string
     {
         $number = preg_replace('/\s+/', '', mb_strtoupper($number));
-        // Efficiency groups every dash variant under the prefix before the first dash.
-        return explode('-', $number, 2)[0];
+        // Keep the full base number; only the final dash suffix identifies a variant.
+        $lastDash = strrpos($number, '-');
+        return $lastDash === false ? $number : substr($number, 0, $lastDash);
     }
 
     public function report(?string $partNumber): array
@@ -23,29 +24,46 @@ class WorkorderEfficiency
             ->distinct()->orderBy('units.part_number')->pluck('units.part_number');
         $families = $storedNumbers->groupBy(fn ($number) => $this->partFamily($number));
         $partNumbers = $families->keys()->sort()->values();
-        $partNumber = $partNumber ? $this->partFamily($partNumber) : null;
+        $partNumber = $partNumber ? preg_replace('/\s+/', '', mb_strtoupper($partNumber)) : null;
+        // Select options already contain family keys, which may themselves contain dashes.
+        if ($partNumber !== null && !$families->has($partNumber)) {
+            $partNumber = $this->partFamily($partNumber);
+        }
         $matchingNumbers = $families->get($partNumber, collect());
         $workorders = Workorder::with(['user' => fn ($q) => $q->withTrashed()])
             ->whereHas('unit', fn ($q) => $q->whereIn('part_number', $matchingNumbers))
             ->when(!$partNumber, fn ($q) => $q->whereRaw('1 = 0'))
             ->orderBy('number')->orderBy('id')->get();
-        $stages = Main::whereIn('workorder_id', $workorders->modelKeys())
-            ->whereHas('task', fn ($q) => $q->where('name', '2. Disassembly'))
-            ->orderByDesc('id')->get()->unique('workorder_id')->keyBy('workorder_id');
+        $taskNames = ['2. Disassembly', '3. WO Submitted to inspection', 'WO Submitted to inspection', 'Post Disassembly inspection'];
+        $stages = Main::with('task:id,name')->whereIn('workorder_id', $workorders->modelKeys())
+            ->whereHas('task', fn ($q) => $q->whereIn('name', $taskNames))
+            ->orderByDesc('id')->get()->groupBy('workorder_id');
         $rows = [];
         $allDays = [];
         foreach ($workorders as $wo) {
             $key = $wo->user_id ?: 0;
             $rows[$key] ??= ['name' => $wo->user?->selection_name ?: 'Unassigned', 'cells' => [], 'days' => []];
-            $stage = $stages->get($wo->id);
+            $woStages = $stages->get($wo->id, collect());
+            $stage = $woStages->first(fn ($row) => $row->task->name === '2. Disassembly');
             $days = null;
             $note = 'Dates not completed';
-            if ($stage?->ignore_row) {
+            $start = $stage?->date_start;
+            $finish = $stage?->date_finish;
+            $source = 'Disassembly';
+            if (!$start || !$finish) {
+                $inspectionStages = $woStages->unique('task_id')->filter(fn ($row) => !$row->ignore_row && $row->date_finish);
+                $inspection = $inspectionStages->first(fn ($row) => in_array($row->task->name, ['3. WO Submitted to inspection', 'WO Submitted to inspection'], true))
+                    ?? $inspectionStages->first(fn ($row) => $row->task->name === 'Post Disassembly inspection');
+                $start = $wo->open_at?->copy()->startOfDay();
+                $finish = $inspection?->date_finish;
+                $source = 'WO Open date → '.($inspection?->task->name ?? 'inspection');
+            } elseif ($stage->ignore_row) {
                 $note = 'Skipped';
-            } elseif ($stage?->date_start && $stage?->date_finish) {
-                $note = format_project_date($stage->date_start).' → '.format_project_date($stage->date_finish);
-                if ($stage->date_finish->gte($stage->date_start)) {
-                    $days = $calendar->between($stage->date_start, $stage->date_finish);
+            }
+            if ($note !== 'Skipped' && $start && $finish) {
+                $note = $source.': '.format_project_date($start).' → '.format_project_date($finish);
+                if ($finish->gte($start)) {
+                    $days = $calendar->between($start, $finish);
                 } else {
                     $note .= ' (invalid date range)';
                 }
