@@ -601,6 +601,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // Components editing from inspection
     Route::get('/components/{component}/json', [ComponentController::class, 'showJson'])->name('components.showJson');
     Route::patch('/components/{component}/flags', [ComponentController::class, 'updateFlags'])->name('components.updateFlags');
+    Route::patch('/manuals/{manual}/part-flag-locks', [\App\Http\Controllers\Admin\ManualPartFlagLockController::class, 'update'])->name('manuals.part-flag-locks.update');
     Route::delete('/components/{component}/image/{media}', [ComponentController::class, 'destroyImage'])->name('components.image.destroy');
     Route::patch('/manuals/{manual}/components/kit-prl-choice-group', [ComponentController::class, 'updateKitPrlChoiceGroup'])->name('manuals.components.kit-prl-choice-group');
     Route::post('/manuals/{manual}/part-groups', [ManualPartGroupController::class, 'store'])->name('manuals.part-groups.store');

@@ -720,9 +720,9 @@
                     $isExtraBushing = $isArray && ! empty($tdr['kit_extra_bushing']);
                 @endphp
 
-                @if($isExtraBushing && !($extraBushingsStarted ?? false))
+                @if(($isExtraBushing || ($isArray && !empty($tdr['kit_extra_part']))) && !($extraBushingsStarted ?? false))
                     <div class="row data-row-prl ms-3 manual-row" style="width: 100%" data-row-index="{{ $rowIndex }}" data-kit-extra-heading="1">
-                        <div class="kit-extra-heading border-l-b-r text-center align-content-center"><strong>Extra parts</strong></div>
+                        <div class="kit-extra-heading border-l-b-r text-center align-content-center"><strong>EXTRA PARTS (ENTER CODE OR CROSS OUT)</strong></div>
                     </div>
                     @php
                         $extraBushingsStarted = true;

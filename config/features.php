@@ -110,6 +110,14 @@ return [
         'allow_is_admin' => false,
     ],
 
+    'manuals.flag_locks' => [
+        'label' => 'Lock / unlock KIT, NP, Kit_E columns',
+        'group' => 'Manuals',
+        'managed' => true,
+        'roles' => [],
+        'allow_is_admin' => false,
+    ],
+
     'manuals.full' => [
         'label' => 'Manuals full access',
         'group' => 'Capabilities',

@@ -714,7 +714,22 @@ class TdrPrintFormController extends Controller
             return $row;
         });
 
-        $rows = $rows->concat($this->sortKitPrlRows($extraRows))->values();
+        $extraComponents = $this->filterComponentsForUnit(
+            Component::whereIn('manual_id', $manualIds)->where('kit_e', true)
+                ->whereNotIn('id', $allBushings->pluck('id'))
+                ->with('manual:id,number')->get(),
+            $workorder
+        );
+        $extraPartRows = $this->buildKitPrlRowsForComponents(
+            $extraComponents, 'K', $partGroupCrossouts, $manualCrossedOutComponentIds
+        )->map(function (array $row): array {
+            $row['kit_extra_part'] = true;
+            $row['receipt_key'] = 'extra-'.$row['receipt_key'];
+            return $row;
+        });
+        // Preserve the section order: KIT, non-KIT bushings, then Kit_E parts.
+        // Extras are print/review rows only, not additional KIT supply.
+        $rows = $rows->concat($this->sortKitPrlRows($extraRows))->concat($extraPartRows)->values();
         return $this->applySharedBushingSelection($workorder, $rows);
     }
 
@@ -1004,8 +1019,10 @@ class TdrPrintFormController extends Controller
             ->whereIn('process_names_id', $ndt_ids)
             ->get();
 
+        $ndtShowExcluded = $request->boolean('show_excluded');
         $ndt_components = $this->stdSnapshotRowsToFormComponents(
-            StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_NDT)
+            app(\App\Services\WorkorderStdProcessItemsService::class)
+                ->snapshotRowsForWorkorder($current_wo, StdProcess::STD_NDT, $ndtShowExcluded)
         );
         $ndtSums = $this->calcNdtSumsFromFormComponents($ndt_components);
 
@@ -1052,6 +1069,7 @@ class TdrPrintFormController extends Controller
                 'current_wo' => $current_wo,
                 'manual' => $manual,
                 'ndt_components' => $ndt_components,
+                'ndt_show_excluded' => $ndtShowExcluded,
                 'ndt_table_pages' => $ndt_table_pages,
                 'ndt_rows_per_page' => $ndtRowsPerPage,
                 'ndtSums' => $ndtSums,
@@ -1097,8 +1115,10 @@ class TdrPrintFormController extends Controller
                 ->get();
 
 
+            $cadShowExcluded = $request->boolean('show_excluded');
             $cad_components = $this->stdSnapshotRowsToFormComponents(
-                StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_CAD)
+                app(\App\Services\WorkorderStdProcessItemsService::class)
+                    ->snapshotRowsForWorkorder($current_wo, StdProcess::STD_CAD, $cadShowExcluded)
             );
 
             // Сортируем CAD компоненты: сначала по manual (если есть), потом по ipl_num
@@ -1140,7 +1160,7 @@ class TdrPrintFormController extends Controller
                 ->get();
 
             // Рассчитываем общее количество деталей на основе отфильтрованных компонентов
-            $cadSum = $this->calcCadSumsFromComponents($cad_components);
+            $cadSum = $this->calcCadSumsFromComponents(collect($cad_components)->reject(fn ($row) => $row->group_crossed_out ?? false)->all());
 
             $cadFormCfg = config('tdr_forms.cadFormStd', []);
             $cadDefaultRows = (int) ($cadFormCfg['table_rows_default'] ?? 19);
@@ -1152,6 +1172,7 @@ class TdrPrintFormController extends Controller
                     'current_wo' => $current_wo,
                     'manual' => $manual,
                     'cad_components' => $cad_components,
+                    'cad_show_excluded' => $cadShowExcluded,
                     'cad_table_pages' => $cad_table_pages,
                     'cad_rows_per_page' => $cadRowsPerPage,
                     'cad_processes' => $cad_processes,

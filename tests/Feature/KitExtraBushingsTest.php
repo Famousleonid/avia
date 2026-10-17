@@ -48,9 +48,39 @@ class KitExtraBushingsTest extends TestCase
         return trim(str_replace("\u{00A0}", '', $node->textContent));
     }
 
+    public function test_kit_e_parts_follow_extra_bushings_and_can_be_crossed_out(): void
+    {
+        $wo = $this->setupWorkorder();
+        [$bushing] = $this->family($wo, 100, false);
+        $bushing->update(['kit_e' => true]);
+        $extra = Component::create(['manual_id' => $wo->unit->manual_id,
+            'ipl_num' => '1-10', 'part_number' => 'EXTRA-PIN', 'name' => 'Pin', 'units_assy' => 2, 'kit_e' => true]);
+        $response = $this->get(route('tdrs.kitForm', $wo))->assertOk()
+            ->assertSee('EXTRA PARTS (ENTER CODE OR CROSS OUT)')->assertSee('EXTRA-PIN');
+        $rows = collect($response->viewData('ordersParts'));
+        $this->assertCount(2, $rows);
+        $this->assertTrue($rows->first()['kit_extra_bushing']);
+        $this->assertTrue($rows->last()['kit_extra_part']);
+        $this->assertSame(2, $rows->last()['qty']);
+        $this->assertCount(0, app(TdrPrintFormController::class)->kitRows($wo));
+        $this->patchJson(route('tdrs.kit-crossouts.update', [$wo, $extra]), ['crossed_out' => true])->assertOk();
+        $response = $this->get(route('tdrs.kitForm', $wo))->assertOk();
+        $this->assertTrue(collect($response->viewData('ordersParts'))->last()['prl_crossed_out']);
+        $this->patchJson(route('tdrs.kit-crossouts.update', [$wo, $extra]), ['crossed_out' => false])->assertOk();
+    }
+
+    public function test_kit_e_only_still_has_extra_heading(): void
+    {
+        $wo = $this->setupWorkorder();
+        Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => '1-10',
+            'part_number' => 'ONLY-EXTRA', 'name' => 'Pin', 'units_assy' => 1, 'kit_e' => true]);
+        $this->get(route('tdrs.kitForm', $wo))->assertOk()
+            ->assertSee('EXTRA PARTS (ENTER CODE OR CROSS OUT)')->assertSee('ONLY-EXTRA');
+    }
+
     public static function quantitySections(): array
     {
-        return ['KIT' => [true], 'Extra parts' => [false]];
+        return ['KIT' => [true], 'EXTRA PARTS (ENTER CODE OR CROSS OUT)' => [false]];
     }
 
     /** @dataProvider quantitySections */
@@ -93,11 +123,11 @@ class KitExtraBushingsTest extends TestCase
             $rows->flatMap(fn ($row) => $row['prl_part_numbers'])->pluck('component_id')->all());
         $this->assertTrue($rows->every(fn ($row) => $row['prl_crossed_out']));
         $html = $response->getContent();
-        $this->assertSame(1, substr_count($html, '>Extra parts</strong>'));
+        $this->assertSame(1, substr_count($html, '>EXTRA PARTS (ENTER CODE OR CROSS OUT)</strong>'));
         $this->assertSame('2', $this->printedQuantity($html, $kit->id));
         $this->assertSame('2', $this->printedQuantity($html, $extra->id));
-        $this->assertLessThan(strpos($html, '>Extra parts</strong>'), strpos($html, '>BUSH-200-original</span>'));
-        $this->assertGreaterThan(strpos($html, '>Extra parts</strong>'), strpos($html, '>BUSH-100-original</span>'));
+        $this->assertLessThan(strpos($html, '>EXTRA PARTS (ENTER CODE OR CROSS OUT)</strong>'), strpos($html, '>BUSH-200-original</span>'));
+        $this->assertGreaterThan(strpos($html, '>EXTRA PARTS (ENTER CODE OR CROSS OUT)</strong>'), strpos($html, '>BUSH-100-original</span>'));
         // Showing an extra bushing in the printed KIT must not turn it into KIT supply.
         $this->assertCount(1, app(TdrPrintFormController::class)->kitRows($wo));
     }
@@ -150,7 +180,7 @@ class KitExtraBushingsTest extends TestCase
     {
         $wo = $this->setupWorkorder();
         $this->family($wo, 100, true);
-        $this->get(route('tdrs.kitForm', $wo))->assertOk()->assertDontSee('Extra parts');
+        $this->get(route('tdrs.kitForm', $wo))->assertOk()->assertDontSee('EXTRA PARTS (ENTER CODE OR CROSS OUT)');
     }
 
     public function test_extra_parts_print_saved_replacement_codes_without_changing_kit_or_quantity(): void
@@ -209,7 +239,7 @@ class KitExtraBushingsTest extends TestCase
             foreach ([$extra, $direct, $kit] as $part) $response->assertDontSee($part->part_number);
             $this->assertCount(1, $response->viewData('ordersParts'));
         }
-        $kitResponse = $this->get(route('tdrs.kitForm', $wo))->assertOk()->assertSee('Extra parts');
+        $kitResponse = $this->get(route('tdrs.kitForm', $wo))->assertOk()->assertSee('EXTRA PARTS (ENTER CODE OR CROSS OUT)');
         foreach ([$extra, $direct, $kit] as $part) $kitResponse->assertSee($part->part_number);
         $controller = app(TdrPrintFormController::class);
         $this->assertSame(0, $controller->countBushingPrlRows($wo));

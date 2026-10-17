@@ -18,8 +18,10 @@ class WorkorderStdProcessItemsService
 {
     /**
      * Rebuild one workorder's reduced STD list from component flags minus current TDR exclusions.
+     * Preview retains fully excluded rows in memory only, without changing the stored work list.
+     * @return array<int, array<string, mixed>>
      */
-    public function rebuild(Workorder $workorder): void
+    public function rebuild(Workorder $workorder, bool $previewExcluded = false): array
     {
         if ($workorder->relationLoaded('unit')
             && (int) ($workorder->unit?->id ?? 0) !== (int) $workorder->unit_id) {
@@ -33,14 +35,16 @@ class WorkorderStdProcessItemsService
         $workorder->loadMissing(['unit.manuals', 'instruction:id,name']);
         $branchResolver = app(ManualIplBranchRuleResolver::class);
 
-        DB::transaction(function () use ($workorder, $branchResolver): void {
-            WorkorderStdProcessItem::query()
-                ->where('workorder_id', $workorder->id)
-                ->delete();
+        return DB::transaction(function () use ($workorder, $branchResolver, $previewExcluded): array {
+            if (! $previewExcluded) {
+                WorkorderStdProcessItem::query()
+                    ->where('workorder_id', $workorder->id)
+                    ->delete();
+            }
 
             $manualIds = $workorder->usedManualIds();
             if ($manualIds === []) {
-                return;
+                return [];
             }
 
             $manualsById = Manual::query()
@@ -61,7 +65,9 @@ class WorkorderStdProcessItemsService
                     continue;
                 }
 
-                StdProcess::syncFromComponentFlagsForManualWhenCountsDiffer($manual);
+                if (! $previewExcluded) {
+                    StdProcess::syncFromComponentFlagsForManualWhenCountsDiffer($manual);
+                }
 
                 foreach (StdProcess::validStdValues() as $std) {
                     $scopeQuantities = $scopeResolver->componentQuantities($workorder, $std);
@@ -93,18 +99,30 @@ class WorkorderStdProcessItemsService
                         }
 
                         $rowEff = $manualRow->eff_code ?? $component->eff_code;
+                        $sideExclusion = '';
                         if (! StdProcess::stdRowEffMatchesUnit($rowEff, (string) ($workorder->unit->eff_code ?? ''))) {
-                            continue;
+                            $sideExclusion = $previewExcluded && in_array($std, [StdProcess::STD_NDT, StdProcess::STD_CAD], true)
+                                ? $this->oppositeSideReason($rowEff, (string) $workorder->unit->eff_code)
+                                : '';
+                            if ($sideExclusion === '') {
+                                continue;
+                            }
                         }
 
                         $eligibleRows[] = [
                             'manual_row' => $manualRow,
                             'component' => $component,
                             'row_eff' => $rowEff,
+                            'side_exclusion_reason' => $sideExclusion,
                         ];
                     }
 
-                    $eligibleRows = $this->preferEffSpecificVariants($eligibleRows);
+                    // Opposite-side preview rows must not displace a universal working row.
+                    $sideRows = array_values(array_filter($eligibleRows, fn (array $row) => $row['side_exclusion_reason'] !== ''));
+                    $eligibleRows = array_merge(
+                        $this->preferEffSpecificVariants(array_values(array_filter($eligibleRows, fn (array $row) => $row['side_exclusion_reason'] === ''))),
+                        $this->preferEffSpecificVariants($sideRows)
+                    );
                     if ($legacyInferredPart && $scopeComponentRank !== null && count($eligibleRows) > 1) {
                         usort($eligibleRows, static function (array $left, array $right) use ($scopeComponentRank): int {
                             return ($scopeComponentRank[(int) $left['component']->id] ?? PHP_INT_MAX)
@@ -134,8 +152,11 @@ class WorkorderStdProcessItemsService
 
                         $excludedQty = min($baseQty, $excludedSourceQty);
                         $remainingQty = $baseQty - $excludedQty;
+                        if ($eligibleRow['side_exclusion_reason'] !== '') {
+                            $remainingQty = 0;
+                        }
 
-                        if ($remainingQty <= 0) {
+                        if ($remainingQty <= 0 && ! $previewExcluded) {
                             continue;
                         }
 
@@ -157,14 +178,16 @@ class WorkorderStdProcessItemsService
                             'sort_order' => $sortOrderByStd[$std]++,
                             'created_at' => $now,
                             'updated_at' => $now,
+                            ...($previewExcluded ? ['side_exclusion_reason' => $eligibleRow['side_exclusion_reason']] : []),
                         ];
                     }
                 }
             }
 
-            foreach (array_chunk($insertRows, 500) as $chunk) {
+            foreach ($previewExcluded ? [] : array_chunk($insertRows, 500) as $chunk) {
                 WorkorderStdProcessItem::query()->insert($chunk);
             }
+            return $insertRows;
         });
     }
 
@@ -200,7 +223,7 @@ class WorkorderStdProcessItemsService
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function snapshotRowsForWorkorder(Workorder $workorder, string $std): array
+    public function snapshotRowsForWorkorder(Workorder $workorder, string $std, bool $includeExcluded = false): array
     {
         StdProcess::assertValidStd($std);
 
@@ -220,15 +243,37 @@ class WorkorderStdProcessItemsService
         }
 
         $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($workorder, $std);
-        $rows = WorkorderStdProcessItem::query()
+        $items = $includeExcluded
+            ? collect($this->rebuild($workorder, true))->where('std_type', $std)
+                ->map(fn (array $row) => (new WorkorderStdProcessItem())->forceFill($row))
+            : WorkorderStdProcessItem::query()
             ->where('workorder_id', $workorder->id)
             ->where('std_type', $std)
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get()
+            ->get();
+        $rows = $items
             ->map(function (WorkorderStdProcessItem $item) use ($coverage): array {
                 $row = $item->toSnapshotRow();
                 $covered = $coverage[(int) $item->component_id] ?? null;
+                if ($item->side_exclusion_reason) {
+                    $row['group_required_qty'] = (int) $item->base_qty;
+                    $row['group_crossed_out'] = true;
+                    $row['side_excluded'] = true;
+                    $row['group_crossout_reason'] = $item->side_exclusion_reason;
+                    $row['qty'] = 0;
+                    return $row;
+                }
+                if ((int) $item->remaining_qty <= 0) {
+                    $row['group_required_qty'] = (int) $item->base_qty;
+                    $row['group_crossed_out'] = true;
+                    $row['group_crossout_reason'] = 'TDR: Repair / Missing / Order New';
+                    $row['qty'] = 0;
+                    // TDR exclusions can cover an entire IPL family. Do not bring
+                    // back its unselected alternatives just because they also have zero remaining QTY.
+                    $row['tdr_excluded'] = ! $covered || (int) $covered['covered_qty'] < (int) $item->base_qty;
+                    return $row;
+                }
                 if (! $covered) {
                     return $row;
                 }
@@ -246,7 +291,8 @@ class WorkorderStdProcessItemsService
             })
             // Process sheets contain work to perform, not rejected alternatives.
             // Filter before grouping/pagination; KIT keeps its own crossout display.
-            ->reject(fn (array $row): bool => ! empty($row['group_crossed_out']))
+            ->reject(fn (array $row): bool => ! empty($row['group_crossed_out'])
+                && (! $includeExcluded || (empty($row['tdr_excluded']) && empty($row['side_excluded']))))
             ->values()
             ->all();
 
@@ -258,6 +304,23 @@ class WorkorderStdProcessItemsService
         return WorkorderStdProcessItem::query()
             ->where('workorder_id', $workorderId)
             ->exists();
+    }
+
+    private function oppositeSideReason(?string $rowEff, string $unitEff): string
+    {
+        $side = static function (?string $eff): ?string {
+            $tokens = array_unique(array_map(static fn ($token) => match (strtoupper($token)) {
+                'L', 'LH' => 'LH',
+                'R', 'RH' => 'RH',
+                default => '',
+            }, StdProcess::effCodeTokens($eff)));
+            return count($tokens) === 1 && $tokens[0] !== '' ? $tokens[0] : null;
+        };
+        $unitSide = $side($unitEff);
+        $rowSide = $side($rowEff);
+        return $unitSide && $rowSide && $unitSide !== $rowSide
+            ? $rowSide.' part excluded: '.$unitSide.' unit'
+            : '';
     }
 
     public function invalidateForManual(int $manualId): void
@@ -490,6 +553,12 @@ class WorkorderStdProcessItemsService
         foreach ($lines as $line) {
             $line = strtoupper(trim($line));
             if ($line === '') {
+                continue;
+            }
+
+            // Repair sleeves have their own quantity; their TDR must not consume the parent part.
+            if (($sleeveKey = PartVariantGrouping::repairSleeveIplKey($line)) !== null) {
+                $keys[] = $sleeveKey;
                 continue;
             }
 

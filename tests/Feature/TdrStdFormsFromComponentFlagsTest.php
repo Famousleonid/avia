@@ -20,6 +20,204 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_repair_sleeve_tdr_does_not_consume_parent_part_quantity(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        foreach (['1012-30RS', '1012-30 RS', '1012-30rs'] as $sleeveIpl) {
+            $wo = $this->createWorkorder(['user_id' => $admin->id,
+                'instruction_id' => $this->createOverhaulInstruction()->id,
+                'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT]);
+            $part = Component::create(['manual_id' => $wo->unit->manual_id,
+                'ipl_num' => '1012-30', 'part_number' => '2309-3025-001',
+                'name' => 'AXLE', 'units_assy' => 2, 'ndt_list' => true, 'cad_list' => true]);
+            $sleeve = Component::create(['manual_id' => $part->manual_id,
+                'ipl_num' => $sleeveIpl, 'part_number' => '2309-3025-001 Sleeve',
+                'name' => 'SLEEVE (EC)', 'units_assy' => 1]);
+            foreach (['ndt', 'cad'] as $std) {
+                StdProcess::updateOrCreate(['manual_id' => $part->manual_id,
+                    'component_id' => $part->id, 'std' => $std], ['process' => '1', 'qty' => 2]);
+            }
+            foreach ([[$part, 'Repair'], [$sleeve, 'Order New'], [$sleeve, 'Repair']] as [$component, $necessary]) {
+                Tdr::create(['workorder_id' => $wo->id, 'component_id' => $component->id,
+                    'qty' => 1, 'necessaries_id' => Necessary::firstOrCreate(['name' => $necessary])->id]);
+            }
+            // Selecting a sleeve must not reject the parent as an unselected alternative either.
+            \App\Models\LogCard::create(['workorder_id' => $wo->id, 'component_data' => json_encode([
+                ['component_id' => $sleeve->id, 'included' => '1'],
+            ])]);
+            foreach (['ndt', 'cad'] as $std) {
+                foreach ([0, 1] as $showExcluded) {
+                    $response = $this->get(route('tdrs.'.$std.'Std', [
+                        'workorder_id' => $wo->id, 'show_excluded' => $showExcluded,
+                    ]))->assertOk();
+                    $row = collect($response->viewData($std.'_components'))->sole();
+                    $this->assertSame('2309-3025-001', $row->part_number);
+                    $this->assertSame(1, $row->qty);
+                    $this->assertFalse((bool) ($row->group_crossed_out ?? false));
+                }
+                $this->assertDatabaseHas('workorder_std_process_items', [
+                    'workorder_id' => $wo->id, 'component_id' => $part->id, 'std_type' => $std,
+                    'base_qty' => 2, 'excluded_qty' => 1, 'remaining_qty' => 1,
+                ]);
+            }
+            $this->assertSame('1012-30RS', \App\Services\PartVariantGrouping::iplFamily($sleeveIpl));
+        }
+        $this->assertSame('1012-30', \App\Services\PartVariantGrouping::iplFamily('1012-30A'));
+    }
+
+    public function test_ndt_toggle_shows_opposite_side_without_adding_it_to_totals(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        foreach (['L' => 'R', 'R' => 'L'] as $unitSide => $opposite) {
+            $manual = $this->createManual();
+            $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id, 'eff_code' => $unitSide])->id,
+                'user_id' => $admin->id, 'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT,
+                'instruction_id' => $this->createOverhaulInstruction()->id]);
+            foreach (['L' => '1-10', 'R' => '1-20', 'OTHER' => '1-30', '' => '1-20B'] as $side => $ipl) {
+                $part = Component::create(['manual_id' => $manual->id, 'ipl_num' => $ipl,
+                    'part_number' => 'SIDE-'.$side, 'name' => 'Side part', 'units_assy' => 2,
+                    'eff_code' => $side, 'ndt_list' => true]);
+                StdProcess::updateOrCreate(['manual_id' => $manual->id, 'component_id' => $part->id,
+                    'std' => 'ndt'], ['process' => '1', 'qty' => 2, 'eff_code' => $side]);
+            }
+            $normal = $this->get(route('tdrs.ndtStd', $wo->id))->assertOk();
+            $normal->assertSee('SIDE-'.$unitSide)->assertDontSee('SIDE-'.$opposite);
+            $shown = $this->get(route('tdrs.ndtStd', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
+            $shown->assertSee('SIDE-'.$opposite)->assertDontSee('SIDE-OTHER');
+            $crossed = collect($shown->viewData('ndt_components'))->where('group_crossed_out', true)->sole();
+            $this->assertSame($opposite.'H part excluded: '.$unitSide.'H unit', $crossed->group_crossout_reason);
+            $this->assertSame(0, $crossed->qty);
+            $this->assertSame(2, $crossed->display_qty);
+            $this->assertSame($normal->viewData('ndtSums'), $shown->viewData('ndtSums'));
+            $this->assertDatabaseMissing('workorder_std_process_items', ['workorder_id' => $wo->id,
+                'part_number' => 'SIDE-'.$opposite, 'std_type' => 'ndt']);
+        }
+    }
+
+    public function test_ndt_toggle_includes_only_tdr_exclusions_and_keeps_alternatives_hidden(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+            'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT]);
+        $parts = [];
+        foreach (['1-10', '1-20', '1-30', '1-30A', '1-40'] as $ipl) {
+            $part = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => $ipl,
+                'part_number' => 'TOGGLE-'.$ipl, 'name' => 'Toggle part', 'units_assy' => 1, 'ndt_list' => true]);
+            StdProcess::updateOrCreate(['manual_id' => $part->manual_id, 'component_id' => $part->id,
+                'std' => 'ndt'], ['process' => '1', 'qty' => 1]);
+            $parts[] = $part;
+        }
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[1]->id, 'qty' => 1,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id]);
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[4]->id, 'qty' => 1,
+            'codes_id' => Code::firstOrCreate(['name' => 'Missing'])->id]);
+        \App\Models\LogCard::create(['workorder_id' => $wo->id, 'component_data' => json_encode([
+            ['component_id' => $parts[3]->id, 'included' => '1', 'ipl_group' => '1-30'],
+        ])]);
+        $this->actingAs($admin);
+        $normal = $this->get(route('tdrs.ndtStd', $wo->id))->assertOk();
+        $normal->assertSee('Show crossed-out rows')->assertDontSee('TOGGLE-1-20');
+        $shown = $this->get(route('tdrs.ndtStd', ['workorder_id' => $wo->id, 'show_excluded' => 1, 'ndt_table_rows' => 2]))->assertOk();
+        $shown->assertSee('Hide crossed-out rows')->assertSee('TOGGLE-1-20');
+        $shown->assertSee('TOGGLE-1-40')->assertSee('TOGGLE-1-30A')->assertDontSee('IPL alternative not selected');
+        $this->assertNotContains('TOGGLE-1-30', collect($shown->viewData('ndt_components'))->pluck('part_number')->all());
+        $crossed = collect($shown->viewData('ndt_components'))->where('group_crossed_out', true);
+        $this->assertCount(2, $crossed);
+        $this->assertSame(0, $crossed->sum('qty'));
+        $this->assertSame($normal->viewData('ndtSums'), $shown->viewData('ndtSums'));
+        $this->assertGreaterThan(1, count($shown->viewData('ndt_table_pages')));
+        $this->assertDatabaseMissing('workorder_std_process_items', ['workorder_id' => $wo->id,
+            'component_id' => $parts[1]->id, 'std_type' => 'ndt']);
+        $hidden = $this->get(route('tdrs.ndtStd', $wo->id))->assertOk();
+        $this->assertCount(count($normal->viewData('ndt_components')), $hidden->viewData('ndt_components'));
+        $hidden->assertDontSee('TOGGLE-1-20');
+        // Even when TDR excludes the selected variant, its rejected alternative stays hidden.
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[3]->id, 'qty' => 1,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Repair'])->id]);
+        $excluded = $this->get(route('tdrs.ndtStd', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
+        $this->assertNotContains('TOGGLE-1-30', collect($excluded->viewData('ndt_components'))->pluck('part_number')->all());
+        $excluded->assertSee('TOGGLE-1-30A');
+    }
+
+    public function test_cad_toggle_shows_opposite_side_without_adding_it_to_totals(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        foreach (['L' => 'R', 'R' => 'L'] as $unitSide => $opposite) {
+            $manual = $this->createManual();
+            $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id, 'eff_code' => $unitSide])->id,
+                'user_id' => $admin->id, 'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT,
+                'instruction_id' => $this->createOverhaulInstruction()->id]);
+            foreach (['L' => '1-10', 'R' => '1-20', 'OTHER' => '1-30', '' => '1-20B'] as $side => $ipl) {
+                $part = Component::create(['manual_id' => $manual->id, 'ipl_num' => $ipl,
+                    'part_number' => 'SIDE-'.$side, 'name' => 'Side part', 'units_assy' => 2,
+                    'eff_code' => $side, 'cad_list' => true]);
+                StdProcess::updateOrCreate(['manual_id' => $manual->id, 'component_id' => $part->id,
+                    'std' => 'cad'], ['process' => '1', 'qty' => 2, 'eff_code' => $side]);
+            }
+            $normal = $this->get(route('tdrs.cadStd', $wo->id))->assertOk();
+            $normal->assertSee('SIDE-'.$unitSide)->assertDontSee('SIDE-'.$opposite);
+            $shown = $this->get(route('tdrs.cadStd', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
+            $shown->assertSee('SIDE-'.$opposite)->assertDontSee('SIDE-OTHER');
+            $crossed = collect($shown->viewData('cad_components'))->where('group_crossed_out', true)->sole();
+            $this->assertSame($opposite.'H part excluded: '.$unitSide.'H unit', $crossed->group_crossout_reason);
+            $this->assertSame(0, $crossed->qty);
+            $this->assertSame(2, $crossed->display_qty);
+            $this->assertSame($normal->viewData('cadSum'), $shown->viewData('cadSum'));
+            $this->assertDatabaseMissing('workorder_std_process_items', ['workorder_id' => $wo->id,
+                'part_number' => 'SIDE-'.$opposite, 'std_type' => 'cad']);
+        }
+    }
+
+    public function test_cad_toggle_includes_only_tdr_exclusions_and_keeps_alternatives_hidden(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+            'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT]);
+        $parts = [];
+        foreach (['1-10', '1-20', '1-30', '1-30A', '1-40'] as $ipl) {
+            $part = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => $ipl,
+                'part_number' => 'TOGGLE-'.$ipl, 'name' => 'Toggle part', 'units_assy' => 1, 'cad_list' => true]);
+            StdProcess::updateOrCreate(['manual_id' => $part->manual_id, 'component_id' => $part->id,
+                'std' => 'cad'], ['process' => '1', 'qty' => 1]);
+            $parts[] = $part;
+        }
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[1]->id, 'qty' => 1,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id]);
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[4]->id, 'qty' => 1,
+            'codes_id' => Code::firstOrCreate(['name' => 'Missing'])->id]);
+        \App\Models\LogCard::create(['workorder_id' => $wo->id, 'component_data' => json_encode([
+            ['component_id' => $parts[3]->id, 'included' => '1', 'ipl_group' => '1-30'],
+        ])]);
+        $this->actingAs($admin);
+        $normal = $this->get(route('tdrs.cadStd', $wo->id))->assertOk();
+        $normal->assertSee('Show crossed-out rows')->assertDontSee('TOGGLE-1-20');
+        $shown = $this->get(route('tdrs.cadStd', ['workorder_id' => $wo->id, 'show_excluded' => 1, 'cad_table_rows' => 2]))->assertOk();
+        $shown->assertSee('Hide crossed-out rows')->assertSee('TOGGLE-1-20');
+        $shown->assertSee('TOGGLE-1-40')->assertSee('TOGGLE-1-30A')->assertDontSee('IPL alternative not selected');
+        $this->assertNotContains('TOGGLE-1-30', collect($shown->viewData('cad_components'))->pluck('part_number')->all());
+        $crossed = collect($shown->viewData('cad_components'))->where('group_crossed_out', true);
+        $this->assertCount(2, $crossed);
+        $this->assertSame(0, $crossed->sum('qty'));
+        $this->assertSame($normal->viewData('cadSum'), $shown->viewData('cadSum'));
+        $this->assertGreaterThan(1, count($shown->viewData('cad_table_pages')));
+        $this->assertDatabaseMissing('workorder_std_process_items', ['workorder_id' => $wo->id,
+            'component_id' => $parts[1]->id, 'std_type' => 'cad']);
+        $hidden = $this->get(route('tdrs.cadStd', $wo->id))->assertOk();
+        $this->assertCount(count($normal->viewData('cad_components')), $hidden->viewData('cad_components'));
+        $hidden->assertDontSee('TOGGLE-1-20');
+        // Even when TDR excludes the selected variant, its rejected alternative stays hidden.
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[3]->id, 'qty' => 1,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Repair'])->id]);
+        $excluded = $this->get(route('tdrs.cadStd', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
+        $this->assertNotContains('TOGGLE-1-30', collect($excluded->viewData('cad_components'))->pluck('part_number')->all());
+        $excluded->assertSee('TOGGLE-1-30A');
+    }
+
     public function test_workorder_std_snapshot_is_built_from_manual_component_flags(): void
     {
         $manual = $this->createManual();

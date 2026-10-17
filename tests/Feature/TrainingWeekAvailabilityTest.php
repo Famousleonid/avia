@@ -156,12 +156,37 @@ class TrainingWeekAvailabilityTest extends TestCase
         $first = Training::create(['user_id'=>$user->id,'manuals_id'=>$manual->id,'form_type'=>'112','date_training'=>'2024-12-20']);
         Training::create(['user_id'=>$user->id,'manuals_id'=>$manual->id,'form_type'=>'112','date_training'=>'2025-04-18']);
         Training::create(['user_id'=>$user->id,'manuals_id'=>$this->createManual(['training_hours'=>6])->id,'form_type'=>'112','date_training'=>'2025-04-18']);
-        $this->postJson(route('trainings.weekAvailability'), ['date_training'=>'2024-04-05','training_id'=>$first->id])
+        $preview = $this->postJson(route('trainings.weekAvailability'), ['date_training'=>'2024-04-05','training_id'=>$first->id])
             ->assertOk()->assertJsonPath('available',false);
+        $this->assertStringContainsString('Already scheduled: 40 hours. After recalculating the training history: 70 hours', $preview->json('message'));
         $this->patchJson(route('trainings.update',$first), ['date_training'=>'2024-04-05'])->assertUnprocessable();
         $this->assertSame('2024-12-20', $first->fresh()->date_training);
         $this->deleteJson(route('trainings.destroy',$first))->assertUnprocessable();
         $this->assertDatabaseHas('trainings', ['id'=>$first->id]);
+    }
+
+    public function test_move_warning_explains_update_becoming_refresh_and_week_total(): void
+    {
+        $user = $this->employee();
+        $manual = $this->createManual(['unit_name_training' => '17300-ser.', 'training_hours' => 5]);
+        Training::create(['user_id' => $user->id, 'manuals_id' => $manual->id,
+            'form_type' => '112', 'date_training' => '2021-05-28']);
+        $edit = Training::create(['user_id' => $user->id, 'manuals_id' => $manual->id,
+            'form_type' => '112', 'date_training' => '2022-05-27']);
+        Training::create(['user_id' => $user->id,
+            'manuals_id' => $this->createManual(['training_hours' => 4])->id,
+            'form_type' => '112', 'date_training' => '2022-06-03']);
+
+        $response = $this->postJson(route('trainings.weekAvailability'), [
+            'date_training' => '2022-06-03', 'training_id' => $edit->id,
+        ])->assertOk()->assertJsonPath('available', false)->assertJsonPath('total_hours', 45);
+        $message = $response->json('message');
+        $this->assertStringContainsString('Week ending 03/Jun/2022', $message);
+        $this->assertStringContainsString('Already scheduled: 20 hours.', $message);
+        $this->assertStringContainsString('Moved training 17300-ser. is counted as Refresh: 25 hours (previously 10 hours)', $message);
+        $this->assertStringContainsString('Previous training: 28/May/2021; interval: 371 days.', $message);
+        $this->assertStringContainsString('Total: 20 + 25 = 45 hours (limit: 40 hours).', $message);
+        $this->assertSame('2022-05-27', $edit->fresh()->date_training);
     }
 
     public function test_edit_preview_counts_both_records_when_dates_become_identical(): void

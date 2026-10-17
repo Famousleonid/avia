@@ -39,6 +39,7 @@ class CustomerAccessTest extends TestCase
         $this->assertDatabaseMissing('customers', ['name' => 'Manager New Customer']);
 
         $this->actingAs($admin)
+            ->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])
             ->postJson(route('customers.store'), ['name' => 'Admin New Customer'])
             ->assertCreated()
             ->assertJsonPath('name', 'Admin New Customer');
@@ -60,6 +61,7 @@ class CustomerAccessTest extends TestCase
             ->assertDontSee('id="deleteModal"', false);
 
         $this->actingAs($systemAdmin)
+            ->withSession(['auth.version' => (int) $systemAdmin->auth_version, 'password_hash_web' => $systemAdmin->getAuthPassword()])
             ->get(route('customers.index'))
             ->assertOk()
             ->assertSee('Delete Visibility Customer')
@@ -84,6 +86,7 @@ class CustomerAccessTest extends TestCase
         ]);
 
         $this->actingAs($systemAdmin)
+            ->withSession(['auth.version' => (int) $systemAdmin->auth_version, 'password_hash_web' => $systemAdmin->getAuthPassword()])
             ->delete(route('customers.destroy', $deletedCustomer))
             ->assertRedirect(route('customers.index'));
 
@@ -102,6 +105,7 @@ class CustomerAccessTest extends TestCase
             ->assertDontSee('id="addCustomerModal"', false);
 
         $this->actingAs($admin)
+            ->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])
             ->get(route('workorders.create'))
             ->assertOk()
             ->assertSee('id="new_customer_create"', false)

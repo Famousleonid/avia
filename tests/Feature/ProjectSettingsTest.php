@@ -188,7 +188,7 @@ class ProjectSettingsTest extends TestCase
         );
     }
 
-    public function test_backgrounds_rotate_daily_preserve_existing_photos_and_hide_the_plane(): void
+    public function test_backgrounds_rotate_daily_preserve_existing_photos_and_keep_the_plane(): void
     {
         Storage::fake('public');
         $this->travelTo(Carbon::parse('2026-10-14 12:00:00'));
@@ -209,7 +209,7 @@ class ProjectSettingsTest extends TestCase
             $this->assertSame($name, $current['name']);
             $response = $this->get(route('admin.project-settings.user-background.show', $user))->assertOk();
             $this->assertSame(realpath($current['path']), realpath($response->baseResponse->getFile()->getPathname()));
-            $this->get(route('cabinet.index'))->assertOk()->assertDontSee('img/avia190.png', false)->assertSee('has-user-project-background', false);
+            $this->get(route('cabinet.index'))->assertOk()->assertSee('img/avia190.png', false)->assertSee('has-user-project-background', false);
         }
         $this->get(route('admin.project-settings.index', ['section' => 'user-background', 'user_id' => $user->id]))
             ->assertOk()->assertSee('Daily rotation')->assertSee('existing.jpg')->assertSee('second.jpg')->assertSee('third.png');

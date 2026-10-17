@@ -354,7 +354,7 @@ class CombinedPrlTest extends TestCase
 
         $this->actingAs($admin)->get(route('tdrs.kitForm', $workorder))
             ->assertOk()->assertSee('BUSH-IN-KIT')->assertSee('KIT-PART-200')
-            ->assertSee('Extra parts')->assertSee('BUSH-EXTRA');
+            ->assertSee('EXTRA PARTS (ENTER CODE OR CROSS OUT)')->assertSee('BUSH-EXTRA');
     }
 
     public function test_kit_quantities_are_deducted_from_extra_part_and_bushing_order_quantities(): void

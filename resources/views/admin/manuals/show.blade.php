@@ -1,4 +1,4 @@
-﻿@extends('admin.master')
+@extends('admin.master')
 
 @section('content')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"/>
@@ -554,6 +554,22 @@
         }
         .manual-process-state-icon.is-locked {
             color: #f0ad4e;
+        }
+        .manual-flag-lock-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            font: inherit;
+            white-space: nowrap;
+        }
+        .manual-flag-lock-button .bi-lock-fill {
+            color: #f0ad4e;
+            font-size: 9px;
+            flex: 0 0 auto;
+        }
+        .manual-flag-lock-button[data-field="kit_e"][data-locked="1"] {
+            transform: translateX(-3px);
         }
         .manual-part-lock-icon {
             color: #f0ad4e;
@@ -1197,9 +1213,29 @@
                                 <th class="text-center bg-gradient align-content-center">Image</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Log Card">LC</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Bushing">Bush</th>
-                                <th class="text-center bg-gradient align-content-center component-flag-head" title="Kit">Kit</th>
-                                <th class="text-center bg-gradient align-content-center component-flag-head" title="NP">NP</th>
-                                <th class="text-center bg-gradient align-content-center component-flag-head" title="Kit E">Kit_E</th>
+                                @php
+                                    $columnLocks = json_decode($cmm->part_flag_locks ?? '[]', true) ?: [];
+                                    $columnLockUsers = \App\Models\User::withTrashed()
+                                        ->whereIn('id', collect($columnLocks)->pluck('user_id')->filter()->unique())
+                                        ->get()->keyBy('id');
+                                    $canChangeColumnLocks = auth()->user()->isSystemAdmin() || auth()->user()->hasExplicitFeatureAccess('manuals.flag_locks');
+                                @endphp
+                                @foreach(['kit' => 'KIT', 'np' => 'NP', 'kit_e' => 'Kit_E'] as $columnFlag => $columnLabel)
+                                    @php
+                                        $columnLockTitle = isset($columnLocks[$columnFlag])
+                                            ? $columnLabel.': Locked by '.($columnLockUsers->get($columnLocks[$columnFlag]['user_id'] ?? null)?->selection_name ?? 'Unknown user')
+                                            : $columnLabel.': unlocked';
+                                    @endphp
+                                    <th class="text-center bg-gradient align-content-center component-flag-head" title="{{ $columnLockTitle }}">
+                                        <button type="button" class="manual-flag-lock-button border-0 bg-transparent p-0 text-reset"
+                                                data-field="{{ $columnFlag }}" data-locked="{{ isset($columnLocks[$columnFlag]) ? '1' : '0' }}"
+                                                aria-label="{{ $columnLabel }}: {{ isset($columnLocks[$columnFlag]) ? 'locked' : 'unlocked' }}"
+                                                title="{{ $columnLockTitle }}"
+                                                @disabled(!$canChangeColumnLocks)>
+                                            @if(isset($columnLocks[$columnFlag]))<i class="bi bi-lock-fill" aria-hidden="true"></i>@endif<span>{{ $columnLabel }}</span>
+                                        </button>
+                                    </th>
+                                @endforeach
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="NDT List">NDT</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="CAD List">CAD</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Stress Relief List">Stress</th>
@@ -3713,6 +3749,49 @@
 @endsection
 
 @section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+            const lockedManualFlags = @json(array_keys(json_decode($cmm->part_flag_locks ?? '[]', true) ?: []));
+            lockedManualFlags.forEach(function (field) {
+                document.querySelectorAll('#manual_drawer_' + field + ', #manual_edit_drawer_' + field).forEach(function (input) {
+                    input.disabled = true;
+                    input.title = 'Column locked. Unlock it in the table header first.';
+                    // Disabled controls are not submitted. Preserve their displayed value for other edits.
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden'; hidden.name = field;
+                    input.after(hidden);
+                    input.form?.addEventListener('submit', function () { hidden.value = input.checked ? '1' : '0'; }, true);
+                });
+            });
+            document.querySelectorAll('.manual-flag-lock-button').forEach(function (button) {
+                button.dataset.ready = '1';
+                button.addEventListener('click', async function () {
+                    if (button.disabled) return;
+                    if (typeof window.confirmDialog !== 'function') {
+                        window.showNotification('Confirmation dialog is unavailable.', 'error'); return;
+                    }
+                    const locked = button.dataset.locked !== '1';
+                    if (!await window.confirmDialog({title: locked ? 'Lock column' : 'Unlock column',
+                        message: locked ? 'Lock ' + button.dataset.field.toUpperCase() + ' for everyone, including administrators?' : 'Unlock ' + button.dataset.field.toUpperCase() + ' for editing?',
+                        okText: locked ? 'Lock' : 'Unlock', cancelText: 'Cancel'})) return;
+                    button.disabled = true;
+                    try {
+                        const response = await fetch(@json(route('manuals.part-flag-locks.update', $cmm)), {
+                            method: 'PATCH', headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @json(csrf_token())},
+                            body: JSON.stringify({field: button.dataset.field, locked: locked})
+                        });
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.message || 'Could not change column lock.');
+                        window.location.reload();
+                    } catch (error) {
+                        window.showNotification(error.message, 'error'); button.disabled = false;
+                    }
+                });
+            });
+
+
+});
+</script>
     <script src="{{ asset('js/manuals/service-bulletins.js') }}?v={{ filemtime(public_path('js/manuals/service-bulletins.js')) }}" defer></script>
     <script src="{{ asset('js/manuals/parts-scroll.js') }}?v={{ filemtime(public_path('js/manuals/parts-scroll.js')) }}" defer></script>
     <script src="{{ asset('js/traveler-process-templates.js') }}?v={{ filemtime(public_path('js/traveler-process-templates.js')) }}" defer></script>

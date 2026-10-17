@@ -25,6 +25,7 @@
         $manualPartLock = $component->manual?->partLock;
         $canManageLockedManualParts = auth()->user()?->canManageLockedManualParts() ?? false;
         $partMutationLocked = $manualPartLock && ! $canManageLockedManualParts;
+        $columnLocks = json_decode($component->manual?->part_flag_locks ?? '[]', true) ?: [];
         $assemblyRows = $component->relationLoaded('assemblies')
             ? $component->assemblies
             : collect();
@@ -160,7 +161,7 @@
                        data-field="{{ $flagField }}"
                        data-bush-ipl-num="{{ $flagField === 'is_bush' ? $component->bush_ipl_num : '' }}"
                        data-url="{{ route('components.updateFlags', ['component' => $component->id]) }}"
-                       @disabled($partMutationLocked)
+                       @disabled($partMutationLocked || isset($columnLocks[$flagField]))
                        @checked((bool) ($component->{$flagField} ?? false))>
             </td>
         @endforeach

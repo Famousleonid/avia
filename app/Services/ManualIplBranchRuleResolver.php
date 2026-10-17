@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ManualIplBranchRule;
+use App\Models\Manual;
 use App\Models\Unit;
 use Illuminate\Support\Collection;
 
@@ -12,12 +13,17 @@ class ManualIplBranchRuleResolver
      * @var array<int, \Illuminate\Support\Collection<int, ManualIplBranchRule>>
      */
     protected array $rulesCache = [];
+    protected array $figureRulesCache = [];
 
     public function allowsComponentForUnit(Unit $unit, ?string $iplNum, ?int $manualId = null): bool
     {
         $ipl = $this->normalizeValue($iplNum);
         if ($ipl === '') {
             return true;
+        }
+
+        if (! $this->allowsConfiguredFigure($unit, $ipl, (int) ($manualId ?: $unit->manual_id))) {
+            return false;
         }
 
         $rule = $this->resolveRuleForUnit($unit, $manualId);
@@ -36,6 +42,28 @@ class ManualIplBranchRuleResolver
             return true;
         }
 
+        return true;
+    }
+
+    private function allowsConfiguredFigure(Unit $unit, string $ipl, int $manualId): bool
+    {
+        if (! array_key_exists($manualId, $this->figureRulesCache)) {
+            $number = $this->normalizeValue(Manual::whereKey($manualId)->value('number'));
+            $this->figureRulesCache[$manualId] = config('manual_ipl_figures', [])[$number] ?? [];
+        }
+        $partNumber = $this->normalizeValue($unit->part_number);
+        foreach ($this->figureRulesCache[$manualId] as $prefix => [$first, $last]) {
+            if (! str_starts_with($partNumber, $prefix)) {
+                continue;
+            }
+            foreach (preg_split('/\R+/', $ipl) as $line) {
+                if (preg_match('/^(\d+)[A-Z]*-/', trim($line), $match)
+                    && ((int) $match[1] < $first || (int) $match[1] > $last)) {
+                    return false;
+                }
+            }
+            return true;
+        }
         return true;
     }
 

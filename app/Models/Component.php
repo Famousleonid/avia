@@ -62,6 +62,7 @@ class Component extends Model implements  hasMedia
                 'name',
                 'ipl_num',
                 'manual_id',
+                'kit',
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
@@ -71,6 +72,22 @@ class Component extends Model implements  hasMedia
     {
         if (auth()->check()) {
             $activity->causer()->associate(auth()->user());
+        }
+
+        if (array_key_exists('kit', (array) $activity->properties->get('attributes', []))) {
+            // Preserve the identity at the time of the change, even if the part,
+            // manual or user is renamed/deleted later.
+            $manual = Manual::withTrashed()->find($this->manual_id);
+            $activity->properties = $activity->properties->merge([
+                'component_snapshot' => [
+                    'manual_id' => $this->manual_id,
+                    'manual_number' => $manual?->number,
+                    'manual_lib' => $manual?->lib,
+                    'ipl_num' => $this->ipl_num,
+                    'part_number' => $this->part_number,
+                ],
+                'causer_name' => auth()->user()?->selection_name,
+            ]);
         }
 
         if ($eventName !== 'created' || ! request()->routeIs('components.storeFromInspection')) {
@@ -128,6 +145,25 @@ class Component extends Model implements  hasMedia
     protected static function booted(): void
     {
         static::saving(function (Component $component): void {
+            foreach (['kit', 'np', 'kit_e'] as $flag) {
+                if (! $component->isDirty($flag) && ! $component->isDirty('manual_id')) {
+                    continue;
+                }
+                $before = $component->exists && (bool) $component->getOriginal($flag);
+                $after = (bool) $component->{$flag};
+                if ($before === $after && ! ($after && $component->isDirty('manual_id'))) {
+                    continue;
+                }
+                $manualIds = array_filter([$component->manual_id, $component->getOriginal('manual_id')]);
+                foreach (Manual::whereIn('id', $manualIds)->pluck('part_flag_locks') as $rawLocks) {
+                    $locks = json_decode($rawLocks ?? '[]', true) ?: [];
+                    if (isset($locks[$flag])) {
+                        throw ValidationException::withMessages([
+                            $flag => strtoupper($flag).' column is locked. Unlock it in the manual before changing this flag.',
+                        ]);
+                    }
+                }
+            }
             $component->ipl_num = static::normalizeIpl($component->ipl_num);
 
             if (! $component->manual_id || $component->ipl_num === '') {

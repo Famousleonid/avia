@@ -130,6 +130,8 @@ class TrainingWeekAvailability
             // With no course selected yet, only report whether the week has spare capacity.
             if (!$manualId && !$courseId && ($totals[$day] ?? 0) >= self::WEEKLY_HOURS) $blockedWeek = $day;
             return ['blocked_week' => $blockedWeek, 'total_hours' => $totals[$day] ?? 0,
+                'records' => $records,
+                'candidate' => $records->count() > $base->count() ? $records->last() : null,
                 'blocked_hours' => $blockedWeek ? $totals[$blockedWeek] : null];
         };
         $result = $evaluate($friday);
@@ -156,11 +158,53 @@ class TrainingWeekAvailability
             'capacity_hours' => self::WEEKLY_HOURS,
             'remaining_hours' => max(0, self::WEEKLY_HOURS - $result['total_hours']),
             'message' => $conflict
-                ? 'Training limit is 40 hours per employee per week. Week ending ' . format_project_date($result['blocked_week'])
-                    . ' would contain '.$result['blocked_hours'].' hours.'
+                ? $this->conflictMessage($result, $original, $editing)
                     .($suggested ? ' Nearest week with capacity ends '.format_project_date($suggested).'.' : ' No suitable week found in the previous 10 years.')
                 : null,
         ];
+    }
+
+    private function conflictMessage(array $result, $original, ?Training $editing): string
+    {
+        $week = $result['blocked_week'];
+        $total = $result['blocked_hours'];
+        $message = 'Training limit is 40 hours per employee per week. Week ending '.format_project_date($week).'. ';
+        $candidate = $result['candidate'];
+        $hours = app(TrainingHours::class)->forRecords($result['records']);
+        // A move can change the duration of a later training in a different week.
+        if (!$candidate || $this->friday($candidate->date_training) !== $week || !$candidate->manuals_id || $candidate->matrix_row_id) {
+            $before = $this->totals($original)[$week] ?? 0;
+            return $message.'Already scheduled: '.$before.' hours. After recalculating the training history: '
+                .$total.' hours (limit: 40 hours).';
+        }
+
+        $candidateHours = $hours[$candidate->id] ?? 0;
+        $otherHours = $total - $candidateHours;
+        $originalOthers = $original->reject(fn ($row) => $editing && $row->id === $editing->id);
+        $originalHours = app(TrainingHours::class)->forRecords($original);
+        $scheduled = $originalOthers->filter(fn ($row) => $this->friday($row->date_training) === $week)
+            ->sum(fn ($row) => $originalHours[$row->id] ?? 0);
+        $message .= 'Already scheduled: '.$scheduled.' hours. ';
+        if ($scheduled != $otherHours) {
+            $message .= 'Other trainings after recalculation (including pending dates): '.$otherHours.' hours. ';
+        }
+        $previous = $result['records']->filter(fn ($row) => $row->manuals_id == $candidate->manuals_id
+            && !$row->matrix_row_id && ($row->date_training < $candidate->date_training
+                || ($row->date_training === $candidate->date_training && $row->id < $candidate->id)))
+            ->sortBy([['date_training', 'asc'], ['id', 'asc']])->last();
+        $gap = $previous ? Carbon::parse($previous->date_training)->diffInDays(Carbon::parse($candidate->date_training)) : null;
+        $type = $previous ? ($gap >= 365 ? 'Refresh' : 'Update') : 'Initial';
+        $name = $candidate->manual?->unit_name_training ?: 'Training';
+        $message .= ($editing ? 'Moved training ' : 'New training ').$name.' is counted as '.$type.': '.$candidateHours.' hours';
+        if ($editing) {
+            $message .= ' (previously '.($originalHours[$editing->id] ?? 0).' hours)';
+        }
+        $message .= '. ';
+        if ($previous && $type === 'Refresh') {
+            $message .= 'Previous training: '.format_project_date($previous->date_training).'; interval: '.$gap
+                .' days. An interval of 365 days or more requires Refresh ('.$candidate->manual->training_hours.' hours/day × 5 days). ';
+        }
+        return $message.'Total: '.$otherHours.' + '.$candidateHours.' = '.$total.' hours (limit: 40 hours).';
     }
 
 }

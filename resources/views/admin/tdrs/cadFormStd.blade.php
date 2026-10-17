@@ -23,6 +23,14 @@
     <link rel="stylesheet" href="{{ asset('assets/Bootstrap 5/bootstrap.min.css') }}">
     @include('admin.tdrs.partials.std-sheet-styles', ['tdrFormConfig' => $tdrFormConfig])
     <style>
+        .std-print-toolbar { flex-wrap: wrap; }
+        .std-page--cad .std-group-crossed-out > .std-cell--cad-description {
+            flex-direction: column;
+            text-decoration: none;
+        }
+        .std-page--cad .std-group-crossed-out .cad-description-text {
+            text-decoration: line-through;
+        }
         .std-page--cad .std-header {
             gap: 18px;
         }
@@ -219,11 +227,11 @@
                                 <span class="std-cell--multiline">{{ $component->ipl_num }}</span>
                             </div>
                             <div class="std-cell">{{ $component->part_number }}</div>
-                            <div class="std-cell">{{ $component->name }}</div>
+                            <div class="std-cell std-cell--cad-description"><span class="cad-description-text">{{ $component->name }}</span>@if(!empty($component->group_crossout_reason))<span class="std-group-crossout-reason">{{ $component->group_crossout_reason }}</span>@endif</div>
                             <div class="std-cell std-process-cell">
                                 <span>{!! nl2br(e(format_process_number($processText))) !!}</span>
                             </div>
-                            <div class="std-cell">{{ $component->display_qty ?? $component->qty }}@if(!empty($component->group_crossout_reason))<span class="std-group-crossout-reason">{{ $component->group_crossout_reason }}</span>@endif</div>
+                            <div class="std-cell">{{ $component->display_qty ?? $component->qty }}</div>
                             <div class="std-cell">{{ format_cmm_number($component->manual ?? $manual->number ?? '') }}</div>
                         </div>
                         @php $cadGlobalRowIndex++; @endphp
@@ -277,6 +285,7 @@
 @include('components.session-heartbeat-config')
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 @include('shared.tdr-forms._scripts', ['formType' => 'cadFormStd', 'formConfig' => $tdrFormConfig])
+<script src="{{ asset('js/tdrs/forms/ndt-std/excluded-rows.js') }}?v={{ filemtime(public_path('js/tdrs/forms/ndt-std/excluded-rows.js')) }}"></script>
 <script src="{{ asset('js/tdrs/forms/common/multi-page-handler.js') }}"></script>
 <script src="{{ asset('js/tdrs/forms/cad/cad-row-manager.js') }}"></script>
 <script src="{{ asset('js/tdrs/forms/cad/cad-form-main.js') }}"></script>

@@ -36,7 +36,7 @@ class WorkorderKitPrlCrossoutController extends Controller
         $belongsToKit = $workorder->isOverhaul()
             && $workorder->scope_type !== Unit::SCOPE_COMPONENT
             && $available->contains('id', $component->id)
-            && ((bool) $component->kit || $isBushing)
+            && ((bool) $component->kit || (bool) $component->kit_e || $isBushing)
             && in_array((int) $component->manual_id, $workorder->usedManualIds(), true)
             && $branchRules->allowsComponentForUnit(
                 $workorder->unit,

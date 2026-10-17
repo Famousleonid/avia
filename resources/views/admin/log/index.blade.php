@@ -201,6 +201,7 @@
                                             'task_id' => 'task',
                                             'user_id' => 'user',
                                             'manual_id', 'manuals_id' => 'manual',
+                                            'kit' => 'KIT',
                                             'component_id' => 'component',
                                             'order_component_id' => 'order component',
                                             'process_names_id' => 'process name',
@@ -269,6 +270,10 @@
                                     ) {
                                         if ($value === null) {
                                             return 'null';
+                                        }
+
+                                        if ($key === 'kit') {
+                                            return $value ? 'Yes' : 'No';
                                         }
 
                                         if ($key === 'workorder_id' && is_numeric($value)) {
@@ -634,8 +639,11 @@
                                         $label = $instructionMap[$subjectId] ?? ($subject->name ?? null);
                                         $objectText = $label ? "instruction: {$label}" : $objectText;
                                     } elseif ($a->subject_type === \App\Models\Customer::class && $subjectId) {
-                                        $label = $customerMap[$subjectId] ?? ($subject->name ?? null);
+                                        $label = $props['customer_name'] ?? $new['name'] ?? $old['name'] ?? $customerMap[$subjectId] ?? ($subject->name ?? null);
                                         $objectText = $label ? "customer: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Vendor::class && $subjectId) {
+                                        $label = $props['vendor_name'] ?? $new['name'] ?? $old['name'] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "vendor: {$label}" : $objectText;
                                     } elseif ($a->subject_type === \App\Models\CustomerContact::class && $subjectId) {
                                         $label = $customerContactMap[$subjectId] ?? null;
                                         $objectText = $label ? "marketing contact: {$label}" : $objectText;
@@ -720,13 +728,21 @@
                                         $objectText .= $workorderNumber ? "   wo: {$workorderNumber}" : "   wo id: {$workorderId}";
                                     }
 
+                                    if ($a->subject_type === \App\Models\Component::class && isset($props['component_snapshot'])) {
+                                        $snapshot = $props['component_snapshot'];
+                                        $objectText = 'manual: '.($snapshot['manual_number'] ?? $snapshot['manual_id'] ?? '—')
+                                            .'   lib: '.($snapshot['manual_lib'] ?? '—')
+                                            ."\nIPL: ".($snapshot['ipl_num'] ?? '—')
+                                            .'   P/N: '.($snapshot['part_number'] ?? '—');
+                                    }
+
                                     $objectMetaText = $activityContextLines !== []
                                         ? implode("\n", $activityContextLines)
                                         : null;
                                 @endphp
                                 <tr>
-                                    <td class="text-center small">{{ $a->created_at ? $a->created_at->format('d').'.'.\Illuminate\Support\Str::lower($a->created_at->format('M')).'.'.$a->created_at->format('Y H:i') : '—' }}</td>
-                                    <td class="text-center small">{{ $a->causer?->selection_name ?? 'system' }}</td>
+                                    <td class="text-center small">{{ $a->created_at ? format_project_date($a->created_at).' '.$a->created_at->format('H:i:s') : '—' }}</td>
+                                    <td class="text-center small">{{ $props['causer_name'] ?? $a->causer?->selection_name ?? 'system' }}</td>
                                     <td class="text-center small text-info">{{ class_basename($a->subject_type) }}</td>
                                     <td class="props small">
                                         <pre class="props-pre">{{ $objectText }}@if($objectMetaText)

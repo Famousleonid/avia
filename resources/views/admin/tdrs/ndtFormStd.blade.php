@@ -78,6 +78,14 @@
     <link rel="stylesheet" href="{{ asset('assets/Bootstrap 5/bootstrap.min.css') }}">
     @include('admin.tdrs.partials.std-sheet-styles', ['tdrFormConfig' => $tdrFormConfig])
     <style>
+        .std-print-toolbar { flex-wrap: wrap; }
+        .std-page--ndt .std-group-crossed-out > .std-cell--ndt-description {
+            flex-direction: column;
+            text-decoration: none;
+        }
+        .std-page--ndt .std-group-crossed-out .ndt-description-text {
+            text-decoration: line-through;
+        }
         .std-page--ndt .std-header-title--ndt {
             transform: translateX(-38px);
         }
@@ -339,9 +347,9 @@
                                 <span class="std-cell--multiline">{{ $component->ipl_num }}</span>
                             </div>
                             <div class="std-cell">{{ $component->part_number }}</div>
-                            <div class="std-cell">{{ $component->name }}</div>
+                            <div class="std-cell std-cell--ndt-description"><span class="ndt-description-text">{{ $component->name }}</span>@if(!empty($component->group_crossout_reason))<span class="std-group-crossout-reason">{{ $component->group_crossout_reason }}</span>@endif</div>
                             <div class="std-cell">{!! nl2br(e(format_process_number($component->process_name))) !!}</div>
-                            <div class="std-cell">{{ $component->display_qty ?? $component->qty }}@if(!empty($component->group_crossout_reason))<span class="std-group-crossout-reason">{{ $component->group_crossout_reason }}</span>@endif</div>
+                            <div class="std-cell">{{ $component->display_qty ?? $component->qty }}</div>
                             <div class="std-cell"></div>
                             <div class="std-cell"></div>
                         </div>
@@ -399,5 +407,6 @@
 @include('components.session-heartbeat-config')
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 @include('shared.tdr-forms._scripts', ['formType' => 'ndtFormStd', 'formConfig' => $tdrFormConfig])
+<script src="{{ asset('js/tdrs/forms/ndt-std/excluded-rows.js') }}?v={{ filemtime(public_path('js/tdrs/forms/ndt-std/excluded-rows.js')) }}"></script>
 </body>
 </html>

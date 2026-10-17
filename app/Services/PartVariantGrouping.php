@@ -9,9 +9,21 @@ use Illuminate\Validation\ValidationException;
 /** Shared display identity for KIT, STD forms and their counters. */
 class PartVariantGrouping
 {
+    /** RS means repair sleeve, a separate part rather than an IPL alternative. */
+    public static function repairSleeveIplKey(string $ipl): ?string
+    {
+        $ipl = strtoupper(trim($ipl));
+        return preg_match('/^(\d+[A-Z]*-\d+[A-Z]*)\s*RS$/', $ipl, $matches)
+            ? $matches[1].'RS'
+            : null;
+    }
+
     public static function iplFamily(string $ipl): string
     {
         $ipl = strtoupper(trim($ipl));
+        if (($sleeveKey = self::repairSleeveIplKey($ipl)) !== null) {
+            return $sleeveKey;
+        }
         return preg_replace('/(?<=\d)[A-Z]+$/', '', $ipl) ?? $ipl;
     }
 
