@@ -20,6 +20,97 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public static function exclusionAlternativeScopes(): array
+    {
+        $scopes = [
+            'NDT' => ['ndt', 'ndt_list'],
+            'CAD' => ['cad', 'cad_list'],
+            'Stress' => ['stress', 'stress_relief_list'],
+            'Paint' => ['paint', 'paint_list'],
+        ];
+        $cases = [];
+        foreach ($scopes as $scope => [$std, $flag]) {
+            foreach ([['Repair', null], ['Missing', null], [null, 'Missing'], ['Order New', null], ['Order New', 'Missing']] as [$necessary, $code]) {
+                $cases[$scope.' '.$necessary.' '.$code] = [$std, $flag, $necessary, $code];
+            }
+        }
+        return $cases;
+    }
+
+    /** @dataProvider exclusionAlternativeScopes */
+    public function test_std_exclusion_consumes_all_explicit_alternatives_and_restores_them(string $std, string $flag, ?string $necessary, ?string $code): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $wo = $this->createWorkorder(['user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+            'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT]);
+        $parts = collect();
+        foreach (['9-540', '9-540A', '9-541', '9-541A', '9-542', '9-542A', '9-543', '9-543A', '10-999'] as $ipl) {
+            $parts->push(Component::create(['manual_id' => $wo->unit->manual_id,
+                'ipl_num' => $ipl, 'part_number' => 'AXLE-'.$ipl, 'name' => 'AXLE WHEEL',
+                'units_assy' => 2, $flag => true]));
+        }
+        $group = \App\Models\ManualPartGroup::create(['manual_id' => $wo->unit->manual_id,
+            'code' => 'AXLE-REPAIR-TEST', 'name' => 'Axle alternatives', 'type' => 'alternative_pn',
+            'behavior' => 'choose_one', 'applies_to' => [$std]]);
+        foreach ($parts->take(8) as $part) {
+            $group->options()->create(['component_id' => $part->id, 'part_number' => $part->part_number,
+                'ipl_num' => $part->ipl_num, 'option_kind' => 'alternate']);
+        }
+        $tdr = Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[3]->id,
+            'qty' => 1, 'necessaries_id' => $necessary ? Necessary::firstOrCreate(['name' => $necessary])->id : null,
+            'codes_id' => $code ? Code::firstOrCreate(['name' => $code])->id : null]);
+        $service = app(\App\Services\WorkorderStdProcessItemsService::class);
+        $service->rebuild($wo);
+        foreach ($parts->take(8) as $part) {
+            $this->assertDatabaseHas('workorder_std_process_items', ['workorder_id' => $wo->id,
+                'component_id' => $part->id, 'std_type' => $std, 'remaining_qty' => 1, 'excluded_qty' => 1]);
+        }
+        if ($necessary === 'Repair') {
+            // Separate alternatives consume the shared quantity, even with different exclusion reasons.
+            $missing = Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[6]->id,
+                'qty' => 1, 'codes_id' => Code::firstOrCreate(['name' => 'Missing'])->id,
+                'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id]);
+            $service->rebuild($wo);
+            $this->assertSame([$parts->last()->id], WorkorderStdProcessItem::where('workorder_id', $wo->id)
+                ->where('std_type', $std)->pluck('component_id')->all());
+            $missing->delete();
+            $service->rebuild($wo);
+            $this->assertSame(8, WorkorderStdProcessItem::where('workorder_id', $wo->id)
+                ->where('std_type', $std)->where('remaining_qty', 1)->count());
+        }
+        $tdr->update(['qty' => 2]);
+        $service->rebuild($wo);
+        $this->assertSame([$parts->last()->id], WorkorderStdProcessItem::where('workorder_id', $wo->id)
+            ->where('std_type', $std)->pluck('component_id')->all());
+        $preview = collect($service->rebuild($wo, true))->where('std_type', $std);
+        $this->assertCount(8, $preview->where('remaining_qty', 0));
+        $this->assertSame(2, (int) $preview->firstWhere('component_id', $parts->last()->id)['remaining_qty']);
+        $normal = $this->get(route('tdrs.'.$std.'Std', $wo->id))->assertOk();
+        $normal->assertDontSee('AXLE-9-540')->assertSee('AXLE-10-999');
+        if (in_array($std, ['ndt', 'cad'], true)) {
+            $this->get(route('tdrs.'.$std.'Std', ['workorder_id' => $wo->id, 'show_excluded' => 1]))
+                ->assertOk()->assertSee('AXLE-9-540')->assertSee('AXLE-9-543A');
+        }
+
+        // A scope-disabled or deleted group must not spread exclusions across different IPLs.
+        $group->update(['applies_to' => ['prl']]);
+        $service->rebuild($wo);
+        $this->assertDatabaseHas('workorder_std_process_items', ['workorder_id' => $wo->id,
+            'component_id' => $parts[0]->id, 'std_type' => $std, 'remaining_qty' => 2]);
+        $group->update(['applies_to' => [$std]]);
+        $group->delete();
+        $service->rebuild($wo);
+        $this->assertDatabaseHas('workorder_std_process_items', ['workorder_id' => $wo->id,
+            'component_id' => $parts[0]->id, 'std_type' => $std, 'remaining_qty' => 2]);
+        $group->restore();
+        $tdr->delete();
+        $service->rebuild($wo);
+        $this->assertSame(9, WorkorderStdProcessItem::where('workorder_id', $wo->id)
+            ->where('std_type', $std)->where('remaining_qty', 2)->count());
+    }
+
     public function test_repair_sleeve_tdr_does_not_consume_parent_part_quantity(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -2233,6 +2324,32 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             '/@media print\s*\{\s*\.system-print-qr\s*\{[^}]*position:\s*fixed;[^}]*top:\s*0\s*!important;/s',
             $response->getContent()
         );
+    }
+
+    public function test_paint_std_form_prints_saved_process_text_and_numeric_values(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $values = ["MIL-PRF-85285, Class H\nApply finish", '1'];
+        foreach ($values as $index => $value) {
+            $component = Component::create([
+                'manual_id' => $manualId, 'ipl_num' => '4-'.(10 + $index * 10),
+                'part_number' => 'PAINT-TEXT-'.$index, 'name' => 'Paint text part',
+                'units_assy' => 1, 'paint_list' => true,
+            ]);
+            StdProcess::updateOrCreate([
+                'manual_id' => $manualId, 'component_id' => $component->id, 'std' => 'paint',
+            ], ['process' => $value, 'qty' => 1]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('tdrs.paintStd', $workorder->id))->assertOk();
+        $rows = collect($response->viewData('paint_components'))->keyBy('part_number');
+        foreach ($values as $index => $value) {
+            $this->assertSame($value, $rows['PAINT-TEXT-'.$index]->process_name);
+        }
+        $response->assertSee('MIL-PRF-85285, Class H')->assertSee('Apply finish');
+        $response->assertDontSee('No Paint process configured');
     }
 
     public function test_paint_std_form_uses_component_flags_not_csv_snapshot(): void

@@ -25,7 +25,6 @@ class ManualStdProcessController extends Controller
         $data = $request->validate([
             'std' => 'required|in:ndt,cad,stress,paint',
             'component_id' => 'required|integer|exists:components,id',
-            'qty' => 'required|integer|min:1',
         ]);
 
         $component = Component::query()->with('manual')->findOrFail($data['component_id']);
@@ -56,7 +55,7 @@ class ManualStdProcessController extends Controller
             'component_id' => $component->id,
             'std' => $std,
             'process' => $processVal,
-            'qty' => $data['qty'],
+            'qty' => max(1, (int) $component->units_assy),
             'eff_code' => null,
         ]);
 
@@ -116,14 +115,12 @@ class ManualStdProcessController extends Controller
                 ->with('error', 'There are no processes for this STD type on the current CMM Processes tab. Add a matching process in Processes, then try again.');
         }
 
-        $data = $request->validate([
-            'qty' => 'required|integer|min:1',
-        ]);
+        $component = $stdProcess->component()->firstOrFail();
         $processVal = $this->validatedProcessValue($request, $stdProcess->std, $allowed);
 
         $stdProcess->update([
             'process' => $processVal,
-            'qty' => $data['qty'],
+            'qty' => max(1, (int) $component->units_assy),
             'eff_code' => null,
         ]);
         $this->invalidateWorkorderStdSnapshots($manual);
@@ -202,8 +199,21 @@ class ManualStdProcessController extends Controller
             return implode(' / ', $values);
         }
 
+        // Multipart forms convert LF to CRLF. Match line endings only, then
+        // validate and save the original value from this manual's picklist.
+        $submitted = $request->input('process');
+        if (is_string($submitted)) {
+            $normalize = static fn (string $value): string => str_replace(["\r\n", "\r"], "\n", $value);
+            foreach ($allowed as $value) {
+                if ($normalize($submitted) === $normalize($value)) {
+                    $request->merge(['process' => $value]);
+                    break;
+                }
+            }
+        }
+
         $data = $request->validate([
-            'process' => ['required', 'string', 'max:255', Rule::in($allowed)],
+            'process' => ['required', 'string', 'max:1000', Rule::in($allowed)],
         ]);
 
         return (string) $data['process'];

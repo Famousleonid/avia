@@ -53,7 +53,7 @@ class Unit extends Model
     public function manual()
     {
 
-        return $this->belongsTo(\App\Models\Manual::class, 'manual_id', 'id');
+        return $this->belongsTo(\App\Models\Manual::class, 'manual_id', 'id')->withTrashed();
     }
 
     public function manuals()

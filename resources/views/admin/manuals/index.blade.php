@@ -318,6 +318,12 @@
                     </button>
                 </div>
 
+                @if(auth()->user()?->isAdmin())
+                    <label class="d-inline-flex align-items-center gap-1 small text-nowrap mb-0">
+                        <input type="checkbox" class="form-check-input m-0" id="showDeletedManualsCheckbox" @checked($showDeleted ?? false)>
+                        <span>{{ __('Include archive') }}</span>
+                    </label>
+                @endif
                 <button type="button"
                         class="btn btn-outline-info btn-sm me-5"
                         data-bs-toggle="offcanvas"
@@ -356,17 +362,6 @@
                         </th>
                         <th class="text-primary text-center bg-gradient">{{ __('Additional Manuals') }}</th>
                         <th class="text-primary text-center bg-gradient">
-                            @role('Admin')
-                                <label class="d-inline-flex align-items-center justify-content-center gap-1 mb-1 small text-nowrap"
-                                       title="{{ __('Show all, including soft-deleted manuals') }}">
-                                    <input type="checkbox"
-                                           class="form-check-input m-0"
-                                           id="showDeletedManualsCheckbox"
-                                           @checked($showDeleted ?? false)>
-                                    <span>{{ __('All') }}</span>
-                                </label>
-                                <br>
-                            @endrole
                             {{ __('Action') }}
                         </th>
                     </tr>
@@ -383,7 +378,7 @@
                                     <span class="manual-number">{{ $cmm->number }}</span>
                                     <span class="badge text-bg-danger ms-1"
                                           title="{{ __('Deleted at') }} {{ format_project_date($cmm->deleted_at) }}">
-                                        {{ __('Soft deleted') }}
+                                        {{ __('Archived') }}
                                     </span>
                                 @else
                                     <a href="{{ route('manuals.show', ['manual' => $cmm->id]) }}">
@@ -448,7 +443,7 @@
                                 @if($isDeletedManual)
                                     <span class="badge bg-secondary me-1"
                                           title="{{ __('Deleted at') }} {{ format_project_date($cmm->deleted_at) }}">
-                                        {{ __('Deleted') }} {{ format_project_date($cmm->deleted_at) }}
+                                        {{ __('Archived') }} {{ format_project_date($cmm->deleted_at) }}
                                     </span>
                                 @else
                                     <button type="button"
@@ -459,6 +454,14 @@
                                     </button>
                                 @endif
 
+                                @if($isDeletedManual && auth()->user()?->isAdmin())
+                                    <form action="{{ route('manuals.restore', $cmm->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="button" class="btn btn-sm btn-outline-success manual-archive-action"
+                                                data-message="Restore manual {{ $cmm->number }}?" data-ok-text="Restore"
+                                                title="Restore"><i class="bi bi-arrow-counterclockwise"></i> Restore</button>
+                                    </form>
+                                @endif
                                 @role('Admin')
                                 @unless($isDeletedManual)
                                     <form id="deleteForm_{{ $cmm->id }}"
@@ -468,13 +471,13 @@
                                         @csrf
                                         @method('DELETE')
 
-                                        <button class="btn btn-sm btn-outline-danger"
+                                        <button class="btn btn-sm btn-outline-warning manual-archive-action"
                                                 type="button"
                                                 name="btn_delete"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#useConfirmDelete"
-                                                data-title="Delete Confirmation row {{ $cmm->number }}">
-                                            <i class="bi bi-trash"></i>
+                                                title="Archive"
+                                                data-ok-text="Archive"
+                                                data-message="Archive manual {{ $cmm->number }}? Files, parts and links will be preserved.">
+                                            <i class="bi bi-archive"></i>
                                         </button>
                                     </form>
                                 @endunless
@@ -1424,6 +1427,18 @@
                 });
             }
 
+            document.querySelectorAll('.manual-archive-action').forEach(button => {
+                button.addEventListener('click', async () => {
+                    if (typeof window.confirmDialog !== 'function') {
+                        window.showNotification?.('Confirmation is unavailable. Action cancelled.', 'error');
+                        return;
+                    }
+                    if (await window.confirmDialog({message: button.dataset.message, okText: button.dataset.okText})) {
+                        showGlobalSpinner();
+                        HTMLFormElement.prototype.submit.call(button.closest('form'));
+                    }
+                });
+            });
             const modal = document.getElementById('useConfirmDelete');
             const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
             let deleteForm = null;

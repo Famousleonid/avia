@@ -13,7 +13,7 @@
     @include('partials.user-scoped-storage')
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="{{ asset('assets/vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css"/>
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
@@ -34,7 +34,6 @@
 
     </script>
 
-    @include('components.status')
     @yield('style')
 
     <style>
@@ -92,6 +91,7 @@
 
 </head>
 <body class="fade-page">
+@include('components.status')
 <div class="app-container @yield('app-container-class')">
 
     <div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
@@ -119,10 +119,11 @@
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+@include('mobile.partials.photo-rejection')
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{{ asset('assets/vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
 @include('components.session-heartbeat-config')
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 <script src="{{ asset('js/mobile-landscape-photo.js') }}?v={{ filemtime(public_path('js/mobile-landscape-photo.js')) }}"></script>

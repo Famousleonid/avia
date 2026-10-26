@@ -21,7 +21,7 @@ Read this reference when a manual-package task includes new Part Groups, assembl
 
 ### Alternative P/N
 
-Ordinary letter variants of the same IPL position (`5-70`, `5-70A`, `5-70B`, `5-70C`) already form an automatic family within one manual. Do not create a separate `alternative_pn` group solely for those suffixes. For ASSY procurement coverage, add one representative component with the position's quantity; the coverage resolver covers all ordinary letter variants, including inside nested ASSY. Do not list each variant as an additional physical quantity. Bushing Original/Oversize remains a separate explicit family and is excluded from this automatic expansion.
+Ordinary letter variants of the same IPL position (`5-70`, `5-70A`, `5-70B`, `5-70C`) already form an automatic family within one manual. Do not create a separate `alternative_pn` group solely for those suffixes. For ASSY procurement coverage, add one representative component with the position's quantity; the coverage resolver covers all ordinary letter variants, including inside nested ASSY. Do not list each variant as an additional physical quantity. All `is_bush=1` components are excluded from automatic letter-family expansion by the current resolver (verified23/Oct/2026). For PDF-confirmed ordinary bushing alternatives, use an explicit `alternative_pn` group and nest it with the shared quantity; do not label ordinary alternatives as Original/Oversize without repair-size evidence. Bushing Original/Oversize remains a separate explicit family.
 
 User rejected per-row **IPL family / Exact part only** controls on22/Sep/2026. Keep the editor simple: select the ASSY and its members/quantities, without a per-member coverage-mode choice. Do not reintroduce that control or its request field. Existing `manual_part_group_coverages.expand_ipl_family=0` links are retained as compatibility data for already-imported PDF-specific restrictions (37 links confirmed on production); ordinary links default to1. Group editing must preserve these existing values. Do not drop the column or remove resolver support before a reviewed replacement/data migration, because doing so broadens existing coverage to inapplicable letters. A replacement must derive applicability from reviewed PDF/configuration data, not guess from suffixes or burden users with technical switches. Verify direct/nested PRL/STD quantities and Log Card membership remain restricted. Unknown WO SB state remains unresolved, and complete Original/Oversize nesting and explicit multi-option subset groups must be preserved.
 
@@ -34,6 +34,8 @@ Use `alternative_pn` when different base IPL positions (for example `5-70`, `5-7
 Do not use an Alternative P/N group to represent a physical assembly composition or an Original/Oversize bushing family.
 
 ### Bushing Original/Oversize
+
+Classify ordinary BUSH/BUSHING details as `is_bush=1` even without this group; follow the classification and NDT/CAD exclusion in [source mapping](source-and-database-mapping.md). Group membership is not the only reason to mark a bushing. All classified bushings must have `ndt_list=0` and `cad_list=0`.
 
 Use one `oversize` group for the original bushing and every oversize P/N of that physical detail.
 
@@ -54,6 +56,7 @@ Use `assy` for an orderable assembly P/N and its composition.
 - Nest a lower ASSY, Alternative P/N family, or Bushing Original/Oversize family through the appropriate default option instead of flattening it into an unrelated concrete part.
 - An ASSY may contain another ASSY and that child may contain a bushing group. Resolve the composition transitively.
 - Do not duplicate a child group's internal members as direct parent coverages unless the PDF explicitly lists the same parts directly at the parent level.
+- Verify the actual coverage resolver for nested ASSY heads as well as children. As of23/Oct/2026, nested edges recurse through child coverages without synthesizing the child ASSY component. When the child group has no explicit own-head coverage, add its head as a direct parent coverage at the nested quantity (exact configuration where required), alongside the nested group. This is not duplication of internal children. Test real procurement quantities and composition boundaries; do not add another head if already covered by the nested group.
 - Reject self-reference and every direct or indirect cycle.
 
 If two complete ASSY P/Ns are alternatives, keep one ASSY group for each distinct composition. Create a separate `alternative_pn` only when needed to link different base IPL positions, not merely letter suffixes. Automatic letter coverage does not traverse another variant ASSY's different composition: nest the applicable child ASSY explicitly.

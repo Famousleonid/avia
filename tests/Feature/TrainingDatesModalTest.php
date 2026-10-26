@@ -4,12 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Training;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Tests\BuildsDomainData;
+use Tests\BuildsActiveTrainingData;
 use Tests\TestCase;
 
 class TrainingDatesModalTest extends TestCase
 {
-    use BuildsDomainData, DatabaseTransactions;
+    use BuildsActiveTrainingData, DatabaseTransactions;
 
     public function test_technician_base_date_is_locked_and_uses_plain_style(): void
     {

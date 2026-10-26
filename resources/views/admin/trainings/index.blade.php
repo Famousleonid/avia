@@ -4,6 +4,7 @@
 
 @section('content')
     <style>
+        .training-date-idle { color: #a5abb1 !important; font-weight: normal; }
         @media (max-width: 1100px) {
             .table th:nth-child(5), .table td:nth-child(5) {
                 display: none;
@@ -405,6 +406,8 @@
                             <td class="text-center">
                                 @if(!$last112Date)
                                     N/A
+                                @elseif($isOverdue && !$trainingList['unit_availability']['available'])
+                                    <span class="training-date-idle" title="{{ $trainingList['unit_availability']['message'] }}">@projectDate($last112Date)</span>
                                 @elseif($isOverdue)
                                     <span class="text-danger fw-bold"
                                           title="{{ __(':days days since last training — refresh required (MP-20)', ['days' => $daysSince112]) }}">
@@ -538,7 +541,7 @@
                                         {{-- data-project-date: проектный flatpickr, формат 24/Aug/2026 --}}
                                         <input type="text"
                                                class="form-control form-control-sm edit-training-date-input"
-                                               data-project-date autocomplete="off"
+                                               data-project-date data-project-date-numeric autocomplete="off"
                                                value="{{ \Carbon\Carbon::parse($training->date_training)->format('d/M/Y') }}">
                                     @endif
                                 </div>
@@ -611,6 +614,9 @@
                         @endforeach
 
                         <hr class="my-3">
+                        @if(!$trainingList['unit_availability']['available'])
+                            <div class="small text-muted mb-2">{{ $trainingList['unit_availability']['message'] }}</div>
+                        @endif
 
                         <div class="row g-2 mb-2 align-items-center add-training-row"
                              data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
@@ -621,8 +627,8 @@
                             <div class="col">
                                 <input type="text"
                                        class="form-control form-control-sm add-training-date-input"
-                                       data-project-date autocomplete="off"
-                                       placeholder="{{ __('dd/Mon/yyyy') }}">
+                                       data-project-date data-project-date-numeric autocomplete="off"
+                                       placeholder="{{ __('ddmmyyyy') }}">
                             </div>
 
                             <div class="col-auto">
@@ -777,7 +783,7 @@
                                         @else
                                             <input type="text"
                                                    class="form-control form-control-sm edit-training-date-input"
-                                                   data-project-date autocomplete="off"
+                                                   data-project-date data-project-date-numeric autocomplete="off"
                                                    value="{{ Carbon::parse($record['date'])->format('d/M/Y') }}">
                                         @endif
                                     </div>
@@ -1127,7 +1133,14 @@
                 });
             });
             // Add is a local draft operation. Only Save sends dates to the server.
+            document.addEventListener('project-date-confirmed', event => {
+                if (!event.target.matches('.add-training-date-input')) return;
+                event.target.closest('.add-training-row')?.querySelector('.add-training-in-edit-btn')?.click();
+            });
             trainingClick('.add-training-in-edit-btn', async function () {
+                if (this.dataset.adding === '1') return;
+                this.dataset.adding = '1';
+                try {
                 const modal = this.closest('.modal');
                 const source = modal.querySelector('.add-training-date-input');
                 if (!source.value.trim()) {
@@ -1150,7 +1163,7 @@
                 const row = document.createElement('div');
                 row.className = 'training-date-grid pending-training-row';
                 row.innerHTML = '<div class="text-muted">Form 112</div>'
-                    + '<div><input class="form-control form-control-sm pending-training-date-input" data-project-date autocomplete="off"></div>'
+                    + '<div><input class="form-control form-control-sm pending-training-date-input" data-project-date data-project-date-numeric autocomplete="off"></div>'
                     + '<div class="training-hours text-muted">—</div>'
                     + '<div class="small text-warning" style="grid-column: span 2">Not saved</div>'
                     + '<div><button type="button" class="btn btn-outline-danger btn-sm remove-pending-training" title="Remove unsaved date"><i class="bi bi-trash"></i></button></div>';
@@ -1160,6 +1173,10 @@
                 source._projectDatePicker?.clear();
                 source.value = '';
                 bootstrap.Modal.getInstance(modal)?.handleUpdate();
+                source.focus({preventScroll: true});
+                } finally {
+                    delete this.dataset.adding;
+                }
             });
             trainingClick('.remove-pending-training', function () {
                 const row = this.closest('.pending-training-row');

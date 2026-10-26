@@ -394,6 +394,7 @@
  *   showNotification('Warning message', 'warning')
  */
 function showNotification(message, type = 'info', duration = 4000) {
+    if (type === 'error' || type === 'danger') duration = Math.max(10000, duration);
     if (typeof window.notify === 'function') {
         window.notify(message, type, duration);
         return;
@@ -536,6 +537,7 @@ window.showNotification = showNotification;
 
 
 window.notify = function (message, type = 'info', durationMs = 6000) {
+    if (type === 'error' || type === 'danger') durationMs = Math.max(10000, durationMs);
     // убираем предыдущие (как у тебя)
     document.querySelectorAll('.notify-status').forEach(el => el.remove());
 
@@ -676,11 +678,16 @@ window.confirmDialog = function ({
         const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static' });
 
         let resolved = false;
+        let shown = false;
+        let choice;
+        const closeBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
 
         const cleanup = () => {
             okBtn.removeEventListener('click', onOk);
             discardBtn.removeEventListener('click', onDiscard);
             cancelBtn.removeEventListener('click', onCancel);
+            closeBtn.removeEventListener('click', onCancel);
+            modalEl.removeEventListener('shown.bs.modal', onShown);
             modalEl.removeEventListener('hidden.bs.modal', onHidden);
         };
 
@@ -691,27 +698,38 @@ window.confirmDialog = function ({
             resolve(val);
         };
 
+        // Bootstrap ignores hide() during its opening transition. Remember an
+        // early tap and hide after shown; resolve only when the modal is gone.
+        const choose = (value) => {
+            if (resolved || choice !== undefined) return;
+            choice = value;
+            if (shown) bsModal.hide();
+        };
+        const onShown = () => {
+            shown = true;
+            if (choice !== undefined) bsModal.hide();
+        };
         const onOk = () => {
             if (typeof window.hapticTap === 'function') window.hapticTap(20);
-            bsModal.hide();
-            finish(true);
+            choose(true);
         };
 
         const onCancel = () => {
             if (typeof window.hapticTap === 'function') window.hapticTap(10);
-            bsModal.hide();
-            finish(false);
+            choose(false);
         };
 
         const onHidden = () => {
             // если закрыли крестиком/тапом
-            finish(false);
+            finish(choice === undefined ? false : choice);
         };
 
-        const onDiscard = () => { bsModal.hide(); finish('discard'); };
+        const onDiscard = () => choose('discard');
         discardBtn.addEventListener('click', onDiscard);
         okBtn.addEventListener('click', onOk);
         cancelBtn.addEventListener('click', onCancel);
+        closeBtn.addEventListener('click', onCancel);
+        modalEl.addEventListener('shown.bs.modal', onShown);
         modalEl.addEventListener('hidden.bs.modal', onHidden);
 
         bsModal.show();

@@ -80,11 +80,29 @@
             const ndtPlusSelect = document.querySelector('.select2-ndt-plus');
 
             this.initProcessNameSelect(processNameSelect, ecCheckboxContainer, ndtPlusContainer, ndtPlusSelect);
+            this.sizeProcessNameColumn(processNameSelect);
+            document.fonts?.ready.then(() => this.sizeProcessNameColumn(processNameSelect));
             this.initNdtPlusSelect(ndtPlusContainer, ndtPlusSelect);
             this.initPageLoad(processNameSelect, ecCheckboxContainer, ndtPlusContainer, ndtPlusSelect);
             this.bindCheckboxChange();
             this.bindModal();
             this.bindFormSubmit();
+        },
+
+        sizeProcessNameColumn(select) {
+            const column = select?.closest('.process-row > .row > div');
+            if (!column) return;
+            const rendered = column.querySelector('.select2-selection__rendered') || select;
+            const style = getComputedStyle(rendered);
+            const context = document.createElement('canvas').getContext('2d');
+            if (!context) return;
+            context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            const longest = Math.max(0, ...Array.from(select.options, option => context.measureText(option.text.trim()).width));
+            const gutter = getComputedStyle(column);
+            // Include the control padding/arrow and the Bootstrap column gutters.
+            const controlSpace = Math.max(40, (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0) + 20);
+            const width = Math.ceil(longest + controlSpace + (parseFloat(gutter.paddingLeft) || 0) + (parseFloat(gutter.paddingRight) || 0));
+            column.style.setProperty('--process-name-width', `${width}px`);
         },
 
         initProcessNameSelect(processNameSelect, ecCheckboxContainer, ndtPlusContainer, ndtPlusSelect) {
@@ -207,6 +225,19 @@
             const saveButton = document.querySelector('button[type="submit"]');
 
             if (!processNameId || !processOptionsContainer) return;
+
+            const expandPicker = () => processRow.classList.add('specification-picker-expanded');
+            if (!processOptionsContainer.dataset.widePickerBound) {
+                processOptionsContainer.dataset.widePickerBound = '1';
+                processOptionsContainer.addEventListener('pointerdown', expandPicker);
+                processOptionsContainer.addEventListener('focusin', expandPicker);
+                processOptionsContainer.addEventListener('change', event => {
+                    if (!event.target.matches('input[type="radio"]')) return;
+                    processRow.classList.remove('specification-picker-expanded');
+                    document.querySelector('#editCPForm [name="description"]')?.focus({preventScroll: true});
+                });
+            }
+            expandPicker();
 
             const match = selectElement.name?.match(/processes\[(\d+)\]/);
             const rowIndex = match ? match[1] : '0';

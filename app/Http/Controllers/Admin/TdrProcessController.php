@@ -580,6 +580,29 @@ class TdrProcessController extends Controller
         ], 200);
     }
 
+    public function attachments(Request $request, \App\Models\Tdr $tdr)
+    {
+        abort_unless($request->user()->can('workorders.view', $tdr->workorder), 403);
+        $data = $request->validate([
+            'row' => ['required_without:traveler_group', 'integer', 'min:1'],
+            'traveler_group' => ['required_without:row', 'integer', 'min:1'],
+        ]);
+        abort_if(isset($data['row'], $data['traveler_group']), 422);
+        $query = TdrProcess::where('tdrs_id', $tdr->id)->where('ignore_row', false);
+        if (isset($data['traveler_group'])) {
+            $query->where('in_traveler', true)->where('traveler_group', $data['traveler_group']);
+        } else {
+            $query->whereKey($data['row']);
+        }
+        $rows = $query->orderBy('sort_order')->orderBy('id')->get();
+        abort_if($rows->isEmpty(), 404);
+        return view('admin.tdr-processes.attachments', [
+            'current_tdr' => $tdr,
+            'travelerImages' => isset($data['traveler_group']) ? \App\Services\TravelerTemplateImages::forProcesses($tdr, $rows) : collect(),
+            'figPagesHtml' => $this->figPagesHtmlForRows($rows, $tdr->workorder),
+        ]);
+    }
+
     public function travelForm(Request $request, $id)
     {
         $current_tdr = Tdr::with(['component', 'workorder'])->findOrFail($id);
@@ -622,7 +645,10 @@ class TdrProcessController extends Controller
         // Fig: чертежи всех строк traveler-группы (общий чертёж — один раз)
         $figPagesHtml = $this->figPagesHtmlForRows($tdrProcesses, $current_wo);
 
+        $travelerImages = \App\Services\TravelerTemplateImages::forProcesses($current_tdr, $tdrProcesses);
+
         return view('admin.tdr-processes.travelForm', compact(
+            'travelerImages',
             'current_tdr',
             'current_wo',
             'tdrProcesses',
@@ -701,7 +727,7 @@ class TdrProcessController extends Controller
 
         $components = Component::where('manual_id', $manual_id)->get();
         $manuals = Manual::where('id', $manual_id)->get();
-        $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
+        $manualProcesses = \App\Services\ManualProcessVersions::printableIds([$manual_id]);
         $formsData = [];
 
         foreach ($groups as $group) {
@@ -918,8 +944,7 @@ class TdrProcessController extends Controller
         $tdr_ids = Tdr::where('workorder_id', $current_wo->id)->pluck('id');
 
         // Получаем manual processes из всех manual'ов
-        $manualProcesses = ManualProcess::whereIn('manual_id', $manualIds)
-            ->pluck('processes_id');
+        $manualProcesses = \App\Services\ManualProcessVersions::printableIds($manualIds);
 
         // Обработка NDT формы
         if ($process_name->process_sheet_name == 'NDT') {
@@ -1028,8 +1053,7 @@ class TdrProcessController extends Controller
 
         // Получаем компоненты и процессы из руководства
         $components = Component::where('manual_id', $manual_id)->get();
-        $manualProcesses = ManualProcess::where('manual_id', $manual_id)
-            ->pluck('processes_id');
+        $manualProcesses = \App\Services\ManualProcessVersions::printableIds([$manual_id]);
 
         // Базовые данные для представления
         $omitFormHeaderDate = $request->boolean('omit_form_header_date');
@@ -1193,7 +1217,7 @@ class TdrProcessController extends Controller
         }
 
         $process_name = $selectedRows->first()->processName;
-        $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
+        $manualProcesses = \App\Services\ManualProcessVersions::printableIds([$manual_id]);
         $selectedVendor = $request->filled('vendor_id')
             ? Vendor::find($request->integer('vendor_id'))
             : null;
@@ -1799,7 +1823,7 @@ class TdrProcessController extends Controller
         $manual_id = $current_wo->unit->manual_id ?? null;
         $processes = Process::whereHas('manualProcesses', function ($query) use ($manual_id) {
             $query->where('manual_id', $manual_id);
-        })->get();
+        })->orWhereIn('id', TdrProcess::normalizeStoredProcessIds($current_tdr_processes->processes))->get();
 
         // Получаем все NDT process names для дополнительного селекта
         $ndtProcessNames = ProcessName::whereIdentityName('NDT-%', 'like')->get();
@@ -1835,6 +1859,7 @@ class TdrProcessController extends Controller
         $processNames = ProcessName::forPicker()->orderBy('name')->get();
         $manual_id = $current_wo->unit->manual_id ?? null;
         $processes = Process::whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
+            ->orWhereIn('id', TdrProcess::normalizeStoredProcessIds($current_tdr_processes->processes))
             ->whereNotNull('process_names_id')
             ->whereHas('process_name')
             ->get();
@@ -3196,7 +3221,7 @@ class TdrProcessController extends Controller
         }
 
         $components = Component::where('manual_id', $manual_id)->get();
-        $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
+        $manualProcesses = \App\Services\ManualProcessVersions::printableIds([$manual_id]);
 
         // Массив для хранения данных всех форм
         $formsData = [];

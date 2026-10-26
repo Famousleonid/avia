@@ -1,0 +1,12 @@
+{
+  "package": "tippy.js",
+  "version": "6.3.7",
+  "source": "https://registry.npmjs.org/tippy.js/-/tippy.js-6.3.7.tgz",
+  "integrity": "sha512-E1d3oP2emgJ9dRQZdf3Kkn0qJgI6ZLpyS5z6ZkY1DF3kaQaBsGZsndEpHwx+eC+tYM41HaSNvNtLx8tU57FzTQ==",
+  "files": {
+    "tippy-bundle.umd.min.js": "3f0fe70eb26ccf28f6887a192e29d38dd7ef7c2f079a73304ad42ddc7bed37de",
+    "tippy-bundle.umd.min.js.map": "1bcea1611e9c9ecf3d061ba249ca98b2adb67a02e6753056d14509cb5abce35d",
+    "tippy.css": "5969f497d9158d7682f8219c6f13fa67269cdf5bf50a3931d95327151dee5678",
+    "LICENSE": "7f4929c55f525ae510a77c361496c5a86a092434a3681c95a4dc89e951c67e98"
+  }
+}

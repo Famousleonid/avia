@@ -10,6 +10,7 @@ use App\Services\ManualIplBranchRuleResolver;
 use App\Services\WorkorderPartScopeResolver;
 use App\Support\BushingPrlGrouping;
 use App\Models\Unit;
+use App\Models\StdProcess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -35,6 +36,7 @@ class WorkorderKitPrlCrossoutController extends Controller
         $isBushing = BushingPrlGrouping::candidates($available)->contains('id', $component->id);
         $belongsToKit = $workorder->isOverhaul()
             && $workorder->scope_type !== Unit::SCOPE_COMPONENT
+            && StdProcess::stdRowEffMatchesUnit($component->eff_code, (string) ($workorder->unit->eff_code ?? ''))
             && $available->contains('id', $component->id)
             && ((bool) $component->kit || (bool) $component->kit_e || $isBushing)
             && in_array((int) $component->manual_id, $workorder->usedManualIds(), true)

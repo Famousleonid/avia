@@ -712,6 +712,7 @@
                 if (!res.ok || !data.success) {
                     throw new Error(firstValidationMessage(data));
                 }
+                window.MobileLandscapePhoto.saved(files.length);
                 updateBadges(data.machining_photo_count, data.pdf_count);
             }
 

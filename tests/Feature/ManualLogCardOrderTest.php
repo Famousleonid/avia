@@ -28,12 +28,18 @@ class ManualLogCardOrderTest extends TestCase
         $service = app(ManualLogCardOrder::class);
         $payload = ['ids'=>[$parts[2]->id,$parts[0]->id,$parts[1]->id], 'revision'=>$service->revision($manual)];
         $manager=$this->createUserWithRole('Manager');
+        \App\Models\UserFeatureAccess::create(['user_id'=>$manager->id,'feature_key'=>'manuals.log_card_order']);
         $this->actingAs($manager);
         $this->withSession(['auth.version'=>(int)$manager->auth_version]);
         $this->putJson(route('manuals.log-card-order.update',$manual),array_merge($payload,['ids'=>[$parts[0]->id,$parts[2]->id,$parts[1]->id]]))->assertUnprocessable();
         $this->putJson(route('manuals.log-card-order.update',$manual),$payload)->assertOk();
         $this->assertSame($payload['ids'],$manual->fresh()->log_card_order);
         $this->assertDatabaseHas('activity_log',['subject_id'=>$manual->id,'subject_type'=>get_class($manual),'causer_id'=>$manager->id]);
+        $audit = \Spatie\Activitylog\Models\Activity::where('log_name', 'manual_log_card_order')->where('subject_id', $manual->id)->latest('id')->firstOrFail();
+        $this->assertSame($manager->id, $audit->causer_id);
+        $this->assertSame([], $audit->properties['old']['log_card_order']);
+        $this->assertSame($payload['ids'], $audit->properties['attributes']['log_card_order']);
+        $this->assertCount(3, $audit->properties['parts']);
         $this->putJson(route('manuals.log-card-order.update',$manual),$payload)->assertStatus(409);
     }
 
@@ -44,6 +50,26 @@ class ManualLogCardOrderTest extends TestCase
         $this->putJson(route('manuals.log-card-order.update',$manual),[
             'ids'=>$parts->pluck('id')->all(),'revision'=>app(ManualLogCardOrder::class)->revision($manual),
         ])->assertForbidden();
+    }
+
+    public function test_access_assignment_controls_log_card_order(): void
+    {
+        [$manual, $parts] = $this->parts();
+        $manager = $this->createUserWithRole('Manager');
+        $this->actingAs($manager)->get(route('manuals.log-card-order', $manual))->assertForbidden();
+        $this->postJson(route('manuals.log-card-order.preview', $manual))->assertForbidden();
+        $this->putJson(route('manuals.log-card-order.update', $manual))->assertForbidden();
+        $admin = $this->createUserWithRole('Admin', ['is_admin'=>true]);
+        $this->actingAs($admin)->withSession(['auth.version'=>(int)$admin->auth_version, 'password_hash_web'=>$admin->getAuthPassword()])->get(route('manuals.log-card-order', $manual))->assertOk();
+        $this->get(route('admin.access.index'))->assertOk()->assertSee('Manage Log Card order');
+        $this->post(route('admin.access.store'), ['feature_key'=>'manuals.log_card_order','user_ids'=>[$manager->id]])
+            ->assertRedirect(route('admin.access.index'));
+        $this->actingAs($manager->fresh())->withSession(['auth.version'=>(int)$manager->fresh()->auth_version, 'password_hash_web'=>$manager->getAuthPassword()])->get(route('manuals.log-card-order', $manual))->assertOk();
+        $this->putJson(route('manuals.log-card-order.update', $manual), [
+            'ids'=>$parts->pluck('id')->all(), 'revision'=>app(ManualLogCardOrder::class)->revision($manual),
+        ])->assertOk();
+        \App\Models\UserFeatureAccess::where('user_id',$manager->id)->where('feature_key','manuals.log_card_order')->delete();
+        $this->actingAs($manager->fresh())->get(route('manuals.log-card-order', $manual))->assertForbidden();
     }
 
     public function test_workbook_preview_keeps_variants_together_and_does_not_save(): void

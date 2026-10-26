@@ -53,6 +53,12 @@
         }
         .table-scroll-rm-records table,
         .table-scroll-technical-notes table { margin-bottom: 0; }
+        #previewRecordsTableBody td { vertical-align: top; padding: .25rem; }
+        #previewRecordsTableBody .form-control { min-width: 0; width: 100%; font-size: 12px; }
+        #previewRecordsTableBody textarea { min-height: 65px; resize: vertical; }
+        #previewRecordsTableBody select { min-width: 105px; }
+        .rm-preview-card-body .table-scroll-rm-records { overflow-x: auto; }
+        .rm-preview-card-body .table-scroll-rm-records table { min-width: 650px; }
         .rm-records-table-right {
             font-size: 12px;
         }
@@ -78,86 +84,43 @@
             line-height: 1.2;
             vertical-align: middle;
         }
-        .preview-papyrus {
-            color: #000;
-            background-color: #f4e4bc;
-            background-image:
-                linear-gradient(rgba(139, 119, 101, 0.06) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(139, 119, 101, 0.06) 1px, transparent 1px),
-                linear-gradient(180deg, #faf0dc 0%, #f0e0c0 50%, #e8d5b0 100%);
-            background-size: 22px 22px, 22px 22px, 100% 100%;
+        .rm-record-card {
+            background: var(--avia-surface, var(--bs-body-bg));
+            color: var(--avia-text, var(--bs-body-color));
+            border-color: var(--avia-border, var(--bs-border-color));
         }
-        .preview-papyrus h4, .preview-papyrus h5, .preview-papyrus h6,
-        .preview-papyrus td, .preview-papyrus th,
-        .preview-papyrus #previewTechnicalNotes,
-        .preview-papyrus .table-scroll-rm-records tbody td,
-        .preview-papyrus .table-scroll-rm-records thead th { color: #000 !important; }
-        .preview-papyrus .table, .preview-papyrus .table thead th,
-        .preview-papyrus .table tbody, .preview-papyrus .table tbody tr,
-        .preview-papyrus .table tbody td { background-color: transparent !important; }
-        .preview-papyrus .table thead th,
-        .preview-papyrus .table-scroll-rm-records thead th {
-            background-color: #f0e0c0 !important;
-            color: #000 !important;
+        .rm-record-card .table-scroll-rm-records thead th {
+            background: var(--dir-thead-bg, var(--avia-surface-raised)) !important;
+            color: var(--avia-text, var(--bs-body-color)) !important;
         }
-        .preview-papyrus .table tbody tr:nth-of-type(odd) td,
-        .preview-papyrus .table tbody tr:nth-of-type(even) td,
-        .preview-papyrus .table-scroll-rm-records tbody tr:nth-of-type(odd) td,
-        .preview-papyrus .table-scroll-rm-records tbody tr:nth-of-type(even) td {
-            background-color: transparent !important;
-            color: #000 !important;
+        .rm-record-card #previewTechnicalNotes {
+            background: var(--avia-input, var(--bs-body-bg));
+            border-color: var(--avia-border, var(--bs-border-color)) !important;
         }
-        .preview-papyrus .table-scroll-rm-records table,
-        .preview-papyrus .table-scroll-rm-records th,
-        .preview-papyrus .table-scroll-rm-records td {
-            border-color: #6c757d !important;
-        }
-        .preview-papyrus .dir-table {
-            background: transparent !important;
-            color: #111 !important;
-            --bs-table-bg: transparent !important;
-            --bs-table-color: #111 !important;
-            --bs-table-striped-bg: transparent !important;
-            --bs-table-striped-color: #111 !important;
-            --bs-table-hover-bg: rgba(76, 61, 38, 0.08) !important;
-            --bs-table-hover-color: #111 !important;
-        }
-        .preview-papyrus .dir-table > tbody > tr > td,
-        .preview-papyrus .dir-table > tbody > tr > th {
-            background: transparent !important;
-            color: #111 !important;
-            box-shadow: none !important;
-        }
-        .preview-papyrus .dir-table > thead > tr > th {
-            background: #f0e0c0 !important;
-            color: #111 !important;
-        }
-        html[data-bs-theme="dark"] .preview-papyrus .dir-table.table-striped > tbody > tr:nth-of-type(odd) > * {
-            background: transparent !important;
-            color: #111 !important;
-            box-shadow: none !important;
-        }
+        .rm-record-card #rmEditorSaveStatus { color: var(--avia-text-muted); }
     </style>
 
     <div class="row g-3">
-        {{-- Card 1: Preview (papyrus) --}}
+        {{-- Card 1: Workorder repair records --}}
         <div class="col-md-6">
-            <div class="card h-100 preview-papyrus border">
+            <div class="card h-100 rm-record-card border">
                 <div class="card-body rm-preview-card-body">
                     <h4 class="text-center">{{__('Repair and Modification Record WO')}}{{$current_wo->number}}</h4>
+                    <div id="rmEditorSaveStatus" class="small text-end" aria-live="polite"></div>
                     <div class="p-2">
                         <h6>{{__('Technical Notes')}}</h6>
-                        <div id="previewTechnicalNotes" class="border rounded p-2" style="min-height: 50px; white-space: pre-line;"></div>
+                        <div id="previewTechnicalNotes" class="border rounded p-2" style="min-height: 50px; white-space: pre-wrap;"></div>
                     </div>
-                    <div class="table mt-3 table-scroll-rm-records">
-                        <table class="table table-striped text-center align-items-center dir-table" style="font-size: 12px">
+                    <div class="mt-3 table-scroll-rm-records">
+                        <table class="table table-bordered table-hover text-center align-middle dir-table" style="font-size: 12px">
                             <thead>
                             <tr>
-                                <th class="border align-middle">{{ __('Item') }}</th>
+                                <th class="border align-middle">{{ __('IPL') }}</th>
                                 <th class="border align-middle">{{ __('Part Description') }}</th>
                                 <th class="border align-middle">{{ __('Modification or Repair #') }}</th>
                                 <th class="border align-middle">{{ __('Description Of Modification or Repair') }}</th>
                                 <th class="border align-middle">{{ __('Identification Method') }}</th>
+                                <th class="border align-middle">{{ __('Actions') }}</th>
                             </tr>
                             </thead>
                             <tbody id="previewRecordsTableBody"></tbody>
@@ -499,6 +462,7 @@
     var technicalNotes = @json($savedData['technical_notes'] ?? []);
     if (!Array.isArray(technicalNotes)) technicalNotes = [];
 
+    var editorRows = @json(app(\App\Services\WorkorderRepairRows::class)->rows($current_wo, $rm_reports->whereIn('id', $savedRecordIds)));
     var DEBOUNCE_MS = 400;
     var saveTimeout = null;
     var storeUrl = '{{ route("rm_reports.store") }}';
@@ -581,19 +545,57 @@
         var tbody = document.getElementById('previewRecordsTableBody');
         if (!tbody) return;
         tbody.innerHTML = '';
-        var itemNum = 1;
-        var checkboxes = document.querySelectorAll('.record-checkbox:checked');
-        checkboxes.forEach(function(cb) {
-            var row = cb.closest('tr');
-            if (!row) return;
-            var partDesc = escapeHtml(row.querySelector('[data-rm-cell="part-description"]')?.textContent.trim() || '');
-            var modRepair = escapeHtml(row.querySelector('[data-rm-cell="mod-repair"]')?.textContent.trim() || '');
-            var desc = escapeHtml(row.querySelector('[data-rm-cell="description"]')?.textContent.trim() || '');
-            var identMethod = escapeHtml(row.querySelector('[data-rm-cell="ident-method"]')?.textContent.trim() || '');
+        var selectedKeys = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => 'record:' + cb.value);
+        editorRows = editorRows.filter(row => !row.key.startsWith('record:') || selectedKeys.includes(row.key));
+        document.querySelectorAll('.record-checkbox:checked').forEach(function(cb) {
+            if (editorRows.some(row => row.key === 'record:' + cb.value)) return;
+            var source = cb.closest('tr');
+            var cell = name => source.querySelector('[data-rm-cell="' + name + '"]')?.textContent.trim() || '';
+            editorRows.push({key: 'record:' + cb.value, ipl: '', part_description: cell('part-description'),
+                mod_repair: cell('mod-repair') === 'Mod' ? 'Modification' : cell('mod-repair'),
+                description: cell('description'), ident_method: cell('ident-method'), ident_number: '', deleted: false});
+        });
+        editorRows.filter(row => !row.deleted).forEach(function(row) {
             var tr = document.createElement('tr');
-            tr.innerHTML = '<td class="border">' + itemNum + '</td><td class="border">' + partDesc + '</td><td class="border">' + modRepair + '</td><td class="border">' + desc + '</td><td class="border">' + identMethod + '</td>';
+            tr.dataset.repairRow = row.key;
+            function textCell(text) { var td = document.createElement('td'); td.textContent = text; tr.appendChild(td); return td; }
+            textCell(row.ipl);
+            textCell(row.part_description);
+            function control(field, options) {
+                var input = document.createElement(options ? 'select' : (field === 'description' ? 'textarea' : 'input'));
+                input.className = 'form-control form-control-sm';
+                input.setAttribute('aria-label', field);
+                if (options) {
+                    if (row[field] && !options.includes(row[field])) options = [row[field]].concat(options);
+                    options.forEach(value => { var option = document.createElement('option'); option.value = value; option.textContent = value || '—'; input.appendChild(option); });
+                }
+                input.value = row[field] || '';
+                if (!options) input.maxLength = field === 'description' ? 2000 : 250;
+                input.addEventListener('input', function() { row[field] = input.value; });
+                input.addEventListener('change', function() { row[field] = input.value; triggerDebouncedSave(); });
+                return input;
+            }
+            textCell('').appendChild(control('mod_repair', ['Repair', 'Modification', 'SB']));
+            textCell('').appendChild(control('description'));
+            var identification = textCell('');
+            identification.appendChild(control('ident_method', ['', 'Inkmark', 'Vibropeen']));
+            var number = control('ident_number'); number.placeholder = 'Number'; identification.appendChild(number);
+            var remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn btn-sm btn-outline-danger';
+            remove.setAttribute('aria-label', 'Remove repair row'); remove.innerHTML = '<i class="fas fa-trash"></i>';
+            remove.addEventListener('click', async function() {
+                if (row.key.startsWith('record:')) {
+                    var cb = document.getElementById('record_' + row.key.substring(7));
+                    if (cb && cb.closest('tr').dataset.changesAssemblyScope !== '1'
+                        && !await rmPartialConfirmDelete('Remove this row from the R&M form? The template will remain available.')) return;
+                    if (cb) { cb.checked = false; cb.dispatchEvent(new Event('change')); }
+                    return;
+                }
+                if (!await rmPartialConfirmDelete('Remove this row from the R&M form? The TDR will remain unchanged.')) return;
+                row.deleted = true; updatePreview();
+                if (!await performSave()) { row.deleted = false; updatePreview(); }
+            });
+            textCell('').appendChild(remove);
             tbody.appendChild(tr);
-            itemNum++;
         });
     }
 
@@ -639,12 +641,26 @@
         });
     }
 
+    var saveQueue = Promise.resolve();
     function performSave() {
+        clearTimeout(saveTimeout);
+        var task = saveQueue.then(sendRepairSave);
+        saveQueue = task.catch(function() {});
+        return task;
+    }
+    function sendRepairSave() {
         saveTimeout = null;
+        var saveStatus = document.getElementById('rmEditorSaveStatus');
+        if (saveStatus) saveStatus.textContent = 'Saving…';
         var selectedRecords = [];
         document.querySelectorAll('.record-checkbox:checked').forEach(function(cb) { selectedRecords.push(cb.value); });
         var formData = new FormData();
         formData.append('selected_records', JSON.stringify(selectedRecords));
+        editorRows.forEach(function(row, index) {
+            ['key', 'mod_repair', 'description', 'ident_method', 'ident_number', 'deleted'].forEach(function(field) {
+                formData.append('editor_rows[' + index + '][' + field + ']', field === 'deleted' ? (row.deleted ? '1' : '0') : (row[field] || ''));
+            });
+        });
         formData.append('workorder_id', workorderId);
         formData.append('_token', csrfToken);
         formData.append('_method', 'PUT');
@@ -658,16 +674,19 @@
         }).then(function(r) { return r.json().catch(function() { return {}; }); })
         .then(function(data) {
             if (!data.success) {
+                if (saveStatus) saveStatus.textContent = 'Not saved';
                 notifyRm(responseError(data, '{{ __('Unable to save the R&M selection.') }}'), 'error');
                 return false;
             }
             var status = document.getElementById('rmAssemblyScopeStatus');
+            if (saveStatus) saveStatus.textContent = 'Saved';
             var value = status ? status.querySelector('[data-rm-modified-value]') : null;
             var modification = data.modification || {};
             if (status) status.classList.toggle('d-none', !modification.target_option_id);
             if (value) value.textContent = modification.modified || '';
             return true;
         }).catch(function() {
+            if (saveStatus) saveStatus.textContent = 'Not saved';
             notifyRm('{{ __('Unable to save the R&M selection.') }}', 'error');
             return false;
         });
@@ -677,6 +696,7 @@
         if (!cb || cb.dataset.rmBound === '1') return;
         cb.dataset.rmBound = '1';
         cb.addEventListener('change', async function() {
+            var previousEditorRows = JSON.parse(JSON.stringify(editorRows));
             var row = cb.closest('tr');
             var changedTo = cb.checked;
             if (row && row.dataset.changesAssemblyScope === '1') {
@@ -707,6 +727,7 @@
             updatePreview();
             if (!await performSave()) {
                 cb.checked = !changedTo;
+                editorRows = previousEditorRows;
                 updatePreview();
             }
         });
@@ -718,7 +739,7 @@
         tbody.innerHTML = '';
         technicalNotes.forEach(function(note, index) {
             var tr = document.createElement('tr');
-            tr.innerHTML = '<td class="align-middle">' + escapeHtml(note) + '</td>' +
+            tr.innerHTML = '<td class="align-middle" style="white-space: pre-wrap; overflow-wrap: anywhere;">' + escapeHtml(note) + '</td>' +
                 '<td class="text-end" style="width: 120px;">' +
                 '<button type="button" class="btn btn-sm btn-outline-primary me-1" data-edit-idx="' + index + '"><i class="fas fa-edit"></i></button>' +
                 '<button type="button" class="btn btn-sm btn-outline-danger" data-delete-idx="' + index + '"><i class="fas fa-trash"></i></button>' +

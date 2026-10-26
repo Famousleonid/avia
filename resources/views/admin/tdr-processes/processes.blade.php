@@ -638,7 +638,7 @@
 {{--                                                        @endforeach--}}
 {{--                                                    </select>--}}
 {{--                                                    <a href="#"--}}
-{{--                                                       class="btn btn-sm btn-outline-primary form-link disabled"--}}
+{{--                                                       class="btn btn-sm btn-info form-link disabled"--}}
 {{--                                                       style="pointer-events: none; opacity: 0.5; cursor: not-allowed;"--}}
 {{--                                                       tabindex="-1"--}}
 {{--                                                       aria-disabled="true"--}}
@@ -697,7 +697,7 @@
                                                             @endforeach
                                                         </select>
                                                         <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}"
-                                                           class="btn btn-sm btn-outline-primary form-link"
+                                                           class="btn btn-sm btn-info form-link"
                                                            style="width: 60px"
                                                            data-tdr-process-id="{{ $processes->id }}"
                                                            target="_blank">{{__('Form')}}</a>
@@ -766,7 +766,7 @@
                                                                     @endforeach
                                                                 </select>
                                                                 <a href="{{ route('tdr-processes.show', ['tdr_process' =>
-                                                                $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-outline-primary form-link"
+                                                                $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-info form-link"
                                                                    style="width: 60px"
                                                                    data-tdr-process-id="{{ $processes->id }}"
                                                                    data-process="{{ $process }}"

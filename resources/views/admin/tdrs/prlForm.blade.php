@@ -655,11 +655,11 @@
                                 $uniqueManuals = $uniqueManuals ?? [];
                                 $hasMultipleManuals = $hasMultipleManuals ?? false;
                             @endphp
-                            @if($hasMultipleManuals && count($uniqueManuals) > 0)
-                                {{-- Показываем все номера manual через ';' --}}
+                            @if(count($uniqueManuals) > 0)
+                                {{-- Use the printed parts' manuals, even when the only one differs from the unit's manual. --}}
                                 <h6 class=""><strong>{{ collect($uniqueManuals)->map(fn ($number) => format_cmm_number($number))->filter()->implode('; ') }}</strong></h6>
                             @else
-                                {{-- Показываем основной manual --}}
+                                {{-- An empty list falls back to the unit's manual. --}}
                                 @foreach($manuals as $manual)
                                     @if($manual->id == $current_wo->unit->manual_id)
                                         <h6 class=""><strong> {{ format_cmm_number($manual->number) }}</strong></h6>
@@ -708,6 +708,7 @@
                 $uniqueManuals = $uniqueManuals ?? [];
                 $hasMultipleManuals = $hasMultipleManuals ?? false;
                 $previousManual = null;
+                $previousKitPrintSection = null;
                 $rowIndex = 1;
             @endphp
 
@@ -718,9 +719,19 @@
                     $isArray = is_array($tdr);
                     $isSectionRow = $isArray && (($tdr['kind'] ?? null) === 'section');
                     $isExtraBushing = $isArray && ! empty($tdr['kit_extra_bushing']);
+                    $kitPrintSection = $isArray ? ($tdr['kit_print_section'] ?? null) : null;
                 @endphp
 
-                @if(($isExtraBushing || ($isArray && !empty($tdr['kit_extra_part']))) && !($extraBushingsStarted ?? false))
+                @if($kitPrintSection && $kitPrintSection !== $previousKitPrintSection)
+                    <div class="row data-row-prl ms-3 manual-row" style="width: 100%" data-row-index="{{ $rowIndex }}" data-kit-section-heading="{{ $kitPrintSection }}">
+                        <div class="kit-extra-heading border-l-b-r text-center align-content-center"><strong>{{ ['kit' => 'KIT', 'bushings' => 'BUSHINGS', 'extra' => 'EXTRA PARTS (ENTER CODE OR CROSS OUT)'][$kitPrintSection] }}</strong></div>
+                    </div>
+                    @php
+                        $previousKitPrintSection = $kitPrintSection;
+                        $previousManual = null;
+                        $rowIndex++;
+                    @endphp
+                @elseif(!$kitPrintSection && ($isExtraBushing || ($isArray && !empty($tdr['kit_extra_part']))) && !($extraBushingsStarted ?? false))
                     <div class="row data-row-prl ms-3 manual-row" style="width: 100%" data-row-index="{{ $rowIndex }}" data-kit-extra-heading="1">
                         <div class="kit-extra-heading border-l-b-r text-center align-content-center"><strong>EXTRA PARTS (ENTER CODE OR CROSS OUT)</strong></div>
                     </div>
@@ -910,6 +921,7 @@
                                                 'kitPrlLabel' => $optionLabel,
                                                 'kitPrlExtraClass' => 'prl-part-number-line',
                                                 'kitPrlPartNumberMode' => true,
+                                                'kitPrlShowEffectivity' => true,
                                             ])
                                         @endforeach
                                     </h6>
@@ -924,6 +936,7 @@
                                                 'kitPrlOption' => $option,
                                                 'kitPrlDisplayValue' => $option['part_number'] ?? '',
                                                 'kitPrlLabel' => $optionLabel,
+                                                'kitPrlShowEffectivity' => true,
                                             ])
                                         @endforeach
                                     </h6>
@@ -955,6 +968,16 @@
                                                   @if($optionQty !== null) data-prl-option-qty="{{ $optionQty }}" @else data-prl-option-qty-empty="1" @endif>@if($optionQty !== null){{ $optionQty }}@else&nbsp;@endif</span>
                                         @endforeach
                                     </h6>
+                                @elseif(!empty($kitComponentOptions))
+                                    @php
+                                        $quantityOption = collect($kitComponentOptions)->first(fn ($option) => empty($option['crossed_out']))
+                                            ?? $kitComponentOptions[0];
+                                    @endphp
+                                    <h6>
+                                        @foreach($kitComponentOptions as $kitOption)
+                                            <span class="prl-qty-line" data-kit-qty-component-id="{{ $kitOption['component_id'] }}">@if($kitOption['component_id'] === $quantityOption['component_id']){{ $tdr['qty'] ?? '' }}@else&nbsp;@endif</span>
+                                        @endforeach
+                                    </h6>
                                 @else
                                     <h6>{{ $isArray ? ($tdr['qty'] ?? '') : ($tdr->qty ?? '') }}</h6>
                                 @endif
@@ -965,6 +988,9 @@
                                         $code = isset($tdr['codes']) && is_array($tdr['codes']) ? ($tdr['codes']['code'] ?? '') : '';
                                     } else {
                                         $code = $tdr->codes->code ?? '';
+                                        if (blank($code) && $tdr->isManufactureOrder()) {
+                                            $code = 'MFG';
+                                        }
                                     }
                                 @endphp
                                 <h6>@if($isArray && !empty($tdr['bushing_option_codes']))

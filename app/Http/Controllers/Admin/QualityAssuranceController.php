@@ -364,10 +364,37 @@ class QualityAssuranceController extends Controller
     public function shipmentReleaseForm(Request $request, Workorder $workorder)
     {
         $workorder->loadMissing(['customer', 'user']);
+        $technician = app(\App\Services\Quality\ShipmentReleaseTechnician::class)->resolve($workorder);
+        $technicians = User::query()->get()->sortBy(fn ($user) => mb_strtolower($user->selection_name))->values();
+        if ($technician && ! $technicians->contains('id', $technician->id)) {
+            $technicians->push($technician);
+        }
 
         return view('admin.quality.forms.shipmentReleaseForm', [
             'current_wo' => $workorder,
+            'technician' => $technician,
+            'technicians' => $technicians,
         ]);
+    }
+
+    public function updateShipmentTechnician(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'technician_id' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
+        ]);
+        DB::transaction(function () use ($workorder, $data, $request): void {
+            $locked = Workorder::whereKey($workorder->id)->lockForUpdate()->firstOrFail();
+            $settings = $locked->certificate_data ?? [];
+            $previous = data_get($settings, 'shipment_release.technician_id');
+            data_set($settings, 'shipment_release.technician_id', (int) $data['technician_id']);
+            $locked->forceFill(['certificate_data' => $settings])->save();
+            if ((int) $previous !== (int) $data['technician_id']) {
+                activity('shipment_release')->performedOn($locked)->causedBy($request->user())
+                    ->withProperties(['old' => ['technician_id' => $previous], 'attributes' => $data])
+                    ->log('Shipment release technician changed');
+            }
+        });
+        return response()->json(['ok' => true]);
     }
 
     public function logCardForm(Request $request, Workorder $workorder)

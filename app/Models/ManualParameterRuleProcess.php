@@ -60,7 +60,7 @@ class ManualParameterRuleProcess extends Model
 
     public function manualProcess(): BelongsTo
     {
-        return $this->belongsTo(ManualProcess::class, 'manual_process_id');
+        return $this->belongsTo(ManualProcess::class, 'manual_process_id')->withTrashed();
     }
 
     public function documents(): MorphMany

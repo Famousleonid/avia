@@ -4,12 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Training;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Tests\BuildsDomainData;
+use Tests\BuildsActiveTrainingData;
 use Tests\TestCase;
 
 class TrainingWeekAvailabilityTest extends TestCase
 {
-    use BuildsDomainData, DatabaseTransactions;
+    use BuildsActiveTrainingData, DatabaseTransactions;
 
     public function test_over_40_hours_marks_a_conflict_and_links_only_editable_records(): void
     {

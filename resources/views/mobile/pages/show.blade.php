@@ -3,6 +3,9 @@
 @extends('mobile.master')
 
 @section('style')
+    @if(config('mobile_camera.pilot_enabled', false))
+        <link rel="stylesheet" href="{{ asset('css/mobile-camera-pilot.css') }}?v={{ filemtime(public_path('css/mobile-camera-pilot.css')) }}">
+    @endif
     <style>
         html, body {
             height: 100%;
@@ -100,7 +103,7 @@
             width: 30%;
         }
 
-        .camera-cell-group {
+        .landscape-camera-panel {
             display: none;
         }
 
@@ -144,7 +147,8 @@
         }
 
         @media (orientation: landscape) and (max-height: 600px) {
-            .app-container {
+            body .app-container {
+                height: calc(var(--vh, 1vh) * 100);
                 height: 100dvh;
             }
 
@@ -155,24 +159,91 @@
                 display: none !important;
             }
 
-            .app-content {
+            .app-container > .app-content {
                 overflow: hidden;
+                display: flex;
+                min-width: 0;
             }
 
             .page-root {
-                height: 100dvh;
+                height: 100%;
+                min-width: 0;
+                min-height: 0;
+            }
+
+            #mobilePhotos {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(116px, 28%);
+                grid-template-rows: minmax(0, 1fr);
+                min-width: 0;
+                padding-left: max(5ch, env(safe-area-inset-left));
+                padding-right: max(5ch, env(safe-area-inset-right));
             }
 
             .table-body-scrollable {
+                min-width: 0;
                 padding-bottom: env(safe-area-inset-bottom);
+            }
+
+            .table-body-scrollable table {
+                table-layout: fixed;
+            }
+
+            .category-label,
+            .col-media {
+                width: 50%;
+                overflow-wrap: anywhere;
             }
 
             .camera-cell-shared {
                 display: none;
             }
 
-            .camera-cell-group {
-                display: table-cell;
+            .landscape-camera-panel {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                min-width: 0;
+                min-height: 0;
+                padding: 12px 8px;
+                border: 1px solid var(--bs-border-color, #495057);
+                border-left: 0;
+                background: #212529;
+                text-align: center;
+            }
+
+            .landscape-camera-category {
+                margin-bottom: 12px;
+                overflow-wrap: anywhere;
+                max-width: 100%;
+                color: #f8f9fa;
+            }
+
+            .landscape-camera-panel .mobile-camera-actions {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+
+            .landscape-camera-panel .js-camera-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 72px;
+                height: 64px;
+                border: 1px solid currentColor;
+                border-radius: 10px;
+                font-size: 2.5rem;
+            }
+
+            .landscape-camera-panel .js-pilot-camera-btn {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                padding: 8px;
+                min-height: 44px;
             }
         }
 
@@ -496,26 +567,18 @@
                             {{-- Правая колонка: одна камера на все строки --}}
                             @if($loop->first)
                                 <td class="text-center col-camera camera-cell-shared" rowspan="{{ count($categories) }}">
-                                    <a href="#"
-                                       class="text-info js-camera-btn"
-                                       data-workorder-id="{{ $workorder->id }}"
-                                       data-workorder-number="{{ $workorder->number }}">
-                                        <i class="bi bi-camera" style="font-size: 1.5rem;"></i>
-                                    </a>
+                                    <div class="mobile-camera-actions">
+                                        <a href="#"
+                                           class="text-info js-camera-btn"
+                                           data-workorder-id="{{ $workorder->id }}"
+                                           data-workorder-number="{{ $workorder->number }}">
+                                            <i class="bi bi-camera" style="font-size: 1.5rem;"></i>
+                                        </a>
+                                        @include('mobile.partials.camera-pilot-button')
+                                    </div>
                                 </td>
                             @endif
 
-                            {{-- В landscape у каждой группы своя камера --}}
-                            <td class="text-center col-camera camera-cell-group">
-                                <a href="#"
-                                   class="text-info js-camera-btn"
-                                   data-photo-category="{{ $type }}"
-                                   data-workorder-id="{{ $workorder->id }}"
-                                   data-workorder-number="{{ $workorder->number }}"
-                                   aria-label="Take photo for {{ $label }}">
-                                    <i class="bi bi-camera" style="font-size: 1.5rem;"></i>
-                                </a>
-                            </td>
                         </tr>
                     @endforeach
 
@@ -523,6 +586,19 @@
                 </table>
             </div>
 
+            <aside class="landscape-camera-panel" aria-label="Photo cameras">
+                <div class="landscape-camera-category" aria-live="polite">{{ reset($categories) }}</div>
+                <div class="mobile-camera-actions">
+                    <a href="#"
+                       class="text-info js-camera-btn"
+                       data-workorder-id="{{ $workorder->id }}"
+                       data-workorder-number="{{ $workorder->number }}"
+                       aria-label="Take photo for selected group">
+                        <i class="bi bi-camera" aria-hidden="true"></i>
+                    </a>
+                    @include('mobile.partials.camera-pilot-button', ['photoCategory' => null, 'showCameraIcon' => true])
+                </div>
+            </aside>
         </div>
     </div>
 
@@ -532,6 +608,10 @@
           method="POST"
           enctype="multipart/form-data"
           style="display: none;"></form>
+
+    @if(config('mobile_camera.pilot_enabled', false))
+        @include('mobile.partials.camera-pilot')
+    @endif
 
 @endsection
 
@@ -593,8 +673,9 @@
                     const response = await fetch(url, options);
 
                     if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
+                        const error = await response.json().catch(() => ({}));
+                        const detail = Object.values(error.errors || {}).flat()[0];
+                        throw new Error(detail || error.message || `Upload failed (HTTP ${response.status}).`);
                     }
 
                     // Попытка парсить JSON только после успешного ответа
@@ -626,6 +707,7 @@
                         document.querySelectorAll('.category-label').forEach(label => {
                             label.classList.toggle('active', label.dataset.category === requestedCategory);
                         });
+                        updateCameraCategoryLabel();
                     }
 
                     currentWorkorderId = cameraBtn.dataset.workorderId;
@@ -640,10 +722,17 @@
                     document.querySelectorAll('.category-label').forEach(h => h.classList.remove('active'));
                     categoryLabel.classList.add('active');
                     currentPhotoCategory = categoryLabel.dataset.category;
+                    updateCameraCategoryLabel();
                     return;
                 }
 
             });
+
+            function updateCameraCategoryLabel() {
+                const label = document.querySelector('.category-label.active');
+                const cameraLabel = document.querySelector('.landscape-camera-category');
+                if (label && cameraLabel) cameraLabel.textContent = label.textContent.trim();
+            }
 
             // ===== Создание кнопки удаления фото в тулбаре Fancybox =====
             function createDeleteButton(fancybox) {
@@ -787,18 +876,33 @@
                     formData.append('photos[]', file);
                 }
 
+                let photoSaved = false;
                 try {
                     const response = await makeRequest(actionUrl, 'POST', formData);
+                    photoSaved = true;
+                    window.MobileLandscapePhoto.saved(files.length);
                     updateGalleryUI(currentWorkorderId, currentWorkorderNumber, response, currentPhotoCategory);
                     setTimeout(() => bindFancyboxForCell(currentWorkorderId, currentPhotoCategory), 100);
                 } catch (e) {
-                    window.notifyError(`Error uploading photos: ${e.message}`);
+                    window.showNotification(photoSaved
+                        ? 'Photo saved, but the gallery could not be refreshed. Reload the page to view it.'
+                        : `Photo not saved. ${e.message}`, photoSaved ? 'warning' : 'error', 15000);
                 } finally {
                     hideLoadingSpinner();
                 }
             }
 
             // ===== Первичная привязка Fancybox ко всем галереям при загрузке страницы =====
+            document.addEventListener('mobile:camera-pilot-saved', event => {
+                const { workorderId, workorderNumber, category, response } = event.detail;
+                try {
+                    updateGalleryUI(workorderId, workorderNumber, response, category);
+                    bindFancyboxForCell(workorderId, category);
+                } catch (error) {
+                    window.showNotification('Photo saved. Reload the page to refresh the gallery.', 'warning');
+                }
+            });
+
             document.querySelectorAll('td[data-workorder-id][data-category]').forEach(cell => {
                 const workorderId = cell.dataset.workorderId;
                 const category = cell.dataset.category;

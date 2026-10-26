@@ -27,11 +27,11 @@
             @endforeach
         </select>
         <a href="{{ route('tdr-processes.show', $formParams) }}"
-           class="btn btn-sm btn-outline-primary form-link d-inline-flex align-items-center justify-content-center"
+           class="btn btn-sm btn-info form-link d-inline-flex align-items-center justify-content-center"
            style="width: 60px"
            data-tdr-process-id="{{ $tdrProcessRow->id }}"
            @if($combinedFormProcessId !== null) data-process="{{ $combinedFormProcessId }}" @endif
            target="_blank">{{ __('Form') }}</a>
+        @include('admin.tdr-processes.partials.processes-body-document-controls', ['attachmentGroup' => null])
     @endif
-    @include('admin.tdr-processes.partials.processes-body-document-controls')
 </div>

@@ -1,5 +1,6 @@
 @php
     $printMarkFormKey = 'traveler';
+    $figureWarnings = \App\Services\TravelerProcessTemplates::figureWarningsForProcesses($tdrProcesses);
 @endphp
 @php
     $formConfig = $formConfig ?? config('process_forms.travel-form', config('process_forms.tdr-processes'));
@@ -324,15 +325,32 @@
         .traveler-process-table { display: table; table-layout: fixed; width: 100%; }
         .traveler-process-table td { height: 36px; vertical-align: middle; padding: 3px; overflow-wrap: anywhere; }
         .traveler-process-table td.div2 { font-size: 14px !important; }
+        @media screen {
+            .container-fluid > .row { margin-left: 0; margin-right: 0; }
+            .traveler-document-header .parent > .div1 { white-space: nowrap; }
+            /* The screen form is narrower than landscape paper. Reserve room for task names. */
+            .traveler-process-table col:nth-child(2) { width: 16% !important; }
+            .traveler-process-table col:nth-child(3) { width: 34% !important; }
+        }
         .traveler-process-table td.div3,
         .traveler-process-table .process-description { font-size: 14px !important; line-height: 1.15; text-align: left; }
         .traveler-process-table tr { break-inside: avoid; page-break-inside: avoid; }
-        .traveler-process-table thead { display: table-header-group; }
+        .traveler-process-table thead { display: table-header-group; break-inside: avoid; }
+        .traveler-process-table td.traveler-document-header {
+            padding: 0 0 8px;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+        .traveler-document-header > .row { margin: 0; }
         .traveler-process-table .traveler-table-header { font-size: 12px !important; }
         @media print {
             .container-fluid > .row { display: block; margin: 0; }
             .container-fluid > .row > .col-4 { float: left; }
             .container-fluid > .row > .col-8 { margin-left: 33.333%; }
+            .traveler-document-header > .row { display: block; }
+            .traveler-document-header > .row > .col-4 { float: left; }
+            .traveler-document-header > .row > .col-8 { margin-left: 33.333%; }
             .traveler-process-table { break-inside: auto !important; page-break-inside: auto !important; margin-bottom: 0 !important; }
             .container-fluid { padding-bottom: 0 !important; }
         }
@@ -351,7 +369,7 @@
     'printMarkQrPageRight' => '4mm',
 ])
 <div class="text-start m-3 no-print">
-    <button class="btn btn-outline-primary" type="button" onclick="window.print()">Print Form</button>
+    <button class="btn btn-outline-primary" type="button" data-traveler-print-button>Print Form</button>
     <button class="btn btn-secondary ms-2" type="button" data-bs-toggle="modal" data-bs-target="#printSettingsModal">⚙️ Print Settings</button>
     @if(!empty($figPagesHtml))
         <label class="ms-3" style="cursor:pointer">
@@ -361,8 +379,20 @@
     @endif
 </div>
 
+@if($figureWarnings !== [])
+    <div class="alert alert-warning m-3 no-print" role="status">
+        <strong>Traveler can be printed. Please check the missing FIG references:</strong>
+        <ul class="mb-0">
+            @foreach($figureWarnings as $warning)
+                <li>{{ $warning }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 <div class="container-fluid">
     <div class="row">
+<table class="table mt-2 traveler-process-table"><colgroup><col style="width:4%"><col style="width:14%"><col style="width:36%"><col style="width:9%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:9%"></colgroup><thead>
+    <tr><td colspan="8" class="traveler-document-header"><div class="row">
         <div class="col-4">
             <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
                  style="width: 180px; margin: 6px 10px 0;">
@@ -376,7 +406,7 @@
 
         <div class="parent">
             <div class="div1" style="text-align: end"> <strong>WO No.</strong></div>
-            <div class="div2 border-b" style="text-align: center">W{{$current_wo->number}}</div>
+            <div class="div2 border-b" style="text-align: center">{{ filled($current_wo->number) ? 'W'.$current_wo->number : '' }}</div>
             <div class="div3" style="text-align: end"> <strong>Description</strong></div>
             <div class="div4 border-b ps-2"> {{ $current_tdr->component->name }} ( {{ $current_tdr->component->ipl_num }})</div>
             <div class="div5" style="text-align: end"> <strong>P/N</strong></div>
@@ -389,7 +419,7 @@
             <div class="div12 border-b ps-2" >{{ $current_tdr->serial_number }} · QTY: {{ max(1, (int) $current_tdr->qty) }}</div>
         </div>
 
-<table class="table mt-2 traveler-process-table"><colgroup><col style="width:4%"><col style="width:14%"><col style="width:36%"><col style="width:9%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:9%"></colgroup><thead>
+    </div></td></tr>
             <tr><td class="div1 border-all traveler-table-header" style="min-height: 36px;  align-content: center"></td>
             <td class="div2 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Task require</strong>d</td>
             <td class="div3 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Process</strong></td>
@@ -432,6 +462,15 @@
                     }
                 }
                 $prevTraveler = null;
+                $previousIsOutgoingInspection = false;
+                $isOutgoingInspection = static function ($process): bool {
+                    $names = array_map(static fn ($name) => strtolower(trim($name)), [
+                        $process->processName->name, $process->processName->identityName(),
+                    ]);
+                    return count(array_intersect($names, ['outcoming inspection', 'outgoing inspection'])) > 0
+                        || (in_array('inspect', $names, true)
+                            && preg_match('/\binspection\s+stage\s*:\s*outgoing\b/i', (string) $process->description));
+                };
                 $receivingInspectionRenderedForBlock = false;
             @endphp
 
@@ -451,6 +490,7 @@
                         }
                     }
                     $normalizedProcessName = strtoupper($tp->processName->identityName());
+                    $currentIsOutgoingInspection = $isOutgoingInspection($tp);
                     $isNdt6TravelerLine = $inTraveler && (
                         str_starts_with($normalizedProcessName, 'NDT-6')
                         || $normalizedProcessName === 'EDDY CURRENT TEST'
@@ -460,6 +500,10 @@
                 @if($inTraveler && $prevTraveler !== true)
                     @php
                         $receivingInspectionRenderedForBlock = false;
+                    @endphp
+                @endif
+                @if($inTraveler && $prevTraveler !== true && !$previousIsOutgoingInspection && !$currentIsOutgoingInspection)
+                    @php
                         $dateRows++;
                     @endphp
                     <tr><td class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{ $dateRows }}</td>
@@ -519,9 +563,9 @@
                     @if(!empty($tp->repair_order))
                         {{ $tp->repair_order }}
                     @elseif(!$inTraveler)
-                        W{{ $current_tdr->workorder->number }}
+                        {{ filled($current_tdr->workorder->number) ? 'W'.$current_tdr->workorder->number : '' }}
                     @elseif($tp->processName->hasIdentity('Paint'))
-                        W{{ $current_wo->number }}
+                        {{ filled($current_wo->number) ? 'W'.$current_wo->number : '' }}
                     @endif
                 </td>
                 <td class="div5 border-r-b " style="min-height: 36px; align-content: center">
@@ -539,7 +583,10 @@
                     @endforeach
                 </td></tr>
 
-                @php $prevTraveler = $inTraveler; @endphp
+                @php
+                    $prevTraveler = $inTraveler;
+                    $previousIsOutgoingInspection = $currentIsOutgoingInspection;
+                @endphp
             @endforeach
 
             @if($prevTraveler === true && !$receivingInspectionRenderedForBlock)
@@ -596,12 +643,34 @@
     </footer>
 </div>
 
+@include('admin.tdr-processes.partials.traveler-template-images')
+
 {{-- страница traveler — letter landscape: чертёж разворачиваем на листе на 90° --}}
 @include('shared.process-forms._fig-attachment', ['figRotatePrint' => true])
 
 @include('shared.process-forms._print-settings-modal', ['module' => 'travel-form', 'formConfig' => $formConfig, 'showFormTypes' => ['other']])
 @include('shared.process-forms._scripts', ['module' => 'travel-form', 'formConfig' => $formConfig])
 <script>
+    document.querySelector('[data-traveler-print-button]').addEventListener('click', async function () {
+        this.disabled = true;
+        const error = document.querySelector('[data-traveler-image-error]');
+        let timeout;
+        try {
+            await Promise.race([
+                Promise.resolve(window.travelerAttachmentsReady).then(() =>
+                    Promise.all([...document.querySelectorAll('[data-traveler-print-image]')].map(image => image.decode()))),
+                new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Image loading timed out')), 30000); })
+            ]);
+            if (error) error.hidden = true;
+            window.print();
+        } catch (_) {
+            if (error) {
+                error.hidden = false;
+                error.textContent = 'Traveler attachments have not loaded. Check the images and PDFs, then reload before printing.';
+                error.scrollIntoView({block: 'center'});
+            }
+        } finally { clearTimeout(timeout); this.disabled = false; }
+    });
     if (typeof window.bootstrapLoaded === 'undefined') {
         window.bootstrapLoaded = true;
         const script = document.createElement('script');

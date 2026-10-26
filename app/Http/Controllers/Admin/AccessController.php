@@ -86,7 +86,9 @@ class AccessController extends Controller
                     $user->update([self::TRAINING_FLAGS[$data['feature_key']] => true]);
                 }
             });
-            return redirect()->route('admin.access.index')->with('success', 'Access saved.');
+            return redirect()->route('admin.access.index')
+                ->with('active_access_feature', $data['feature_key'])
+                ->with('success', 'Access saved.');
         }
 
         $assignableUserIds = User::query()
@@ -113,6 +115,7 @@ class AccessController extends Controller
 
         return redirect()
             ->route('admin.access.index')
+            ->with('active_access_feature', $data['feature_key'])
             ->with('success', $granted->count() === 1 ? 'Access saved.' : 'Access saved for '.$granted->count().' users.');
     }
 
@@ -124,6 +127,7 @@ class AccessController extends Controller
 
         return redirect()
             ->route('admin.access.index')
+            ->with('active_access_feature', $access->feature_key)
             ->with('success', 'Access removed.');
     }
 
@@ -151,7 +155,9 @@ class AccessController extends Controller
     {
         abort_unless(isset(self::TRAINING_FLAGS[$feature]), 404);
         $user->update([self::TRAINING_FLAGS[$feature] => false]);
-        return redirect()->route('admin.access.index')->with('success', 'Access removed.');
+        return redirect()->route('admin.access.index')
+            ->with('active_access_feature', $feature)
+            ->with('success', 'Access removed.');
     }
 
     private function isManagedFeature(string $featureKey): bool

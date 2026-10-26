@@ -183,6 +183,12 @@ public function rmRecordForm(Request $request, $id)
         }
     }
     
+    $rmRecords = app(\App\Services\WorkorderRepairRows::class)->rows($current_wo, $rmRecords)
+        ->reject(fn ($row) => $row['deleted'])->map(function ($row) {
+            $row['part_description'] = trim($row['ipl'].' '.$row['part_description']);
+            $row['ident_method'] = trim($row['ident_method'].' '.$row['ident_number']);
+            return (object) $row;
+        });
     return view('admin.rm_reports.rmRecordForm', compact('current_wo', 'technicalNotes', 'rmRecords'));
 
 }
@@ -215,11 +221,19 @@ public function rmRecordForm(Request $request, $id)
      */
     public function update(Request $request, $id, WorkorderAssemblyModificationService $modificationService)
     {
+        abort_unless((int) $id === (int) $request->workorder_id, 422);
         $request->validate([
             'workorder_id' => ['required', 'integer', 'exists:workorders,id'],
             'selected_records' => ['nullable', 'json'],
             'notes' => ['nullable', 'array'],
             'notes.*' => ['nullable', 'string'],
+            'editor_rows' => ['sometimes', 'array'],
+            'editor_rows.*.key' => ['required', 'string', 'distinct'],
+            'editor_rows.*.mod_repair' => ['required', 'in:Repair,Modification,SB'],
+            'editor_rows.*.description' => ['nullable', 'string', 'max:2000'],
+            'editor_rows.*.ident_method' => ['nullable', 'string', 'max:250'],
+            'editor_rows.*.ident_number' => ['nullable', 'string', 'max:250'],
+            'editor_rows.*.deleted' => ['required', 'boolean'],
         ]);
         $selectedRecords = json_decode((string) $request->selected_records, true);
         $workorder_id = (int) $request->workorder_id;
@@ -240,6 +254,18 @@ public function rmRecordForm(Request $request, $id)
         $recordIds = $this->selectedRecordIds($selectedRecords);
         $rmRecords = $this->selectedRecordsForWorkorder($workorder, $recordIds);
         $dataToSave = [];
+        $rowService = app(\App\Services\WorkorderRepairRows::class);
+        if ($request->has('editor_rows')) {
+            $allowedKeys = $rowService->rows($workorder, $rmRecords, [])->pluck('key')->all();
+            foreach ($request->input('editor_rows', []) as $row) {
+                if (!in_array($row['key'], $allowedKeys, true)) {
+                    throw ValidationException::withMessages(['editor_rows' => 'The repair row does not belong to this work order.']);
+                }
+            }
+            $dataToSave['editor_rows'] = $rowService->rows($workorder, $rmRecords, $request->input('editor_rows'))->all();
+        } else {
+            $dataToSave['editor_rows'] = $rowService->rows($workorder, $rmRecords)->all();
+        }
         if ($rmRecords->isNotEmpty()) {
             $dataToSave['rm_records'] = $this->recordSnapshots($rmRecords);
         }
@@ -671,19 +697,21 @@ public function rmRecordForm(Request $request, $id)
             ]);
         }
 
-        foreach ($mappingFields as $field) {
+        // An SB may describe work on the received assembly without converting it.
+        $validated['target_assy_option_id'] = $validated['target_assy_option_id'] ?? null;
+        foreach (['manual_service_bulletin_id', 'source_assy_option_id'] as $field) {
             if ((int) ($validated[$field] ?? 0) <= 0) {
                 throw ValidationException::withMessages([
-                    $field => __('Select the Service Bulletin, received ASSY, and modified ASSY.'),
+                    $field => __('Select the Service Bulletin and received ASSY.'),
                 ]);
             }
         }
 
-        $optionIds = [
+        $optionIds = array_values(array_filter([
             (int) $validated['source_assy_option_id'],
             (int) $validated['target_assy_option_id'],
-        ];
-        if ($optionIds[0] === $optionIds[1]) {
+        ]));
+        if (count($optionIds) === 2 && $optionIds[0] === $optionIds[1]) {
             throw ValidationException::withMessages([
                 'target_assy_option_id' => __('Modified ASSY must be different from the received ASSY.'),
             ]);
@@ -695,9 +723,9 @@ public function rmRecordForm(Request $request, $id)
                 ->where('manual_id', $manualId)
                 ->where('type', ManualPartGroup::TYPE_ASSY))
             ->count();
-        if ($validOptions !== 2) {
+        if ($validOptions !== count($optionIds)) {
             throw ValidationException::withMessages([
-                'source_assy_option_id' => __('Both assemblies must be active ASSY groups from this Workorder manual.'),
+                'source_assy_option_id' => __('Selected assemblies must be active ASSY groups from this Workorder manual.'),
             ]);
         }
 

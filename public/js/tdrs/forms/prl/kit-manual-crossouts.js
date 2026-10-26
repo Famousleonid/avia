@@ -50,6 +50,14 @@
         rows.forEach((row) => {
             const options = Array.from(row.querySelectorAll('[data-kit-prl-component-id]'));
             const crossedOut = options.length > 0 && options.every(optionIsCrossedOut);
+            const quantities = Array.from(row.querySelectorAll('[data-kit-qty-component-id]'));
+            if (quantities.length) {
+                const value = quantities.map(node => node.textContent.trim()).find(Boolean) || '';
+                const active = options.find(option => !optionIsCrossedOut(option)) || options[0];
+                quantities.forEach(node => {
+                    node.textContent = node.dataset.kitQtyComponentId === active?.dataset.kitPrlComponentId ? value : '\u00a0';
+                });
+            }
 
             row.classList.toggle('prl-row-crossed-out', crossedOut);
             if (crossedOut) {

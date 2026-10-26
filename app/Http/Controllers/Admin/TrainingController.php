@@ -137,6 +137,7 @@ class TrainingController extends Controller
         $scopes = Scope::pluck('scope', 'id');
         $renewalThresholdDays = (int) config('trainings.renewal_threshold_days', 180);
 
+        $unitAvailability = app(\App\Services\TrainingUnitAvailability::class)->forManuals($trainingLists->keys());
         $totalHoursAll = 0.0;
         foreach ($trainingLists as $manualId => $trainings) {
             $sortedTrainings = $trainings->sortBy('date_training');
@@ -171,6 +172,7 @@ class TrainingController extends Controller
                 : true;
 
             $formattedTrainingLists[] = [
+                'unit_availability' => $unitAvailability[$manualId],
                 'manuals_id' => $manualId,
                 'first_training' => $firstTraining,
                 'form_132' => $form132,
@@ -294,7 +296,8 @@ class TrainingController extends Controller
         $addedManuals = Manual::whereIn('id', $addedCmmIds)->whereNotNull('unit_name_training')
             ->where('unit_name_training', '<>', '')->get();
 
-        return view($request->boolean('modal') ? 'admin.trainings.partials.add-unit-modal' : 'admin.trainings.create', compact('manuals', 'addedManuals', 'planes', 'userId', 'targetUser'));
+        $unitAvailability = app(\App\Services\TrainingUnitAvailability::class)->forManuals($manuals->pluck('id')->merge($addedManuals->pluck('id')));
+        return view($request->boolean('modal') ? 'admin.trainings.partials.add-unit-modal' : 'admin.trainings.create', compact('unitAvailability', 'manuals', 'addedManuals', 'planes', 'userId', 'targetUser'));
     }
 
     /**
@@ -983,6 +986,7 @@ class TrainingController extends Controller
 
         // Тренинги обоих видов: по CMM (production) и по строкам-курсам (SCA)
         $manualIds = $rowByManualId->keys();
+        $unitAvailability = app(\App\Services\TrainingUnitAvailability::class)->forManuals($manualIds);
         $manualTrainings = $manualIds->isEmpty() ? collect() : Training::whereIn('manuals_id', $manualIds)
             ->whereNull('matrix_row_id')
             ->whereIn('user_id', $userIds)
@@ -1062,7 +1066,7 @@ class TrainingController extends Controller
         }
 
         return view('admin.trainings.show_all', compact(
-            'categories', 'users', 'cells', 'canManage', 'canApprove', 'scaMode', 'unlinkedManuals', 'uncategorizedCount',
+            'unitAvailability', 'categories', 'users', 'cells', 'canManage', 'canApprove', 'scaMode', 'unlinkedManuals', 'uncategorizedCount',
             'allCategories', 'showInactive', 'inactiveCount', 'personnel'
         ));
     }

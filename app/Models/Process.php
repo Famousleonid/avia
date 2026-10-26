@@ -35,7 +35,7 @@ class Process extends Model
     // Связь с Manual через промежуточную таблицу manual_processes
     public function manuals()
     {
-        return $this->belongsToMany(Manual::class, 'manual_processes', 'processes_id', 'manual_id');
+        return $this->belongsToMany(Manual::class, 'manual_processes', 'processes_id', 'manual_id')->wherePivotNull('deleted_at');
     }
 
     public function tdrs()

@@ -98,6 +98,11 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return $this->isSystemAdmin() || $this->hasExplicitFeatureAccess('manuals.locked_parts');
     }
 
+    public function canManageLogCardOrder(): bool
+    {
+        return $this->isSystemAdmin() || $this->hasExplicitFeatureAccess('manuals.log_card_order');
+    }
+
     public function roleName(): ?string
     {
         return $this->role?->name;

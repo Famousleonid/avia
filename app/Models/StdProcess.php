@@ -910,7 +910,7 @@ class StdProcess extends Model
                 ->where('manual_id', $manual->id)
                 ->where('std', $std)
                 ->whereNotNull('component_id')
-                ->with('component:id,manual_id')
+                ->with('component:id,manual_id,units_assy')
                 ->get()
                 ->each(function (self $row) use ($flaggedKeys, $manual): void {
                     if (! $row->component) {
@@ -922,6 +922,10 @@ class StdProcess extends Model
                     if ((int) $row->component->manual_id === (int) $manual->id
                         && ! $flaggedKeys->has((int) $row->component_id)) {
                         $row->delete();
+                    } elseif ((int) $row->component->manual_id !== (int) $manual->id) {
+                        // Rows added from another CMM also take their quantity from Parts.
+                        $row->qty = max(1, (int) $row->component->units_assy);
+                        $row->save();
                     }
                 });
 

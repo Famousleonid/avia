@@ -4,10 +4,13 @@
     <small class="text-muted">{{ __('Part') }}: {{ $current_tdr->component->name ?? '' }}</small><br>
     <small class="text-muted">{{ __('PN') }}: {{ $current_tdr->component->part_number ?? '' }} | {{ __('IPL') }}: {{ $current_tdr->component->ipl_num ?? '' }}</small>
 </div>
-<form id="editTdrForm" class="editForm" role="form" method="POST"
+<form id="editTdrForm" class="editForm" data-manufacture-pair="{{ $current_tdr->isManufacturePairMember() ? '1' : '0' }}" role="form" method="POST"
       action="{{ route('tdrs.update', $current_tdr->id) }}"
       enctype="multipart/form-data">
     @csrf
+    @if($current_tdr->isManufacturePairMember())
+        <div class="alert alert-info py-2">{{ __('Changes are saved to both Manufacture entries. Order New / Repair and existing processes are preserved.') }}</div>
+    @endif
     @method('PUT')
 
     <input type="hidden" name="workorder_id" value="{{ $current_tdr->workorder->id }}">
@@ -51,7 +54,7 @@
     <div class="row mb-3">
         <div class="col-md-6">
             <label for="edit_codes_id" class="form-label">{{ __('Code Inspection') }}</label>
-            <select name="codes_id" id="edit_codes_id" class="form-control" style="width: 100%">
+            <select @disabled($current_tdr->isManufacturePairMember()) name="codes_id" id="edit_codes_id" class="form-control" style="width: 100%">
                 @foreach($codes as $code)
                     <option value="{{ $code->id }}" {{ $code->id == $current_tdr->codes_id ? 'selected' : '' }}>
                         {{ $code->name }}
@@ -61,7 +64,7 @@
         </div>
         <div class="col-md-6">
             <label for="edit_necessaries_id" class="form-label">{{ __('Necessary to Do') }}</label>
-            <select name="necessaries_id" id="edit_necessaries_id" class="form-control" style="width: 100%">
+            <select @disabled($current_tdr->isManufacturePairMember()) name="necessaries_id" id="edit_necessaries_id" class="form-control" style="width: 100%">
                 @foreach($necessaries as $necessary)
                     <option value="{{ $necessary->id }}" {{ $necessary->id == $current_tdr->necessaries_id ? 'selected' : '' }}>
                         {{ $necessary->name }}

@@ -386,7 +386,7 @@ class WoBushingController extends Controller
 
         if ($workorder) {
             $bushings = app(WorkorderPartScopeResolver::class)
-                ->filterComponents($bushings, $workorder);
+                ->filterTdrComponents($bushings, $workorder);
         }
 
         return BushingPrlGrouping::groups($bushings)
@@ -520,7 +520,7 @@ class WoBushingController extends Controller
             ->unique();
 
         $outside = $componentIds->first(fn (int $id): bool =>
-            ! app(WorkorderPartScopeResolver::class)->allowsComponent($workorder, $id)
+            ! app(WorkorderPartScopeResolver::class)->allowsTdrComponent($workorder, $id)
         );
         $eligible = Component::query()->whereKey($componentIds)
             ->where('manual_id', $workorder->unit->manual_id)->bushingCandidates()->pluck('id');

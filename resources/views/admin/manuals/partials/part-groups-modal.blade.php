@@ -74,9 +74,9 @@
                                 <div class="col-md-5">
                                     <label class="form-label" for="manual-part-group-type">{{ __('Group type') }}</label>
                                     <select class="form-select" id="manual-part-group-type" required>
+                                        <option value="assy" selected>{{ __('ASSY') }}</option>
                                         <option value="alternative_pn">{{ __('Alternative P/N') }}</option>
                                         <option value="oversize">{{ __('Bushing: Original / Oversize') }}</option>
-                                        <option value="assy">{{ __('ASSY') }}</option>
                                         <option value="kit">{{ __('KIT') }}</option>
                                     </select>
                                 </div>

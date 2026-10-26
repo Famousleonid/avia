@@ -327,7 +327,10 @@
 
 @section('content')
     @php
-        $firstFeatureKey = array_key_first($features);
+        $requestedFeatureKey = old('feature_key', session('active_access_feature'));
+        $firstFeatureKey = isset($features[$requestedFeatureKey ?? ''])
+            ? $requestedFeatureKey
+            : array_key_first($features);
     @endphp
 
     <div class="access-page">

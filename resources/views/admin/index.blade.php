@@ -18,9 +18,11 @@
         }
 
         .cabinet-aircraft-stage--photo .cabinet-aircraft {
-            width: 20%;
-            left: 75%;
-            top: 25%;
+            width: 16%;
+            left: auto;
+            right: 3%;
+            top: 5%;
+            transform: none;
         }
     </style>
 @endsection

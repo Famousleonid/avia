@@ -14,6 +14,77 @@ class LogCardAssemblyIdentityTest extends TestCase
 {
     use BuildsDomainData, DatabaseTransactions;
 
+    /** @dataProvider springParentCounts */
+    public function test_each_spring_instance_keeps_its_own_assy_on_save_reopen_and_print(int $parentCount): void
+    {
+        [$admin, $wo, $part, $first, $second] = $this->scopedMainFitting();
+        $wo->update(['scope_type' => 'full_unit', 'scope_part_group_option_id' => null]);
+        $part->update(['name' => 'SPRING', 'ipl_num' => '1001-300C', 'part_number' => '2309-2651-005', 'units_assy' => 2]);
+        $first->update(['ipl_num' => '1001-170C', 'part_number' => '2309-2650-005']);
+        $second->update(['ipl_num' => '1001-170A', 'part_number' => '2309-2650-003']);
+        if ($parentCount === 1) $second->coverages()->delete();
+        $parents = [$first, $parentCount === 1 ? $first : $second];
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()]);
+        $assertDraft = function (array $selected) use ($wo, $part, $parentCount): void {
+            $response = $this->get(route('log_card.partial', $wo).'?edit=1')->assertOk();
+            $dom = new \DOMDocument();
+            @$dom->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
+            $xpath = new \DOMXPath($dom);
+            $base = '//tr[.//input[@data-unit-index and @value="'.$part->id.'"]]';
+            $this->assertSame(2, $xpath->query($base)->length);
+            foreach ([1, 2] as $index) {
+                $select = $base.'[.//input[@data-unit-index="'.$index.'"]]//select[contains(@class,"lc-unit-assy-select")]';
+                $this->assertSame(1, $xpath->query($select)->length);
+                $this->assertSame($parentCount + 1, $xpath->query($select.'/option')->length);
+                $this->assertSame(1, $xpath->query($select.'/option[@selected and @value="'.$selected[$index - 1].'"]')->length);
+            }
+        };
+        $assertDraft($parentCount === 1 ? [$first->id, $first->id] : ['', '']);
+        $rows = [];
+        foreach ($parents as $i => $parent) {
+            $rows[] = ['component_id' => (string) $part->id, 'unit_index' => (string) ($i + 1), 'units_assy' => '2',
+                'serial_number' => 'SPRING-SN-'.($i + 1), 'assy_serial_number' => 'CARTRIDGE-SN-'.($i + 1),
+                'manual_part_group_choice' => 'component', 'manual_part_group_id' => (string) $parent->manual_part_group_id,
+                'assy_selection_explicit' => '1', 'assy_option_id' => (string) $parent->id];
+        }
+        $this->postJson(route('log_card.store'), ['workorder_id' => $wo->id, 'component_data' => json_encode($rows)])->assertOk();
+        $log = LogCard::where('workorder_id', $wo->id)->firstOrFail();
+        $saved = collect(json_decode($log->component_data, true))->keyBy('unit_index');
+        $this->assertCount(2, $saved);
+        foreach ($parents as $i => $parent) {
+            $this->assertSame((string) $parent->id, $saved[$i + 1]['assy_option_id']);
+            $this->assertSame($parent->part_number, $saved[$i + 1]['assy_part_number']);
+            $this->assertSame('CARTRIDGE-SN-'.($i + 1), $saved[$i + 1]['assy_serial_number']);
+        }
+        $assertDraft(array_map(fn ($p) => $p->id, $parents));
+        $print = $this->get(route('log_card.logCardForm', $wo))->assertOk();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$print->getContent());
+        $xpath = new \DOMXPath($dom);
+        foreach ($parents as $i => $parent) {
+            $printedRow = $xpath->query('//div[contains(concat(" ",normalize-space(@class)," ")," log-card-data-row ") and contains(.,"SPRING-SN-'.($i + 1).'")]')->item(0);
+            $this->assertNotNull($printedRow);
+            $this->assertStringContainsString($parent->part_number, $printedRow->textContent);
+            $this->assertStringContainsString('CARTRIDGE-SN-'.($i + 1), $printedRow->textContent);
+        }
+        $this->putJson(route('log_card.update', $log), ['workorder_id' => $wo->id, 'component_data' => json_encode([...$rows, $rows[0]])])->assertUnprocessable();
+        // Clearing one instance must neither restore its automatic parent nor alter the other instance.
+        $rows[0] = app(LogCardAssemblyIdentity::class)->withoutAssembly($rows[0]);
+        $this->putJson(route('log_card.update', $log), ['workorder_id' => $wo->id, 'component_data' => json_encode($rows)])->assertOk();
+        $saved = collect(json_decode($log->fresh()->component_data, true))->keyBy('unit_index');
+        $this->assertSame('', $saved[1]['assy_part_number']);
+        $this->assertSame('SPRING-SN-1', $saved[1]['serial_number']);
+        $this->assertSame($parents[1]->part_number, $saved[2]['assy_part_number']);
+        $this->assertSame('CARTRIDGE-SN-2', $saved[2]['assy_serial_number']);
+        $assertDraft(['', $parents[1]->id]);
+        $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertDontSee('CARTRIDGE-SN-1')->assertSee('CARTRIDGE-SN-2');
+    }
+
+    public static function springParentCounts(): array
+    {
+        return ['one parent' => [1], 'two parents' => [2]];
+    }
+
     public function test_empty_assy_survives_save_reopen_print_and_mobile_with_one_or_multiple_parents(): void
     {
         [$admin, $wo, $part, $first, $second] = $this->scopedMainFitting();

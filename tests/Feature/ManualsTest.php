@@ -123,7 +123,7 @@ class ManualsTest extends TestCase
         $withDeletedResponse = $this->actingAs($admin)->get(route('manuals.index', ['with_deleted' => 1]));
         $withDeletedResponse->assertOk();
         $withDeletedResponse->assertSee('CMM-SOFT-DELETED');
-        $withDeletedResponse->assertSee('Soft deleted');
+        $withDeletedResponse->assertSee('Archived');
         $withDeletedResponse->assertSee('manual-soft-deleted-row', false);
         $withDeletedResponse->assertSee('showDeletedManualsCheckbox', false);
         $withDeletedResponse->assertSee('Permanent delete CMM-SOFT-DELETED', false);
@@ -146,9 +146,7 @@ class ManualsTest extends TestCase
 
         $response = $this->actingAs($technician)->get(route('manuals.index', ['with_deleted' => 1]));
 
-        $response->assertOk();
-        $response->assertDontSee('CMM-HIDDEN-DELETED');
-        $response->assertDontSee('id="showDeletedManualsCheckbox"', false);
+        $response->assertForbidden();
     }
 
     public function test_non_admin_sees_only_permitted_manuals(): void

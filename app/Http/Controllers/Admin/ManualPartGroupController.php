@@ -21,7 +21,7 @@ class ManualPartGroupController extends Controller
 {
     public function store(Request $request, Manual $manual): JsonResponse
     {
-        $this->authorizeManualUpdate($request, $manual);
+        $this->authorizeManualUpdate($request, $manual, true);
         $data = $this->validatedData($request, $manual);
 
         $group = DB::transaction(function () use ($request, $manual, $data): ManualPartGroup {
@@ -58,7 +58,7 @@ class ManualPartGroupController extends Controller
 
     public function update(Request $request, Manual $manual, ManualPartGroup $partGroup): JsonResponse
     {
-        $this->authorizeManualUpdate($request, $manual);
+        $this->authorizeManualUpdate($request, $manual, true);
         $this->ensureGroupBelongsToManual($partGroup, $manual);
         $data = $this->validatedData($request, $manual, $partGroup);
 
@@ -108,7 +108,11 @@ class ManualPartGroupController extends Controller
 
     public function destroy(Request $request, Manual $manual, ManualPartGroup $partGroup): JsonResponse
     {
-        $this->authorizeManualUpdate($request, $manual);
+        $this->authorizeManualUpdate(
+            $request, $manual, allowAssignedGroupDelete: in_array($partGroup->type, [
+                ManualPartGroup::TYPE_ASSY, ManualPartGroup::TYPE_ALTERNATIVE, ManualPartGroup::TYPE_OVERSIZE,
+            ], true)
+        );
         $this->ensureGroupBelongsToManual($partGroup, $manual);
         $this->removeIncomingOptionCoverages($partGroup->options()->pluck('id')->all());
         $partGroup->delete();
@@ -423,9 +427,19 @@ class ManualPartGroupController extends Controller
             ->delete();
     }
 
-    private function authorizeManualUpdate(Request $request, Manual $manual): void
+    private function authorizeManualUpdate(
+        Request $request, Manual $manual, bool $allowAssignedEdit = false, bool $allowAssignedGroupDelete = false
+    ): void
     {
-        abort_unless($request->user() && ($request->user()->roleIs('Admin') || $request->user()->can('manuals.update', $manual)), 403);
+        $user = $request->user();
+        // ASSY, Alternative and Bushing deletion accepts an explicit manual assignment.
+        // Full access alone and KIT deletion keep their existing rules.
+        $hasGroupAccess = $user && (
+            ($allowAssignedEdit && $user->hasFullManualsAccess())
+            || (($allowAssignedEdit || $allowAssignedGroupDelete)
+                && $user->permittedManuals()->where('manuals.id', $manual->id)->exists())
+        );
+        abort_unless($user && ($user->roleIs('Admin') || $user->can('manuals.update', $manual) || $hasGroupAccess), 403);
         $manual->loadMissing('partLock');
         abort_if($manual->partLock && ! $request->user()->canManageLockedManualParts(), 423, 'Manual parts are locked.');
     }

@@ -1927,8 +1927,10 @@ class TdrController extends Controller
                 'orderComponentAssembly' => function($query) { $query->select('id', 'component_id', 'assy_part_number', 'assy_ipl_num'); }
             ])
             ->get();
-        $prlPartsCount = $this->countPrlQtyAfterKitSupply($prl_parts, $kitComponents)
-            + $bushingPrlCount;
+        // Count the final printed quantities, including KIT/Kit_E supply,
+        // assembly coverage and the routing of overhaul bushings to KIT.
+        $prlPartsCount = (int) app(TdrPrintFormController::class)
+            ->prlPrintRows($current_wo)->sum('qty');
 
         $planes = Plane::all();
         $builders = Builder::all();
@@ -2054,6 +2056,12 @@ class TdrController extends Controller
             ->where('workorder_id', $workorder->id)
             ->where('use_tdr', true)
             ->where('use_process_forms', true)
+            // Match the active table: component() includes archived parts for
+            // historical forms, but those rows are not sent by the drag handler.
+            ->where(function ($query) {
+                $query->whereNull('component_id')
+                    ->orWhereHas('component', fn ($component) => $component->whereNull('components.deleted_at'));
+            })
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
             ->values();
@@ -2101,11 +2109,6 @@ class TdrController extends Controller
     {
 
         $current_tdr = Tdr::findOrFail($id);
-        abort_if(
-            $current_tdr->isManufacturePairMember(),
-            422,
-            __('Manufacture entries cannot be edited. Delete the Manufacture pair and create a new TDR entry instead.')
-        );
 
         $manuals = Manual::all();
         $units = Unit::all();
@@ -2139,11 +2142,6 @@ class TdrController extends Controller
     public function editForm($id)
     {
         $current_tdr = Tdr::with(['workorder.unit', 'component'])->findOrFail($id);
-        abort_if(
-            $current_tdr->isManufacturePairMember(),
-            422,
-            __('Manufacture entries cannot be edited. Delete the Manufacture pair and create a new TDR entry instead.')
-        );
         $codes = Code::all();
         $necessaries = Necessary::all();
         $manuals = Manual::all();
@@ -2203,19 +2201,67 @@ class TdrController extends Controller
         }
     }
 
+    private function updateManufacturePair(Request $request, Tdr $tdr)
+    {
+        $rules = [
+            'serial_number' => 'sometimes|nullable|string',
+            'assy_serial_number' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string',
+            'qty' => 'sometimes|required|integer|min:1|max:999999',
+            'codes_id' => ['sometimes', 'required', \Illuminate\Validation\Rule::in([$tdr->codes_id])],
+            'necessaries_id' => ['sometimes', 'required', \Illuminate\Validation\Rule::in([$tdr->necessaries_id])],
+        ];
+        if ($request->user()?->can('feature.tdrs.replace_component')) {
+            $rules['component_id'] = 'sometimes|required|exists:components,id';
+        }
+        $validated = $request->validate($rules);
+        unset($validated['codes_id'], $validated['necessaries_id']);
+        if (isset($validated['component_id'])) {
+            $this->validateTdrComponentManuals($tdr->workorder, ['component_id' => $validated['component_id']]);
+        }
+
+        DB::transaction(function () use ($tdr, $validated): void {
+            // Serialize edits from either side; never identify a pair by P/N alone.
+            $query = Tdr::query()->where('workorder_id', $tdr->workorder_id)
+                ->whereIn('tdr_type', [Tdr::TYPE_MANUFACTURE_ORDER, Tdr::TYPE_MANUFACTURE_REPAIR]);
+            if (filled($tdr->manufacture_pair_id)) {
+                $query->where('manufacture_pair_id', $tdr->manufacture_pair_id);
+            } else {
+                $query->whereNull('manufacture_pair_id')->where('component_id', $tdr->component_id)
+                    ->where('created_at', $tdr->created_at);
+            }
+            $members = $query->orderBy('id')->lockForUpdate()->get();
+            $order = $members->first(fn (Tdr $row) => $row->isManufactureOrder());
+            $repair = $members->first(fn (Tdr $row) => $row->isManufactureRepair());
+            if ($members->count() !== 2 || !$order || !$repair || !$members->contains('id', $tdr->id)
+                || $order->component_id !== $repair->component_id || $order->codes_id !== $repair->codes_id) {
+                throw ValidationException::withMessages(['tdr' => __('Manufacture pair is incomplete or inconsistent. Refresh the page and check both entries.')]);
+            }
+            $this->validateRepairQuantity($validated, $repair);
+            foreach ($members as $member) {
+                $values = $validated;
+                if (isset($values['component_id']) && $member->isManufactureOrder()) {
+                    $values['order_component_id'] = $values['component_id'];
+                }
+                // Leave roles, conditions, process flags and existing routes intact.
+                $member->update($values);
+            }
+        });
+
+        $redirect = route('tdrs.show', ['id' => $tdr->workorder_id]);
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'redirect' => $redirect]);
+        }
+        return redirect($redirect)->with('success', __('Both Manufacture entries updated successfully.'));
+    }
+
     public function update(Request $request, $id)
     {
         // Находим запись Tdr по ID
         $tdr = Tdr::findOrFail($id);
 
         if ($tdr->isManufacturePairMember()) {
-            $message = __('Manufacture entries cannot be edited. Delete the Manufacture pair and create a new TDR entry instead.');
-
-            if ($request->wantsJson() || $request->ajax()) {
-                return response()->json(['message' => $message], 422);
-            }
-
-            return redirect()->back()->withErrors(['tdr' => $message]);
+            return $this->updateManufacturePair($request, $tdr);
         }
 
         $canReplaceTdrComponent = (bool) ($request->user()?->can('feature.tdrs.replace_component') ?? false);
@@ -2762,42 +2808,6 @@ class TdrController extends Controller
         return collect($components)
             ->groupBy(fn ($component): string => KitPrlGrouping::groupKeyForComponent($component, $keys))
             ->count();
-    }
-
-    private function countPrlQtyAfterKitSupply($prlParts, $kitComponents): int
-    {
-        $kitSupply = collect($kitComponents)
-            ->groupBy(function (Component $component): string {
-                $partNumber = $this->normalizePrlPartNumber($component->part_number);
-
-                return $partNumber !== ''
-                    ? 'part-number|' . $partNumber
-                    : 'component|' . (int) $component->id;
-            })
-            ->map(fn ($components): int => $components->sum(
-                fn (Component $component): int => max(1, (int) ($component->units_assy ?? 1))
-            ))
-            ->all();
-
-        return collect($prlParts)->sum(function (Tdr $tdr) use (&$kitSupply): int {
-            $component = $tdr->orderComponent ?? $tdr->component;
-            $partNumber = $tdr->orderComponentAssembly?->assy_part_number
-                ?: ($component?->part_number ?? '');
-            $normalizedPartNumber = $this->normalizePrlPartNumber($partNumber);
-            $identity = $normalizedPartNumber !== ''
-                ? 'part-number|' . $normalizedPartNumber
-                : 'component|' . (int) ($component?->id ?? 0);
-            $requiredQty = max(1, (int) ($tdr->qty ?? 1));
-            $coveredQty = min($requiredQty, (int) ($kitSupply[$identity] ?? 0));
-            $kitSupply[$identity] = max(0, (int) ($kitSupply[$identity] ?? 0) - $coveredQty);
-
-            return $requiredQty - $coveredQty;
-        });
-    }
-
-    private function normalizePrlPartNumber(?string $partNumber): string
-    {
-        return (string) preg_replace('/\s+/', '', mb_strtoupper(trim((string) $partNumber)));
     }
 
     private function countSpecProcessFormColumns(Workorder $workorder): int

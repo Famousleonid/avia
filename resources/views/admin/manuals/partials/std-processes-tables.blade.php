@@ -29,6 +29,17 @@
         letter-spacing: 0;
         white-space: nowrap;
     }
+    .std-process-audit-tooltip {
+        --bs-tooltip-max-width: calc(100vw - 32px);
+        width: calc(100vw - 32px);
+        max-width: calc(100vw - 32px);
+    }
+    .std-process-audit-tooltip .tooltip-inner {
+        max-width: none;
+        text-align: left;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
 </style>
 <div class="std-processes-nested-wrap">
 
@@ -98,6 +109,9 @@
                                         @if($auditWarning)
                                             <span class="badge text-bg-warning std-process-audit-badge"
                                                   data-bs-toggle="tooltip"
+                                                  data-bs-custom-class="std-process-audit-tooltip"
+                                                  data-bs-container="body"
+                                                  data-bs-placement="bottom"
                                                   title="{{ $auditWarning['message'] }}">
                                                 <i class="bi bi-exclamation-triangle-fill me-1"></i>Mixed process
                                             </span>
@@ -118,18 +132,8 @@
                                     data-qty="{{ (int) $row->qty }}"
                                     data-ipl="{{ e($part?->ipl_num ?? '') }}"
                                     data-description="{{ e($part?->name ?? '') }}">{{ $row->process }}</td>
-                                <td class="text-center std-process-edit-cell"
-                                    role="button"
-                                    tabindex="0"
-                                    data-std-process-edit
-                                    data-field="qty"
-                                    title="{{ __('Edit STD row') }}"
-                                    data-std-process-id="{{ $row->id }}"
-                                    data-std="{{ e($row->std) }}"
-                                    data-process="{{ e($row->process) }}"
-                                    data-qty="{{ (int) $row->qty }}"
-                                    data-ipl="{{ e($part?->ipl_num ?? '') }}"
-                                    data-description="{{ e($part?->name ?? '') }}">{{ $row->qty }}</td>
+                                <td class="text-center" data-field="qty"
+                                    title="{{ __('Qty from Parts') }}">{{ $row->qty }}</td>
                                 <td class="text-center std-process-action-cell d-none">
                                     <div class="d-inline-flex align-items-center justify-content-center gap-1">
                                         <button type="button"
@@ -205,8 +209,8 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small mb-0">Qty</label>
-                            <input type="number" name="qty" id="add_std_qty" class="form-control form-control-sm" value="1" min="1" required>
+                            <label for="add_std_qty" class="form-label small mb-0">{{ __('Qty from Parts') }}</label>
+                            <input type="text" id="add_std_qty" class="form-control form-control-sm" value="1" readonly>
                         </div>
                         <div class="col-12">
                             <label class="form-label small mb-0">{{ __('Process') }}</label>
@@ -240,8 +244,8 @@
                         <select name="process" id="edit_std_process" class="form-select" required></select>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label">Qty</label>
-                        <input type="number" name="qty" id="edit_std_qty" class="form-control" min="1" required>
+                        <label for="edit_std_qty" class="form-label">{{ __('Qty from Parts') }}</label>
+                        <input type="text" id="edit_std_qty" class="form-control" readonly>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -583,12 +587,13 @@
             var q = document.getElementById('add_std_qty');
             if (!q) return;
             if (!opt || !opt.value) {
+                q.value = '';
                 refreshDuplicateWarning();
                 return;
             }
             var ua = opt.getAttribute('data-units-assy');
             if (ua != null && ua !== '' && /^\d+$/.test(ua)) {
-                q.value = ua;
+                q.value = String(Math.max(1, parseInt(ua, 10)));
             } else {
                 q.value = '1';
             }

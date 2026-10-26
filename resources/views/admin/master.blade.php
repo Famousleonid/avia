@@ -10,7 +10,7 @@
     @include('partials.user-scoped-storage')
     @include('partials.user-ui-settings')
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="{{ asset('assets/vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
     <link rel="stylesheet" href="{{ asset('css/password-policy.css') }}?v={{ filemtime(public_path('css/password-policy.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
-    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
+    <link rel="stylesheet" href="{{ asset('assets/vendor/tippy/6.3.7/tippy.css') }}">
     <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}?v={{ filemtime(public_path('css/admin-theme.css')) }}">
 
 
@@ -200,9 +200,9 @@
     }
 </script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://unpkg.com/@popperjs/core@2"></script>
-<script src="https://unpkg.com/tippy.js@6"></script>
+<script src="{{ asset('assets/vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
+<script src="{{ asset('assets/vendor/popper/2.11.8/popper.min.js') }}"></script>
+<script src="{{ asset('assets/vendor/tippy/6.3.7/tippy-bundle.umd.min.js') }}"></script>
 @include('components.session-heartbeat-config')
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 <script src="{{ asset('js/password-policy.js') }}?v={{ filemtime(public_path('js/password-policy.js')) }}"></script>
@@ -212,13 +212,18 @@
     (function () {
         const projectDateMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
-        function parseProjectDate(value, allowShortYear = false) {
+        function parseProjectDate(value, allowShortYear = false, allowNumericMonth = false) {
             const yearPattern = allowShortYear ? '(\\d{2}|\\d{4})' : '(\\d{4})';
-            const match = String(value || '').trim().match(new RegExp('^(\\d{1,2})[/.]([a-z]{3})[/.]' + yearPattern + '$', 'i'));
+            const monthPattern = allowNumericMonth ? '([a-z]{3}|\\d{1,2})' : '([a-z]{3})';
+            const text = String(value || '').trim();
+            const normalized = allowNumericMonth && /^\d{8}$/.test(text)
+                ? text.slice(0, 2) + '/' + text.slice(2, 4) + '/' + text.slice(4)
+                : text;
+            const match = normalized.match(new RegExp('^(\\d{1,2})[/.]' + monthPattern + '[/.]' + yearPattern + '$', 'i'));
             if (!match) return null;
 
             const day = Number(match[1]);
-            const month = projectDateMonths.indexOf(match[2].toLowerCase());
+            const month = /^\d+$/.test(match[2]) ? Number(match[2]) - 1 : projectDateMonths.indexOf(match[2].toLowerCase());
             const year = match[3].length === 2 ? 2000 + Number(match[3]) : Number(match[3]);
             if (!day || month < 0 || !year) return null;
 
@@ -241,19 +246,44 @@
                 if (input._projectDatePicker) return;
                 const capitalizeMonth = !input.hasAttribute('data-project-date-lower');
                 const shortYear = input.hasAttribute('data-project-date-short-year');
+                const manualEntry = input.hasAttribute('data-project-date-numeric');
+                const parseInput = value => parseProjectDate(value, shortYear, manualEntry);
+
+                if (manualEntry) {
+                    input.inputMode = 'numeric';
+                    // Capture Enter before Flatpickr handles it or a form submits.
+                    input.addEventListener('keydown', event => {
+                        if (event.key !== 'Enter' || event.isComposing) return;
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        if (event.repeat) return;
+                        const date = parseInput(input.value);
+                        if (!date) {
+                            window.showNotification?.('Enter a valid date: ddmmyyyy (for example 22102025).', 'error');
+                            return;
+                        }
+                        input._projectDatePicker.setDate(date, true);
+                        input._projectDatePicker.close();
+                        input.dispatchEvent(new CustomEvent('project-date-confirmed', {bubbles: true}));
+                    }, true);
+                    input.addEventListener('input', () => {
+                        const date = parseInput(input.value);
+                        if (date) input._projectDatePicker?.jumpToDate(date);
+                    });
+                }
 
                 input._projectDatePicker = flatpickr(input, {
                     allowInput: true,
                     dateFormat: shortYear ? 'd/M/y' : 'd/M/Y',
-                    defaultDate: parseProjectDate(input.value, shortYear) || null,
+                    defaultDate: parseInput(input.value) || null,
                     disableMobile: true,
                     formatDate: date => formatProjectDate(date, capitalizeMonth, shortYear),
-                    parseDate: value => parseProjectDate(value, shortYear),
+                    parseDate: parseInput,
                     onChange(selectedDates, dateStr, instance) {
                         input.value = selectedDates[0] ? formatProjectDate(selectedDates[0], capitalizeMonth, shortYear) : '';
                     },
                     onClose(selectedDates) {
-                        const parsed = parseProjectDate(input.value, shortYear);
+                        const parsed = parseInput(input.value);
                         if (parsed) {
                             input.value = formatProjectDate(parsed, capitalizeMonth, shortYear);
                         }

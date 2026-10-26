@@ -5,7 +5,7 @@ namespace App\Services;
 final class TravelerPrintDescription
 {
     /** Extract additional instructions without changing technical values or wording. */
-    public static function additional(?string $description, ?string $specification, array $names): string
+    public static function additional(?string $description, ?string $specification, array $names, bool $preserveFigureReferences = false): string
     {
         // Reviewed workbook labels for the same technical process. Inspection stage,
         // polish/hone and embrittlement intent are NOT redundant process aliases.
@@ -25,7 +25,11 @@ final class TravelerPrintDescription
             $words = preg_split('/\s+/u', trim($value), -1, PREG_SPLIT_NO_EMPTY);
             return implode('[\\s\\x{00a0}]+', array_map(fn ($word) => preg_quote($word, '~'), $words));
         };
-        if (trim((string) $specification) !== '') {
+        // Template storage keeps standalone FIG references even when the selected
+        // catalog entry consists of that same reference. Printing keeps its own deduplication.
+        $figureOnlySpecification = $preserveFigureReferences
+            && preg_match('/^(?:CMM\s+|SB[\d-]+[ ,;]*)?Fig(?:ure)?s?\b/i', trim((string) $specification));
+        if (trim((string) $specification) !== '' && ! $figureOnlySpecification) {
             // A complete repeated block, allowing line wrapping but not different wording/numbers.
             $text = preg_replace('~(?:^|\n)[\h]*'.$pattern($specification).'(?=\s|$)[\h]*~iu', "\n", $text);
         }

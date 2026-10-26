@@ -36,6 +36,9 @@ class CombinedPrlTest extends TestCase
         $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()]);
         $response = $this->get(route('tdrs.prlForm', $wo))->assertOk();
         $this->assertCount(0, $response->viewData('ordersParts'));
+        $show = $this->get(route('tdrs.show', $wo))->assertOk();
+        $this->assertSame(0, $show->viewData('prlPartsCount'));
+        $show->assertDontSee(route('tdrs.prlForm', $wo), false);
         $rows = app(TdrPrintFormController::class)->prlRows($wo);
         $this->assertCount(1, $rows);
         $this->assertFalse($rows[0]['prl_crossed_out']);
@@ -68,7 +71,8 @@ class CombinedPrlTest extends TestCase
                 'component_id' => $part->id, 'qty' => $bushingQty, 'qty_remaining' => $bushingQty, 'do_not_order' => false]);
         }
         $response = $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])->get(route('tdrs.prlForm', $wo))->assertOk();
-        $this->assertCount(0, $response->viewData('ordersParts'));
+        $this->assertCount(1, $response->viewData('ordersParts'));
+        $response->assertSee('MFG')->assertSee('2821-0000RS20');
         $rows = app(TdrPrintFormController::class)->prlRows($wo);
         $this->assertCount($bushingQty === 2 ? 2 : 1, $rows);
         $this->assertSame($tdr->id, $rows->first()->id);
@@ -82,8 +86,7 @@ class CombinedPrlTest extends TestCase
         if ($bushingQty === 2) {
             $this->assertSame(1, $rows->last()['qty']);
             $this->assertSame(1, $rows->last()['prl_part_numbers'][0]['qty']);
-        } else {
-            $response->assertDontSee('2821-0000RS20');
+
         }
         $this->assertFalse((bool) $part->fresh()->kit);
         $this->assertSame(1, (int) $tdr->fresh()->qty);
@@ -160,7 +163,7 @@ class CombinedPrlTest extends TestCase
         $options = collect($row['prl_part_numbers'])->keyBy('component_id');
         foreach ($parts as $index => $part) {
             $this->assertSame($quantities[$index] ?? null, $options[$part->id]['qty']);
-            $this->assertSame($quantities !== [] && ! isset($quantities[$index]), $options[$part->id]['crossed_out']);
+            $this->assertSame(! isset($quantities[$index]), $options[$part->id]['crossed_out']);
         }
         $extra = $this->get(route('tdrs.prlForm', $wo))->assertOk();
         $this->assertCount(0, $extra->viewData('ordersParts'));
@@ -474,7 +477,7 @@ class CombinedPrlTest extends TestCase
             ->assertOk()->assertSee('MIXED-KIT-BASE')->assertSee('MIXED-KIT-UNSELECTED');
     }
 
-    public function test_kit_form_only_uses_manual_crossouts_for_choice_options(): void
+    public function test_kit_form_keeps_manual_marks_while_crossing_out_unselected_bushings(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
@@ -536,7 +539,7 @@ class CombinedPrlTest extends TestCase
             $options = collect($bushingRow['prl_part_numbers'] ?? [])->keyBy('component_id');
 
             return empty($partRow['prl_crossed_out'])
-                && empty($options->get($variantA->id)['crossed_out'])
+                && ! empty($options->get($variantA->id)['crossed_out'])
                 && ! empty($options->get($variantB->id)['manual_crossed_out'])
                 && ! empty($options->get($variantB->id)['crossed_out']);
         });

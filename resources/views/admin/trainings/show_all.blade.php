@@ -2,6 +2,7 @@
 
 @section('content')
     <style>
+        .training-date-idle { color: #a5abb1 !important; background: transparent !important; font-weight: normal; }
         .table-container {
             overflow-x: auto;
             overflow-y: auto;
@@ -411,6 +412,7 @@
                                                 $clickable = $category->is_sca
                                                     ? ($canManage && $user->can_sign_certificates)
                                                     : ($row->manual_id && ($canManage || auth()->user()->canManageTrainingsFor($user)));
+                                                $unitIdle = !$category->is_sca && isset($unitAvailability[$row->manual_id]) && !$unitAvailability[$row->manual_id]['available'];
                                                 $clickAttrs = '';
                                                 if ($clickable) {
                                                     if ($category->is_sca) {
@@ -436,7 +438,8 @@
                                                 }
                                             @endphp
                                             <td class="user-column {{ $clickable ? 'cell-click' : '' }} {{ !empty($cell['approved']) ? 'cell-approved' : '' }}" {!! $clickAttrs !!}
-                                                @if($clickable) title="{{ $cell === null ? __('Add unit for this user') : __('New Training Date') }}" @endif>
+                                                @if($unitIdle) title="{{ $unitAvailability[$row->manual_id]['message'] }}"
+                                                @elseif($clickable) title="{{ $cell === null ? __('Add unit for this user') : __('New Training Date') }}" @endif>
                                                 @if($cell === null)
                                                     <span class="text-muted">-</span>
                                                 @elseif($cell['kind'] === 'x')
@@ -444,7 +447,7 @@
                                                           @if($cell['date']) title="{{ __('Last training:') }} {{ $cell['date']->format('d/M/Y') }} — {{ __('refresh required (MP-20)') }}"
                                                           @else title="{{ __('Old training (no date on record)') }}" @endif>X</span>
                                                 @else
-                                                    <span class="{{ $cell['red'] ? 'training-date-old' : 'training-date-fresh' }}">
+                                                    <span class="{{ $cell['red'] ? ($unitIdle ? 'training-date-idle' : 'training-date-old') : 'training-date-fresh' }}">
                                                         {{ $cell['date']->format('d/M/Y') }}
                                                     </span>
                                                 @endif
@@ -460,6 +463,7 @@
                     <div class="matrix-legend">
                         <span><span class="training-date-fresh">01/Jan/2026</span> — {{ __('training up to date') }}</span>
                         <span><span class="training-date-old">01/Jan/2025</span> — {{ __('older than :days days, refresh required', ['days' => config('trainings.matrix_red_after_days', 350)]) }}</span>
+                        <span><span class="training-date-idle">01/Jan/2025</span> — {{ __('no unit arrival in 12 months; history can still be recorded') }}</span>
                         <span><span class="training-x">X</span> — {{ __('trained in the past; unit not currently worked on (older than :years years or old training)', ['years' => config('trainings.matrix_legacy_after_years', 3)]) }}</span>
                         <span><span class="text-muted">-</span> — {{ __('never trained') }}</span>
                         <span><span style="box-shadow: inset 0 0 0 2px #2e7d4f; padding: 1px 8px; border-radius: 3px;">{{ __('date') }}</span> — {{ __('last training approved') }}</span>

@@ -1004,6 +1004,7 @@
 
             // Create component in picker
             document.getElementById('btnCreateInPicker')?.addEventListener('click', async () => {
+                if (!window.MobileLandscapePhoto.canSubmit(document.getElementById('picker_photo'))) return;
                 const iplNum = document.getElementById('picker_ipl_num')?.value?.trim();
                 const partNumber = document.getElementById('picker_part_number')?.value?.trim();
                 const name = document.getElementById('picker_name')?.value?.trim();
@@ -1054,6 +1055,7 @@
                         return;
                     }
 
+                    if (photo) window.MobileLandscapePhoto.saved();
                     if (hiddenId) hiddenId.value = json.item.id;
                     if (pickedText) {
                         pickedText.classList.remove('text-muted');
@@ -1096,7 +1098,7 @@
                     const offEl = document.getElementById('componentsPicker');
                     if (offEl) bootstrap.Offcanvas.getOrCreateInstance(offEl).hide();
 
-                    if (typeof showSuccessMessage === 'function') showSuccessMessage('Component created and selected successfully');
+                    if (!photo && typeof showSuccessMessage === 'function') showSuccessMessage('Component created and selected successfully');
 
                 } catch (e) {
                     console.error(e);
@@ -1192,6 +1194,7 @@
                 const json = await res.json().catch(() => ({}));
                 if (!res.ok || !json?.ok) throw new Error(json?.message || 'Upload failed');
 
+                window.MobileLandscapePhoto.saved();
                 return json;
             }
 
@@ -1250,8 +1253,6 @@
                             });
                         }
 
-                        if (typeof showSuccessMessage === 'function') showSuccessMessage('Photo updated');
-
                     } catch (e) {
                         console.error(e);
                         if (typeof showErrorMessage === 'function') showErrorMessage(e.message || 'Upload error');
@@ -1294,8 +1295,6 @@
 
                         // обновим UI
                         updateAvatar(componentId, componentName, data, btn);
-
-                        if (typeof showSuccessMessage === 'function') showSuccessMessage('Photo updated');
 
                     } catch (e) {
                         console.error(e);

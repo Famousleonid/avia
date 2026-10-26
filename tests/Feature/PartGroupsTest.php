@@ -24,6 +24,144 @@ class PartGroupsTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_assigned_technician_can_create_and_edit_assy_only_in_assigned_manual(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $manual = $this->createManual();
+        $otherManual = $this->createManual();
+        $head = $this->createPartGroupComponent($manual->id, '1-10', 'ASSY-ACCESS');
+        $member = $this->createPartGroupComponent($manual->id, '1-20', 'MEMBER-ACCESS');
+        $payload = ['type' => 'assy', 'applies_to' => ['prl'],
+            'component_ids' => [$head->id, $member->id], 'default_component_id' => $head->id];
+        $this->actingAs($user);
+        $this->postJson(route('manuals.part-groups.store', $manual), $payload)->assertForbidden();
+        $user->permittedManuals()->attach($manual->id);
+        $this->assertFalse($user->can('manuals.update', $manual));
+        $response = $this->postJson(route('manuals.part-groups.store', $manual), $payload)->assertOk();
+        $group = ManualPartGroup::findOrFail($response->json('group.id'));
+        $this->assertSame($user->id, $group->created_by_user_id);
+        $payload['member_qty'] = [$member->id => 3];
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertOk();
+        $this->assertDatabaseHas('manual_part_group_coverages', [
+            'manual_part_group_option_id' => $group->options()->firstOrFail()->id,
+            'component_id' => $member->id, 'qty' => 3,
+        ]);
+        $this->postJson(route('manuals.part-groups.store', $otherManual), $payload)->assertForbidden();
+        $this->putJson(route('manuals.part-groups.update', [$otherManual, $group]), $payload)->assertForbidden();
+        $user->permittedManuals()->attach($otherManual->id);
+        $this->putJson(route('manuals.part-groups.update', [$otherManual, $group]), $payload)->assertNotFound();
+        $user->permittedManuals()->detach($manual->id);
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertForbidden();
+    }
+
+    public function test_assigned_group_access_preserves_parts_lock_and_delete_permissions(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $manual = $this->createManual();
+        $user->permittedManuals()->attach($manual->id);
+        $head = $this->createPartGroupComponent($manual->id, '1-10', 'ASSY-LOCK');
+        $member = $this->createPartGroupComponent($manual->id, '1-20', 'MEMBER-LOCK');
+        $payload = ['type' => 'assy', 'applies_to' => ['prl'],
+            'component_ids' => [$head->id, $member->id], 'default_component_id' => $head->id];
+        $response = $this->actingAs($user)->postJson(route('manuals.part-groups.store', $manual), $payload)->assertOk();
+        $group = ManualPartGroup::findOrFail($response->json('group.id'));
+        $alternativePayload = array_replace($payload, ['type' => 'alternative_pn']);
+        $alternativeResponse = $this->postJson(route('manuals.part-groups.store', $manual), $alternativePayload)->assertOk();
+        $alternative = ManualPartGroup::findOrFail($alternativeResponse->json('group.id'));
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $alternative]))->assertOk();
+        $this->assertSoftDeleted($alternative);
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $alternativePayload)->assertOk();
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertOk();
+        $lock = \App\Models\ManualPartLock::create([
+            'manual_id' => $manual->id, 'locked_by_user_id' => $user->id, 'locked_at' => now(),
+        ]);
+        $this->postJson(route('manuals.part-groups.store', $manual), $payload)->assertStatus(423);
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertStatus(423);
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $group]))->assertStatus(423);
+        $lock->delete();
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertOk();
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $group]))->assertOk();
+        $this->assertSoftDeleted($group);
+        $this->assertNotNull(Component::find($head->id));
+        $this->assertNotNull(Component::find($member->id));
+    }
+
+    /** @dataProvider assignedDeletableGroupTypes */
+    public function test_manual_assignment_grants_group_delete_only_in_that_manual(string $groupType): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $manual = $this->createManual();
+        $otherManual = $this->createManual();
+        $this->actingAs($user);
+        $groups = [];
+        foreach (ManualPartGroup::validTypes() as $type) {
+            $groups[$type] = ManualPartGroup::create(['manual_id' => $manual->id,
+                'code' => 'DELETE-'.$type, 'name' => $type, 'type' => $type,
+                'behavior' => ManualPartGroup::behaviorForType($type), 'applies_to' => ['prl']]);
+        }
+        $assy = $groups[$groupType];
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $assy]))->assertForbidden();
+        $user->featureAccesses()->create(['feature_key' => 'manuals.full']);
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $assy]))->assertForbidden();
+        $user->permittedManuals()->attach($otherManual->id);
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $assy]))->assertForbidden();
+        $this->deleteJson(route('manuals.part-groups.destroy', [$otherManual, $assy]))->assertNotFound();
+        $user->permittedManuals()->attach($manual->id);
+        foreach ($groups as $type => $group) {
+            if ($type !== ManualPartGroup::TYPE_KIT) continue;
+            $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $group]))->assertForbidden();
+            $this->assertNotNull(ManualPartGroup::find($group->id));
+        }
+        $user->permittedManuals()->detach($manual->id);
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $assy]))->assertForbidden();
+        $user->permittedManuals()->attach($manual->id);
+        $this->assertFalse($user->can('manuals.update', $manual));
+        $lock = \App\Models\ManualPartLock::create([
+            'manual_id' => $manual->id, 'locked_by_user_id' => $user->id, 'locked_at' => now(),
+        ]);
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $assy]))->assertStatus(423);
+        $this->assertNotNull(ManualPartGroup::find($assy->id));
+        $lock->delete();
+        $this->deleteJson(route('manuals.part-groups.destroy', [$manual, $assy]))->assertOk();
+        $this->assertSoftDeleted($assy);
+    }
+
+    public static function assignedDeletableGroupTypes(): array
+    {
+        return ['ASSY' => [ManualPartGroup::TYPE_ASSY],
+            'Alternative P/N' => [ManualPartGroup::TYPE_ALTERNATIVE],
+            'Bushing Original/Oversize' => [ManualPartGroup::TYPE_OVERSIZE]];
+    }
+
+    public function test_assigned_technician_can_save_every_group_type_with_manual_and_lock_checks(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $this->actingAs($user);
+        foreach (ManualPartGroup::validTypes() as $type) {
+            $manual = $this->createManual();
+            $head = $this->createPartGroupComponent($manual->id, '1-10', 'HEAD-'.$type);
+            $member = $this->createPartGroupComponent($manual->id, '1-20', 'MEMBER-'.$type);
+            $payload = ['type' => $type, 'applies_to' => ['prl'], 'order_part_number' => 'KIT-ACCESS',
+                'component_ids' => [$head->id, $member->id], 'default_component_id' => $head->id];
+            $this->postJson(route('manuals.part-groups.store', $manual), $payload)->assertForbidden();
+            $user->permittedManuals()->attach($manual->id);
+            $response = $this->postJson(route('manuals.part-groups.store', $manual), $payload)->assertOk();
+            $group = ManualPartGroup::findOrFail($response->json('group.id'));
+            $payload['notes'] = 'Updated '.$type;
+            $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertOk();
+            $this->assertSame($payload['notes'], $group->fresh()->notes);
+            $this->assertSame($type, $group->fresh()->type);
+            $lock = \App\Models\ManualPartLock::create([
+                'manual_id' => $manual->id, 'locked_by_user_id' => $user->id, 'locked_at' => now(),
+            ]);
+            $this->postJson(route('manuals.part-groups.store', $manual), $payload)->assertStatus(423);
+            $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertStatus(423);
+            $lock->delete();
+            $user->permittedManuals()->detach($manual->id);
+            $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertForbidden();
+        }
+    }
+
     public function test_saving_bushing_group_does_not_set_member_flags(): void
     {
         $admin = $this->createUserWithRole('Admin');

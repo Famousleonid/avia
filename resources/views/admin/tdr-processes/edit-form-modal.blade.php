@@ -5,7 +5,7 @@
 @endsection
 
 @section('scripts')
-    <script src="{{ asset('js/tdr-processes/edit-process/edit-process.js') }}"></script>
+    <script src="{{ asset('js/tdr-processes/edit-process/edit-process.js') }}?v={{ filemtime(public_path('js/tdr-processes/edit-process/edit-process.js')) }}"></script>
     @if(request()->query('modal'))
     <script>
     (function() {

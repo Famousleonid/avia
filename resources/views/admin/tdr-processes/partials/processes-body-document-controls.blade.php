@@ -1,43 +1,27 @@
-{{-- Doc button(s) inside the Form column: open the process document in a new tab
-     (HTML view with Print and an explicit "Save PDF to WO library" action). --}}
-{{-- Requires: $tdrProcessRow, $docsByRp (rule_process_id => [ProcessDocument]), $current_wo --}}
-{{-- Документы привязаны к процессу (rule-process); Machining (EC) сохраняет связь → тот же чертёж. --}}
 @php
-    $rowDocs = [];
-    foreach ((array) ($tdrProcessRow->rule_process_ids ?? []) as $rid) {
-        foreach (($docsByRp ?? [])[$rid] ?? [] as $d) {
-            $rowDocs[$d->id] = $d;
+    $attachmentRows = isset($attachmentGroup)
+        ? $tdrProcesses->filter(fn ($row) => (int) $row->tdrs_id === (int) $current_tdr->id && $row->in_traveler && !$row->ignore_row && (int) $row->traveler_group === (int) $attachmentGroup)
+        : collect([$tdrProcessRow]);
+    $hasAttachments = false;
+    foreach ($attachmentRows as $attachmentRow) {
+        foreach ((array) ($attachmentRow->rule_process_ids ?? []) as $rid) {
+            $hasAttachments = $hasAttachments || !empty(($docsByRp ?? [])[$rid]);
+        }
+        foreach ((array) ($attachmentRow->phase_rule_process_ids ?? []) as $rid) {
+            $hasAttachments = $hasAttachments || !empty(($phaseDocsByRp ?? [])[$rid]);
         }
     }
-    // Start/Finish process documents (separate id space).
-    foreach ((array) ($tdrProcessRow->phase_rule_process_ids ?? []) as $rid) {
-        foreach (($phaseDocsByRp ?? [])[$rid] ?? [] as $d) {
-            $rowDocs['p' . $d->id] = $d;
-        }
+    if (isset($attachmentGroup)) {
+        $hasAttachments = $hasAttachments || \App\Services\TravelerTemplateImages::forProcesses($current_tdr, $attachmentRows)->isNotEmpty();
     }
-    $rowDocs = array_values($rowDocs);
+    $attachmentParams = ['tdr' => $current_tdr->id];
+    if (isset($attachmentGroup)) $attachmentParams['traveler_group'] = $attachmentGroup;
+    else $attachmentParams['row'] = $tdrProcessRow->id;
 @endphp
-@if(!empty($rowDocs) && isset($current_wo))
-    @if(count($rowDocs) === 1)
-        @php $d = $rowDocs[0]; @endphp
-        <a href="{{ route('process-documents.view', ['workorder' => $current_wo->id, 'processDocument' => $d->id]) }}"
-           target="_blank"
-           class="btn btn-sm btn-outline-success"
-           title="{{ __('Open document') }}: {{ $d->title ?: $d->doc_type }}">Fig.</a>
-    @else
-        <div class="dropdown d-inline-block">
-            <button type="button" class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Fig.</button>
-            <ul class="dropdown-menu dropdown-menu-end">
-                @foreach($rowDocs as $d)
-                    <li>
-                        <a class="dropdown-item"
-                           target="_blank"
-                           href="{{ route('process-documents.view', ['workorder' => $current_wo->id, 'processDocument' => $d->id]) }}">
-                            <i class="bi {{ $d->doc_type === 'manual_page' ? 'bi-printer' : 'bi-file-earmark-pdf' }} me-1"></i>{{ $d->title ?: $d->doc_type ?: ('Doc #'.$d->id) }}
-                        </a>
-                    </li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+@if($hasAttachments)
+    <a class="btn btn-sm btn-outline-info process-picture-button" href="{{ route('tdr-processes.attachments', $attachmentParams) }}"
+       target="_blank" rel="noopener" title="{{ __('View form attachments') }}" aria-label="{{ __('View form attachments') }}"><i class="bi bi-image" aria-hidden="true"></i></a>
+@else
+    <button type="button" class="btn btn-sm btn-outline-secondary process-picture-button" disabled
+            title="{{ __('No form attachments') }}" aria-label="{{ __('No form attachments') }}"><i class="bi bi-image" aria-hidden="true"></i></button>
 @endif

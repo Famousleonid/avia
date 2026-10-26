@@ -320,7 +320,7 @@ class LogCardController extends Controller
         }
         $components = $this->sortLogCardComponentsByPartNumber($components);
 
-        [$assyChoiceGroups, $assyGroupedComponentIds] = $this->buildLogCardAssyChoiceGroups(
+        [$assyChoiceGroups, $assyGroupedComponentIds, $assemblyChoices] = $this->buildLogCardAssyChoiceGroups(
             $manual_id,
             $components,
             $current_wo
@@ -409,6 +409,7 @@ class LogCardController extends Controller
                         'units_assy' => $units_assy,
                         'unit_index' => $i,
                         'is_multiple_units' => true,
+                        'assembly_choices' => $assemblyChoices[(int) $component->id] ?? [],
                         'group_key' => 'separate',
                         'ipl_group' => 'separate',
                     ]);
@@ -520,7 +521,7 @@ class LogCardController extends Controller
      * Only components enabled for this Log Card are included; the synthetic ASSY
      * option is available when its base component is eligible.
      *
-     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection, 2: array}
      */
     private function buildLogCardAssyChoiceGroups(int $manualId, $components, Workorder $workorder): array
     {
@@ -616,7 +617,8 @@ class LogCardController extends Controller
                 ]))->values();
         })->values();
 
-        return [$choiceGroups, $assignedComponentIds->unique()->values()];
+        // Multi-unit parts keep separate rows but use the same catalog ASSY choices.
+        return [$choiceGroups, $assignedComponentIds->unique()->values(), $assemblyChoices];
     }
 
     private function componentsForSavedLogCardRows($components, array $componentData)

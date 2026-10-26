@@ -194,7 +194,7 @@
                                         $remainingQty = max(0, $groupMaxOrderQty - $historyQty);
                                     @endphp
                                     @foreach($groupHistory as $historyLine)
-                                        <tr class="bushing-history-row text-secondary">
+                                        <tr class="bushing-history-row text-secondary" data-component-id="{{ $historyLine->component_id }}">
                                             <td>{{ $historyLine->component?->ipl_num }} — {{ $historyLine->component?->part_number }}</td>
                                             <td colspan="3">{{ __('History — locked') }}</td>
                                             <td class="text-center">{{ $historyLine->qty }}</td>
@@ -351,11 +351,7 @@
                                                                 data-process-field="ndt"
                                                                 data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField['ndt'] ?? []) }}">
                                                             <option value="">...</option>
-                                                            @foreach($ndtProcesses as $process)
-                                                                <option data-process-comment="{{ trim((string) ($bushingProcessComments[$process->id] ?? '')) }}" value="{{ $process->id }}" {{ (int) $selectedNdt === (int) $process->id ? 'selected' : '' }}>
-                                                                    {{ $process->process_name->name }}
-                                                                </option>
-                                                            @endforeach
+                                                            @include('admin.wo_bushings.partials.ndt-options', ['selectedNdt' => $selectedNdt])
                                                         </select>
                                                     </div>
                                                 @endforeach
@@ -490,7 +486,6 @@
             function notify(message, type) {
                 if (window.tdrShowNotify) window.tdrShowNotify(message, type || 'warning');
                 else if (window.showNotification) window.showNotification(message, type || 'warning');
-                else alert(message);
             }
 
             function hideGlobalSpinner() {
@@ -570,6 +565,12 @@
                     var summary = row.querySelector('.bushing-group-qty-summary');
                     var value = row.querySelector('.bushing-group-ordered-qty');
                     var valid = orderedQty <= maximumQty;
+                    var parts = row.querySelector('.bushing-part-cell')?.textContent.trim().replace(/\s+/g, ' ') || row.dataset.groupKey || '';
+                    var errorText = document.createElement('span');
+                    errorText.textContent = 'Bushing group ' + parts + ': total QTY ' + orderedQty + ', maximum ' + maximumQty + '. Check Original / Oversize quantities.';
+                    row.dataset.qtyError = errorText.innerHTML;
+                    row.style.outline = valid ? '' : '2px solid #dc3545';
+                    row.querySelectorAll('.bushing-qty-input').forEach(function(input) { input.setAttribute('aria-invalid', String(!valid)); });
                     if (value) value.textContent = String(orderedQty);
                     if (summary) {
                         summary.classList.toggle('text-info', valid);
@@ -636,8 +637,9 @@
                     if (invalidQtyGroup) {
                         e.preventDefault();
                         e.stopImmediatePropagation();
-                        notify('{{ __('The total ordered QTY for Original and Oversize bushings may not exceed the group maximum.') }}');
+                        notify(invalidQtyGroup.dataset.qtyError, 'error');
                         invalidQtyGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        invalidQtyGroup.querySelector('.bushing-qty-input:not(:disabled)')?.focus({ preventScroll: true });
                         hideGlobalSpinner();
                         return;
                     }

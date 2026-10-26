@@ -162,7 +162,7 @@
         width: 20% !important;
     }
     .tdr-processes-table col:nth-child(7) {
-        width: 13rem !important;
+        width: 15rem !important;
     }
     .tdr-processes-table th,
     .tdr-processes-table td {
@@ -234,7 +234,7 @@
         border-bottom: 0;
     }
     .tdr-processes-table .process-form-controls {
-        min-width: 185px;
+        min-width: 220px;
     }
     .tdr-processes-table .combined-form-select {
         cursor: pointer;
@@ -260,6 +260,7 @@
         white-space: nowrap;
         width: 100%;
     }
+    .tdr-processes-table .process-picture-button { width: 30px; min-width: 30px; flex: 0 0 30px; }
     .tdr-process-inline-options {
         background: var(--dir-table-bg);
         border: 1px dotted var(--bs-info);
@@ -435,10 +436,10 @@
                                     @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                     <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                         @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
-                                        @include('admin.tdr-processes.partials.processes-body-document-controls')
+
                                     </td>
                                 @else
-                                    <td class="text-center align-middle text-muted small">— @include('admin.tdr-processes.partials.processes-body-document-controls')</td>
+                                    <td class="text-center align-middle text-muted small">— </td>
                                 @endif
                             @else
                             <td class="text-center">
@@ -484,10 +485,10 @@
                                     @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                     <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                         @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
-                                        @include('admin.tdr-processes.partials.processes-body-document-controls')
+
                                     </td>
                                 @else
-                                    <td class="text-center align-middle text-muted small">— @include('admin.tdr-processes.partials.processes-body-document-controls')</td>
+                                    <td class="text-center align-middle text-muted small">— </td>
                                 @endif
                             @else
                             <td class="text-center">
@@ -527,10 +528,10 @@
                                             @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                             <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                                 @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
-                                        @include('admin.tdr-processes.partials.processes-body-document-controls')
+
                                             </td>
                                         @else
-                                            <td class="text-center align-middle text-muted small">— @include('admin.tdr-processes.partials.processes-body-document-controls')</td>
+                                            <td class="text-center align-middle text-muted small">— </td>
                                         @endif
                                     @else
                                     <td class="text-center">
@@ -566,10 +567,10 @@
                                         @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                         <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                             @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
-                                        @include('admin.tdr-processes.partials.processes-body-document-controls')
+
                                         </td>
                                     @else
-                                        <td class="text-center align-middle text-muted small">— @include('admin.tdr-processes.partials.processes-body-document-controls')</td>
+                                        <td class="text-center align-middle text-muted small">— </td>
                                     @endif
                                 @else
                                 <td class="text-center">

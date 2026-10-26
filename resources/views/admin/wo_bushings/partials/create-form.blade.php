@@ -253,9 +253,7 @@
                                                             data-process-field="ndt"
                                                             data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField['ndt'] ?? []) }}">
                                                         <option value="">...</option>
-                                                        @foreach($ndtProcesses as $process)
-                                                            <option data-process-comment="{{ trim((string) ($bushingProcessComments[$process->id] ?? '')) }}" value="{{ $process->id }}">{{ $process->process_name->name }}</option>
-                                                        @endforeach
+                                                        @include('admin.wo_bushings.partials.ndt-options', ['selectedNdt' => null])
                                                     </select>
                                                 </div>
                                             @endforeach
@@ -432,7 +430,13 @@
             var maximumQty = Math.max(1, parseInt(row.dataset.maxOrderQty || '1', 10) || 1);
             var summary = row.querySelector('.bushing-group-qty-summary');
             var value = row.querySelector('.bushing-group-ordered-qty');
-            var valid = orderedQty <= maximumQty;
+                    var valid = orderedQty <= maximumQty;
+                    var parts = row.querySelector('.bushing-part-cell')?.textContent.trim().replace(/\s+/g, ' ') || row.dataset.groupKey || '';
+                    var errorText = document.createElement('span');
+                    errorText.textContent = 'Bushing group ' + parts + ': total QTY ' + orderedQty + ', maximum ' + maximumQty + '. Check Original / Oversize quantities.';
+                    row.dataset.qtyError = errorText.innerHTML;
+                    row.style.outline = valid ? '' : '2px solid #dc3545';
+                    row.querySelectorAll('.bushing-qty-input').forEach(function(input) { input.setAttribute('aria-invalid', String(!valid)); });
             if (value) value.textContent = String(orderedQty);
             if (summary) {
                 summary.classList.toggle('text-info', valid);
@@ -493,9 +497,9 @@
 
             e.preventDefault();
             e.stopImmediatePropagation();
-            var message = '{{ __('The total ordered QTY for Original and Oversize bushings may not exceed the group maximum.') }}';
+            var message = invalidRow.dataset.qtyError;
             if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(message, 'error');
-            else if (typeof window.showNotification === 'function') window.showNotification(message);
+            else if (typeof window.showNotification === 'function') window.showNotification(message, 'error');
             invalidRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, true);
 

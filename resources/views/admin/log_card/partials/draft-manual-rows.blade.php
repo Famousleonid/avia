@@ -187,6 +187,13 @@
         $assemblyInputName = $isMultipleUnit
             ? 'lc_selected_assembly['.$rowGroupKey.']'
             : 'lc_selected_assembly['.$rowGroupKey.'_'.$component->id.']';
+        $unitAssemblyChoices = collect($isMultipleUnit ? ($unitRow['assembly_choices'] ?? []) : []);
+        $unitAssemblyOptionId = (int) ($savedRow['assy_option_id'] ?? 0);
+        if ($unitAssemblyChoices->count() === 1
+            && !($savedRow && app(\App\Services\LogCardAssemblyIdentity::class)->isExplicitNoAssembly($savedRow))) {
+            $unitAssemblyOptionId = (int) $unitAssemblyChoices->first()['option_id'];
+        }
+        $hasUnitAssembly = $unitAssemblyChoices->contains('option_id', $unitAssemblyOptionId);
     @endphp
 
     <tr data-manual-id="{{ $manual->id ?? '' }}" data-manual-label="{{ $manualLabel }}">
@@ -217,7 +224,24 @@
             @endif
         </td>
         <td class="text-start ps-3">
-            @if($assemblyRows->isNotEmpty())
+            @if($unitAssemblyChoices->isNotEmpty())
+                <div class="lc-assy-choice" data-component-id="{{ $component->id }}">
+                    <select class="form-select form-select-sm lc-unit-assy-select"
+                            aria-label="{{ __('ASSY') }} — {{ __('Unit') }} {{ $unitIndex }}"
+                            data-component-id="{{ $component->id }}" @disabled($logCardTdrReadOnly)>
+                        <option value="" @selected(!$hasUnitAssembly)>{{ __('Select ASSY') }}</option>
+                        @foreach($unitAssemblyChoices as $assemblyChoice)
+                            <option value="{{ $assemblyChoice['option_id'] }}"
+                                    data-group-id="{{ $assemblyChoice['group_id'] }}"
+                                    data-assy-part-number="{{ $assemblyChoice['part_number'] }}"
+                                    data-assy-ipl-num="{{ $assemblyChoice['ipl_num'] }}"
+                                    @selected($unitAssemblyOptionId === (int) $assemblyChoice['option_id'])>
+                                {{ $assemblyChoice['ipl_num'] }} / {{ $assemblyChoice['part_number'] }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            @elseif($assemblyRows->isNotEmpty())
                 <div class="lc-assy-choice" data-component-id="{{ $component->id }}">
                     @if($assemblyRows->count() > 1)
                         <select class="form-control form-control-sm lc-inline-input lc-assy-select"

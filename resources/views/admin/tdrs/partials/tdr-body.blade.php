@@ -865,20 +865,12 @@
                                              alt=""
                                              class="tdr-process-icon">
                                     </button>
-                                    @if($tdr->isManufacturePairMember())
-                                        <button type="button" class="btn btn-outline-secondary btn-sm me-2" disabled
-                                                data-tdr-action="edit"
-                                                title="{{ __('Manufacture entries must be deleted as a pair and recreated.') }}">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                    @else
                                         <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Edit') }}"
                                                 data-bs-toggle="modal" data-bs-target="#editTdrModal"
                                                 data-tdr-action="edit"
                                                 data-tdr-id="{{ $tdr->id }}">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                    @endif
                                     <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST">
                                         @csrf
                                         @method('DELETE')

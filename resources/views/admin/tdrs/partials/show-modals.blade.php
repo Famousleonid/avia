@@ -134,20 +134,12 @@
                                     ])
                                 </td>
                                 <td class="p-2 align-middle" style="min-width: 10rem;">
-                                    @if($part->isManufacturePairMember())
-                                        <span>{{ $part->description ?? '' }}</span>
-                                    @else
                                         <textarea name="description" rows="1" class="form-control form-control-sm" form="{{ $orderPartFormId }}"
                                                   placeholder="{{ __('Description') }}">{{ $part->description ?? '' }}</textarea>
-                                    @endif
                                 </td>
                                 <td class="p-2 align-middle text-center" style="min-width: 5.0rem;">
-                                    @if($part->isManufacturePairMember())
-                                        {{ $part->qty }}
-                                    @else
                                         <input type="number" name="qty" value="{{ $part->qty }}" min="1" max="999999"
                                                class="form-control form-control-sm" form="{{ $orderPartFormId }}">
-                                    @endif
                                 </td>
                                 <td class="p-2 align-middle" style="min-width: 8rem;">
                                     @if($part->isManufacturePairMember())
@@ -162,7 +154,6 @@
                                 </td>
                                 <td class="p-2 align-middle">
                                     <div class="d-flex justify-content-evenly align-items-center w-100 text-center">
-                                        @unless($part->isManufacturePairMember())
                                             <form id="{{ $orderPartFormId }}" method="POST" action="{{ route('tdrs.update', $part->id) }}" class="d-inline">
                                                 @csrf
                                                 @method('PUT')
@@ -171,7 +162,6 @@
                                                     <i class="bi bi-floppy"></i>
                                                 </button>
                                             </form>
-                                        @endunless
                                         <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST" class="d-inline">
                                             @csrf
                                             @method('DELETE')
@@ -691,9 +681,13 @@
 <style>
     /* Keep the background assistant from covering form actions on small screens. */
     body:has(#editTdrProcessModal.show) #aiAssistantWidget { visibility: hidden; }
+    #editTdrProcessModal .modal-dialog { width: 80vw; max-width: 80vw; }
+    @media (max-width: 767.98px) {
+        #editTdrProcessModal .modal-dialog { width: 95vw; max-width: 95vw; }
+    }
 </style>
 <div class="modal fade" id="editTdrProcessModal" tabindex="-1" aria-labelledby="editTdrProcessModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" style="max-width: 880px; width: 95%; height: 80vh; margin-left: auto; margin-right: auto;">
+    <div class="modal-dialog modal-lg" style="height: 80vh; margin-left: auto; margin-right: auto;">
         <div class="modal-content bg-gradient" style="height: 80vh;">
             <div class="modal-header">
                 <h6 class="modal-title text-info" id="editTdrProcessModalLabel">{{ __('Edit Part Process') }}</h6>

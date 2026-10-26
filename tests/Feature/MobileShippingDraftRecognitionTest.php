@@ -68,7 +68,7 @@ class MobileShippingDraftRecognitionTest extends TestCase
         $shipper = $this->createUserWithRole('Shipping');
         $customer = $this->createCustomer();
         $unit = $this->createUnit(['part_number' => 'SHIP-PN-SAVED']);
-        Instruction::query()->firstOrCreate(['id' => 6], ['name' => 'Mobile Draft']);
+        Instruction::unguarded(fn () => Instruction::query()->firstOrCreate(['id' => 6], ['name' => 'Mobile Draft']));
 
         $this->actingAs($shipper)
             ->post(route('mobile.draft.store'), [
@@ -79,7 +79,9 @@ class MobileShippingDraftRecognitionTest extends TestCase
                 'open_at' => format_project_date(now()),
                 'as_received_photo' => UploadedFile::fake()->image('as-received-nameplate.png', 120, 80),
             ])
-            ->assertSessionHasNoErrors();
+            ->assertRedirect()
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Draft created. Photo saved in As received.');
 
         $draft = Workorder::query()
             ->withoutGlobalScope('exclude_drafts')
@@ -102,7 +104,7 @@ class MobileShippingDraftRecognitionTest extends TestCase
         $shipper = $this->createUserWithRole('Shipping');
         $customer = $this->createCustomer();
         $unit = $this->createUnit(['part_number' => 'SHIP-PORTRAIT']);
-        Instruction::query()->firstOrCreate(['id' => 6], ['name' => 'Mobile Draft']);
+        Instruction::unguarded(fn () => Instruction::query()->firstOrCreate(['id' => 6], ['name' => 'Mobile Draft']));
         $draftCount = Workorder::query()->withoutGlobalScope('exclude_drafts')->where('is_draft', true)->count();
 
         $this->actingAs($shipper)
@@ -112,7 +114,8 @@ class MobileShippingDraftRecognitionTest extends TestCase
                 'open_at' => format_project_date(now()),
                 'as_received_photo' => UploadedFile::fake()->image('portrait.png', 80, 120),
             ])
-            ->assertSessionHasErrors(['as_received_photo']);
+            ->assertSessionHasErrors(['as_received_photo'])
+            ->assertSessionMissing('success');
 
         $this->assertSame(
             $draftCount,

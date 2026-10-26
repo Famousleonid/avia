@@ -1,0 +1,11 @@
+{
+  "package": "@popperjs/core",
+  "version": "2.11.8",
+  "source": "https://registry.npmjs.org/@popperjs/core/-/core-2.11.8.tgz",
+  "integrity": "sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==",
+  "files": {
+    "popper.min.js": "c212f4b505a86352aed62b24a8f16f999f821ecbe6456c7f3c8a04bc87968782",
+    "popper.min.js.map": "4b4fb67abd5aff6804b248baa086ed14880e8017a00186df496eae6c347d0c8e",
+    "LICENSE.md": "bf67e2c9b7974543bb18ced3a0b37f53729aaff953b442dd89a3adaf90fd93e8"
+  }
+}

@@ -502,7 +502,7 @@ class WoBushingSortingTest extends TestCase
     }
 
     /** @dataProvider machiningNames */
-    public function test_technician_without_cmm_permission_can_add_bushing_process_for_matching_workorder_with_log(string $machiningName): void
+    public function test_technician_needs_cmm_permission_to_create_bushing_specification_then_logs_creation(string $machiningName): void
     {
         $technician = $this->createUserWithRole('Technician');
         $workorder = $this->createWorkorder(['user_id' => $technician->id]);
@@ -546,6 +546,18 @@ class WoBushingSortingTest extends TestCase
             ->assertSee('name="workorder_id" value="'.$workorder->id.'"', false)
             ->assertDontSee('Manage CMMs');
 
+        $this->actingAs($technician)->getJson(route('processes.getProcesses', [
+            'manualId' => $manual->id, 'processNameId' => $processName->id,
+            'context' => 'bushing', 'workorder_id' => $workorder->id,
+        ]))->assertOk()->assertJsonPath('canCreateProcess', false);
+        $this->postJson(route('processes.store'), [
+            'manual_id' => $manual->id, 'process_names_id' => $processName->id,
+            'process' => 'Forbidden bushing specification', 'context' => 'bushing',
+            'workorder_id' => $workorder->id,
+        ])->assertForbidden()->assertJsonPath('reason', 'manual_access_denied');
+        $this->assertDatabaseMissing('processes', ['process' => 'Forbidden bushing specification']);
+        $manual->permittedUsers()->attach($technician->id);
+
         $this->actingAs($technician)
             ->getJson(route('processes.getProcesses', [
                 'manualId' => $manual->id,
@@ -586,9 +598,10 @@ class WoBushingSortingTest extends TestCase
         $this->assertContains($processName->id, $partial->viewData('bushingProcessNameIdsByField')['machining']);
         $partial->assertSee('Technician custom bushing machining process');
         $bushing = WoBushing::create(['workorder_id' => $workorder->id]);
+        $replacementCode = \App\Models\Code::firstOrCreate(['code' => 'R'], ['name' => 'Replacement test']);
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->putJson(route('wo_bushings.update', $bushing), ['group_bushings' => ['3-430D' => ['items' => [
-                $component->id => ['selected' => '1', 'qty' => 2, 'need_processes' => '1', 'machining' => $process->id],
+                $component->id => ['selected' => '1', 'qty' => 2, 'need_processes' => '1', 'machining' => $process->id, 'codes_id' => $replacementCode->id],
             ]]]])->assertOk();
         $edit = $this->get(route('wo_bushings.edit', $bushing))->assertOk();
         $this->assertMatchesRegularExpression('/value="'.$process->id.'"\\s+selected/', $edit->getContent());

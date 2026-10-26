@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Code;
 use App\Models\Component;
 use App\Models\Manual;
+use App\Models\ManualPartGroup;
 use App\Models\Necessary;
 use App\Models\StdProcess;
 use App\Models\Tdr;
@@ -53,6 +54,7 @@ class WorkorderStdProcessItemsService
                 ->keyBy(fn (Manual $manual): int => (int) $manual->id);
             $excludedQtyByComponent = $this->excludedQtyByComponent($workorder);
             $excludedQtyByBaseIpl = $this->excludedQtyByBaseIpl($workorder);
+            $excludedQtyByAlternative = $this->excludedQtyByAlternative($excludedQtyByComponent, $manualIds);
             $now = now();
             $insertRows = [];
             $sortOrderByStd = array_fill_keys(StdProcess::validStdValues(), 1);
@@ -144,6 +146,7 @@ class WorkorderStdProcessItemsService
                             ? max(1, (int) ($scopeQuantities[(int) $component->id] ?? 1))
                             : $this->baseQty($component, $manualRow);
                         $excludedSourceQty = (int) ($excludedQtyByComponent[$component->id] ?? 0);
+                        $excludedSourceQty = max($excludedSourceQty, $excludedQtyByAlternative[$std][$component->id] ?? 0);
 
                         foreach ($this->baseIplKeys((string) ($component->ipl_num ?? '')) as $baseKey) {
                             $manualBaseKey = $this->manualBaseIplKey($manualId, $baseKey);
@@ -342,8 +345,40 @@ class WorkorderStdProcessItemsService
     }
 
     /**
-     * @return array<int, int>
+     * @return array<string, array<int, int>>
      */
+    protected function excludedQtyByAlternative(array $excludedQtyByComponent, array $manualIds): array
+    {
+        // Reuse the same Repair / Missing / Order New exclusions, counted once per TDR row.
+        if ($excludedQtyByComponent === []) {
+            return [];
+        }
+
+        $result = [];
+        $groups = ManualPartGroup::query()->whereIn('manual_id', $manualIds)
+            ->where('type', ManualPartGroup::TYPE_ALTERNATIVE)
+            ->where('behavior', ManualPartGroup::BEHAVIOR_CHOOSE_ONE)
+            ->whereHas('options', fn ($query) => $query->whereIn('component_id', array_keys($excludedQtyByComponent)))
+            ->with('options.component:id,manual_id')->get();
+        foreach ($groups as $group) {
+            $ids = $group->options->filter(fn ($option): bool => $option->component
+                && (int) $option->component->manual_id === (int) $group->manual_id)
+                ->pluck('component_id')->unique();
+            $qty = $ids->sum(fn ($id): int => (int) ($excludedQtyByComponent[$id] ?? 0));
+            foreach (StdProcess::validStdValues() as $std) {
+                if (! $group->appliesTo($std)) {
+                    continue;
+                }
+                foreach ($ids as $id) {
+                    // The same exclusion also matches its component/IPL; never subtract twice.
+                    $result[$std][$id] = max($result[$std][$id] ?? 0, $qty);
+                }
+            }
+        }
+
+        return $result;
+    }
+
     protected function excludedQtyByComponent(Workorder $workorder): array
     {
         $repairNecessaryIds = Necessary::query()

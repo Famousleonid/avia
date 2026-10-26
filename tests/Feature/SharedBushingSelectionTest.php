@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\{Component, ManualPartGroup, Necessary, Process, ProcessName, Tdr, WoBushingLine, WoBushingProcess};
+use App\Models\{Component, ManualPartGroup, Necessary, Process, ProcessName, Tdr, WoBushingBatch, WoBushingLine, WoBushingProcess};
 use App\Services\WorkorderBushingSelection;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\{BuildsDomainData, TestCase};
@@ -34,6 +34,76 @@ class SharedBushingSelectionTest extends TestCase
     {
         return collect($this->get(route('tdrs.kitForm', $wo))->assertOk()->viewData('ordersParts'))
             ->flatMap(fn ($r) => $r['prl_part_numbers'] ?? [])->keyBy('component_id');
+    }
+
+    private function draftProcessFixture(): array
+    {
+        [$wo, $part] = $this->fixture();
+        $part->update(['ipl_num' => '10-37', 'bush_ipl_num' => '10-37', 'part_number' => '190-70748-301']);
+        $this->save($wo, $part, [$part->id => ['selected' => true, 'qty' => 1]])->assertOk();
+        $line = WoBushingLine::where('workorder_id', $wo->id)->firstOrFail();
+        foreach (['Machining' => 'machining', 'Anodizing' => 'anodizing', 'NDT-4' => 'ndt'] as $name => $column) {
+            $type = ProcessName::firstOrCreate(['name' => $name], ['process_sheet_name' => 'Test', 'form_number' => 'TEST']);
+            $process = Process::create(['process_names_id' => $type->id, 'process' => 'Draft quantity test']);
+            $process->manuals()->attach($part->manual_id);
+            $batch = WoBushingBatch::create(['workorder_id' => $wo->id, 'process_id' => $process->id,
+                'process_column_key' => $column, 'route_number' => 3]);
+            $line->processes()->create(['process_id' => $process->id, 'batch_id' => $batch->id, 'qty' => 1]);
+        }
+        return [$wo, $part, $line];
+    }
+
+    public function test_unstarted_assigned_process_quantities_follow_bushing_qty_without_replacing_rows(): void
+    {
+        [$wo, $part, $line] = $this->draftProcessFixture();
+        $steps = $line->processes()->with('batch')->get();
+        $before = $steps->mapWithKeys(fn ($step) => [$step->id => $step->getAttributes()]);
+        $batches = $steps->mapWithKeys(fn ($step) => [$step->batch_id => $step->batch->getAttributes()]);
+        foreach ([2, 1] as $qty) {
+            $response = $this->save($wo, $part, [$part->id => ['selected' => true, 'qty' => $qty]])->assertOk();
+            if ($qty === 2) $revision = $response->json('revision');
+            $this->assertSame($qty, $line->fresh()->qty);
+            $this->assertSame($qty, $line->fresh()->qty_remaining);
+            $draft = collect($response->json('drafts'))->firstWhere('bushing', $part->id);
+            $this->assertSame($qty, $draft['qty']);
+            $this->assertCount(3, $line->processes()->get());
+            foreach ($steps as $step) {
+                $actual = $step->fresh();
+                $this->assertSame($qty, $actual->qty);
+                $this->assertSame(collect($before[$step->id])->except(['qty', 'updated_at'])->all(),
+                    collect($actual->getAttributes())->except(['qty', 'updated_at'])->all());
+                $this->assertSame($batches[$step->batch_id], $actual->batch->getAttributes());
+            }
+        }
+        $this->save($wo, $part, [$part->id => ['selected' => true, 'qty' => 2]], $revision)->assertUnprocessable();
+        $this->save($wo, $part, [$part->id => ['selected' => true, 'qty' => 3]])->assertUnprocessable();
+        $this->assertSame(1, $line->fresh()->qty);
+    }
+
+    public function test_qty_change_keeps_started_route_and_split_process_quantities_protected(): void
+    {
+        [$wo, $part, $line] = $this->draftProcessFixture();
+        $step = $line->processes()->firstOrFail();
+        foreach (['repair_order' => 'RO-STARTED', 'date_start' => '2026-10-26', 'date_finish' => '2026-10-26'] as $field => $value) {
+            $step->batch->update([$field => $value]);
+            $this->save($wo, $part, [$part->id => ['selected' => true, 'qty' => 2]])->assertUnprocessable();
+            $step->batch->update([$field => null]);
+            $step->update([$field => $value]);
+            $this->save($wo, $part, [$part->id => ['selected' => true, 'qty' => 2]])->assertUnprocessable();
+            $step->update([$field => null]);
+        }
+        $line->update(['qty' => 2, 'qty_remaining' => 2]);
+        // A process assigned to just one of two parts must not be silently expanded.
+        $this->save($wo, $part, [$part->id => ['selected' => true, 'qty' => 1]])->assertUnprocessable();
+        $this->assertSame(2, $line->fresh()->qty);
+        $this->assertSame([1, 1, 1], $line->processes()->pluck('qty')->all());
+        $line->update(['qty' => 1, 'qty_remaining' => 0]);
+        $this->save($wo, $part, [$part->id => ['selected' => true, 'qty' => 2]])->assertUnprocessable();
+        $line->update(['qty_remaining' => 1]);
+        $step->machiningWorkSteps()->create(['step_index' => 1, 'description' => 'Existing work']);
+        $this->save($wo, $part, [$part->id => ['selected' => true, 'qty' => 2]])->assertUnprocessable();
+        $this->assertSame(1, $line->fresh()->qty);
+        $this->assertSame([1, 1, 1], $line->processes()->pluck('qty')->all());
     }
 
     public function test_existing_do_not_order_selection_excludes_other_sizes_in_kit_and_extra_parts(): void

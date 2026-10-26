@@ -91,14 +91,48 @@ class MobileLandscapePhotoTest extends TestCase
             ->assertSee('class="mobile-workorder-intake border-secondary', false)
             ->assertSee('class="mobile-workorder-intake rounded-3', false)
             ->assertSee('class="text-center col-camera camera-cell-shared"', false)
-            ->assertSee('class="text-center col-camera camera-cell-group"', false)
-            ->assertSee('data-photo-category="repair"', false)
+            ->assertSee('class="landscape-camera-panel"', false)
+            ->assertDontSee('camera-cell-group', false)
+            ->assertDontSee('data-photo-category="repair"', false)
             ->assertSee('currentPhotoCategory = requestedCategory;', false)
             ->assertSee('id="mobilePhotos"', false);
 
         $this->assertSame(
-            count(config('workorder_media.groups', [])),
-            substr_count($response->getContent(), 'class="text-center col-camera camera-cell-group"'),
+            2,
+            substr_count($response->getContent(), 'class="text-info js-camera-btn"'),
+        );
+    }
+
+    public function test_camera_pilot_can_be_disabled_without_removing_the_regular_camera(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $this->actingAs($admin);
+
+        config()->set('mobile_camera.pilot_enabled', true);
+        $enabled = $this->get(route('mobile.show', $workorder))->assertOk()
+            ->assertSee('class="btn btn-sm btn-outline-info js-pilot-camera-btn"', false)
+            ->assertSee('id="mobileCameraPilot"', false)
+            ->assertSee('js/mobile-camera-pilot.js', false);
+
+        // Parse like a browser: a body element inside head silently moves later
+        // styles out of head and defeats loading the full-screen CSS up front.
+        $document = new \DOMDocument();
+        @$document->loadHTML($enabled->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(1, $xpath->query('//head/link[contains(@href, "css/mobile-camera-pilot.css")]')->length);
+
+        config()->set('mobile_camera.pilot_enabled', false);
+        $disabled = $this->get(route('mobile.show', $workorder))->assertOk()
+            ->assertDontSee('class="btn btn-sm btn-outline-info js-pilot-camera-btn"', false)
+            ->assertDontSee('id="mobileCameraPilot"', false)
+            ->assertDontSee('js/mobile-camera-pilot.js', false)
+            ->assertSee('id="photo-upload-form"', false)
+            ->assertSee('id="mobilePhotoRejected"', false);
+
+        $this->assertSame(
+            substr_count($enabled->getContent(), 'class="text-info js-camera-btn"'),
+            substr_count($disabled->getContent(), 'class="text-info js-camera-btn"'),
         );
     }
 }

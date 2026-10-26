@@ -7,12 +7,12 @@ use App\Models\Training;
 use App\Models\TrainingCategory;
 use App\Models\TrainingMatrixRow;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Tests\BuildsDomainData;
+use Tests\BuildsActiveTrainingData;
 use Tests\TestCase;
 
 class TrainingShowAllTest extends TestCase
 {
-    use BuildsDomainData;
+    use BuildsActiveTrainingData;
     use DatabaseTransactions;
 
     protected function setUp(): void
@@ -642,7 +642,7 @@ class TrainingShowAllTest extends TestCase
         $response->assertSee('Total Hours');
         $response->assertSee('140 hrs');
         $response->assertSee('Total training hours');
-        $response->assertSee('<strong>140</strong>', false);
+        $response->assertSee('<span id="trainingTotalHours" class="text-info">140</span>', false);
     }
 
     public function test_hours_counted_for_x_pairs_when_112_exists(): void
@@ -676,7 +676,7 @@ class TrainingShowAllTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('35 hrs');
-        $response->assertSee('<strong>35</strong>', false);
+        $response->assertSee('<span id="trainingTotalHours" class="text-info">35</span>', false);
     }
 
     public function test_index_shows_sca_courses_section_for_sca_user_only(): void

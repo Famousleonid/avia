@@ -41,15 +41,7 @@ class ProcessAccessGuard
 
     public function canCreateProcessDefinition(User $user, Manual $manual, ?ProcessName $processName = null): ProcessAccessDecision
     {
-        if (! $user) {
-            return ProcessAccessDecision::deny('You must be logged in to create a process.', 'auth_required');
-        }
-
-        if ($processName && $this->isProcessNameLocked($manual, $processName) && ! $this->canBypassLocks($user)) {
-            return $this->denyProcessNameCreationLocked($manual, $processName);
-        }
-
-        return ProcessAccessDecision::allow();
+        return $this->canAddManualProcess($user, $manual, $processName);
     }
 
     public function canUpdateManualProcess(User $user, ManualProcess $manualProcess): ProcessAccessDecision
@@ -123,9 +115,10 @@ class ProcessAccessGuard
     }
 
     /**
-     * Temporary shop-floor exception: a Technician may add a process to the
-     * CMM selected by a concrete workorder, but does not gain general CMM edit
-     * access. The controller also limits this path to bushing process names.
+     * Temporary shop-floor exception: a Technician may attach an existing
+     * process for a concrete workorder's CMM, but cannot create a new catalog
+     * definition without manual access. The controller limits this path to
+     * bushing process names; creation still uses canCreateProcessDefinition.
      */
     public function canManageWorkorderBushingProcesses(
         User $user,

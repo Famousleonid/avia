@@ -17,6 +17,55 @@ class ManualStdProcessTableTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    /** @dataProvider stdQuantityTypes */
+    public function test_std_quantity_comes_from_parts_while_process_remains_editable(string $std, string $processName): void
+    {
+        $manual = $this->createManual();
+        $component = Component::create(['manual_id' => $manual->id, 'ipl_num' => '1-10',
+            'part_number' => 'QTY-FROM-PARTS', 'name' => 'Quantity Part', 'units_assy' => 3]);
+        $this->attachManualProcess($manual->id, $processName, '', '1');
+        $this->attachManualProcess($manual->id, $std === 'ndt' ? 'NDT-2' : $processName, '', '2');
+        $this->actingAs($this->createUserWithRole('Admin'));
+        $process = fn (string $value) => $std === 'ndt' ? [$value] : $value;
+        $this->post(route('manuals.std-processes.store', $manual), [
+            'std' => $std, 'component_id' => $component->id, 'process' => $process('1'), 'qty' => 99,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $row = StdProcess::where('manual_id', $manual->id)->where('std', $std)->firstOrFail();
+        $this->assertSame(3, $row->qty);
+        $url = route('manuals.std-processes.update', [$manual, $row]);
+        $this->putJson($url, ['process' => $process('2')])->assertOk()
+            ->assertJsonPath('row.qty', 3)->assertJsonPath('row.process', '2');
+        $this->putJson($url, ['process' => $process('2'), 'qty' => 99])->assertOk()->assertJsonPath('row.qty', 3);
+        $this->get(route('manuals.show', ['manual' => $manual->id, 'tab' => 'std', 'std_inner' => $std]))->assertOk();
+        $this->assertSame(3, $row->refresh()->qty);
+        $this->assertSame('2', $row->process);
+        $component->updateQuietly(['units_assy' => 4]);
+        $this->get(route('manuals.show', ['manual' => $manual->id, 'tab' => 'std']))->assertOk();
+        $this->assertSame(4, $row->refresh()->qty);
+        $this->assertSame('2', $row->process);
+    }
+
+    public static function stdQuantityTypes(): array
+    {
+        return [['ndt', 'NDT-1'], ['cad', 'Cad plate'], ['stress', 'Stress Relief'], ['paint', 'Paint']];
+    }
+
+    public function test_std_quantity_tracks_parts_from_another_source_manual(): void
+    {
+        $manual = $this->createManual();
+        $source = $this->createManual();
+        $component = Component::create(['manual_id' => $source->id, 'ipl_num' => '1-20',
+            'part_number' => 'SOURCE-QTY', 'name' => 'Source Quantity Part', 'units_assy' => 5]);
+        $row = StdProcess::create(['manual_id' => $manual->id, 'component_id' => $component->id,
+            'std' => 'cad', 'process' => 'KEEP THIS PROCESS', 'qty' => 9]);
+        StdProcess::syncFromComponentFlagsForManual($manual);
+        $this->assertSame(5, $row->refresh()->qty);
+        $this->assertSame('KEEP THIS PROCESS', $row->process);
+        $component->updateQuietly(['units_assy' => 2]);
+        StdProcess::syncFromComponentFlagsForManual($manual);
+        $this->assertSame(2, $row->refresh()->qty);
+    }
+
     public function test_manual_std_tab_syncs_rows_from_part_flags(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -317,7 +366,10 @@ class ManualStdProcessTableTest extends TestCase
         $response->assertSee('data-std-process-edit', false);
         $response->assertSee('data-std-process-delete-form', false);
         $response->assertSee('class="text-center small std-process-edit-cell"', false);
-        $response->assertSee('class="text-center std-process-edit-cell"', false);
+        $response->assertDontSee('class="text-center std-process-edit-cell"', false);
+        $response->assertSee('Qty from Parts');
+        $response->assertSee('id="add_std_qty" class="form-control form-control-sm" value="1" readonly', false);
+        $response->assertSee('id="edit_std_qty" class="form-control" readonly', false);
         $response->assertSee('data-ipl="7-35"', false);
         $response->assertSee('data-description="Cell Edit Part"', false);
         $response->assertSee('editStdProcessModalTitle', false);
@@ -366,7 +418,7 @@ class ManualStdProcessTableTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('success', true);
-        $response->assertJsonPath('row.qty', 5);
+        $response->assertJsonPath('row.qty', 1);
         $response->assertJsonPath('row.process', '2');
         $response->assertJsonMissingPath('row.eff_code');
         $this->assertDatabaseHas('std_processes', [
@@ -412,7 +464,7 @@ class ManualStdProcessTableTest extends TestCase
         $this->assertDatabaseHas('std_processes', [
             'id' => $stdRow->id,
             'process' => '2',
-            'qty' => 2,
+            'qty' => 1,
         ]);
     }
 
@@ -501,6 +553,61 @@ class ManualStdProcessTableTest extends TestCase
 
         $this->assertSame(1, $rows[0]['qty']);
         $this->assertSame('2', $rows[0]['process']);
+    }
+
+    public function test_multiline_cad_process_can_be_added_and_updated_from_multipart_form(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $process = "AMS 2401, Thickness 0.0003-0.0005 in.\nCMM Fig. 6004 (Sheet 2 of 4).                                                   Bake as per AMS 2759/9.";
+        $this->attachManualProcess($manual->id, 'Cad plate', 'CAD', $process);
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '1-150',
+            'part_number' => '190-70158-001',
+            'name' => 'Bolt',
+            'units_assy' => 1,
+            'cad_list' => false,
+        ]);
+        $submitted = str_replace("\n", "\r\n", $process);
+        $this->actingAs($admin)->post(route('manuals.std-processes.store', $manual), [
+            'std' => 'cad', 'component_id' => $component->id, 'qty' => 1, 'process' => $submitted,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $row = StdProcess::where('manual_id', $manual->id)->where('component_id', $component->id)->where('std', 'cad')->firstOrFail();
+        $this->assertSame($process, $row->process);
+        $url = route('manuals.std-processes.update', ['manual' => $manual->id, 'stdProcess' => $row->id]);
+        $this->putJson($url, ['qty' => 2, 'process' => $submitted])
+            ->assertOk()->assertJsonPath('row.process', $process)->assertJsonPath('row.qty', 1);
+        $this->assertSame($process, $row->refresh()->process);
+        $this->putJson($url, ['qty' => 3, 'process' => $submitted.' Unlinked process'])
+            ->assertUnprocessable()->assertJsonValidationErrors('process');
+        $this->assertSame(1, (int) $row->refresh()->qty);
+    }
+
+    public function test_long_cad_specification_survives_manual_edit_and_workorder_snapshot(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+        $process = str_repeat('Source CAD instruction. ', 15)."\nBake for 24 hours.";
+        $this->assertGreaterThan(255, strlen($process));
+        $this->attachManualProcess($manual->id, 'Cad plate', 'CAD', $process);
+        $part = Component::query()->create([
+            'manual_id' => $manual->id, 'ipl_num' => '3-57', 'part_number' => 'LONG-CAD-PIN',
+            'name' => 'Pin', 'units_assy' => 1, 'cad_list' => false,
+        ]);
+        $this->actingAs($admin)->post(route('manuals.std-processes.store', $manual), [
+            'std' => 'cad', 'component_id' => $part->id, 'qty' => 1, 'process' => $process,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $row = StdProcess::where('component_id', $part->id)->where('std', 'cad')->firstOrFail();
+        $this->assertSame($process, $row->process);
+        $this->putJson(route('manuals.std-processes.update', ['manual' => $manual->id, 'stdProcess' => $row->id]), [
+            'qty' => 1, 'process' => str_replace("\n", "\r\n", $process),
+        ])->assertOk()->assertJsonPath('row.process', $process);
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder->fresh(), 'cad');
+        $this->assertSame($process, $rows[0]['process']);
+        $this->assertSame($process, WorkorderStdProcessItem::where('workorder_id', $workorder->id)->where('component_id', $part->id)->value('process'));
     }
 
     private function attachManualProcess(int $manualId, string $name, string $sheet, string $processValue): void

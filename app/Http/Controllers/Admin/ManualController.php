@@ -47,13 +47,14 @@ class ManualController extends Controller
     public function index(Request $request)
     {
         $query = Manual::with(['plane', 'builder', 'scope']);
-        $showDeleted = $request->boolean('with_deleted') && auth()->user()->roleIs('Admin');
+        $showDeleted = $request->boolean('with_deleted');
+        abort_if($showDeleted && ! auth()->user()->isAdmin(), 403);
 
         if ($showDeleted) {
             $query->withTrashed();
         }
 
-        if (! auth()->user()->roleIs('Admin') && ! auth()->user()->hasFullManualsAccess()) {
+        if (! auth()->user()->isAdmin() && ! auth()->user()->roleIs('Admin') && ! auth()->user()->hasFullManualsAccess()) {
             $query->whereHas('permittedUsers', function ($q) {
                 $q->where('users.id', auth()->id());
             });
@@ -747,12 +748,18 @@ class ManualController extends Controller
     public function destroy($id)
     {
         $cmm = Manual::findOrFail($id);
-        if ($cmm->getMedia('manuals')->isNotEmpty()) {
-            $cmm->getMedia('manuals')->first()->delete();
-        }
         $cmm->delete();
 
-        return redirect()->route('manuals.index')->with('success', 'Manual deleted successfully');
+        return redirect()->route('manuals.index')->with('success', 'Manual archived. Files and links preserved.');
+    }
+
+    public function restore($id)
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+        Manual::onlyTrashed()->findOrFail($id)->restore();
+
+        return redirect()->route('manuals.index', ['with_deleted' => 1])
+            ->with('success', 'Manual restored successfully');
     }
 
     public function forceDestroy($id)

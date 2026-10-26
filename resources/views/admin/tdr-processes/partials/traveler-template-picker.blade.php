@@ -30,20 +30,24 @@
         position: absolute;
         inset: -1px;
         border-radius: inherit;
-        padding: 1px;
+        padding: 2px;
         pointer-events: none;
-        background: conic-gradient(from var(--traveler-border-angle), transparent 0deg 270deg, #0dcaf0 310deg, #e8fcff 345deg, transparent 360deg);
+        background: conic-gradient(from var(--traveler-border-angle), transparent 0deg 280deg, #0dcaf0 305deg, #b5f5ff 322deg, #fff 334deg 348deg, #b5f5ff 354deg, transparent 360deg);
         -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
         -webkit-mask-composite: xor;
         mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
         mask-composite: exclude;
-        animation: traveler-template-border-run 3s linear infinite;
+        animation: traveler-template-border-run 4.3s linear infinite;
     }
     @keyframes traveler-template-border-run {
-        to { --traveler-border-angle: 360deg; }
+        0% { --traveler-border-angle: 0deg; opacity: 0; }
+        2% { opacity: 1; }
+        33% { opacity: 1; }
+        35% { --traveler-border-angle: 360deg; opacity: 0; }
+        100% { --traveler-border-angle: 360deg; opacity: 0; }
     }
     @media (prefers-reduced-motion: reduce) {
-        .traveler-template-apply--available::after { animation: none; }
+        .traveler-template-apply--available::after { animation: none; opacity: 0; }
     }
 </style>
 <div class="position-relative" data-traveler-picker data-template-id="{{ $autoTemplate?->id }}" data-tdr-id="{{ $current_tdr->id }}" data-url="{{ route('tdr.traveler-template.apply', $current_tdr) }}">

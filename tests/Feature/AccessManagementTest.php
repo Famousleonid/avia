@@ -13,6 +13,32 @@ class AccessManagementTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_first_save_returns_to_the_same_feature_with_the_user_in_allowed_list(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $user = $this->createUserWithRole('Manager', ['name' => 'First Save Access User']);
+
+        $this->actingAs($admin)->post(route('admin.access.store'), [
+            'feature_key' => 'marketing',
+            'user_ids' => [$user->id],
+        ])->assertRedirect(route('admin.access.index'))
+            ->assertSessionHas('active_access_feature', 'marketing');
+
+        $page = $this->get(route('admin.access.index'))->assertOk();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML($page->getContent());
+        $xpath = new \DOMXPath($dom);
+        $panel = $xpath->query('//section[@data-access-panel="marketing" and contains(concat(" ", normalize-space(@class), " "), " active ")]');
+        $this->assertCount(1, $panel);
+        $this->assertStringContainsString('First Save Access User', $xpath->query('.//div[@class="access-assigned-list"]', $panel->item(0))->item(0)->textContent);
+        $this->assertSame(0, $xpath->query('.//input[@name="user_ids[]" and @value="'.$user->id.'"]', $panel->item(0))->length);
+        $this->assertSame(1, UserFeatureAccess::where('feature_key', 'marketing')->where('user_id', $user->id)->count());
+
+        $access = UserFeatureAccess::where('feature_key', 'marketing')->where('user_id', $user->id)->firstOrFail();
+        $this->delete(route('admin.access.destroy', $access))
+            ->assertSessionHas('active_access_feature', 'marketing');
+    }
+
     public function test_system_admin_can_manage_marketing_access(): void
     {
         $systemAdmin = $this->createUserWithRole('Admin', ['is_admin' => true]);

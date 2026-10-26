@@ -42,6 +42,10 @@
                 form.querySelectorAll('.component-checkbox').forEach(checkbox => {
                     const option = options.get(componentId(checkbox));
                     if (!option) return;
+                    const historyRepresented = option.history && form.querySelector('.bushing-history-row[data-component-id="' + option.id + '"]');
+                    // The locked history is already included in this editor's group total.
+                    // Preserve the separately rendered draft (if any), not the aggregate history quantity.
+                    if (historyRepresented) return;
                     const wasChecked = checkbox.checked;
                     checkbox.checked = option.selected;
                     checkbox.disabled = option.locked || option.history || busy;
@@ -69,12 +73,19 @@
                     if (noOrder) noOrder.checked = option.do_not_order;
                     // Restore process fields only when the server restores a previously unselected row.
                     const draft = drafts.get(option.id);
-                    if (!wasChecked && option.selected && draft && !dirtyForms.has(form)) {
+                    if (!wasChecked && option.selected && !historyRepresented && draft && !dirtyForms.has(form)) {
                         const need = field(checkbox, 'need_processes');
                         if (need) need.checked = draft.need_processes;
                         Object.entries(draft.processes || {}).forEach(([key, value]) => {
                             const control = field(checkbox, key) || field(checkbox, key + '][');
-                            if (control) control.value = Array.isArray(value) ? (value[0] || '') : (value || '');
+                            if (control) {
+                                const savedValue = Array.isArray(value) ? (value[0] || '') : (value || '');
+                                if (key === 'ndt' && savedValue) {
+                                    const equivalent = [...control.options].find(o => (o.dataset.ndtAliases || '').split(',').includes(String(savedValue)));
+                                    if (equivalent) equivalent.value = String(savedValue);
+                                }
+                                control.value = savedValue;
+                            }
                         });
                     }
                     checkbox.dispatchEvent(new Event('change', { bubbles: true }));

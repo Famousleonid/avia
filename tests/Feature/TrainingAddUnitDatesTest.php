@@ -4,12 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Training;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Tests\BuildsDomainData;
+use Tests\BuildsActiveTrainingData;
 use Tests\TestCase;
 
 class TrainingAddUnitDatesTest extends TestCase
 {
-    use BuildsDomainData, DatabaseTransactions;
+    use BuildsActiveTrainingData, DatabaseTransactions;
 
     public function test_modal_returns_form_without_page_layout_and_saves_with_json(): void
     {

@@ -877,7 +877,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 delete row.manual_part_group_id;
                 delete row.manual_part_group_choice;
                 delete row.manual_part_group_option_id;
-                Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssemblyInRow(tr, componentInput.value)));
+                var unitAssySelect = tr.querySelector('.lc-unit-assy-select');
+                if (unitAssySelect) {
+                    // Select within this row: repeated components have independent unit_index values.
+                    var unitAssy = unitAssySelect.options[unitAssySelect.selectedIndex];
+                    row.manual_part_group_choice = 'component';
+                    row.manual_part_group_id = unitAssy.dataset.groupId || '';
+                    row.assy_option_id = unitAssySelect.value;
+                    row.assy_selection_explicit = '1';
+                    row.component_assembly_id = '';
+                    row.assy_part_number = unitAssy.dataset.assyPartNumber || '';
+                    row.assy_ipl_num = unitAssy.dataset.assyIplNum || '';
+                } else {
+                    Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssemblyInRow(tr, componentInput.value)));
+                }
             }
             data.push(row);
         });
@@ -1672,6 +1685,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!addRow || !createRow || !addBtn || !nameSelect || !saveBtn) return;
 
+        // Keep the picker in table flow so its height remains scrollable. While open,
+        // span Process, Description and Traveler, stopping before the Action column.
+        function syncInlineProcessPickerColumns() {
+            var expanded = processOptions && !processOptions.classList.contains('d-none');
+            var cells = createRow.cells;
+            if (cells.length < 6) return;
+            cells[2].colSpan = expanded ? 3 : 1;
+            cells[3].classList.toggle('d-none', Boolean(expanded));
+            cells[4].classList.toggle('d-none', Boolean(expanded));
+        }
+        if (processOptions) {
+            new MutationObserver(syncInlineProcessPickerColumns).observe(processOptions, {attributes: true, attributeFilter: ['class']});
+            syncInlineProcessPickerColumns();
+        }
+        if (processText) {
+            processText.tabIndex = 0;
+            processText.setAttribute('role', 'button');
+            function reopenInlineProcessPicker() {
+                if (!selectedProcessId || !processOptions?.querySelector('input')) return;
+                processOptions.classList.remove('d-none');
+                processText.classList.add('d-none');
+                scrollInlineProcessRowIntoView();
+            }
+            processText.addEventListener('click', reopenInlineProcessPicker);
+            processText.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); reopenInlineProcessPicker(); }
+            });
+        }
+
         function inlineProcessScroller() {
             return createRow.closest('.table-wrapper');
         }
@@ -1740,6 +1782,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function closeInlineProcessRow() {
+            window.clearTimeout(closeInlineProcessTimer);
             resetInlineProcessRow();
             createRow.classList.add('d-none');
             addRow.classList.remove('d-none');
@@ -1751,6 +1794,10 @@ document.addEventListener('DOMContentLoaded', function() {
             closeInlineProcessTimer = window.setTimeout(function() {
                 if (createRow.classList.contains('d-none')) return;
                 if (createRow.dataset.saving === '1') return;
+                // Collapsing the picker moves the pointer outside the row. A draft
+                // must survive that mouseleave/focusout; explicit outside clicks
+                // and Escape below cancel it.
+                if (nameSelect.value || selectedProcessId || descriptionInput?.value.trim()) return;
                 if (processNamePickerOpen) return;
                 if (document.getElementById('inlineProcessDefinitionModal')?.classList.contains('show')) return;
                 if (createRow.matches(':hover')) return;
@@ -1767,6 +1814,31 @@ document.addEventListener('DOMContentLoaded', function() {
         createRow.addEventListener('focusout', function() {
             window.setTimeout(scheduleInlineProcessClose, 0);
         });
+
+        const inlineDismissController = new AbortController();
+        function canDismissInlineProcess() {
+            if (!createRow.isConnected) {
+                inlineDismissController.abort();
+                return false;
+            }
+            return !createRow.classList.contains('d-none')
+                && createRow.dataset.saving !== '1'
+                && !document.querySelector('.modal.show');
+        }
+        document.addEventListener('pointerdown', function(event) {
+            if (!canDismissInlineProcess()) return;
+            if (createRow.contains(event.target) || addBtn.contains(event.target)) return;
+            // Select2 renders its dropdown outside the table row.
+            if (event.target.closest('.select2-container--open')) return;
+            closeInlineProcessRow();
+        }, {capture: true, signal: inlineDismissController.signal});
+        document.addEventListener('keydown', function(event) {
+            if (event.key !== 'Escape' || !canDismissInlineProcess()) return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeInlineProcessRow();
+            addBtn.focus({preventScroll: true});
+        }, {capture: true, signal: inlineDismissController.signal});
 
         if (processOptions) {
             processOptions.addEventListener('change', function(event) {
@@ -1918,6 +1990,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
                             input.addEventListener('change', function() {
                                 selectedProcessId = input.checked ? input.value : '';
+                                if (input.checked && processText) {
+                                    processText.textContent = process.process || ('#' + process.id);
+                                    processText.classList.remove('d-none', 'text-muted');
+                                    processOptions.classList.add('d-none');
+                                    window.clearTimeout(closeInlineProcessTimer);
+                                    syncInlineProcessPickerColumns();
+                                    descriptionInput?.focus({preventScroll: true});
+                                }
                             });
                         });
                         if (processes.length === 1) {
@@ -3521,13 +3601,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             var repairQty = form.querySelector('#edit_repair_qty');
                             function syncRepairQty() {
                                 var necessary = form.querySelector('#edit_necessaries_id');
-                                var repair = necessary?.selectedOptions[0]?.textContent.trim().toLowerCase() === 'repair';
+                                var repair = form.dataset.manufacturePair === '1' || necessary?.selectedOptions[0]?.textContent.trim().toLowerCase() === 'repair';
                                 var part = form.querySelector('#edit_component_id');
                                 repairQty.disabled = !repair;
                                 var assySerial = form.querySelector('#edit_assy_serial_number');
                                 if (assySerial) {
-                                    assySerial.disabled = repair;
-                                    assySerial.parentElement.classList.toggle('d-none', repair);
+                                    assySerial.disabled = repair && form.dataset.manufacturePair !== '1';
+                                    assySerial.parentElement.classList.toggle('d-none', repair && form.dataset.manufacturePair !== '1');
                                 }
                                 form.querySelector('#edit_repair_qty_group').classList.toggle('d-none', !repair);
                                 repairQty.max = part?.selectedOptions[0]?.dataset.unitsAssy || repairQty.dataset.manualMax;

@@ -94,30 +94,49 @@ class TravelerProcessTemplates
             if ($process) {
                 $step['description'] = TravelerPrintDescription::additional(
                     $step['description'] ?? null, $process->process,
-                    [$process->process_name?->name ?? '']
+                    [$process->process_name?->name ?? ''], preserveFigureReferences: true
                 );
             }
         }
         return $steps;
     }
 
-    public static function validateDescriptions(int $manualId, array $steps): void
+    public static function validateDescriptions(int $manualId, array $steps, bool $allowMissingFig = false, int $firstStepNumber = 1): void
     {
-        $requirements = ManualProcess::where('manual_id', $manualId)
-            ->whereIn('processes_id', array_column($steps, 'process_id'))->with('process')->get()->keyBy('processes_id');
+        $requirements = ManualProcessVersions::catalog($manualId, array_column($steps, 'process_id'));
         $errors = [];
         foreach (array_values($steps) as $index => $step) {
             $rule = $requirements->get($step['process_id']);
             foreach (['fig' => 'FIG', 'zone' => 'ZONE'] as $field => $label) {
+                if ($field === 'fig' && $allowMissingFig) continue;
                 $instructions = ($rule?->process?->process ?? '')."\n".($step['description'] ?? '');
                 if ($rule?->{'requires_'.$field} && stripos($instructions, $label) === false) {
-                    $errors['steps.'.$index.'.description'][] = 'Step '.($index + 1).': Description requires '.$label.'.';
+                    $errors['steps.'.$index.'.description'][] = 'Step '.($index + $firstStepNumber).': Description requires '.$label.'.';
                 }
             }
         }
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    public static function figureWarningsForProcesses(iterable $rows): array
+    {
+        $rows = collect($rows)->values();
+        $specifications = Process::whereIn('id', $rows->flatMap(
+            fn ($row) => TdrProcess::normalizeStoredProcessIds($row->processes)
+        )->unique())->pluck('process', 'id');
+        $warnings = [];
+        foreach ($rows as $index => $row) {
+            $text = (string) $row->description;
+            foreach (TdrProcess::normalizeStoredProcessIds($row->processes) as $id) {
+                $text .= "\n".($specifications[$id] ?? '');
+            }
+            if ($row->requires_fig && stripos($text, 'FIG') === false) {
+                $warnings[] = 'Step '.($index + 1).': FIG is missing. Add the figure reference when available.';
+            }
+        }
+        return $warnings;
     }
 
     public static function applicationHasProcesses(object $application): bool
@@ -143,12 +162,21 @@ class TravelerProcessTemplates
                 abort(409, 'This template has already been applied to this part.');
             }
             $steps = $template->steps()->with('process.process_name')->get();
-            $catalog = ManualProcess::where('manual_id', $template->manual_id)
-                ->whereIn('processes_id', $steps->pluck('process_id'))->get()->keyBy('processes_id');
-            if ($steps->isEmpty() || $steps->contains(fn ($step) => ! $step->process?->process_name || ! $catalog->has($step->process_id))) {
-                throw ValidationException::withMessages(['template_id' => 'A template process is no longer available in this manual. Please update the template.']);
+            $catalog = ManualProcessVersions::catalog($template->manual_id, $steps->pluck('process_id')->all());
+            if ($steps->isEmpty()) {
+                throw ValidationException::withMessages(['template_id' => 'This Traveler template has no steps.']);
             }
-            self::validateDescriptions($template->manual_id, $steps->toArray());
+            foreach ($steps as $index => $step) {
+                if (! $step->process?->process_name || ! $catalog->has($step->process_id)) {
+                    $manualNumber = \App\Models\Manual::find($template->manual_id)?->number ?? $template->manual_id;
+                    throw ValidationException::withMessages(['template_id' =>
+                        'Step '.($index + 1).': '.($step->process?->process_name?->name ?? 'Process')
+                        .' (#'.$step->process_id.') is not linked to manual '.$manualNumber
+                        .'. Restore its manual link or update the Traveler template.',
+                    ]);
+                }
+            }
+            self::validateDescriptions($template->manual_id, $steps->toArray(), allowMissingFig: true);
             $additional = collect(self::additionalDescriptions($steps->toArray()))->keyBy('id');
             foreach ($steps as $step) $step->description = $additional[$step->id]['description'];
             $existing = TdrProcess::where('tdrs_id', $tdr->id)->lockForUpdate()->get();

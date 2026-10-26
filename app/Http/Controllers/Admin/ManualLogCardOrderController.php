@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Manual;
+use App\Models\Component;
 use App\Services\ManualLogCardOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,7 @@ class ManualLogCardOrderController extends Controller
 {
     private function authorizeOrder(): void
     {
-        abort_unless(auth()->user()?->roleIs(['Admin','Manager']), 403);
+        abort_unless(auth()->user()?->canManageLogCardOrder(), 403);
     }
     public function index(Manual $manual, ManualLogCardOrder $order)
     {
@@ -45,8 +46,18 @@ class ManualLogCardOrderController extends Controller
                 $indexes = array_map(fn ($id) => $positions[$id], $group['ids']);
                 if (max($indexes) - min($indexes) + 1 !== count($indexes)) throw ValidationException::withMessages(['ids'=>'Keep alternative parts together.']);
             }
+            $before = $locked->log_card_order ?? [];
             $locked->log_card_order = $ids;
             $locked->save();
+            if ($before !== $ids) {
+                activity('manual_log_card_order')->performedOn($locked)->causedBy(auth()->user())
+                    ->withProperties([
+                        'manual_id' => $locked->id, 'manual_number' => $locked->number,
+                        'old' => ['log_card_order' => $before],
+                        'attributes' => ['log_card_order' => $ids],
+                        'parts' => Component::whereIn('id', $ids)->get(['id', 'ipl_num', 'part_number', 'name'])->toArray(),
+                    ])->log('Log Card order changed');
+            }
             return response()->json(['revision'=>$order->revision($locked)]);
         });
     }

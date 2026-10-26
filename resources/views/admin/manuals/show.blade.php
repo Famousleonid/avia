@@ -517,6 +517,21 @@
             color: grey;
 
         }
+        @media (max-width: 767px) {
+            #nav-processes .process-table-container .table { min-width: 900px; }
+        }
+        #nav-processes .manual-process-child-row[hidden] { display: none !important; }
+        #nav-processes .process-table-container { overflow-anchor: none; }
+        .manual-process-group-toggle {
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            padding: 2px 0;
+            text-align: left;
+            cursor: pointer;
+        }
+        .manual-process-group-toggle:focus-visible { outline: 2px solid var(--bs-info); outline-offset: 2px; }
         .manual-process-group-row td {
             background: rgba(13, 110, 253, 0.08);
             font-weight: 600;
@@ -552,6 +567,7 @@
             font-size: 13px;
             vertical-align: middle;
         }
+        .manual-process-group-row .manual-process-state-icon { flex: 0 0 16px; }
         .manual-process-state-icon.is-locked {
             color: #f0ad4e;
         }
@@ -1109,7 +1125,7 @@
                            @if($manualPartsLocked && ! $userCanManageLockedManualParts) title="{{ __('Manual parts are locked') }}" @endif>
                             {{ __('Add Parts') }}
                         </button>
-                        @if(auth()->user()->roleIs(['Admin', 'Manager']))
+                        @if(auth()->user()->canManageLogCardOrder())
                             <a class="btn btn-outline-info btn-sm @if($manualShowTab !== 'parts') d-none @endif" data-tab-target="#nav-parts" href="{{ route('manuals.log-card-order', $cmm) }}">Log Card order</a>
                         @endif
                         <button type="button"
@@ -1313,7 +1329,10 @@
                     </script>
 
                 </div>
-                <div class="tab-pane fade @if($manualShowTab === 'processes') show active @endif" id="nav-processes" role="tabpanel" aria-labelledby="nav-processes-tab" tabindex="0">
+                <div class="tab-pane fade @if($manualShowTab === 'processes') show active @endif" id="nav-processes" data-manual-id="{{ $cmm->id }}" role="tabpanel" aria-labelledby="nav-processes-tab" tabindex="0">
+                    @if(auth()->user()->isAdmin())
+                        <a class="btn btn-outline-secondary btn-sm m-2" href="{{ route('manual_processes.archive', $cmm) }}">Archived processes</a>
+                    @endif
                     <div class="process-table-container m-2">
                         <table class="table table-hover table-bordered dir-table">
                             <thead class="bg-gradient">
@@ -1333,7 +1352,7 @@
                                     $processName = $group['process_name'];
                                     $groupLock = $group['group_lock'];
                                 @endphp
-                                <tr class="manual-process-group-row">
+                                <tr class="manual-process-group-row" data-process-name-id="{{ $processName?->id ?? 0 }}">
                                     <td class="align-content-center manual-process-lock-cell">
                                         @if($processName)
                                             <button type="button"
@@ -1352,12 +1371,17 @@
                                     </td>
                                     <td class="align-content-center text-start">
                                         <span class="manual-process-inline-text">
-                                            <span class="manual-process-state-icon is-locked {{ $groupLock ? '' : 'd-none' }}"
+                                            <span class="manual-process-state-icon is-locked {{ $groupLock ? '' : 'invisible' }}"
                                                   data-manual-process-lock-icon
                                                   title="{{ $groupLock ? 'Locked by '.($groupLock->lockedBy?->selection_name ?? 'Unknown user') : '' }}">
                                                 <i class="bi bi-lock-fill"></i>
                                             </span>
-                                            <span>{{ $processName?->name ?? 'Unknown Process Name' }}</span>
+                                            <button type="button" class="manual-process-group-toggle" data-process-group-toggle
+                                                    aria-expanded="false" disabled>
+                                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                                {{ $processName?->name ?? 'Unknown Process Name' }}
+                                                <span class="text-muted" data-process-group-count>({{ $group['items']->count() }})</span>
+                                            </button>
                                         </span>
                                         @if($processName)
                                             <button type="button" class="btn btn-outline-primary btn-sm float-end ms-2"
@@ -1386,7 +1410,7 @@
                                     @php
                                         $rowLocked = $mp->is_locked;
                                     @endphp
-                                    <tr class="manual-process-child-row" data-manual-process-id="{{ $mp->id }}">
+                                    <tr class="manual-process-child-row" data-manual-process-id="{{ $mp->id }}" data-process-name-id="{{ $processName?->id ?? 0 }}" hidden>
                                         <td class="align-content-center manual-process-lock-cell">
                                             <button type="button"
                                                     class="btn btn-outline-secondary btn-sm manual-process-lock-button"
@@ -1432,6 +1456,7 @@
                                                    @disabled($rowLocked && ! $userCanManageLockedManualProcesses)>
                                         </td>
                                         <td class="align-content-center manual-process-actions">
+                                            <a class="btn btn-outline-secondary btn-sm" title="Version history" href="{{ route('manual_processes.history', $mp->id) }}"><i class="bi bi-clock-history"></i></a>
                                             <button type="button"
                                                class="btn btn-outline-primary btn-sm open-manual-process-edit d-none"
                                                title="{{ __('Edit') }}"
@@ -1445,13 +1470,14 @@
                                             <form action="{{ route('manual_processes.destroy', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}"
                                                   method="POST"
                                                   class="d-inline"
-                                                  data-manual-project-delete-form data-no-spinner
-                                                  data-confirm-title="{{ __('Delete process?') }}"
-                                                  data-confirm-message="{{ __('This process row will be removed from the manual.') }}">
+                                                  data-manual-process-archive-form data-no-spinner
+                                                  data-deletion-impact-url="{{ route('manual_processes.deletion-impact', $mp) }}"
+                                                  data-confirm-title="{{ __('Archive process?') }}"
+                                                  data-confirm-message="{{ __('Archive in this manual only. Saved specifications are preserved.') }}">
                                                 @csrf
                                                 @method('DELETE')
                                                 <input type="hidden" name="return_to" value="{{ $manualUrlProcesses }}">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="{{ __('Delete') }}" @disabled($rowLocked && ! $userCanManageLockedManualProcesses)>
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="{{ __('Archive') }}" @disabled($rowLocked && ! $userCanManageLockedManualProcesses)>
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </form>
@@ -2229,7 +2255,7 @@
                         <div id="manualProcessEditErrors" class="alert alert-danger d-none" role="alert"></div>
                         <div class="mb-3">
                             <label for="manualProcessEditValue" class="form-label">{{ __('Process') }}</label>
-                            <textarea class="form-control" id="manualProcessEditValue" name="process" rows="3" maxlength="255" required></textarea>
+                            <textarea class="form-control" id="manualProcessEditValue" name="process" rows="3" maxlength="1000" required></textarea>
                         </div>
                         <div class="mb-0">
                             <label for="manualProcessEditComment" class="form-label">{{ __('Comment') }}</label>
@@ -2399,6 +2425,7 @@
                     const freshBody = doc.querySelector('#nav-processes table tbody');
                     if (!freshBody) throw new Error('Could not refresh processes.');
                     document.querySelector('#nav-processes table tbody').replaceWith(freshBody);
+                    document.dispatchEvent(new CustomEvent('manual-processes-refreshed'));
                     const count = doc.querySelector('#nav-processes-tab .manual-parts-tab-count');
                     if (count) document.querySelector('#nav-processes-tab .manual-parts-tab-count').textContent = count.textContent;
                     window.showNotification(event.data.message || 'Process added successfully.', 'success');
@@ -2514,6 +2541,7 @@
                         }
 
                         manualProcessEditModal.hide();
+                        document.dispatchEvent(new CustomEvent('manual-process-version-saved'));
                         if (typeof window.showNotification === 'function') {
                             window.showNotification(data.message || '{{ __('Process updated successfully') }}', 'success');
                         }
@@ -2564,7 +2592,7 @@
                     button.title = (locked ? 'Unlock ' : 'Lock ') + actionName;
 
                     if (icon) {
-                        icon.classList.toggle('d-none', !locked);
+                        icon.classList.toggle(scope === 'group' ? 'invisible' : 'd-none', !locked);
                         icon.title = locked ? 'Locked by ' + (data.locked_by || 'Unknown user') : '';
                     }
 
@@ -2748,14 +2776,27 @@
                     return;
                 }
 
+                var impact = null;
+                if (form.dataset.deletionImpactUrl) {
+                    if (form.dataset.impactLoading === '1') return;
+                    form.dataset.impactLoading = '1';
+                    try {
+                        var impactResponse = await fetch(form.dataset.deletionImpactUrl, {headers: {'Accept': 'application/json'}});
+                        impact = await impactResponse.json();
+                        if (!impactResponse.ok) throw new Error(impact.message || 'Could not check process links.');
+                    } catch (error) {
+                        showNotification(error.message || 'Could not check process links. Contact administrator Leo.', 'error');
+                        return;
+                    } finally { delete form.dataset.impactLoading; }
+                }
                 var confirmed = await window.confirmDialog({
                     title: form.dataset.confirmTitle || '{{ __('Delete row?') }}',
-                    message: form.dataset.confirmMessage || '{{ __('This row will be removed.') }}',
-                    okText: '{{ __('Delete') }}',
+                    message: impact ? impact.message : (form.dataset.confirmMessage || '{{ __('This row will be removed.') }}'),
+                    okText: impact ? '{{ __('Archive') }}' : '{{ __('Delete') }}',
                     cancelText: '{{ __('Cancel') }}',
                     danger: true,
                 });
-                if (!confirmed) return;
+                if (!confirmed || impact?.blocked) return;
 
                 form.dataset.projectConfirmAccepted = '1';
                 if (typeof window.safeShowSpinner === 'function') {
@@ -3792,6 +3833,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 </script>
+    <script src="{{ asset('js/manuals/process-groups.js') }}?v={{ filemtime(public_path('js/manuals/process-groups.js')) }}" defer></script>
     <script src="{{ asset('js/manuals/service-bulletins.js') }}?v={{ filemtime(public_path('js/manuals/service-bulletins.js')) }}" defer></script>
     <script src="{{ asset('js/manuals/parts-scroll.js') }}?v={{ filemtime(public_path('js/manuals/parts-scroll.js')) }}" defer></script>
     <script src="{{ asset('js/traveler-process-templates.js') }}?v={{ filemtime(public_path('js/traveler-process-templates.js')) }}" defer></script>

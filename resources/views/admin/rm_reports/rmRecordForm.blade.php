@@ -303,6 +303,8 @@
 
         /* Grid cells must center their own content even in browsers that do not
            support align-content on ordinary block elements. Also covers JS rows. */
+        [data-rm-print-page] > * { flex-shrink: 0; }
+
         .parent > div {
             display: flex;
             align-items: center;
@@ -347,7 +349,7 @@
 @endif
 
 <!-- Кнопки для печати и настроек -->
-<div class="text-start m-3">
+<div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary no-print" onclick="window.print()">
         Print Form
     </button>
@@ -363,8 +365,8 @@
         $technicalNotesList = array_values($technicalNotes);
     }
 
-    // Пагинация только для Technical Notes: по 7 строк на страницу
-    $notesPerPage = 7;
+    // Repeat the complete Notes block on every page, with at least seven writing lines.
+    $notesPerPage = max(7, count($technicalNotesList));
     $totalNotes = count($technicalNotesList);
     $totalNotesPages = max(1, (int)ceil($totalNotes / $notesPerPage));
 
@@ -410,7 +412,7 @@
 @endphp
 
 @for($pageIndex = 0; $pageIndex < $totalPages; $pageIndex++)
-<div class="container-fluid {{ $pageIndex > 0 ? 'page-break' : '' }}">
+<div data-rm-print-page class="container-fluid {{ $pageIndex > 0 ? 'page-break' : '' }}">
 
 
     <div class="title">
@@ -430,17 +432,17 @@
         </div>
     </div>
 
-    {{-- Технические заметки: по 7 строк на страницу --}}
+    {{-- Repeat Technical Notes on each sheet. --}}
     <div class="row border-all-b  m-sm-0">
         <h5 class="ps-1 fs-9">Technical Notes:</h5>
         @php
-            $notesStartIndex = $pageIndex * $notesPerPage;
+            $notesStartIndex = 0;
         @endphp
         @for($i = 0; $i < $notesPerPage; $i++)
             @php
                 $noteValue = $technicalNotesList[$notesStartIndex + $i] ?? '';
             @endphp
-            <div class="border-b pt-2" style="height: 30px">{{ $noteValue }}</div>
+            <div class="border-b pt-2 rm-technical-note" style="min-height: 30px; white-space: pre-wrap; overflow-wrap: anywhere;">{{ $noteValue }}</div>
         @endfor
     </div>
     <p></p>
@@ -497,6 +499,7 @@
         >
             {{__("Form #005")}}
         </div>
+        <span class="rm-page-number">Page {{ $pageIndex + 1 }} of {{ $totalPages }}</span>
         <div class=" text-end pe-4 ">
             {{__('Rev#0, 15/Dec/2012   ')}}
         </div>
@@ -523,9 +526,9 @@
                     <div class="mb-4">
                         <h5 class="mb-3" data-bs-toggle="tooltip"
                             data-bs-placement="top"
-                            title="Настройки количества строк в таблице R&M Record. Строки сверх лимита скрываются при печати. Настройки применяются автоматически при загрузке страницы."
-                            data-tooltip-ru="Настройки количества строк в таблице R&M Record. Строки сверх лимита скрываются при печати. Настройки применяются автоматически при загрузке страницы."
-                            data-tooltip-en="R&M Record table row settings. Rows exceeding the limit are hidden when printing. Settings are applied automatically on page load.">
+                            title="Настройки количества строк в таблице R&M Record. Строки сверх лимита переносятся на следующий лист. Настройки применяются автоматически при загрузке страницы."
+                            data-tooltip-ru="Настройки количества строк в таблице R&M Record. Строки сверх лимита переносятся на следующий лист. Настройки применяются автоматически при загрузке страницы."
+                            data-tooltip-en="R&M Record table row settings. Rows exceeding the limit continue on the next page. Settings are applied automatically on page load.">
                             📊 Tables
                         </h5>
 
@@ -863,207 +866,85 @@
 
     // Перераспределение строк по страницам в зависимости от настроек Print Settings
     function redistributeRowsToPages(rmMaxRows) {
-        // Собираем все строки с данными из всех таблиц
-        const allTables = document.querySelectorAll('.parent[data-rm-records-page]');
-        const allDataRows = [];
-
-        // Сначала собираем все строки с данными (не пустые)
-        allTables.forEach(function(table) {
-            const rows = Array.from(table.querySelectorAll('.data-row[data-row-index]'));
-            const rowGroups = {};
-
-            // Группируем ячейки по индексу строки
-            rows.forEach(cell => {
-                const index = parseInt(cell.getAttribute('data-row-index'));
-                if (!isNaN(index) && index > 0) {
-                    if (!rowGroups[index]) {
-                        rowGroups[index] = [];
-                    }
-                    rowGroups[index].push(cell);
-                }
+        const oldPages = Array.from(document.querySelectorAll('[data-rm-print-page]'));
+        if (!oldPages.length) return;
+        const rows = [];
+        oldPages.forEach(page => {
+            const groups = new Map();
+            page.querySelectorAll('.data-row:not(.empty-row)').forEach(cell => {
+                const key = cell.dataset.rowIndex;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(cell);
             });
-
-            // Проверяем, является ли строка пустой
-            Object.keys(rowGroups).sort((a, b) => parseInt(a) - parseInt(b)).forEach(function(index) {
-                const cells = rowGroups[index];
-                const firstCell = cells[0];
-                const isEmpty = firstCell && firstCell.classList.contains('empty-row');
-
-                if (!isEmpty) {
-                    // Это строка с данными
-                    allDataRows.push({
-                        index: parseInt(index),
-                        cells: cells,
-                        table: table
-                    });
-                }
-            });
+            rows.push(...groups.values());
         });
-
-        // Сортируем строки с данными по индексу
-        allDataRows.sort((a, b) => a.index - b.index);
-
-        // Удаляем все строки из всех таблиц (включая пустые)
-        allTables.forEach(function(table) {
-            const allRows = table.querySelectorAll('.data-row[data-row-index]');
-            allRows.forEach(row => row.remove());
-        });
-
-        // Получаем все страницы
-        const allPages = document.querySelectorAll('.container-fluid');
-
-        // Распределяем строки с данными по страницам
-        let currentPageIndex = 0;
-        let currentPageDataRowCount = 0;
-        let currentPageTable = null;
-
-        allDataRows.forEach(function(rowData) {
-            const isLastPage = (currentPageIndex === allPages.length - 1);
-            // На последней странице лимит на 1 меньше (чтобы поместился QC Stamp)
-            const pageMaxRows = isLastPage ? (rmMaxRows - 1) : rmMaxRows;
-
-            // Если текущая страница заполнена (достигнут лимит), переходим на следующую
-            if (currentPageDataRowCount >= pageMaxRows) {
-                // Если есть еще страницы, переходим на следующую
-                if (currentPageIndex < allPages.length - 1) {
-                    currentPageIndex++;
-                    currentPageDataRowCount = 0;
-                    currentPageTable = null;
-                } else {
-                    // Если страниц больше нет, оставляем строки на последней странице
-                    // В forEach нельзя использовать break, поэтому просто прекращаем обработку
-                    return;
-                }
-            }
-
-            // Находим или создаем таблицу на текущей странице
-            if (!currentPageTable || currentPageDataRowCount === 0) {
-                currentPageTable = allPages[currentPageIndex].querySelector('.parent[data-rm-records-page]');
-
-                // Если таблицы нет, создаем её
-                if (!currentPageTable) {
-                    currentPageTable = createTableOnPage(allPages[currentPageIndex], currentPageIndex);
-                }
-            }
-
-            // Перемещаем ячейки строки в целевую таблицу
-            rowData.cells.forEach(function(cell) {
-                currentPageTable.appendChild(cell);
-            });
-
-            currentPageDataRowCount++;
-        });
-
-        // Добавляем пустые строки до лимита ТОЛЬКО на последней странице
-        // На остальных страницах пустые строки НЕ добавляются
-        const lastPageIndex = allPages.length - 1;
-        const lastPage = allPages[lastPageIndex];
-        const lastPageTable = lastPage.querySelector('.parent[data-rm-records-page]');
-
-        console.log('Last page index:', lastPageIndex);
-        console.log('Last page table found:', !!lastPageTable);
-
-        if (lastPageTable) {
-            // Убеждаемся, что таблица видима
-            if (lastPageTable.style.display === 'none') {
-                lastPageTable.style.display = '';
-            }
-
-            const rows = lastPageTable.querySelectorAll('.data-row[data-row-index]');
-            const rowGroups = {};
-
-            // Группируем ячейки по индексу строки
-            rows.forEach(cell => {
-                const index = parseInt(cell.getAttribute('data-row-index'));
-                if (!isNaN(index) && index > 0) {
-                    if (!rowGroups[index]) {
-                        rowGroups[index] = [];
-                    }
-                    rowGroups[index].push(cell);
-                }
-            });
-
-            const currentRowCount = Object.keys(rowGroups).length;
-
-            // На последней странице: rmMaxRows - 1 (чтобы поместился QC Stamp)
-            const targetRowCount = rmMaxRows - 1;
-
-            console.log('=== Last Page: Adding Empty Rows ===');
-            console.log('Current data rows:', currentRowCount);
-            console.log('Target rows (rmMaxRows - 1):', targetRowCount);
-            console.log('Empty rows to add:', targetRowCount - currentRowCount);
-
-            // Если строк меньше целевого количества, добавляем пустые строки
-            if (currentRowCount < targetRowCount) {
-                const maxItemNumber = getMaxItemNumberInTable(lastPageTable);
-                const emptyRowsToAdd = targetRowCount - currentRowCount;
-                console.log('Adding', emptyRowsToAdd, 'empty rows to last page. Max item number:', maxItemNumber);
-                addEmptyRowsToTable(lastPageTable, emptyRowsToAdd, maxItemNumber);
-
-                // Проверяем результат
-                setTimeout(function() {
-                    const finalRows = lastPageTable.querySelectorAll('.data-row[data-row-index]');
-                    const finalRowGroups = {};
-                    finalRows.forEach(cell => {
-                        const index = parseInt(cell.getAttribute('data-row-index'));
-                        if (!isNaN(index) && index > 0) {
-                            if (!finalRowGroups[index]) {
-                                finalRowGroups[index] = [];
-                            }
-                            finalRowGroups[index].push(cell);
-                        }
-                    });
-                    const finalRowCount = Object.keys(finalRowGroups).length;
-                    console.log('✅ Last page - Final rows:', finalRowCount, '(should be', targetRowCount + ')');
-                }, 100);
-            } else {
-                console.log('Last page already has enough rows:', currentRowCount);
-            }
-        } else {
-            console.error('❌ Last page table not found!');
-            console.error('Last page element:', lastPage);
-            console.error('All pages:', allPages.length);
+        const prototype = oldPages[0].cloneNode(true);
+        prototype.querySelectorAll('.data-row, .qc_stamp').forEach(el => el.remove());
+        const qc = document.querySelector('[data-rm-print-page] .qc_stamp')?.cloneNode(true);
+        const marker = document.createComment('R&M pages');
+        oldPages[0].before(marker);
+        oldPages.forEach(page => page.remove());
+        const probe = document.createElement('div');
+        probe.style.cssText = 'position:absolute;width:calc(215.9mm - 2 * var(--rm-print-edge-margin));height:calc(279.4mm - 2 * var(--rm-print-edge-margin));visibility:hidden';
+        document.body.appendChild(probe);
+        const budget = probe.getBoundingClientRect();
+        probe.remove();
+        const pages = [];
+        function newPage() {
+            const page = prototype.cloneNode(true);
+            page.classList.toggle('page-break', pages.length > 0);
+            page.style.width = budget.width + 'px';
+            page.style.maxWidth = 'none';
+            page.style.minHeight = '0';
+            page.style.display = 'flex';
+            page.style.flexDirection = 'column';
+            page.querySelector('footer').style.cssText = 'margin-top:0;padding-top:var(--rm-footer-print-gap);font-size:var(--print-footer-font-size)';
+            marker.before(page);
+            const table = page.querySelector('[data-rm-records-page]') || createTableOnPage(page, pages.length);
+            table.style.display = '';
+            table.dataset.rmRecordsPage = pages.length;
+            pages.push(page);
+            return {page, table, count:0};
         }
-
-        // Скрываем пустые таблицы на страницах, где нет строк
-        allTables.forEach(function(table) {
-            const rows = table.querySelectorAll('.data-row[data-row-index]');
-            if (rows.length === 0) {
-                const pageIndex = parseInt(table.getAttribute('data-rm-records-page'));
-                if (pageIndex > 0) {
-                    table.style.display = 'none';
-                }
-            } else {
-                table.style.display = '';
+        function fits(current) { return current.page.getBoundingClientRect().height <= budget.height - 2; }
+        let current = newPage();
+        const limit = Math.max(1, rmMaxRows);
+        rows.forEach(cells => {
+            if (current.count >= limit) current = newPage();
+            cells.forEach(cell => current.table.appendChild(cell));
+            if (!fits(current) && current.count > 0) {
+                cells.forEach(cell => cell.remove());
+                current = newPage();
+                cells.forEach(cell => current.table.appendChild(cell));
             }
+            current.count++;
         });
-
-        console.log('=== Print Settings: Redistributing rows ===');
-        console.log('RM Table Rows per page:', rmMaxRows);
-        console.log('Total data rows:', allDataRows.length);
-        console.log('Total pages:', allPages.length);
-
-        // Проверяем количество строк на каждой странице ДО добавления пустых
-        allPages.forEach(function(page, idx) {
-            const pageTable = page.querySelector('.parent[data-rm-records-page]');
-            if (pageTable) {
-                const rows = pageTable.querySelectorAll('.data-row[data-row-index]');
-                const rowGroups = {};
-                rows.forEach(cell => {
-                    const index = parseInt(cell.getAttribute('data-row-index'));
-                    if (!isNaN(index) && index > 0) {
-                        if (!rowGroups[index]) {
-                            rowGroups[index] = [];
-                        }
-                        rowGroups[index].push(cell);
-                    }
-                });
-                const rowCount = Object.keys(rowGroups).length;
-                const isLast = (idx === allPages.length - 1);
-                console.log('Page', idx + 1, (isLast ? '(LAST)' : ''), '- Data rows:', rowCount, 'Target:', (isLast ? rmMaxRows - 1 : rmMaxRows));
+        if (qc) {
+            current.page.querySelector('footer').before(qc);
+            if (!fits(current) && current.count > 0) {
+                qc.remove();
+                current = newPage();
+                current.page.querySelector('footer').before(qc);
             }
+        }
+        // Add writing space only while it physically fits; never discard data.
+        for (let n = current.count; n < Math.max(0, limit - 1); n++) {
+            const before = new Set(current.table.children);
+            addEmptyRowToTable(current.table, getMaxItemNumberInTable(current.table) + 1);
+            if (!fits(current)) {
+                Array.from(current.table.children).filter(cell => !before.has(cell)).forEach(cell => cell.remove());
+                break;
+            }
+        }
+        pages.forEach((page, index) => {
+            page.querySelector('.rm-page-number').textContent = `Page ${index + 1} of ${pages.length}`;
+            page.style.minHeight = '';
+            page.querySelector('footer').style.marginTop = '';
         });
+        marker.remove();
     }
+
+    window.addEventListener('beforeprint', () => applyPrintSettings(loadPrintSettings()));
 
     // Создание таблицы на странице, если её нет
     function createTableOnPage(pageElement, pageIndex) {

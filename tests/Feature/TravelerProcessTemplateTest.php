@@ -44,13 +44,72 @@ class TravelerProcessTemplateTest extends TestCase
             'process_id' => $f['process']->id, 'description' => "Requirement line\nFig 6031\nNew note.",
         ])->assertOk()->json('template');
         $this->assertSame('New note.', $saved['steps'][0]['description']);
-        $this->postJson(route('tdr.traveler-template.apply', $f['tdr']), ['template_id' => $template['id'], 'revision' => 2])->assertOk();
+        $this->postJson(route('tdr.traveler-template.apply', $f['tdr']), ['template_id' => $template['id'], 'revision' => 2])
+            ->assertOk()->assertJsonPath('warnings', []);
         $this->assertSame('New note.', TdrProcess::where('tdrs_id', $f['tdr']->id)->orderBy('sort_order')->first()->description);
     }
 
     private function login($user): void
     {
         $this->actingAs($user)->withSession(['auth.version' => (int) $user->auth_version, 'password_hash_web' => $user->getAuthPassword()]);
+    }
+
+    public function test_single_step_validation_reports_actual_step_number(): void
+    {
+        $f = $this->fixture();
+        $template = $this->createTemplate($f);
+        $url = route('manuals.traveler-templates.step', [$f['manual'], $template['id']]);
+        $base = ['revision' => 1, 'action' => 'save', 'process_id' => $f['process']->id, 'description' => ''];
+        $this->postJson($url, $base + ['id' => $template['steps'][1]['id'], 'step_number' => 1])
+            ->assertUnprocessable()->assertJsonPath('message', 'Step 2: Description requires FIG.');
+        $this->postJson($url, $base)->assertUnprocessable()
+            ->assertJsonPath('message', 'Step 4: Description requires FIG.');
+        $this->postJson($url, $base + ['step_number' => 5])->assertUnprocessable()
+            ->assertJsonPath('message', 'Step 5: Description requires FIG.');
+        $this->postJson($url, array_merge($base, ['id' => $template['steps'][1]['id'], 'description' => 'Fig 6031']))
+            ->assertOk();
+    }
+
+    public function test_saved_template_and_applied_traveler_survive_new_version_and_archive(): void
+    {
+        $f = $this->fixture();
+        $template = $this->createTemplate($f);
+        $link = ManualProcess::where('manual_id', $f['manual']->id)->where('processes_id', $f['process']->id)->firstOrFail();
+        $updated = \App\Services\ManualProcessVersions::edit($link, ['process' => 'NEW VERSION ONLY'], $f['user']->id);
+        $updated->delete();
+        $this->postJson(route('tdr.traveler-template.apply', $f['tdr']), ['template_id' => $template['id'], 'revision' => 1])->assertOk();
+        $this->get(route('tdr-processes.travelForm', ['id' => $f['tdr']->id, 'traveler_group' => 1]))
+            ->assertOk()->assertSee('Template test specification')->assertDontSee('NEW VERSION ONLY');
+        $this->postJson(route('manuals.traveler-templates.step', [$f['manual'], $template['id']]), [
+            'revision' => 1, 'action' => 'save', 'id' => $template['steps'][0]['id'],
+            'process_id' => $f['process']->id, 'description' => 'Fig 6031 retained version',
+        ])->assertOk();
+        $this->postJson(route('manuals.traveler-templates.step', [$f['manual'], $template['id']]), [
+            'revision' => 2, 'action' => 'save', 'process_id' => $f['process']->id, 'description' => 'Fig 6031',
+        ])->assertUnprocessable();
+        $this->assertSame('Template test specification', $f['process']->fresh()->process);
+    }
+
+    public function test_missing_fig_in_step_five_warns_but_applies_and_prints_traveler(): void
+    {
+        $f = $this->fixture();
+        $f['payload']['steps'] = array_fill(0, 5, [
+            'process_id' => $f['process']->id, 'traveler_group' => 1, 'description' => 'Fig 6031',
+        ]);
+        $template = $this->createTemplate($f);
+        // Imported/existing templates can predate the manual's FIG requirement.
+        \App\Models\TravelerProcessTemplateStep::whereKey($template['steps'][4]['id'])
+            ->update(['description' => 'Check dimensions.']);
+        $response = $this->postJson(route('tdr.traveler-template.apply', $f['tdr']), [
+            'template_id' => $template['id'], 'revision' => 1,
+        ])->assertOk()->assertJsonPath('success', true);
+        $this->assertCount(5, $response->json('process_ids'));
+        $this->assertSame(['Step 5: FIG is missing. Add the figure reference when available.'], $response->json('warnings'));
+        $this->assertSame(5, TdrProcess::where('tdrs_id', $f['tdr']->id)->count());
+        $this->get(route('tdr-processes.travelForm', ['id' => $f['tdr']->id, 'traveler_group' => 1]))
+            ->assertOk()->assertSee('Traveler can be printed.')
+            ->assertSee('Step 5: FIG is missing.')->assertSee('Check dimensions.')
+            ->assertSee('data-traveler-print-button', false);
     }
 
     public function test_semicolon_part_numbers_are_normalized_matched_exactly_and_validated(): void
@@ -391,9 +450,14 @@ class TravelerProcessTemplateTest extends TestCase
         $other = $this->createManual();
         $f['user']->permittedManuals()->attach($other);
         $this->putJson(route('manuals.traveler-templates.update', [$other, $template['id']]), $f['payload'] + ['revision' => 1])->assertNotFound();
-        ManualProcess::where('manual_id', $f['manual']->id)->where('processes_id', $f['process']->id)->delete();
-        $this->postJson(route('tdr.traveler-template.apply', $f['tdr']), ['template_id' => $template['id'], 'revision' => 1])->assertUnprocessable();
+        // Simulate legacy physical corruption, not supported soft archive.
+        \Illuminate\Support\Facades\DB::table('manual_processes')->where('manual_id', $f['manual']->id)->where('processes_id', $f['process']->id)->delete();
+        $this->postJson(route('tdr.traveler-template.apply', $f['tdr']), ['template_id' => $template['id'], 'revision' => 1])
+            ->assertUnprocessable()->assertSee('Step 1: NDT-4')->assertSee('is not linked to manual');
         $this->assertDatabaseMissing('tdr_processes', ['tdrs_id' => $f['tdr']->id]);
+        ManualProcess::create(['manual_id' => $f['manual']->id, 'processes_id' => $f['process']->id, 'requires_fig' => true]);
+        $response = $this->postJson(route('tdr.traveler-template.apply', $f['tdr']), ['template_id' => $template['id'], 'revision' => 1])->assertOk();
+        $this->assertCount(3, $response->json('process_ids'));
     }
 
     public function test_stale_preview_is_rejected_and_picker_renders_preview_without_edit_controls(): void
@@ -403,7 +467,7 @@ class TravelerProcessTemplateTest extends TestCase
         $this->postJson(route('tdr.traveler-template.apply', $f['tdr']), ['template_id' => $template['id'], 'revision' => 2])->assertStatus(409);
         $this->get(route('tdr-processes.processesBody', $f['tdr']->id))->assertOk()
             ->assertSee('data-traveler-picker', false)->assertSee('Repair sequence')->assertDontSee('data-traveler-editor', false)
-            ->assertSee('Apply template (1)')->assertDontSee('data-template-select', false);
+            ->assertSee('Apply template (<span class="traveler-template-count">1</span>)', false)->assertDontSee('data-template-select', false);
         $this->get(route('manuals.show', ['manual' => $f['manual'], 'tab' => 'traveler']))->assertOk()->assertSee('data-traveler-editor', false);
     }
 

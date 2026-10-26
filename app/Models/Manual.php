@@ -91,7 +91,7 @@ class Manual extends Model implements HasMedia
 
     public function processes()
     {
-        return $this->belongsToMany(Process::class, 'manual_processes', 'manual_id', 'processes_id');
+        return $this->belongsToMany(Process::class, 'manual_processes', 'manual_id', 'processes_id')->wherePivotNull('deleted_at');
     }
 
     public function manualProcesses()

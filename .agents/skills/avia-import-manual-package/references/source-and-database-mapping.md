@@ -36,13 +36,35 @@ The CSV/PDF result is canonical for the basic component identity. The workbook s
 
 ## Workbook mapping
 
+### Bushing classification and flag exclusion (20/Oct/2026)
+
+- Classify Parts before mapping process flags. Set `is_bush=1` for a detail explicitly identified as BUSH/BUSHING in the reviewed PDF, even without oversize variants. Record page, IPL, P/N and nomenclature evidence. Also mark every member of a confirmed bushing Original/Oversize family.
+- Do not infer a bushing from shape, P/N pattern, adjacent rows or a BUSH worksheet alone. Bearing, sleeve, spacer, insert and parent ASSY require explicit PDF evidence or a confirmed bushing-family relationship; ambiguous terminology needs review.
+- For Original/Oversize families, `bush_ipl_num` points to the original IPL on every member, including the original. Do not invent a repair family/original reference for a standalone bushing.
+- User rule: `is_bush=1` requires **`ndt_list=0` and `cad_list=0`**, including when the XLS lists that part on NDT/CAD/BUSH sheets. Preserve the source process evidence; this flag exclusion does not mean the physical treatment is unnecessary.
+- In the scoped import/reconciliation, clear conflicting existing NDT/CAD flags with guarded old-value checks and report affected IDs/IPLs. This explicit exclusion overrides additive flag preservation. Do not bulk-rewrite unrelated manuals or overwrite a previously delivered SQL version.
+- Required pre/postflight invariant: zero components with `is_bush=1 AND (ndt_list=1 OR cad_list=1)`.
+
+### Required STD NDT / STD CAD stage (20/Oct/2026)
+
+- Import the actual XLS/XLSX processes into the manual's **STD NDT and STD CAD**, not merely component checkboxes. Include relevant NDT/CAD variants and BUSH sheets in source review.
+- Reuse approved IPL/P/N mappings and exclusions. Retain sheet, row, raw process cell, resolved process and target IPL evidence. Read legends, merged ranges and section boundaries; inherit a shared process only within its evidenced range. Never carry a value through unrelated sections or default a missing process to `1`.
+- NDT retains the source process number(s) and the header specification associated with each number. CAD retains the source process/specification text and meaningful line breaks. Do not substitute a convenient existing process.
+- Reconcile `process_names`, `processes` and `manual_processes` links against current application picklists. Reuse exact matching definitions and add missing source-supported definitions/links in the guarded plan. Preserve unrelated definitions; do not change a shared process merely to fit this manual.
+- Map `std_processes` by manual/component and `std='ndt'` or `std='cad'`. The `process` field stores the selected **number/text, not `processes.id`**. Validate against `StdProcess::processPicklistValuesForManual()` and current controller/service behavior.
+- Check source text length through the complete storage/edit/WO path. Never truncate a long specification to fit a column. For deployments still using VARCHAR255, manual32-10-15 required `2026_10_20_150000_expand_std_process_values.php` (STD and WO process VARCHAR1000; catalogue TEXT) and input validation max1000. Hand off widening separately from transactional data SQL because DDL commits independently; verify the actual deployed schema.
+- Confirmed20/Oct/2026: exclude `is_bush=1` from both component NDT/CAD flags **and STD NDT/CAD rows**. Keep the XLS source process evidence for the separate BUSH workflow; do not create ordinary STD rows that the application's flag synchronization would remove. A BUSH sheet alone does not classify every listed detail as a bushing: a PDF Sleeve with `is_bush=0` remains eligible.
+- Read STD quantity/applicability from the workbook and reconcile with IPL quantities. Audit material differences rather than copying sample quantities blindly. Exclude sample WO identity, results, signatures and stamps.
+- Snapshot existing definitions, links and STD rows read-only; preserve IDs/unrelated rows and guard conflicts. Make the import repeatable without duplicate definitions, links or rows. Include STD rows and process definitions/links in production SQL and SELECT-only verification.
+- Completion requires exact source-to-STD process/quantity/applicability checks, bushing flag exclusion, local raw-SQL/repeat tests, and verification of the manual STD NDT/CAD controller output. Flag totals alone do not prove this stage complete.
+
 Sheet matching is case-insensitive after trimming whitespace.
 
 | Workbook source | Match rule | AVIA target |
 |---|---|---|
 | `LLP` | normalized PN plus compatible part name | `components.log_card = true` |
-| `NDT`, `NDT (n)`, `NDT BUSHINGS` | IPL, then confirm PN | `components.ndt_list = true` |
-| `CAD`, `CAD BUSHINGS`/legacy typo `CAD BUHSINGS`, `CAD AIRCO`, and relevant numbered CAD variants | IPL, then confirm PN | `components.cad_list = true` |
+| `NDT`, `NDT (n)`, `NDT BUSHINGS` | IPL, confirm PN and bushing classification | `components.ndt_list = true` only for non-bushings; STD NDT as above |
+| `CAD`, `CAD BUSHINGS`/legacy typo `CAD BUHSINGS`, `CAD AIRCO`, and relevant numbered CAD variants | IPL, confirm PN and bushing classification | `components.cad_list = true` only for non-bushings; STD CAD as above |
 | `PAINT (2)` or `PAINT` | IPL, then confirm PN | `components.paint_list = true` |
 | `PRL`, `PRL<n>` containing the requested base manual | FIG + ITEM, confirm PN, and CODE exactly `KIT` | `components.kit = true` |
 | `SB` | one bulletin row | `manual_service_bulletins` |
@@ -75,7 +97,7 @@ The standard SB sheet uses columns:
 11. Recommended marker
 12. Mandatory marker
 
-Requirement priority is Mandatory, Recommended, then Optional when more than one marker is present.
+Requirement priority is Mandatory, Recommended, then Optional when more than one marker is present. Verify the actual workbook header before interpreting marker columns: 32-10-04 ELEB uses J=Rec., K=Opt., L=Mand (20/Oct/2026), reversing J/K from the common template. Map by the observed labels; record any generic analyzer positional mismatch and correct the reviewed SB artifact before SQL generation.
 
 ## Matching and conflict rules
 
@@ -97,3 +119,4 @@ Normalize names only for matching: uppercase, collapse punctuation/space, and ex
 The saved production SSH identity is diagnostic/read-only. Allowed production comparison operations are read-only `SELECT`/metadata inspection. Do not execute imports, DB writes, Artisan mutations, file uploads, or deployment through SSH. Produce reviewed local results and handoff artifacts for the user.
 
 Use `scripts/snapshot_manual.php` to serialize only the target manual's component and SB fields needed for reconciliation. Feed that snapshot to `scripts/analyze_sources.php --target-json=...`. Never copy `.env`, connection credentials, tokens, or unrelated rows into the snapshot.
+

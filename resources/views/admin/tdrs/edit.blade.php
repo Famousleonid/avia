@@ -43,10 +43,13 @@
             </div>
 
             <div class="card-body">
-                <form id="editForm" class="editForm" role="form" method="POST"
+                <form id="editForm" class="editForm" data-manufacture-pair="{{ $current_tdr->isManufacturePairMember() ? '1' : '0' }}" role="form" method="POST"
                       action="{{ route('tdrs.update', $current_tdr->id) }}"
                       enctype="multipart/form-data">
                     @csrf
+    @if($current_tdr->isManufacturePairMember())
+        <div class="alert alert-info py-2">{{ __('Changes are saved to both Manufacture entries. Order New / Repair and existing processes are preserved.') }}</div>
+    @endif
                     @method('PUT')
 
                     <input type="hidden" name="workorder_id" value="{{ $current_tdr->workorder->id }}">
@@ -73,7 +76,7 @@
                     <div class="d-flex justify-content-center">
                         <div class="form-group mt-2">
                             <label for="codes_id" class="form-label pe-2">Code Inspection</label>
-                            <select name="codes_id" id="codes_id" class="form-control" style="width: 250px">
+                            <select @disabled($current_tdr->isManufacturePairMember()) name="codes_id" id="codes_id" class="form-control" style="width: 250px">
                                 @foreach($codes as $code)
                                     <option value="{{ $code->id }}" {{ $code->id == $current_tdr->codes_id ? 'selected' : '' }}>
                                         {{ $code->name }}
@@ -83,7 +86,7 @@
                         </div>
                         <div class="form-group mt-2" id="necessary">
                             <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
-                            <select name="necessaries_id" id="necessaries_id" class="form-control" style="width: 250px">
+                            <select @disabled($current_tdr->isManufacturePairMember()) name="necessaries_id" id="necessaries_id" class="form-control" style="width: 250px">
                                 @foreach($necessaries as $necessary)
                                     <option value="{{ $necessary->id }}" {{ $necessary->id == $current_tdr->necessaries_id ? 'selected' : '' }}>
                                         {{ $necessary->name }}
@@ -109,12 +112,12 @@
                             const necessary = document.getElementById('necessaries_id');
                             const qty = document.getElementById('repair_qty');
                             function syncQty() {
-                                const repair = necessary.selectedOptions[0]?.textContent.trim().toLowerCase() === 'repair';
+                                const repair = document.getElementById('editForm').dataset.manufacturePair === '1' || necessary.selectedOptions[0]?.textContent.trim().toLowerCase() === 'repair';
                                 qty.disabled = !repair;
                                 const assySerial = document.getElementById('assy_serial_number');
                                 if (assySerial) {
-                                    assySerial.disabled = repair;
-                                    assySerial.parentElement.classList.toggle('d-none', repair);
+                                    assySerial.disabled = repair && document.getElementById('editForm').dataset.manufacturePair !== '1';
+                                    assySerial.parentElement.classList.toggle('d-none', repair && document.getElementById('editForm').dataset.manufacturePair !== '1');
                                 }
                                 document.getElementById('repair_qty_group').classList.toggle('d-none', !repair);
                             }

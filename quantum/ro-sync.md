@@ -839,3 +839,19 @@ P/N 1840-0002, S/N L694, REF N6.
 
 No production changes were made. This confirms AVIA staging/application
 history, not whether the physical part was dispatched or returned.
+
+### 2026-10-21 W107946 / R9521: trailing R is not normalized away
+
+Read-only production inspection of buffered source `rod:34076` confirmed:
+Quantum PN `2821-0222R`, SN `L1912`, REF `CHP`, sent 21/Oct/2026;
+TDR 2246 has component 3500, PN `2821-0222`, SN `L1912`, manual 78.
+That manual contains separate parts: 3500 / IPL 13-180B / 2821-0222
+and 8010 / IPL 13-180R / 2821-0222R. Equal serials do not override
+exact normalized PN matching. Current outcome is unresolved, no previous targets.
+Do not assume these part numbers interchangeable merely from the R suffix.
+
+There are two Chrome plating rows: standalone 4359 and Traveler 3 row 4652,
+both with no RO/sent/returned. A diagnostic in-memory copy of the source with
+PN changed to 2821-0222 (never saved) resolved to standalone 4359.
+No source, target, mapping or production code was changed. This evidence is
+from AVIA's received Quantum snapshot, not a direct Oracle query.

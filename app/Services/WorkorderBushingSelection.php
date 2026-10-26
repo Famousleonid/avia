@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\{Code, Component, WoBushing, WoBushingLine, Workorder, WorkorderKitPrlCrossout};
+use App\Models\{Code, Component, WoBushing, WoBushingBatch, WoBushingLine, WoBushingProcess, Workorder, WorkorderKitPrlCrossout};
 use App\Support\BushingPrlGrouping;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -12,7 +12,7 @@ class WorkorderBushingSelection
 {
     public function families(Workorder $wo)
     {
-        $parts = app(WorkorderPartScopeResolver::class)->filterComponents(
+        $parts = app(WorkorderPartScopeResolver::class)->filterTdrComponents(
             Component::whereIn('manual_id', $wo->usedManualIds())->bushingCandidates()->get(), $wo
         )->filter(fn ($part) => app(ManualIplBranchRuleResolver::class)->allowsComponentForUnit(
             $wo->unit, (string) $part->ipl_num, (int) $part->manual_id));
@@ -87,6 +87,13 @@ class WorkorderBushingSelection
         return DB::transaction(function () use ($wo, $component, $items, $revision) {
             Workorder::whereKey($wo->id)->lockForUpdate()->firstOrFail();
             $bushing = WoBushing::where('workorder_id', $wo->id)->lockForUpdate()->first();
+            // Serialize quantity changes with edits to the underlying process history.
+            // Match the line -> process -> batch lock order used by the full editor.
+            $lineIds = WoBushingLine::withoutGlobalScope('selected')->where(function ($q) use ($wo) {
+                $q->where('workorder_id', $wo->id)->orWhereHas('woBushing', fn ($b) => $b->where('workorder_id', $wo->id));
+            })->orderBy('id')->lockForUpdate()->pluck('id');
+            WoBushingProcess::whereIn('wo_bushing_line_id', $lineIds)->orderBy('id')->lockForUpdate()->get();
+            WoBushingBatch::where('workorder_id', $wo->id)->orderBy('id')->lockForUpdate()->get();
             $state = $this->snapshot($wo);
             if (!hash_equals($state['revision'], $revision)) {
                 $this->fail('Bushing selection changed on another screen. Review the refreshed selection and try again.');
@@ -127,7 +134,18 @@ class WorkorderBushingSelection
                 } else {
                     foreach ($existing as $line) {
                         if ($existing->count() === 1 && $line->qty !== $qty) {
-                            if ($line->processes->isNotEmpty()) $this->fail('This bushing already has assigned processes. Change its quantity in the bushing editor.');
+                            // Merely assigning a process does not start it. History is
+                            // protected above; keep a draft's full-quantity operations
+                            // in sync without recreating their IDs or route batches.
+                            if ($line->processes->isNotEmpty()) {
+                                if ($line->qty_remaining !== $line->qty || $line->processes->contains(fn ($step) => $step->qty !== $line->qty)) {
+                                    $this->fail('This bushing has split or consumed process quantities. Review its process quantities in the bushing editor.');
+                                }
+                                foreach ($line->processes as $step) {
+                                    $step->qty = $qty;
+                                    $step->save();
+                                }
+                            }
                             $line->qty_remaining = max(0, $line->qty_remaining + $qty - $line->qty);
                             $line->qty = $qty;
                         }

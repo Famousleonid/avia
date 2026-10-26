@@ -23,6 +23,8 @@ When the request includes ASSY, alternate P/N, bushing Original/Oversize, nested
 - Use a single DB transaction for an authorized local import. Guard the manual ID/number, current counts, duplicate IPLs, part-number matches, and final counts.
 - Preserve existing component IDs when correcting an existing row so TDR/log-card/process references remain valid.
 - Existing process flags may be turned on when the source requires them; never turn an existing true flag off merely because the workbook omits it.
+- Classify BUSH/BUSHING details from the reviewed PDF independently of Original/Oversize groups. For `is_bush=1`, require `ndt_list=0` and `cad_list=0`; guarded clearing of conflicting flags within the scoped manual is the explicit exception to additive preservation. See source mapping.
+- XLS/XLSX packages require actual STD NDT and STD CAD process import, including source process values and manual process links; component checkboxes alone are insufficient. Follow the dedicated STD stage in source mapping.
 
 ## Workflow
 
@@ -119,6 +121,8 @@ Verify after commit:
 - no duplicate IPL within the manual;
 - every source IPL resolves to the expected normalized PN;
 - every requested flag is true;
+- every classified bushing has `is_bush=1`, `ndt_list=0`, `cad_list=0`; the preceding flag check applies only to eligible non-bushings for NDT/CAD;
+- STD NDT/CAD rows, process definitions/manual links, process number/text and quantity/applicability match the reviewed XLS; controller output and repeated import are verified;
 - KIT count includes only PRL rows whose CODE is `KIT`;
 - the In-Process Check Sheet template matches the reviewed workbook tasks/stages/references and uses current WO identity, without importing sample stamps or results;
 - existing true flags remain true;

@@ -108,7 +108,7 @@ class Component extends Model implements  hasMedia
 
     public function manual()
     {
-        return $this->belongsTo(Manual::class,'manual_id');
+        return $this->belongsTo(Manual::class,'manual_id')->withTrashed();
     }
 
     public function assemblies(): HasMany

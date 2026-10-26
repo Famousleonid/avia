@@ -118,6 +118,14 @@ return [
         'allow_is_admin' => false,
     ],
 
+    'manuals.log_card_order' => [
+        'label' => 'Manage Log Card order',
+        'group' => 'Manuals',
+        'managed' => true,
+        'roles' => [],
+        'allow_is_admin' => false,
+    ],
+
     'manuals.full' => [
         'label' => 'Manuals full access',
         'group' => 'Capabilities',

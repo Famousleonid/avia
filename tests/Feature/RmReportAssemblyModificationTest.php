@@ -17,6 +17,45 @@ class RmReportAssemblyModificationTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_sb_without_modified_assy_can_be_created_edited_and_selected_without_conversion(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'unit_id' => $this->createUnit(['manual_id' => $manual->id])->id,
+        ]);
+        $source = $this->createAssyGroup($manual->id, 'OPTIONAL-TARGET')->options()->create([
+            'part_number' => '52103-1', 'option_kind' => ManualPartGroup::TYPE_ASSY,
+        ]);
+        $bulletin = ManualServiceBulletin::create([
+            'manual_id' => $manual->id, 'ac_mfg_service_bulletin_no' => '670BA-32-036', 'is_active' => true,
+        ]);
+        $payload = [
+            'workorder_id' => $workorder->id, 'part_description' => 'Outer Cylinder',
+            'mod_repair' => 'SB', 'mod_repair_description' => 'Repair 13-3',
+            'manual_service_bulletin_id' => $bulletin->id, 'source_assy_option_id' => $source->id,
+            'target_assy_option_id' => '',
+        ];
+        $response = $this->actingAs($admin)->postJson(route('rm_reports.store'), $payload)
+            ->assertOk()->assertJsonPath('data.changes_assembly_scope', false)
+            ->assertJsonPath('data.target_assy_option_id', null);
+        $id = $response->json('data.id');
+        $this->assertDatabaseHas('rm_reports', [
+            'id' => $id, 'source_assy_option_id' => $source->id,
+            'manual_service_bulletin_id' => $bulletin->id, 'target_assy_option_id' => null,
+        ]);
+        unset($payload['target_assy_option_id']);
+        $payload['mod_repair_description'] = 'Repair 13-3 updated';
+        $this->putJson(route('rm_reports.updateRecord', $id), $payload)
+            ->assertOk()->assertJsonPath('data.changes_assembly_scope', false);
+        $this->putJson(route('rm_reports.update', $workorder->id), [
+            'workorder_id' => $workorder->id, 'selected_records' => json_encode([$id]), 'notes' => [],
+        ])->assertOk();
+        $this->assertNull($workorder->fresh()->modified_scope_part_group_option_id);
+        $this->assertFalse(RmReport::findOrFail($id)->changesAssemblyScope());
+    }
+
     public function test_selected_sb_conversion_keeps_received_scope_and_uses_modified_assy_parts(): void
     {
         $admin = $this->createUserWithRole('Admin');

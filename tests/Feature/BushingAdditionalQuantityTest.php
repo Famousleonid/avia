@@ -11,6 +11,26 @@ class BushingAdditionalQuantityTest extends TestCase
 {
     use BuildsDomainData, DatabaseTransactions;
 
+    public function test_ndt_options_collapse_formatting_duplicates_but_keep_saved_id_and_distinct_specs(): void
+    {
+        $name = new ProcessName(['name' => 'NDT-1']);
+        $processes = collect([[101, 'ASTM E 1444.'], [102, 'ASTM   E 1444'], [103, 'Different limits']])
+            ->map(function ($data) use ($name) {
+                $process = new Process(['process_names_id' => 1, 'process' => $data[1]]);
+                $process->id = $data[0];
+                return $process->setRelation('process_name', $name);
+            });
+        $html = view('admin.wo_bushings.partials.ndt-options', [
+            'ndtProcesses' => $processes, 'selectedNdt' => 102, 'bushingProcessComments' => [],
+        ])->render();
+        $this->assertSame(2, substr_count($html, '<option '));
+        $this->assertStringContainsString('value="102"', $html);
+        $this->assertStringNotContainsString('value="101"', $html);
+        $this->assertStringContainsString('data-ndt-aliases="101,102"', $html);
+        $this->assertStringContainsString('Different limits', $html);
+        $this->assertStringContainsString('selected', $html);
+    }
+
     public function test_same_part_can_be_added_again_with_shared_capacity_and_immutable_ro_history(): void
     {
         $admin = $this->createUserWithRole('Admin');

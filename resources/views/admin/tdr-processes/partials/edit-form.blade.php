@@ -7,6 +7,13 @@
     .part-process-editor form { display: flex; flex-direction: column; flex: 1; min-width: 0; }
     .part-process-editor .row > div { min-width: 0; }
     .part-process-editor .process-options { overflow-wrap: anywhere; }
+    @media (min-width: 768px) {
+        .part-process-editor .process-row > .row > div:first-child { width: var(--process-name-width, 25%); max-width: 25%; }
+        .part-process-editor .process-row > .row > div:nth-child(2) { width: auto; flex: 1 1 0; }
+        .part-process-editor .process-row > .row > div:nth-child(3) { width: 100%; }
+        .part-process-editor .process-row.specification-picker-expanded > .row > div:nth-child(3) { display: none; }
+    }
+    .part-process-editor .process-row > .row > div:nth-child(3):not(:has(.process-notes-field:not(.d-none), #ec-checkbox-container[style*="display: block"])) { display: none; }
     .part-process-editor .process-description-field { display: flex; flex-direction: column; flex: 1; }
     .part-process-editor textarea { min-height: 160px; flex: 1; resize: vertical; }
 </style>

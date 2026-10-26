@@ -424,16 +424,22 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::delete('transfers/delete-by-tdr/{id}', [TransferController::class, 'deleteByTdr'])->name('transfers.deleteByTdr');
 
     Route::delete('/manuals/{manual}/force', [ManualController::class, 'forceDestroy'])->name('manuals.force-destroy');
+    Route::post('/manuals/{manual}/restore', [ManualController::class, 'restore'])->name('manuals.restore');
     Route::patch('/manuals/{manual}/additional-manuals', [ManualController::class, 'updateAdditionalManuals'])->name('manuals.additional-manuals.update');
     Route::get('/manuals/{manual}/parts-rows', [ManualController::class, 'partsRows'])->name('manuals.parts-rows');
     Route::resource('/manuals', ManualController::class);
     Route::get('/manuals/{manual}/traveler-templates', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'index'])->name('manuals.traveler-templates.index');
+    Route::get('/manuals/{manual}/traveler-templates/{template}/preview', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'preview'])->name('manuals.traveler-templates.preview');
     Route::post('/manuals/{manual}/traveler-templates', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'store'])->name('manuals.traveler-templates.store');
     Route::post('/manuals/{manual}/traveler-templates/metadata', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'metadata'])->name('manuals.traveler-templates.metadata.create');
     Route::patch('/manuals/{manual}/traveler-templates/{template}/metadata', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'metadata'])->name('manuals.traveler-templates.metadata');
     Route::post('/manuals/{manual}/traveler-templates/{template}/step', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'step'])->name('manuals.traveler-templates.step');
     Route::put('/manuals/{manual}/traveler-templates/{template}', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'update'])->name('manuals.traveler-templates.update');
     Route::post('/tdr/{tdr}/traveler-template', [\App\Http\Controllers\Admin\TravelerProcessTemplateController::class, 'apply'])->name('tdr.traveler-template.apply');
+    Route::post('/manuals/{manual}/traveler-templates/{template}/images', [\App\Http\Controllers\Admin\TravelerTemplateImageController::class, 'store'])->name('manuals.traveler-templates.images.store');
+    Route::post('/manuals/{manual}/traveler-templates/{template}/images/{image}', [\App\Http\Controllers\Admin\TravelerTemplateImageController::class, 'change'])->name('manuals.traveler-templates.images.change');
+    Route::get('/traveler-template-images/{image}', [\App\Http\Controllers\Admin\TravelerTemplateImageController::class, 'show'])->name('traveler-template-images.show');
+    Route::get('/tdr/{tdr}/traveler-template-images/{image}', [\App\Http\Controllers\Admin\TravelerTemplateImageController::class, 'tdrImage'])->name('tdr.traveler-template-images.show');
 
     // --- Dimension Figures (Manual settings) ---
     Route::get('/manuals/{manual}/dimension-figures', [ManualDimensionFigureController::class, 'index'])->name('manuals.dimension-figures.index');
@@ -620,6 +626,10 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/manual_processes/{manual_process}/requirements', [ManualProcessController::class, 'updateRequirements'])->name('manual_processes.update-requirements');
     Route::put('/manual_processes/{manual_process}', [ManualProcessController::class, 'update'])->name('manual_processes.update');
     Route::patch('/manual_processes/{manual_process}', [ManualProcessController::class, 'update']);
+    Route::get('/manual_processes/{manualProcess}/deletion-impact', [ManualProcessController::class, 'deletionImpact'])->name('manual_processes.deletion-impact');
+    Route::get('/manuals/{manual}/process-archive', [ManualProcessController::class, 'archive'])->name('manual_processes.archive');
+    Route::post('/manual_processes/{id}/restore', [ManualProcessController::class, 'restore'])->name('manual_processes.restore');
+    Route::get('/manual_processes/{id}/history', [ManualProcessController::class, 'history'])->name('manual_processes.history');
     Route::delete('/manual_processes/{manual_process}', [ManualProcessController::class, 'destroy'])->name('manual_processes.destroy');
     Route::post('manuals/{manual}/process-name-locks/{processName}', [ManualProcessLockController::class, 'lockProcessName'])->name('manuals.process-name-locks.lock');
     Route::delete('manuals/{manual}/process-name-locks/{processName}', [ManualProcessLockController::class, 'unlockProcessName'])->name('manuals.process-name-locks.unlock');
@@ -728,6 +738,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         ->name('quality.forms.certificate.state.update');
     Route::get('/quality-assurance/workorders/{workorder}/shipment-release-form', [QualityAssuranceController::class, 'shipmentReleaseForm'])
         ->name('quality.forms.shipment_release');
+    Route::patch('/quality-assurance/workorders/{workorder}/shipment-technician', [QualityAssuranceController::class, 'updateShipmentTechnician'])
+        ->name('quality.forms.shipment_technician.update');
     Route::get('/quality-assurance/workorders/{workorder}/log-card-form', [QualityAssuranceController::class, 'logCardForm'])
         ->name('quality.forms.log_card');
     Route::post('/quality-assurance/workorders/{workorder}/log-card-form', [QualityAssuranceController::class, 'updateLogCardForm'])
@@ -748,6 +760,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::get('tdr-processes/processesForm/{id}', [TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');
     Route::get('tdr-processes/travelForm/{id}', [TdrProcessController::class, 'travelForm'])->name('tdr-processes.travelForm');
+    Route::get('tdr-processes/attachments/{tdr}', [TdrProcessController::class, 'attachments'])->name('tdr-processes.attachments');
     Route::get('tdr-processes/travelerGroupStandardForm/{tdrId}', [TdrProcessController::class, 'travelerGroupStandardForm'])->name('tdr-processes.travelerGroupStandardForm');
 
     Route::get('/tdr/{tdrId}/create-processes', [TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');

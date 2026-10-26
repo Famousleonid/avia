@@ -108,7 +108,8 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
     min-width: 0;
     white-space: normal;
 }
-@media (max-width: 767.98px) {
+/* Narrow paper must retain the two-column header used by the printed form. */
+@media screen and (max-width: 767.98px) {
     .process-sheet-title-row--machining {
         grid-template-columns: minmax(0, 1fr);
     }

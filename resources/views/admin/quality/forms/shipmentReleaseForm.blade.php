@@ -208,6 +208,9 @@
             padding: 0 3mm;
         }
 
+        .technician-select { width: 100%; min-width: 0; color: inherit; font: inherit; background: transparent; border: 0; }
+        .technician-print-value { display: none; overflow-wrap: anywhere; }
+
         @page {
             size: A4 landscape;
             margin: 5mm;
@@ -242,6 +245,8 @@
             .shipset-print-value {
                 display: inline-block !important;
             }
+            .technician-select { display: none !important; }
+            .technician-print-value { display: block; }
         }
     </style>
 </head>
@@ -367,7 +372,15 @@
         </tr>
         <tr>
             <td class="label-cell center">{{ __('Technician') }}:</td>
-            <td class="center qa-data-slot">{{ $current_wo->user?->selection_name ?? '' }}</td>
+            <td class="center qa-data-slot">
+                <select id="shipmentTechnician" class="technician-select" aria-label="Technician">
+                    @if(!$technician)<option value="">—</option>@endif
+                    @foreach($technicians as $choice)
+                        <option value="{{ $choice->id }}" @selected($technician?->id === $choice->id)>{{ $choice->selection_name }}</option>
+                    @endforeach
+                </select>
+                <span id="shipmentTechnicianPrint" class="technician-print-value">{{ $technician?->selection_name ?? '' }}</span>
+            </td>
             <td class="label-cell center">{{ __('Extra parts') }}</td>
             <td class="stamp-cell">{{ __('stamp') }}</td>
             <td class="label-cell center">{{ __('Technician') }}:</td>
@@ -398,6 +411,39 @@
         </tbody>
     </table>
 </main>
+<script src="{{ asset('assets/Bootstrap 5/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
+<script>
+    document.getElementById('shipmentTechnician').addEventListener('change', async function () {
+        const select = this;
+        const previous = select.dataset.savedValue ?? @json((string) ($technician?->id ?? ''));
+        const chosen = select.value;
+        const name = select.selectedOptions[0]?.textContent || '';
+        select.disabled = true;
+        try {
+            if (!window.confirmDialog) throw new Error('Confirmation dialog is unavailable.');
+            if (!await window.confirmDialog({title: 'Shipment release', message: 'Set technician to ' + name + '?', okText: 'Save', cancelText: 'Cancel'})) {
+                select.value = previous;
+                return;
+            }
+            const response = await fetch(@json(route('quality.forms.shipment_technician.update', $current_wo)), {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @json(csrf_token())},
+                body: JSON.stringify({technician_id: chosen}),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.message || 'Could not save technician.');
+            select.dataset.savedValue = chosen;
+            document.getElementById('shipmentTechnicianPrint').textContent = name;
+            window.showNotification?.('Technician saved.', 'success');
+        } catch (error) {
+            select.value = previous;
+            window.showNotification?.(error.message || 'Could not save technician.', 'error');
+        } finally {
+            select.disabled = false;
+        }
+    });
+</script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var select = document.getElementById('shipsetSelect');

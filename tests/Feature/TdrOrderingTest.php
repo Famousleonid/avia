@@ -125,4 +125,59 @@ class TdrOrderingTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('tdr_ids');
     }
+
+    public function test_reorder_uses_rendered_rows_and_preserves_archived_history(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id]);
+        $ipl = 300;
+        $makeRow = function (string $pn, array $flags = []) use ($wo, &$ipl): Tdr {
+            $part = Component::create(['manual_id' => $wo->unit->manual_id,
+                'ipl_num' => '10-'.($ipl += 10), 'part_number' => $pn, 'name' => $pn]);
+            return Tdr::create(array_merge(['workorder_id' => $wo->id, 'component_id' => $part->id,
+                'qty' => 1, 'use_tdr' => true, 'use_process_forms' => true], $flags));
+        };
+        $first = $makeRow('ACTIVE-A');
+        $archived = $makeRow('2821-0310');
+        $last = $makeRow('ACTIVE-B');
+        $hidden = $makeRow('HIDDEN-TDR', ['use_tdr' => false]);
+        $noForms = $makeRow('NO-FORMS', ['use_process_forms' => false]);
+        $withoutPart = Tdr::create(['workorder_id' => $wo->id, 'component_id' => null,
+            'use_tdr' => true, 'use_process_forms' => true]);
+        $archived->component->delete();
+        $before = $archived->fresh()->getAttributes();
+        $noFormsOrder = $noForms->sort_order;
+        $this->actingAs($admin);
+        $page = $this->get(route('tdrs.show', ['id' => $wo->id]))->assertOk();
+        preg_match_all('/<tr\s+data-tdr-id="(\d+)"/', $page->getContent(), $matches);
+        $visibleIds = array_map('intval', $matches[1]);
+        $this->assertSame([$first->id, $last->id, $withoutPart->id], $visibleIds);
+        $expected = array_reverse($visibleIds);
+        $this->postJson(route('tdrs.reorder', $wo), ['tdr_ids' => $expected])
+            ->assertOk()->assertJsonPath('tdr_ids', $expected);
+        $page = $this->get(route('tdrs.show', ['id' => $wo->id]))->assertOk();
+        preg_match_all('/<tr\s+data-tdr-id="(\d+)"/', $page->getContent(), $matches);
+        $this->assertSame($expected, array_map('intval', $matches[1]));
+        $this->assertSame($expected, Tdr::where('workorder_id', $wo->id)
+            ->inDisplayOrder()->limit(3)->pluck('id')->all());
+        $this->assertSame([$archived->id, $hidden->id], Tdr::whereIn('id', [$archived->id, $hidden->id])
+            ->inDisplayOrder()->pluck('id')->all());
+        $after = $archived->fresh()->getAttributes();
+        unset($before['sort_order'], $before['updated_at'], $after['sort_order'], $after['updated_at']);
+        $this->assertSame($before, $after);
+        $this->assertTrue($archived->fresh()->component->trashed());
+        $this->assertSame($noFormsOrder, $noForms->fresh()->sort_order);
+
+        $saved = Tdr::where('workorder_id', $wo->id)->pluck('sort_order', 'id')->all();
+        foreach ([[$first->id], [...$expected, $archived->id], [...$expected, $hidden->id],
+            [...$expected, $noForms->id], [$first->id, $first->id, $last->id]] as $invalidIds) {
+            $this->postJson(route('tdrs.reorder', $wo), ['tdr_ids' => $invalidIds])->assertUnprocessable();
+            $this->assertSame($saved, Tdr::where('workorder_id', $wo->id)->pluck('sort_order', 'id')->all());
+        }
+        // The page becomes stale when a previously archived part is restored.
+        $archived->component->restore();
+        $this->postJson(route('tdrs.reorder', $wo), ['tdr_ids' => $expected])->assertUnprocessable();
+        $this->assertSame($saved, Tdr::where('workorder_id', $wo->id)->pluck('sort_order', 'id')->all());
+    }
+
 }

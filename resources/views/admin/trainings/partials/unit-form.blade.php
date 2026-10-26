@@ -22,6 +22,7 @@
                             @foreach ($manuals as $manual)
                                 @if(!empty($manual->unit_name_training))
                                     <option value="{{ $manual->id }}" data-training-hours="{{ (float) $manual->training_hours }}"
+                                            title="{{ $unitAvailability[$manual->id]['message'] }}"
                                             @if(request('manual_id') == $manual->id) selected @endif>
                                         {{ $manual->unit_name_training }}
                                         ({{ $manual->title }})

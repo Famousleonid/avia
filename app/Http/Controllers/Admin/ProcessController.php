@@ -151,6 +151,12 @@ class ProcessController extends Controller
             ])['selected_process_id'];
 
             $processId = $validated['selected_process_id'];
+            $pastLink = ManualProcess::withTrashed()->where('manual_id', $manual->id)
+                ->where(function ($q) use ($processId) {
+                    $q->where('processes_id', $processId)->orWhereHas('versions', fn ($v) => $v->where('process_id', $processId));
+                })->exists();
+            $activeLink = ManualProcess::where('manual_id', $manual->id)->where('processes_id', $processId)->exists();
+            abort_if($pastLink && !$activeLink, 422, 'This specification is historical or archived. A system administrator can restore archived processes.');
             $process = null; // Инициализируем переменную для случая выбора существующего процесса
         } else {
             // Сценарий 2: Создание нового процесса
@@ -160,7 +166,7 @@ class ProcessController extends Controller
             }
 
             $validated['process'] = $request->validate([
-                'process' => 'required|string|max:255'
+                'process' => 'required|string|max:1000'
             ])['process'];
 
             // Создаем новый процесс
@@ -190,9 +196,10 @@ class ProcessController extends Controller
                 ]);
                 $manualProcessCreated = true;
             } elseif (filled($validated['process_comment'] ?? null)) {
-                $existingManualProcess->forceFill([
+                $existingManualProcess = \App\Services\ManualProcessVersions::edit($existingManualProcess, [
                     'process_comment' => trim((string) $validated['process_comment']),
-                ])->save();
+                ], $request->user()->id);
+                $processId = $existingManualProcess->processes_id;
             }
 
             // Загружаем процесс для возврата (независимо от того, новый он или существующий)
@@ -269,61 +276,26 @@ class ProcessController extends Controller
         }
         $manualId = $request->query('manualId'); // Добавляем manualId в запрос
 
-        // Определяем, является ли выбранный процесс одним из вариантов Machining
-        // Для всех вариантов Machining ('Machining', 'Machining (EC)', 'Machining (Blend)')
-        // показываем одинаковые existingProcesses
-        $machiningProcessNameIds = [];
-        $machiningEC = ProcessName::whereIdentityName('Machining (EC)')->first();
-        $machining = ProcessName::whereIdentityName('Machining')->first();
-        $machiningBlend = ProcessName::whereIdentityName('Machining (Blend)')->first();
-
-        if ($machiningEC) {
-            $machiningProcessNameIds[] = $machiningEC->id;
-        }
-        if ($machining) {
-            $machiningProcessNameIds[] = $machining->id;
-        }
-        if ($machiningBlend) {
-            $machiningProcessNameIds[] = $machiningBlend->id;
-        }
-        $machiningAtIds = ProcessName::whereIdentityNames(ProcessName::BUSHING_MACHINING_NAMES)->pluck('id')->all();
-        $machiningProcessNameIds = $bushingContext
-            ? $machiningAtIds
-            : array_values(array_unique(array_merge($machiningProcessNameIds, $machiningAtIds)));
-
-        $isMachiningProcess = ! $bushingContext && in_array((int)$processNameId, $machiningProcessNameIds);
-
         // Получаем ID процессов, которые уже связаны с данным manual_id
         $existingProcessIds = DB::table('manual_processes')
             ->where('manual_id', $manualId)
+            ->whereNull('deleted_at')
             ->pluck('processes_id')
             ->toArray();
 
-        // Если это процесс Machining, получаем existingProcesses для всех вариантов Machining
-        if ($isMachiningProcess && !empty($machiningProcessNameIds)) {
-            $existingProcesses = Process::whereIn('id', $existingProcessIds)
-                ->whereIn('process_names_id', $machiningProcessNameIds)
-                ->orderBy('process')
-                ->get();
+        // Each Process Name owns its specifications. Sharing a printed form
+        // does not make Machining AT, EC and OUT interchangeable in the picker.
+        $existingProcesses = Process::whereIn('id', $existingProcessIds)
+            ->where('process_names_id', $processNameId)
+            ->orderBy('process')
+            ->get();
 
-            // Фильтруем процессы для выбора (исключаем существующие) для всех вариантов Machining
-            $availableProcesses = Process::whereIn('process_names_id', $machiningProcessNameIds)
-                ->whereNotIn('id', $existingProcessIds)
-                ->orderBy('process')
-                ->get();
-        } else {
-            // Для обычных процессов используем стандартную логику
-            $existingProcesses = Process::whereIn('id', $existingProcessIds)
-                ->where('process_names_id', $processNameId)
-                ->orderBy('process')
-                ->get();
-
-            // Фильтруем процессы для выбора (исключаем существующие)
-            $availableProcesses = Process::where('process_names_id', $processNameId)
-                ->whereNotIn('id', $existingProcessIds)
-                ->orderBy('process')
-                ->get();
-        }
+        $availableProcesses = Process::where('process_names_id', $processNameId)
+            ->whereNotIn('id', $existingProcessIds)
+            ->whereNotIn('id', ManualProcess::withTrashed()->where('manual_id', $manualId)->select('processes_id'))
+            ->whereNotIn('id', \App\Models\ManualProcessVersion::whereHas('manualProcess', fn ($q) => $q->where('manual_id', $manualId))->select('process_id'))
+            ->orderBy('process')
+            ->get();
 
         $manualProcessSettings = ManualProcess::query()
             ->where('manual_id', $manualId)

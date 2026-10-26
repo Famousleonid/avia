@@ -736,6 +736,21 @@
                                             .'   P/N: '.($snapshot['part_number'] ?? '—');
                                     }
 
+                                    if ($a->subject_type === \App\Models\ManualProcess::class) {
+                                        $linkLabel = function ($snapshot) {
+                                            if (!$snapshot) return 'Not linked';
+                                            return 'manual: '.($snapshot['manual_number'] ?? $snapshot['manual_id'])
+                                                .'   lib: '.($snapshot['manual_lib'] ?? '-')
+                                                ."\n".($snapshot['process_name'] ?? 'Process').' #'.$snapshot['process_id']
+                                                ."\n".($snapshot['specification'] ?? '');
+                                        };
+                                        $before = $props['manual_process_before'] ?? null;
+                                        $after = $props['manual_process_after'] ?? null;
+                                        $objectText = $linkLabel($after ?? $before);
+                                        $oldText = e($linkLabel($before))."\n".$oldText;
+                                        $newText = e($linkLabel($after))."\n".$newText;
+                                    }
+
                                     $objectMetaText = $activityContextLines !== []
                                         ? implode("\n", $activityContextLines)
                                         : null;

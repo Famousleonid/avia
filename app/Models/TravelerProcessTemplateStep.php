@@ -14,4 +14,9 @@ class TravelerProcessTemplateStep extends Model
     {
         return $this->belongsTo(Process::class);
     }
+
+    public function template()
+    {
+        return $this->belongsTo(TravelerProcessTemplate::class, 'template_id');
+    }
 }

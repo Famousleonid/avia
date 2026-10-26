@@ -292,7 +292,7 @@ class TdrsTest extends TestCase
         $prlResponse->assertSee('MISSING-PRL-120');
     }
 
-    public function test_manufacture_pair_cannot_be_edited_and_deleting_either_row_deletes_both(): void
+    public function test_manufacture_pair_roles_cannot_be_changed_and_deleting_either_row_deletes_both(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
@@ -338,7 +338,7 @@ class TdrsTest extends TestCase
                 'necessaries_id' => $orderNew->id,
             ])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Manufacture entries cannot be edited. Delete the Manufacture pair and create a new TDR entry instead.');
+            ->assertJsonValidationErrors('necessaries_id');
 
         $this->actingAs($admin)
             ->delete(route('tdrs.destroy', $orderRow->id))

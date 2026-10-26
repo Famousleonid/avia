@@ -139,7 +139,7 @@ class MobileController extends Controller
         $paint->addMedia($photo)
             ->toMediaCollection('lost');
 
-        return redirect()->route('mobile.paint', ['tab' => 'lost'])->with('success', 'Lost part added');
+        return redirect()->route('mobile.paint', ['tab' => 'lost'])->with('success', 'Lost part added. Photo saved.');
     }
 
     public function destroyPaintLost(Paint $paint)
@@ -1106,7 +1106,11 @@ class MobileController extends Controller
             (string) auth()->user()?->selection_name
         );
 
-        return redirect()->route('mobile.show', $wo->id);
+        $response = redirect()->route('mobile.show', $wo->id);
+        if ($asReceivedPhoto !== null) {
+            $response->with('success', 'Draft created. Photo saved in As received.');
+        }
+        return $response;
     }
 
     public function storePendingDraftUnit(Request $request): JsonResponse
