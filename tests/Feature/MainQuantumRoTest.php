@@ -43,6 +43,10 @@ class MainQuantumRoTest extends TestCase
         $this->assertStringNotContainsString('20/Sep/2026', $row[0]);
         $this->assertStringContainsString('Returned: <span>-</span>', $row[0]);
         $this->assertSame(3, substr_count($html, 'class="main-ro-entry"'));
+        $this->assertStringContainsString('main-ro-pending', $row[0]);
+        $this->assertStringNotContainsString('main-ro-returned', $row[0]);
+        $this->assertSame(2, substr_count($html, 'main-ro-returned'));
+        $this->assertSame(1, substr_count($html, 'main-ro-pending'));
     }
 
     public function test_matrix_keeps_serials_and_multiple_ro_details_separate(): void
@@ -62,6 +66,58 @@ class MainQuantumRoTest extends TestCase
         $this->assertSame(['R1', 'R3'], array_map(fn ($line) => $line->ro_number, $cells[0]));
         $this->assertSame('R2', $cells[1][0]->ro_number);
         $this->assertSame('Traveler 2', $matrix['rows'][1]['label']);
+    }
+
+    public function test_planned_steps_are_numbered_per_detail_and_completion_includes_unsent_work(): void
+    {
+        $first = \App\Models\ProcessName::create(['name' => 'Plan First', 'process_sheet_name' => 'QA', 'code' => 'PLAN1', 'sp_sort_order' => 1, 'show_in_process_picker' => true]);
+        $second = \App\Models\ProcessName::create(['name' => 'Plan Second', 'process_sheet_name' => 'QA', 'code' => 'PLAN2', 'sp_sort_order' => 2, 'show_in_process_picker' => true]);
+        $part = new \App\Models\Component(['part_number' => 'PART-PLAN', 'name' => 'Planned part']);
+        $tdr = new \App\Models\Tdr(['serial_number' => 'SN1']);
+        $make = function ($id, $name, $attrs = []) {
+            $process = new \App\Models\TdrProcess(array_merge(['sort_order' => $id, 'ignore_row' => false], $attrs));
+            $process->id = $id;
+            return $process->setRelation('processName', $name);
+        };
+        $tdr->setRelation('component', $part)->setRelation('tdrProcesses', collect([
+            $make(1, $first, ['date_start' => '2026-10-01', 'date_finish' => '2026-10-02']),
+            $make(2, $second, ['ignore_row' => true]),
+            $make(3, $second, ['in_traveler' => true, 'traveler_group' => 1]),
+            $make(4, $first, ['in_traveler' => true, 'traveler_group' => 1]),
+            $make(5, $second),
+        ]));
+        $lines = collect([
+            new QuantumRoLine(['pn' => 'PART-PLAN', 'serial_number' => 'SN1', 'bom_ref' => 'PLAN1', 'ro_number' => 'R1', 'returned_date' => '2026-10-02']),
+            new QuantumRoLine(['pn' => 'PART-PLAN', 'serial_number' => 'SN2', 'bom_ref' => 'PLAN1', 'ro_number' => 'R2', 'returned_date' => '2026-10-02']),
+        ]);
+        $matrix = app(\App\Services\QuantumRoMatrix::class)->build($lines, collect([$tdr]));
+        $key = json_encode(['PART-PLAN', 'SN1']);
+        $this->assertFalse($matrix['columns'][$key]['complete']);
+        $this->assertTrue($matrix['columns'][json_encode(['PART-PLAN', 'SN2'])]['complete']);
+        $rows = collect($matrix['rows'])->keyBy('label');
+        $this->assertSame([2], $rows['Traveler 1']['pending'][$key]);
+        $this->assertSame([3], $rows['Plan Second']['pending'][$key]);
+        foreach ($tdr->tdrProcesses as $process) $process->date_finish = '2026-10-03';
+        $finished = app(\App\Services\QuantumRoMatrix::class)->build($lines, collect([$tdr]));
+        $this->assertTrue($finished['columns'][$key]['complete']);
+        $lines->last()->returned_date = null;
+        $unfinishedRo = app(\App\Services\QuantumRoMatrix::class)->build($lines, collect([$tdr]));
+        $this->assertFalse($unfinishedRo['columns'][json_encode(['PART-PLAN', 'SN2'])]['complete']);
+    }
+
+    public function test_ro_endpoint_shows_unsent_detail_without_any_quantum_lines(): void
+    {
+        $wo = $this->createWorkorder();
+        $part = \App\Models\Component::create(['manual_id' => $wo->unit->manual_id, 'part_number' => 'PLAN-ONLY', 'name' => 'No RO yet', 'ipl_num' => '1-1']);
+        $tdr = \App\Models\Tdr::create(['workorder_id' => $wo->id, 'component_id' => $part->id, 'serial_number' => 'PLAN-SN', 'qty' => 1]);
+        $name = \App\Models\ProcessName::create(['name' => 'Planned operation', 'process_sheet_name' => 'QA', 'show_in_process_picker' => true]);
+        \App\Models\TdrProcess::create(['tdrs_id' => $tdr->id, 'process_names_id' => $name->id, 'sort_order' => 1]);
+        $user = $this->createUserWithRole('Manager');
+        $html = $this->actingAs($user)->getJson(route('mains.quantum-ro-lines', $wo))->assertOk()->json('html');
+        $this->assertStringContainsString('PLAN-ONLY', $html);
+        $this->assertStringContainsString('Planned operation', $html);
+        $this->assertStringContainsString('Process 1: not sent, RO not assigned', $html);
+        $this->assertStringNotContainsString('main-ro-part-complete', $html);
     }
 
     public function test_empty_state_and_authentication(): void

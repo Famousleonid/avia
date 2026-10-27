@@ -5,7 +5,7 @@
             <tr>
                 <th scope="row">{{ $label }}</th>
                 @foreach($matrix['columns'] as $column)
-                    <th scope="col">{{ $column[$field] ?: '—' }}</th>
+                    <th scope="col" @if($column['complete']) class="main-ro-part-complete" title="All listed processes returned" @endif>{{ $column[$field] ?: '—' }}</th>
                 @endforeach
             </tr>
         @endforeach
@@ -19,8 +19,8 @@
                         <span class="main-ro-orders">
                         @foreach($row['cells'][$key] ?? [] as $line)
                             <span class="main-ro-entry">
-                                <button type="button" class="main-ro-number" aria-expanded="false"
-                                        aria-label="Details for {{ $line->ro_number ?: 'RO' }}">{{ $line->ro_number ?: '—' }}</button>
+                                <button type="button" class="main-ro-number {{ $line->returned_date ? 'main-ro-returned' : 'main-ro-pending' }}" aria-expanded="false"
+                                        aria-label="Details for {{ $line->ro_number ?: 'RO' }} — {{ $line->returned_date ? 'Returned' : 'Not returned' }}">{{ $line->ro_number ?: '—' }}</button>
                                 <template class="main-ro-details">
                                     <div class="main-ro-popover">
                                         <strong>{{ $line->ro_number ?: '—' }}</strong>
@@ -31,12 +31,15 @@
                                 </template>
                             </span>
                         @endforeach
+                        @foreach($row['pending'][$key] ?? [] as $position)
+                            <span class="main-ro-entry main-ro-step-pending" title="Process {{ $position }}: not sent, RO not assigned" aria-label="Process {{ $position }}: not sent, RO not assigned">{{ $position }}</span>
+                        @endforeach
                         </span>
                     </td>
                 @endforeach
             </tr>
         @empty
-            <tr><td class="text-center text-muted py-4">No synchronized RO lines for this workorder.</td></tr>
+            <tr><td class="text-center text-muted py-4">No synchronized RO lines or planned part processes for this workorder.</td></tr>
         @endforelse
         </tbody>
     </table>

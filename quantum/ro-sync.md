@@ -14,6 +14,15 @@ without W), regardless of apply status. No recent-date limit or completed-WO
 exclusion is used. OUT_DATE and returned_date stay on their own source line;
 the page does not aggregate return dates across a shared RO number.
 
+Performance audit (27/Oct/2026; no optimization deployed): the endpoint filters
+with `UPPER(TRIM(wo_number))`. Production `EXPLAIN` returned `type=ALL`,
+`key=null`, approximately 4,382 rows and `Using where; Using filesort`, despite
+the existing `wo_number` index. A future indexed lookup must preserve trimmed,
+case-insensitive identity and optional W; do not simply remove normalization.
+The current client reloads RO on each activation (only concurrent loads are
+deduplicated). This is a secondary cost after the initial Main HTML and UI-state
+restore, not an Oracle request during page opening.
+
 Only Admin and Manager roles can see this tab or call its data endpoint; other
 authenticated roles receive HTTP 403. A saved RO tab selection is ignored when
 the user's current role no longer permits it.
@@ -27,7 +36,7 @@ times and return values. No Oracle-currentness inference is made from these
 local records.
 
 The tab now renders only an SP-form-style matrix: description, P/N and S/N in
-column headers and process/REF rows. Cells show only clickable RO numbers;
+column headers and process/REF rows. Cells show clickable RO numbers;
 vendor and sent/returned dates appear in a small click popover.
 Column identity is the normalized P/N + serial pair. Each source detail remains
 an independent entry, even when several details occupy the same cell. The
@@ -36,6 +45,9 @@ labels use unique `process_names.code` matches and SP form ordering; ambiguous
 or unknown references remain explicit REF rows. T/T1/T2 references appear as
 Traveler rows, without guessing process membership from current local targets.
 No local process values are substituted for the synchronized Quantum dates.
+RO status colors (27/Oct/2026): each source line with returned_date has a green RO-number background; a line without returned_date has a yellow/gold RO number. Apply status and other lines sharing the RO number do not determine this color. Click details and per-line dates remain unchanged.
+Planned steps (27/Oct/2026): supplement the snapshot with visible Parts / Processes from the current WO and its used manuals. Exact normalized P/N + S/N identifies the column; no fuzzy P/N or serial fallback. Ignored/hidden/INSPECT rows are excluded as on Main. Each Traveler group is one step. Gray ordinals (1, 2, 3...) follow each detail's sort_order/id sequence and are shown for steps without Sent or assigned RO, including details with no Quantum lines yet. They are not fabricated RO numbers and do not alter source dates. The Description, P/N and S/N headers are green only when all known source RO lines and all visible planned processes in that column have Returned; any unreturned source line or unfinished planned step keeps it normal. Unique process-code matches share rows with Quantum; ambiguous/missing codes use separate named local process rows.
+
 
 ## Bridge Architecture
 

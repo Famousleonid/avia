@@ -109,7 +109,10 @@ class MainController extends Controller
             ->get(['ro_number', 'pn', 'description', 'serial_number', 'bom_ref',
                 'vendor_name', 'out_date', 'returned_date', 'last_seen_at']);
 
-        $matrix = $matrixBuilder->build($lines);
+        $tdrs = $workorder->tdrs()
+            ->whereHas('component', fn ($query) => $query->whereIn('manual_id', $workorder->usedManualIds()))
+            ->with(['component', 'tdrProcesses.processName'])->orderBy('id')->get();
+        $matrix = $matrixBuilder->build($lines, $tdrs);
 
         return response()->json([
             'html' => view('admin.mains.partials.quantum-ro-lines', compact('workorder', 'lines', 'matrix'))->render(),
