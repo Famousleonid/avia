@@ -988,9 +988,6 @@
                                         $code = isset($tdr['codes']) && is_array($tdr['codes']) ? ($tdr['codes']['code'] ?? '') : '';
                                     } else {
                                         $code = $tdr->codes->code ?? '';
-                                        if (blank($code) && $tdr->isManufactureOrder()) {
-                                            $code = 'MFG';
-                                        }
                                     }
                                 @endphp
                                 <h6>@if($isArray && !empty($tdr['bushing_option_codes']))

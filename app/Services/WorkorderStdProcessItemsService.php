@@ -255,10 +255,17 @@ class WorkorderStdProcessItemsService
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+        $exclusionReasons = $includeExcluded ? $this->tdrExclusionReasons($workorder, $std, $items) : [];
+        $kitQuantities = in_array($std, [StdProcess::STD_NDT, StdProcess::STD_CAD, StdProcess::STD_PAINT], true) && $items->isNotEmpty()
+            ? app(WorkorderPartsList::class)->kitReplacementQuantities($workorder)
+            : [];
         $rows = $items
-            ->map(function (WorkorderStdProcessItem $item) use ($coverage): array {
+            ->map(function (WorkorderStdProcessItem $item) use ($coverage, $exclusionReasons, $kitQuantities): array {
                 $row = $item->toSnapshotRow();
                 $covered = $coverage[(int) $item->component_id] ?? null;
+                $assyPartNumber = trim((string) ($covered['assy_part_number'] ?? ''));
+                $row['assy_excluded'] = $assyPartNumber !== ''
+                    && (int) $covered['covered_qty'] >= (int) $item->base_qty;
                 if ($item->side_exclusion_reason) {
                     $row['group_required_qty'] = (int) $item->base_qty;
                     $row['group_crossed_out'] = true;
@@ -267,16 +274,30 @@ class WorkorderStdProcessItemsService
                     $row['qty'] = 0;
                     return $row;
                 }
+                $kitQty = min((int) $item->base_qty, $kitQuantities[(int) $item->component_id] ?? 0);
+                if ($kitQty > 0 && $kitQty >= (int) $item->base_qty) {
+                    $row['group_required_qty'] = (int) $item->base_qty;
+                    $row['group_crossed_out'] = true;
+                    $row['kit_excluded'] = true;
+                    $row['group_crossout_reason'] = 'KIT';
+                    $row['qty'] = 0;
+                    return $row;
+                }
                 if ((int) $item->remaining_qty <= 0) {
                     $row['group_required_qty'] = (int) $item->base_qty;
                     $row['group_crossed_out'] = true;
-                    $row['group_crossout_reason'] = 'TDR: Repair / Missing / Order New';
+                    $row['group_crossout_reason'] = $exclusionReasons[(int) $item->component_id] ?? 'Excluded';
+                    if ($row['assy_excluded']) {
+                        $row['group_crossout_reason'] = 'ASSY '.$assyPartNumber;
+                    }
                     $row['qty'] = 0;
                     // TDR exclusions can cover an entire IPL family. Do not bring
                     // back its unselected alternatives just because they also have zero remaining QTY.
                     $row['tdr_excluded'] = ! $covered || (int) $covered['covered_qty'] < (int) $item->base_qty;
                     return $row;
                 }
+                // TDR and KIT may describe the same replacement; do not subtract it twice.
+                $row['qty'] = min((int) $row['qty'], (int) $item->base_qty - $kitQty);
                 if (! $covered) {
                     return $row;
                 }
@@ -288,6 +309,9 @@ class WorkorderStdProcessItemsService
                 $row['group_remaining_qty'] = max(0, $requiredQty - $coveredQty);
                 $row['group_crossed_out'] = $coveredQty >= $requiredQty;
                 $row['group_crossout_reason'] = (string) $covered['reason'];
+                if ($row['assy_excluded']) {
+                    $row['group_crossout_reason'] = 'ASSY '.$assyPartNumber;
+                }
                 $row['qty'] = $row['group_crossed_out'] ? 0 : $row['group_remaining_qty'];
 
                 return $row;
@@ -295,11 +319,76 @@ class WorkorderStdProcessItemsService
             // Process sheets contain work to perform, not rejected alternatives.
             // Filter before grouping/pagination; KIT keeps its own crossout display.
             ->reject(fn (array $row): bool => ! empty($row['group_crossed_out'])
-                && (! $includeExcluded || (empty($row['tdr_excluded']) && empty($row['side_excluded']))))
+                && (! $includeExcluded || (empty($row['tdr_excluded']) && empty($row['side_excluded']) && empty($row['kit_excluded']) && empty($row['assy_excluded']))))
             ->values()
             ->all();
 
         return StdProcess::sortRowsForSnapshot(app(PartVariantGrouping::class)->annotateStdRows($rows, $std));
+    }
+
+    /** Defect labels for preview only; does not change exclusion quantities or stored snapshots. */
+    private function tdrExclusionReasons(Workorder $workorder, string $std, Collection $items): array
+    {
+        $byComponent = [];
+        $byIpl = [];
+        $tdrs = Tdr::where('workorder_id', $workorder->id)->whereNotNull('component_id')
+            ->with(['component:id,manual_id,ipl_num', 'necessaries:id,name', 'codes:id,name'])
+            ->get(['component_id', 'necessaries_id', 'codes_id']);
+        foreach ($tdrs as $tdr) {
+            $necessary = strtolower((string) $tdr->necessaries?->name);
+            $code = trim((string) $tdr->codes?->name);
+            if (! in_array($necessary, ['repair', 'missing', 'order new'], true)
+                && ! in_array(strtolower($code), ['repair', 'missing'], true)) {
+                continue;
+            }
+            // Missing can also be recorded in Necessary without a defect code.
+            $reason = $code !== '' ? $this->shortDefectLabel($code)
+                : ($necessary === 'missing' ? 'Missing' : 'Excluded');
+            $byComponent[(int) $tdr->component_id][$reason] = true;
+            if ($tdr->component) {
+                foreach ($this->baseIplKeys((string) $tdr->component->ipl_num) as $key) {
+                    $byIpl[$this->manualBaseIplKey((int) $tdr->component->manual_id, $key)][$reason] = true;
+                }
+            }
+        }
+
+        $byAlternative = [];
+        $groups = ManualPartGroup::whereIn('manual_id', $items->pluck('manual_id')->unique())
+            ->where('type', ManualPartGroup::TYPE_ALTERNATIVE)
+            ->where('behavior', ManualPartGroup::BEHAVIOR_CHOOSE_ONE)
+            ->whereHas('options', fn ($q) => $q->whereIn('component_id', array_keys($byComponent)))
+            ->with('options.component:id,manual_id')->get();
+        foreach ($groups as $group) {
+            if (! $group->appliesTo($std)) continue;
+            $ids = $group->options->filter(fn ($option) => $option->component
+                && (int) $option->component->manual_id === (int) $group->manual_id)->pluck('component_id');
+            $reasons = [];
+            foreach ($ids as $id) $reasons += $byComponent[(int) $id] ?? [];
+            foreach ($ids as $id) $byAlternative[(int) $id] = ($byAlternative[(int) $id] ?? []) + $reasons;
+        }
+
+        return $items->mapWithKeys(function ($item) use ($byComponent, $byIpl, $byAlternative): array {
+            $id = (int) $item->component_id;
+            // Prefer this exact part's defect over a sibling's different defect.
+            $reasons = $byComponent[$id] ?? [];
+            if ($reasons === []) {
+                $reasons = $byAlternative[$id] ?? [];
+                foreach ($this->baseIplKeys((string) $item->ipl_num) as $key) {
+                    $reasons += $byIpl[$this->manualBaseIplKey((int) $item->manual_id, $key)] ?? [];
+                }
+            }
+            return [$id => count($reasons) === 1 ? array_key_first($reasons) : ($reasons ? 'Multiple' : 'Excluded')];
+        })->all();
+    }
+
+    private function shortDefectLabel(string $name): string
+    {
+        return match (strtolower($name)) {
+            'service bulletin' => 'SB',
+            'due for restoration' => 'Restoration',
+            'reference instruction letter' => 'RIL',
+            default => preg_split('/\s+/u', $name, 2)[0],
+        };
     }
 
     public function hasRowsForWorkorder(int $workorderId): bool

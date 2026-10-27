@@ -1,6 +1,7 @@
 {{-- resources/views/partials/notifications-bell.blade.php --}}
 
 @php
+    app(\App\Services\ProcessReminderCloser::class)->forUser(auth()->user());
     $unread = auth()->user()->unreadNotifications()->count();
     $notifId = 'notifDropdown_' . (auth()->id() ?? '0');
 @endphp
@@ -180,9 +181,10 @@
 
                 const data = await r.json().catch(() => ({}));
                 const count = Number(data.count || 0);
+                const previousCount = Number(badge.textContent || 0);
                 setBadge(count);
 
-                if (count > 0 && isDropdownOpen() && !notifLoading && !list.querySelector('[data-notif-id]')) {
+                if (isDropdownOpen() && !notifLoading && (count !== previousCount || (count > 0 && !list.querySelector('[data-notif-id]')))) {
                     await loadLatest(true);
                 }
 
@@ -217,7 +219,6 @@
                             <span class="badge text-bg-success">APPROVED</span>
                             ${woLabel ? `<span class="text-warning fw-semibold">${woLabel}</span>` : ``}
                         </div>
-                        ${actor ? `<div class="text-muted small mt-1">by ${actor}</div>` : ``}
                     `;
                 }
 
@@ -253,7 +254,7 @@
                 }
 
                 const label = h(String(event || 'update').toUpperCase());
-                const text = h(n?.text ?? '');
+                const text = event === 'assigned' ? '' : h(n?.text ?? '');
 
                 return `
                     <div class="d-flex align-items-center gap-2 flex-wrap">

@@ -52,7 +52,7 @@ class CombinedPrlTest extends TestCase
     }
 
     /** @dataProvider sleeveBushingQuantities */
-    public function test_manufacture_sleeve_order_does_not_get_a_crossed_out_bushing_duplicate(?int $bushingQty): void
+    public function test_manufacture_sleeve_order_does_not_get_a_crossed_out_bushing_duplicate(?int $bushingQty, ?string $storedCode): void
     {
         // Production WO107951: Manufacture 14-5/2821-0000RS20, KIT=0,
         // is_bush=1, qty=1; originally no separate WoBushingLine.
@@ -61,10 +61,12 @@ class CombinedPrlTest extends TestCase
         $part = Component::create(['manual_id' => $wo->unit->manual_id,
             'ipl_num' => '14-5', 'part_number' => '2821-0000RS20', 'name' => 'REPAIR SLEEVE',
             'bush_ipl_num' => '14-5', 'is_bush' => true, 'kit' => false, 'units_assy' => 1]);
+        $manufactureCode = Code::firstOrCreate(['name' => 'Manufacture']);
+        $manufactureCode->update(['code' => $storedCode]);
         $tdr = Tdr::create(['workorder_id' => $wo->id, 'component_id' => $part->id,
             'order_component_id' => $part->id, 'qty' => 1, 'tdr_type' => Tdr::TYPE_MANUFACTURE_ORDER,
             'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id,
-            'codes_id' => Code::firstOrCreate(['name' => 'Manufacture'])->id]);
+            'codes_id' => $manufactureCode->id]);
         if ($bushingQty !== null) {
             $bushing = WoBushing::create(['workorder_id' => $wo->id]);
             WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
@@ -72,7 +74,13 @@ class CombinedPrlTest extends TestCase
         }
         $response = $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])->get(route('tdrs.prlForm', $wo))->assertOk();
         $this->assertCount(1, $response->viewData('ordersParts'));
-        $response->assertSee('MFG')->assertSee('2821-0000RS20');
+        $response->assertSee('2821-0000RS20');
+        $dom = new \DOMDocument();
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
+        $codeCells = (new \DOMXPath($dom))->query('//*[contains(concat(" ", normalize-space(@class), " "), " data-row-prl ") and contains(., "2821-0000RS20")]/*[contains(concat(" ", normalize-space(@class), " "), " prl-col-code ")]');
+        $this->assertSame(1, $codeCells->length);
+        $this->assertSame($storedCode ?? '', trim($codeCells->item(0)->textContent));
+        $this->assertSame($storedCode, $manufactureCode->fresh()->code);
         $rows = app(TdrPrintFormController::class)->prlRows($wo);
         $this->assertCount($bushingQty === 2 ? 2 : 1, $rows);
         $this->assertSame($tdr->id, $rows->first()->id);
@@ -94,7 +102,13 @@ class CombinedPrlTest extends TestCase
 
     public static function sleeveBushingQuantities(): array
     {
-        return ['TDR only, WO107951' => [null], 'also selected in Bushings' => [1], 'larger bushing order' => [2]];
+        $cases = [];
+        foreach (['TDR only, WO107951' => null, 'also selected in Bushings' => 1, 'larger bushing order' => 2] as $name => $qty) {
+            foreach (['null' => null, 'empty' => '', 'stored code' => 'CUSTOM'] as $label => $code) {
+                $cases[$name.' / '.$label] = [$qty, $code];
+            }
+        }
+        return $cases;
     }
 
     public function test_tdr_bushing_dedup_keeps_other_variants_and_same_pn_in_other_positions(): void

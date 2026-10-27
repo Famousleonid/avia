@@ -1177,7 +1177,18 @@ window.hapticTap = function (pattern = 10) {
         const url = form?.getAttribute?.('action');
         if (!url) return;
 
+        // Capture-phase autosave runs before the bubbling ignore-row handler.
+        // Read the checkbox directly instead of submitting its stale hidden fallback.
+        const ignoreCheckbox = form.querySelector('input[type="checkbox"][name="ignore_row"]');
+        if (ignoreCheckbox && !ignoreCheckbox.disabled) {
+            form.querySelectorAll('input[type="hidden"][name="ignore_row"]').forEach(input => {
+                input.value = ignoreCheckbox.checked ? '1' : '0';
+            });
+        }
         const fd = new FormData(form);
+        if (ignoreCheckbox && !ignoreCheckbox.disabled) {
+            fd.set('ignore_row', ignoreCheckbox.checked ? '1' : '0');
+        }
         form.classList.add('is-saving');
 
         try {

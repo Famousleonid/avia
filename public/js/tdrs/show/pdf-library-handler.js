@@ -29,6 +29,7 @@ const PdfLibraryHandler = {
 
             // keep the full list; the toggle decides whether generated docs show
             this._allPdfs = Array.isArray(data.pdfs) ? data.pdfs : [];
+            this._uploadCategories = data.upload_categories || [];
 
             const updateOptions = (id, categories, prefix = [], suffix = []) => {
                 const select = document.getElementById(id);
@@ -122,8 +123,8 @@ const PdfLibraryHandler = {
                                     type="button"
                                     data-id="${pdf.id}"
                                     data-name="${displayName}"
-                                    title="Rename"
-                                    aria-label="Rename">
+                                    title="Edit document"
+                                    aria-label="Edit document">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger delete-pdf-btn"
@@ -151,28 +152,74 @@ const PdfLibraryHandler = {
     },
 
     bindRenameButtons() {
-        const self = this;
-        document.querySelectorAll('.rename-pdf-btn').forEach(function (btn) {
-            btn.addEventListener('click', async function () {
-                const id = btn.dataset.id;
-                const current = btn.dataset.name || '';
-                const name = prompt('Rename PDF:', current);
-                if (name === null) return;
-                const trimmed = name.trim();
-                if (!trimmed || trimmed === current) return;
+        const form = document.getElementById('pdfEditForm');
+        const pane = document.getElementById('pdfDocumentPane');
+        const modalEl = document.getElementById('pdfModal');
+        if (!form || !pane || !modalEl) return;
+        const name = document.getElementById('pdfEditName');
+        const category = document.getElementById('pdfEditCategory');
+        const save = document.getElementById('pdfEditSave');
+        const closeEditor = () => { form.hidden = true; pane.hidden = false; };
+        if (!form._bound) {
+            form._bound = true;
+            document.getElementById('pdfEditCancel').addEventListener('click', closeEditor);
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                if (!form._confirming) closeEditor();
+            });
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (save.disabled || !form.reportValidity()) return;
+                if (typeof window.confirmDialog !== 'function') {
+                    window.showNotification('Confirmation dialog is unavailable.', 'error');
+                    return;
+                }
+                const id = form.dataset.mediaId;
+                const values = {name: name.value.trim(), doc_kind: category.value};
+                if (!values.name) { name.focus(); return; }
+                save.disabled = true;
+                form._confirming = true;
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
                 try {
-                    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-                    const r = await fetch('/workorders/pdf/' + id + '/rename', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
-                        body: JSON.stringify({ name: trimmed }),
+                    await new Promise(resolve => {
+                        modalEl.addEventListener('hidden.bs.modal', resolve, {once: true});
+                        modal.hide();
                     });
-                    const j = await r.json();
-                    if (!r.ok) throw new Error(j.message || j.error || 'Rename failed');
-                    const item = (self._allPdfs || []).find(p => String(p.id) === String(id));
-                    if (item) item.name = trimmed;
-                    self.renderPdfList();
-                } catch (e) { alert(e.message); }
+                    const confirmed = await window.confirmDialog({title: 'Save document', message: 'Save the document name and category?', okText: 'Save'});
+                    if (!confirmed) return;
+                    const response = await fetch('/workorders/pdf/' + id + '/rename', {
+                        method: 'PATCH',
+                        headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content},
+                        body: JSON.stringify(values),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(Object.values(data.errors || {}).flat()[0] || data.message || data.error || 'Could not save document');
+                    closeEditor();
+                    await this.loadPdfLibrary(window.currentPdfWorkorderId);
+                    window.showNotification('Document updated', 'success');
+                } catch (error) {
+                    window.showNotification(error.message, 'error');
+                } finally {
+                    form._confirming = false;
+                    save.disabled = false;
+                    modal.show();
+                }
+            });
+        }
+        document.querySelectorAll('.rename-pdf-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const item = (this._allPdfs || []).find(p => String(p.id) === btn.dataset.id);
+                if (!item) return;
+                const video = (item.mime_type || '').startsWith('video/');
+                const options = (this._uploadCategories || []).filter(c => video ? c.key === 'video' : c.key !== 'video').slice();
+                if (item.source_kind && !options.some(c => c.key === item.source_kind)) options.push({key: item.source_kind, name: item.gen_type});
+                if (!options.some(c => c.key === item.kind)) options.push({key: item.kind, name: item.kind_label});
+                category.replaceChildren(...options.map(c => new Option(c.name, c.key)));
+                category.value = item.kind;
+                name.value = item.name || '';
+                form.dataset.mediaId = item.id;
+                pane.hidden = true;
+                form.hidden = false;
+                name.focus();
             });
         });
     },
@@ -194,3 +241,29 @@ const PdfLibraryHandler = {
 
 
 
+
+// Manage categories inside the existing documents dialog, keeping the WO in place.
+document.addEventListener('DOMContentLoaded', () => {
+    const open = document.getElementById('manageDocumentCategories');
+    const documents = document.getElementById('pdfDocumentPane');
+    const categories = document.getElementById('pdfCategoriesPane');
+    const frame = document.getElementById('documentCategoriesFrame');
+    if (!open || !documents || !categories || !frame) return;
+    const restore = () => {
+        categories.hidden = true;
+        documents.hidden = false;
+        frame.removeAttribute('src');
+    };
+    open.addEventListener('click', () => {
+        documents.hidden = true;
+        categories.hidden = false;
+        frame.src = open.dataset.url;
+        document.getElementById('backToDocuments').focus();
+    });
+    document.getElementById('backToDocuments').addEventListener('click', () => {
+        restore();
+        if (window.currentPdfWorkorderId) PdfLibraryHandler.loadPdfLibrary(window.currentPdfWorkorderId);
+        open.focus();
+    });
+    document.getElementById('pdfModal').addEventListener('hidden.bs.modal', () => { if (!categories.hidden) restore(); });
+});

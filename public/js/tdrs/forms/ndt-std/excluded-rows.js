@@ -1,5 +1,5 @@
 (() => {
-    const button = document.querySelector('#ndt-toggle-excluded, #cad-toggle-excluded');
+    const button = document.querySelector('#ndt-toggle-excluded, #cad-toggle-excluded, #paint-toggle-excluded');
     if (!button) return;
     button.addEventListener('click', async () => {
         const show = button.getAttribute('aria-pressed') !== 'true';

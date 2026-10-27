@@ -560,6 +560,8 @@ class PartGroupCoverageResolver
                 'reason' => $reason,
                 'group_id' => (int) $group->id,
                 'option_id' => (int) $option->id,
+                'assy_part_number' => $group->type === ManualPartGroup::TYPE_ASSY
+                    ? (string) $option->part_number : null,
             ];
         }
 

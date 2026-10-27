@@ -91,6 +91,10 @@ class AppServiceProvider extends ServiceProvider
         Workorder::observe(WorkorderObserver::class);
         Tdr::observe(TdrObserver::class);
         Component::observe(ComponentObserver::class);
+        foreach ([\App\Models\TdrProcess::class, \App\Models\WorkorderStdProcess::class] as $processModel) {
+            $processModel::saved(fn ($process) => app(\App\Services\ProcessReminderCloser::class)->afterSave($process));
+        }
+
 
         View::composer($this->printFormViews(), function (): void {
             $this->disableDebugbarForResponse();

@@ -377,16 +377,29 @@ class MediaController extends Controller
         return response()->json(['success' => true]);
     }
 
-    /** Rename a library PDF — stored as the display name (document_name property). */
+    /** Update library display metadata without changing the file or generated-document source. */
     public function rename_pdf(Request $request, $id)
     {
         $media = Media::findOrFail($id);
         if ($media->collection_name !== 'pdfs') {
             return response()->json(['error' => 'Invalid file type'], 400);
         }
-        $data = $request->validate(['name' => 'required|string|max:255']);
+        $sourceKinds = ['process_document' => 'ec_draft', 'fc_document' => 'fc', 'machining_final' => 'machining'];
+        $sourceKind = $sourceKinds[$media->getCustomProperty('source')] ?? null;
+        $currentKind = $media->getCustomProperty('doc_kind') ?: ($sourceKind ?? 'general');
+        $isVideo = str_starts_with((string) $media->mime_type, 'video/');
+        $allowedKinds = $isVideo ? ['video'] : \App\Models\DocumentCategory::query()
+            ->where('key', '<>', 'video')->pluck('key')->all();
+        // An existing removed category may be retained, but cannot be newly assigned.
+        $allowedKinds[] = $currentKind;
+        if ($sourceKind) $allowedKinds[] = $sourceKind;
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'doc_kind' => ['sometimes', 'required', 'string', \Illuminate\Validation\Rule::in($allowedKinds)],
+        ]);
 
         $media->setCustomProperty('document_name', trim($data['name']));
+        if (array_key_exists('doc_kind', $data)) $media->setCustomProperty('doc_kind', $data['doc_kind']);
         $media->save();
 
         return response()->json(['success' => true, 'name' => trim($data['name'])]);

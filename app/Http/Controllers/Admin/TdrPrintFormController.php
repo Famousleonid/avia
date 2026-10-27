@@ -1342,61 +1342,9 @@ class TdrPrintFormController extends Controller
                 ->with('process')
                 ->get();
 
-            // Получаем IPL номера компонентов, которые должны быть исключены из paintFormStd
-            // Исключаем компоненты, присутствующие в TDR со статусами: Missing, Repair, Order New
-            $excludedIplNumsPaint = [];
-
-            // Получаем ID для Missing, Repair, Order New
-            $missingCode = Code::missing();
-            $repairCode = Code::where('name', 'Repair')->first();
-            $orderNewNecessary = Necessary::where('name', 'Order New')->first();
-
-            // Получаем TDR записи с этими статусами
-            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component:id,manual_id,ipl_num');
-
-            $excludedConditions = [];
-            if ($missingCode) {
-                $excludedConditions[] = ['codes_id', $missingCode->id];
-            }
-            if ($repairCode) {
-                $excludedConditions[] = ['codes_id', $repairCode->id];
-            }
-            if ($orderNewNecessary) {
-                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
-            }
-
-            if (!empty($excludedConditions)) {
-                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
-                    foreach ($excludedConditions as $condition) {
-                        $query->orWhere($condition[0], $condition[1]);
-                    }
-                });
-
-                $excludedTdrs = $excludedTdrQuery->get();
-                foreach ($excludedTdrs as $tdr) {
-                    if ($tdr->component && $tdr->component->ipl_num) {
-                        // Нормализуем IPL номер для сравнения (убираем буквенные суффиксы)
-                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
-                        if (!empty($normalizedIpl)) {
-                            $excludedIplNumsPaint[(int) $tdr->component->manual_id . '|' . $normalizedIpl] = true;
-                        }
-                    }
-                }
-            }
-
-            // Paint STD uses current Component rows with paint_list, not the stored CSV snapshot.
-            $paint_components = collect(StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_PAINT))
-                ->filter(function ($component) use ($excludedIplNumsPaint) {
-                    $iplNum = $component['ipl_num'] ?? '';
-                    // Нормализуем IPL номер для сравнения
-                    $normalizedIpl = $this->normalizeIplNum($iplNum);
-                    // Исключаем компоненты, присутствующие в TDR со статусами Missing, Repair, Order New
-                    $manualIplKey = (int) ($component['manual_id'] ?? 0) . '|' . $normalizedIpl;
-
-                    return !isset($excludedIplNumsPaint[$manualIplKey]);
-                })
+            $paintShowExcluded = $request->boolean('show_excluded');
+            $paint_components = collect(app(\App\Services\WorkorderStdProcessItemsService::class)
+                ->snapshotRowsForWorkorder($current_wo, StdProcess::STD_PAINT, $paintShowExcluded))
                 ->map(function ($component) use ($manual) {
                     [$itemDisp, $partDisp, $descDisp] = $this->resolvePaintStdAssyDisplayFields($component, $manual);
 
@@ -1476,6 +1424,7 @@ class TdrPrintFormController extends Controller
                     'current_wo' => $current_wo,
                     'manual' => $manual,
                     'paint_components' => $paint_components,
+                    'paint_show_excluded' => $paintShowExcluded,
                     'paint_table_pages' => $paint_table_pages,
                     'paint_rows_per_page' => $paintRowsPerPage,
                     'paint_processes' => $paint_processes,
@@ -1609,6 +1558,7 @@ class TdrPrintFormController extends Controller
             'process' => $component->process_name ?? '',
             'variant_group_key' => $component->variant_group_key ?? null,
             'group_crossed_out' => $component->group_crossed_out ?? false,
+            'group_crossout_reason' => $component->group_crossout_reason ?? '',
         ]);
     }
 

@@ -9,6 +9,27 @@ use Illuminate\Support\Facades\DB;
 
 class WorkorderPartsList
 {
+    /** Mandatory replacements from the active KIT, excluding Extra Parts and crossed options. */
+    public function kitReplacementQuantities(Workorder $workorder): array
+    {
+        $quantities = [];
+        foreach (app(TdrPrintFormController::class)->kitRows($workorder) as $row) {
+            if (! empty($row['prl_crossed_out'])) {
+                continue;
+            }
+            foreach ($row['kit_component_options'] ?? $row['prl_part_numbers'] ?? [] as $option) {
+                if (! empty($option['crossed_out'])) {
+                    continue;
+                }
+                $id = (int) $option['component_id'];
+                $qty = max(0, (int) ($option['qty'] ?? $row['qty'] ?? 0));
+                $quantities[$id] = max($quantities[$id] ?? 0, $qty);
+            }
+        }
+
+        return $quantities;
+    }
+
     public function rows(Workorder $workorder): Collection
     {
         $generator = app(TdrPrintFormController::class);

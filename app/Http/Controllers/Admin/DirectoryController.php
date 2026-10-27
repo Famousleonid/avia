@@ -280,7 +280,7 @@ class DirectoryController extends Controller
             );
         }
 
-        return redirect()->route("$slug.index")->with('success', 'Created');
+        return redirect()->route("$slug.index", $slug === 'document_categories' && $request->boolean('embedded') ? ['embedded' => 1] : [])->with('success', 'Created');
     }
 
     public function update(Request $request, $id)
@@ -304,7 +304,7 @@ class DirectoryController extends Controller
 
         $item->fill($data)->save();
 
-        return redirect()->route("$slug.index")->with('success', 'Updated');
+        return redirect()->route("$slug.index", $slug === 'document_categories' && $request->boolean('embedded') ? ['embedded' => 1] : [])->with('success', 'Updated');
     }
 
     public function updateField(Request $request, string $directory, int $id, string $field)
@@ -363,7 +363,7 @@ class DirectoryController extends Controller
 
         $item->delete();
 
-        return redirect()->route("$slug.index")->with('success', 'Deleted');
+        return redirect()->route("$slug.index", $slug === 'document_categories' && $request->boolean('embedded') ? ['embedded' => 1] : [])->with('success', 'Deleted');
     }
 
     /**

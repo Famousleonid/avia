@@ -104,6 +104,8 @@ class PartVariantGrouping
             $family = self::iplFamily((string) ($row['ipl_num'] ?? ''));
             $identity = 'ipl|'.$manual.'|'.($family ?: 'component-'.($row['component_id'] ?? 0));
         }
-        return $identity.'|'.(! empty($row['group_crossed_out']) ? 'crossed' : 'open');
+        $crossed = ! empty($row['group_crossed_out']);
+        $reason = $crossed ? trim((string) ($row['group_crossout_reason'] ?? '')) : '';
+        return $identity.'|'.($crossed ? 'crossed' : 'open').($reason !== '' ? '|reason:'.$reason : '');
     }
 }

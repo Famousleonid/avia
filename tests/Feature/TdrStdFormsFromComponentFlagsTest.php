@@ -20,6 +20,191 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_ordered_assy_members_are_shown_crossed_out_with_assy_number(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id, 'scope_type' => 'full_unit']);
+        $manual = $wo->unit->manuals;
+        $head = $this->createComponent($manual, ['ipl_num' => '1-10', 'part_number' => '170-70300-405']);
+        $part = $this->createComponent($manual, ['ipl_num' => '1-65', 'part_number' => '170-70304-001', 'units_assy' => 4, 'ndt_list' => true]);
+        $group = \App\Models\ManualPartGroup::create(['manual_id' => $manual->id, 'code' => 'ASSY-'.uniqid(),
+            'name' => 'ASSY', 'type' => 'assy', 'behavior' => 'bundle', 'applies_to' => ['ndt']]);
+        $option = $group->options()->create(['component_id' => $head->id, 'part_number' => $head->part_number, 'option_kind' => 'assy', 'is_default' => true]);
+        $option->coverages()->create(['component_id' => $part->id, 'qty' => 2, 'applies_to' => ['ndt']]);
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $head->id, 'order_component_id' => $head->id, 'qty' => 2,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id]);
+        $this->actingAs($admin);
+        $this->get(route('tdrs.ndtStd', $wo->id))->assertOk()->assertDontSee('170-70304-001');
+        $shown = $this->get(route('tdrs.ndtStd', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
+        $row = collect($shown->viewData('ndt_components'))->where('part_number', '170-70304-001')->sole();
+        $this->assertTrue((bool) $row->group_crossed_out);
+        $this->assertSame('ASSY 170-70300-405', $row->group_crossout_reason);
+        $this->assertSame(0, $row->qty);
+        $this->assertSame(4, $row->display_qty);
+    }
+
+    public function test_ndt_cad_and_paint_exclude_active_mandatory_kit_parts_without_a_tdr(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $wo = $this->createWorkorder(['user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+            'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT]);
+        $parts = [];
+        foreach (['KIT' => ['kit' => true, 'units_assy' => 2], 'KEEP' => [],
+            'EXTRA' => ['kit_e' => true], 'CANCELLED' => ['kit' => true],
+            'DEFECT' => ['kit' => true]] as $name => $attributes) {
+            $parts[$name] = Component::create(array_merge(['manual_id' => $wo->unit->manual_id,
+                'ipl_num' => '1-'.(10 + count($parts) * 10), 'part_number' => 'MANDATORY-'.$name,
+                'name' => $name.' part', 'units_assy' => 1, 'ndt_list' => true, 'cad_list' => true,
+                'stress_relief_list' => true, 'paint_list' => true], $attributes));
+        }
+        \App\Models\WorkorderKitPrlCrossout::create(['workorder_id' => $wo->id,
+            'component_id' => $parts['CANCELLED']->id, 'created_by_user_id' => $admin->id]);
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts['DEFECT']->id, 'qty' => 1,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id,
+            'codes_id' => Code::firstOrCreate(['name' => 'Corroded'])->id]);
+        $service = app(\App\Services\WorkorderStdProcessItemsService::class);
+        $service->rebuild($wo);
+        foreach (['ndt', 'cad', 'paint'] as $std) {
+            $rows = collect($service->snapshotRowsForWorkorder($wo, $std))->keyBy('component_id');
+            $this->assertEqualsCanonicalizing([$parts['KEEP']->id, $parts['EXTRA']->id, $parts['CANCELLED']->id], $rows->keys()->all());
+            $beforePreview = WorkorderStdProcessItem::where('workorder_id', $wo->id)->get()->toArray();
+            $preview = collect($service->snapshotRowsForWorkorder($wo, $std, true))->keyBy('component_id');
+            foreach (['KIT', 'DEFECT'] as $name) {
+                $this->assertTrue($preview[$parts[$name]->id]['group_crossed_out']);
+                $this->assertSame('KIT', $preview[$parts[$name]->id]['group_crossout_reason']);
+                $this->assertSame(0, $preview[$parts[$name]->id]['qty']);
+            }
+            $this->assertSame(2, $preview[$parts['KIT']->id]['group_required_qty']);
+            $this->assertSame($beforePreview, WorkorderStdProcessItem::where('workorder_id', $wo->id)->get()->toArray());
+            $response = $this->get(route('tdrs.'.$std.'Std', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
+            $printed = collect($response->viewData($std.'_components'))->firstWhere('part_number', 'MANDATORY-KIT');
+            $this->assertTrue($printed->group_crossed_out);
+            $this->assertSame('KIT', $printed->group_crossout_reason);
+            $this->assertSame(2, $printed->display_qty);
+            $response->assertSee('<span class="std-group-crossout-reason">KIT</span>', false);
+            $this->get(route('tdrs.'.$std.'Std', $wo->id))->assertOk()->assertDontSee('MANDATORY-KIT');
+        }
+        foreach (['stress'] as $std) {
+            $rows = collect($service->snapshotRowsForWorkorder($wo, $std))->keyBy('component_id');
+            $this->assertSame(2, $rows[$parts['KIT']->id]['qty']);
+        }
+        // A KIT change must take effect on an existing snapshot without editing TDR or Parts.
+        $parts['KIT']->update(['kit' => false]);
+        foreach (['ndt', 'cad', 'paint'] as $std) {
+            $this->assertSame(2, collect($service->snapshotRowsForWorkorder($wo, $std))
+                ->firstWhere('component_id', $parts['KIT']->id)['qty']);
+        }
+        $this->assertSame(1, Tdr::where('workorder_id', $wo->id)->count());
+    }
+
+    public function test_mandatory_kit_exclusion_does_not_apply_to_repair_or_detached_parts(): void
+    {
+        $wo = $this->createWorkorder(['instruction_id' => $this->createInstruction(['name' => 'Repair'])->id,
+            'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT]);
+        $part = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => '1-10',
+            'part_number' => 'DETACHED-KIT', 'name' => 'Detached part', 'units_assy' => 2,
+            'kit' => true, 'ndt_list' => true, 'cad_list' => true, 'paint_list' => true]);
+        $service = app(\App\Services\WorkorderStdProcessItemsService::class);
+        foreach ([false, true] as $detached) {
+            if ($detached) {
+                $wo->update(['instruction_id' => $this->createOverhaulInstruction()->id,
+                    'scope_type' => \App\Models\Unit::SCOPE_COMPONENT, 'scope_component_id' => $part->id]);
+                $wo->unsetRelation('instruction');
+            }
+            $service->rebuild($wo);
+            foreach (['ndt', 'cad', 'paint'] as $std) {
+                $rows = $service->snapshotRowsForWorkorder($wo, $std, true);
+                $this->assertCount(1, $rows);
+                $this->assertSame($detached ? 1 : 2, $rows[0]['qty']);
+                $this->assertEmpty($rows[0]['group_crossed_out'] ?? false);
+            }
+        }
+    }
+
+    public function test_paint_keeps_partial_quantity_without_double_subtracting_kit_and_tdr(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $wo = $this->createWorkorder(['user_id' => $admin->id]);
+        $part = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => '1-10',
+            'part_number' => 'PARTIAL-PAINT', 'name' => 'Partial paint part', 'units_assy' => 3,
+            'paint_list' => true]);
+        Tdr::create(['workorder_id' => $wo->id, 'component_id' => $part->id, 'qty' => 1,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id]);
+        // Supply and the TDR describe the same one replacement out of three.
+        $this->mock(\App\Services\WorkorderPartsList::class, function ($mock) use ($part) {
+            $mock->shouldReceive('kitReplacementQuantities')->andReturn([$part->id => 1]);
+        });
+        foreach ([false, true] as $preview) {
+            $response = $this->get(route('tdrs.paintStd', ['workorder_id' => $wo->id,
+                'show_excluded' => $preview ? 1 : 0]))->assertOk();
+            $rows = $response->viewData('paint_components');
+            $this->assertCount(1, $rows);
+            $this->assertSame(2, $rows[0]->qty);
+            $this->assertFalse($rows[0]->group_crossed_out);
+            $this->assertSame(2, $response->viewData('paintSum')['total_qty']);
+        }
+    }
+
+    public function test_excluded_rows_show_their_own_defect_without_merging_different_reasons(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $wo = $this->createWorkorder(['user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+            'scope_type' => \App\Models\Unit::SCOPE_FULL_UNIT]);
+        $parts = [];
+        foreach ([['1-85', 'Corroded', 1, 'Order New'], ['1-85A', 'Worn', 1, 'Repair'],
+            ['2-10', 'Missing', 1, 'Order New'], ['3-10', 'Worn', 2, 'Repair'],
+            ['4-10', null, 1, 'Order New'], ['5-10', null, 1, 'Missing']] as [$ipl, $defect, $qty, $action]) {
+            $part = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => $ipl,
+                'part_number' => 'DEFECT-'.$ipl, 'name' => 'Rod '.$ipl, 'units_assy' => $qty,
+                'cad_list' => true, 'ndt_list' => true, 'stress_relief_list' => true, 'paint_list' => true]);
+            $parts[$ipl] = $part;
+            Tdr::create(['workorder_id' => $wo->id, 'component_id' => $part->id, 'qty' => 1,
+                'necessaries_id' => Necessary::firstOrCreate(['name' => $action])->id,
+                'codes_id' => $defect ? Code::firstOrCreate(['name' => $defect])->id : null]);
+        }
+        $alternate = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => '1-90',
+            'part_number' => 'DEFECT-ALTERNATE', 'name' => 'Alternate rod', 'units_assy' => 1,
+            'cad_list' => true, 'ndt_list' => true, 'stress_relief_list' => true, 'paint_list' => true]);
+        $group = \App\Models\ManualPartGroup::create(['manual_id' => $wo->unit->manual_id,
+            'code' => 'DEFECT-ALTERNATES', 'name' => 'Alternate rods', 'type' => 'alternative_pn',
+            'behavior' => 'choose_one', 'applies_to' => ['ndt', 'cad', 'stress', 'paint']]);
+        foreach ([$parts['1-85'], $alternate] as $part) {
+            $group->options()->create(['component_id' => $part->id, 'part_number' => $part->part_number,
+                'ipl_num' => $part->ipl_num, 'option_kind' => 'alternate']);
+        }
+        $service = app(\App\Services\WorkorderStdProcessItemsService::class);
+        $service->rebuild($wo);
+        $stored = WorkorderStdProcessItem::where('workorder_id', $wo->id)->get()->toArray();
+        foreach (['ndt', 'cad', 'stress', 'paint'] as $std) {
+            $beforePreview = WorkorderStdProcessItem::where('workorder_id', $wo->id)->get()->toArray();
+            $rows = collect($service->snapshotRowsForWorkorder($wo, $std, true))->keyBy('component_id');
+            $this->assertSame($beforePreview, WorkorderStdProcessItem::where('workorder_id', $wo->id)->get()->toArray());
+            foreach (['1-85' => 'Corroded', '1-85A' => 'Worn', '2-10' => 'Missing', '4-10' => 'Excluded', '5-10' => 'Missing'] as $ipl => $reason) {
+                $this->assertSame($reason, $rows[$parts[$ipl]->id]['group_crossout_reason']);
+                $this->assertTrue($rows[$parts[$ipl]->id]['group_crossed_out']);
+            }
+            $this->assertSame('Corroded', $rows[$alternate->id]['group_crossout_reason']);
+            $this->assertSame(1, $rows[$parts['3-10']->id]['qty']);
+            $this->assertEmpty($rows[$parts['3-10']->id]['group_crossout_reason'] ?? null);
+            if (in_array($std, ['ndt', 'cad', 'paint'], true)) {
+                $response = $this->get(route('tdrs.'.$std.'Std', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
+                $components = collect($response->viewData($std.'_components'));
+                $this->assertSame('Corroded', $components->first(fn ($c) => str_contains($c->part_number, 'DEFECT-1-85') && !str_contains($c->part_number, 'DEFECT-1-85A'))->group_crossout_reason);
+                $this->assertSame('Worn', $components->first(fn ($c) => str_contains($c->part_number, 'DEFECT-1-85A'))->group_crossout_reason);
+                $response->assertDontSee('TDR: Repair / Missing / Order New')->assertSee('Corroded')->assertSee('Worn')->assertSee('Missing');
+            }
+        }
+        // Form controllers rebuild snapshots as before; compare their business values.
+        $values = fn ($rows) => collect($rows)->sortBy(fn ($row) => $row['std_type'].'|'.$row['component_id'])
+            ->map(fn ($row) => \Illuminate\Support\Arr::except($row, ['id', 'created_at', 'updated_at']))->values()->all();
+        $this->assertSame($values($stored), $values(WorkorderStdProcessItem::where('workorder_id', $wo->id)->get()->toArray()));
+    }
+
     public static function exclusionAlternativeScopes(): array
     {
         $scopes = [
@@ -89,7 +274,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertSame(2, (int) $preview->firstWhere('component_id', $parts->last()->id)['remaining_qty']);
         $normal = $this->get(route('tdrs.'.$std.'Std', $wo->id))->assertOk();
         $normal->assertDontSee('AXLE-9-540')->assertSee('AXLE-10-999');
-        if (in_array($std, ['ndt', 'cad'], true)) {
+        if (in_array($std, ['ndt', 'cad', 'paint'], true)) {
             $this->get(route('tdrs.'.$std.'Std', ['workorder_id' => $wo->id, 'show_excluded' => 1]))
                 ->assertOk()->assertSee('AXLE-9-540')->assertSee('AXLE-9-543A');
         }
@@ -1705,25 +1890,26 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             $parts[] = $part;
         }
         $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()]);
-        $before = $this->get(route('tdrs.ndtStd', $wo->id))->assertOk();
+        $before = $this->get(route('tdrs.ndtStd', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
         $this->assertCount(1, $before->viewData('ndt_components'));
         foreach ($parts as $part) { $before->assertSee($part->part_number); }
         $card = \App\Models\LogCard::create(['workorder_id' => $wo->id, 'component_data' => json_encode([
             ['component_id' => $parts[2]->id, 'included' => '1', 'ipl_group' => '1-805'],
             ['component_id' => $parts[1]->id, 'included' => '0'],
         ])]);
-        $after = $this->get(route('tdrs.ndtStd', $wo->id))->assertOk();
+        $after = $this->get(route('tdrs.ndtStd', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
         $this->assertCount(1, $after->viewData('ndt_components'));
         $this->assertSame('4', $after->viewData('ndt_components')[0]->process_name);
         $after->assertSee($parts[2]->part_number)->assertDontSee($parts[0]->part_number)->assertDontSee($parts[1]->part_number);
-        $after->assertViewHas('ndtSums', ['total' => 1, 'mpi' => 0, 'fpi' => 1]);
+        $this->assertSame('KIT', $after->viewData('ndt_components')[0]->group_crossout_reason);
+        $after->assertViewHas('ndtSums', ['total' => 0, 'mpi' => 0, 'fpi' => 0]);
         $kit = $this->get(route('tdrs.kitForm', $wo->id))->assertOk()->getContent();
         foreach ($parts as $index => $part) {
             $this->assertMatchesRegularExpression('/data-kit-prl-component-id="'.$part->id.'".*?data-kit-prl-controller-crossed-out="'.($index === 2 ? '0' : '1').'"/s', $kit);
         }
         $card->update(['component_data' => json_encode([['component_id' => $parts[1]->id, 'included' => '1']])]);
-        $changed = $this->get(route('tdrs.ndtStd', $wo->id))->assertOk();
-        $changed->assertViewHas('ndtSums', ['total' => 1, 'mpi' => 1, 'fpi' => 0]);
+        $changed = $this->get(route('tdrs.ndtStd', ['workorder_id' => $wo->id, 'show_excluded' => 1]))->assertOk();
+        $changed->assertViewHas('ndtSums', ['total' => 0, 'mpi' => 0, 'fpi' => 0]);
         $this->assertSame('1', $changed->viewData('ndt_components')[0]->process_name);
         Tdr::create(['workorder_id' => $wo->id, 'component_id' => $parts[1]->id,
             'order_component_id' => $parts[2]->id, 'qty' => 1]);

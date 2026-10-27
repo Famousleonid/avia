@@ -93,7 +93,14 @@
                                     <div class="text-muted">{{ $time }}</div>
                                 </div>
 
-                                @if($isProcessReady)
+                                @if(($n->type ?? null) === 'workorder' && in_array($n->event ?? null, ['approved', 'assigned'], true))
+                                    <div class="notif-text text-light small mt-1">
+                                        <span class="badge {{ $n->event === 'approved' ? 'text-bg-success' : 'text-bg-secondary' }}">{{ strtoupper($n->event) }}</span>
+                                        @if($woNo)
+                                            <span class="text-warning fw-semibold ms-1">WO #{{ $woNo }}{{ $woOwner ? ' '.$woOwner : '' }}</span>
+                                        @endif
+                                    </div>
+                                @elseif($isProcessReady)
                                     <div class="notif-text text-light small mt-1">
                                         <span class="badge text-bg-info">PROCESS READY</span>
                                         @if($woNo)

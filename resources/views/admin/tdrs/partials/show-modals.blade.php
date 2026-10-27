@@ -387,6 +387,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div id="pdfDocumentPane">
                 <div id="pdfUploadForm" class="pdf-upload-panel mb-4" data-no-spinner>
                     <div class="pdf-upload-grid">
                         <div class="pdf-upload-actions d-flex flex-wrap align-items-center gap-2">
@@ -433,9 +434,31 @@
                     </select>
                 </div>
                 @if(auth()->user()?->isSystemAdmin())
-                    <a href="{{ route('document_categories.index') }}" target="_blank" rel="noopener" class="small d-inline-block mb-2">Manage document categories</a>
+                    <button type="button" id="manageDocumentCategories" data-url="{{ route('document_categories.index', ['embedded' => 1]) }}" class="btn btn-link p-0 small d-inline-block mb-2">Manage document categories</button>
                 @endif
                 <div id="pdfListContainer" class="pdf-library-list"></div>
+                </div>
+                <form id="pdfEditForm" hidden>
+                    <h6 class="text-info mb-3">Edit document</h6>
+                    <div class="mb-3">
+                        <label for="pdfEditName" class="form-label">Name</label>
+                        <input id="pdfEditName" name="name" class="form-control" required maxlength="255">
+                    </div>
+                    <div class="mb-3">
+                        <label for="pdfEditCategory" class="form-label">Category</label>
+                        <select id="pdfEditCategory" name="doc_kind" class="form-select" required></select>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" id="pdfEditCancel" class="btn btn-outline-secondary">Cancel</button>
+                        <button type="submit" id="pdfEditSave" class="btn btn-info">Save</button>
+                    </div>
+                </form>
+                @if(auth()->user()?->isSystemAdmin())
+                    <div id="pdfCategoriesPane" hidden>
+                        <button type="button" id="backToDocuments" class="btn btn-outline-info btn-sm mb-2"><i class="bi bi-arrow-left me-1"></i>Back to documents</button>
+                        <iframe id="documentCategoriesFrame" title="Manage document categories" class="d-block w-100 border-0" style="height:min(65dvh,720px);min-height:260px"></iframe>
+                    </div>
+                @endif
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

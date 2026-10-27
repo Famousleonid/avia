@@ -14,6 +14,7 @@ class NotificationController extends Controller
 
     public function index(Request $request)
     {
+        app(\App\Services\ProcessReminderCloser::class)->forUser($request->user());
         $user = $request->user();
 
         $notifications = $user->notifications()
@@ -45,12 +46,14 @@ class NotificationController extends Controller
 
     public function unreadCount(Request $request)
     {
+        app(\App\Services\ProcessReminderCloser::class)->forUser($request->user());
         $count = $request->user()->unreadNotifications()->count();
         return response()->json(['count' => $count]);
     }
 
     public function latest(Request $request)
     {
+        app(\App\Services\ProcessReminderCloser::class)->forUser($request->user());
         $user = $request->user();
 
         $perPage = (int) $request->get('per_page', 10);

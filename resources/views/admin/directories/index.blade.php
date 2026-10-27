@@ -1,6 +1,17 @@
 @extends('admin.master')
 
 @section('style')
+    @if($slug === 'document_categories' && request()->boolean('embedded'))
+        <style>
+            #sidebarColumn, footer.footer, #aiAssistantWidget { display: none !important; }
+            .page-layout { height: 100dvh; }
+            .content { min-width: 0; }
+            .dir-page > .card-body { min-height: 0; display: flex; flex-direction: column; overflow: auto; }
+            .dir-panel { height: auto; flex: 1 1 auto; min-height: 120px; overflow: auto; }
+            .dir-panel > .table-responsive { width: 100%; overflow: auto; }
+        </style>
+    @endif
+
     <style>.btn[data-process-images].has-print-images{border-color:#ffc107!important}</style>
     <style>
         .dir-description-cell { max-width: 360px; white-space: normal; line-height: 1.35; }
@@ -202,6 +213,7 @@
                 <div class="modal-body">
                     <form id="dirCreateForm" method="POST" action="{{ $cfg['baseUrl'] }}" @if($slug === 'document_categories') data-no-spinner @endif>
                         @csrf
+                        @if($slug === 'document_categories' && request()->boolean('embedded'))<input type="hidden" name="embedded" value="1">@endif
                         @foreach($cfg['fields'] as $field => $label)
                             @continue(in_array($field, $hideProcessNameFormFields, true))
                             @php
@@ -255,6 +267,7 @@
                 <div class="modal-body">
                     <form id="dirEditForm" method="POST" action="" @if($slug === 'document_categories') data-no-spinner @endif>
                         @csrf
+                        @if($slug === 'document_categories' && request()->boolean('embedded'))<input type="hidden" name="embedded" value="1">@endif
                         @method('PUT')
                         <input type="hidden" id="dirEditId" name="id">
                         @foreach($cfg['fields'] as $field => $label)
@@ -333,6 +346,7 @@
                     <div class="alert alert-warning mb-3">Are you sure you want to delete this record?</div>
                     <form id="dirDeleteForm" method="POST" action="" @if($slug === 'document_categories') data-no-spinner @endif>
                         @csrf
+                        @if($slug === 'document_categories' && request()->boolean('embedded'))<input type="hidden" name="embedded" value="1">@endif
                         @method('DELETE')
                         <input type="hidden" id="dirDeleteId" name="id">
                         <div class="d-flex justify-content-end gap-2">

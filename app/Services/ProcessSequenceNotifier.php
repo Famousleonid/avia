@@ -72,6 +72,8 @@ class ProcessSequenceNotifier
                 ],
             ],
             'payload' => [
+                'subject_type' => get_class($nextProcess),
+                'subject_id' => (int) $nextProcess->getKey(),
                 'workorder_id' => $workorder->id,
                 'workorder_no' => $workorder->number,
                 'workorder_user_name' => $workorderUserName,

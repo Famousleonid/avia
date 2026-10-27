@@ -86,6 +86,8 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
                 ],
             ],
             'payload' => [
+                'subject_type' => get_class($subject),
+                'subject_id' => (int) $subject->getKey(),
                 'workorder_id' => $workorder?->id,
                 'workorder_no' => $workorder?->number,
                 'workorder_user_name' => $workorderUserName,

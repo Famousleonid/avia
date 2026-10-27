@@ -56,6 +56,22 @@ class DocumentLibraryTest extends TestCase
         $this->deleteJson(route('document_categories.destroy', DocumentCategory::where('key', 'general')->firstOrFail()))->assertUnprocessable();
     }
 
+    public function test_embedded_categories_keep_dialog_context_after_changes(): void
+    {
+        $admin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $this->actingAs($admin);
+        $index = route('document_categories.index', ['embedded' => 1]);
+        $this->get($index)->assertOk()->assertSee('name="embedded" value="1"', false);
+        $this->post(route('document_categories.store'), ['name' => 'Dialog category', 'embedded' => 1])->assertRedirect($index);
+        $category = DocumentCategory::where('name', 'Dialog category')->firstOrFail();
+        $this->put(route('document_categories.update', $category), ['name' => 'Dialog renamed', 'embedded' => 1])->assertRedirect($index);
+        $this->assertSame('Dialog renamed', $category->fresh()->name);
+        $this->delete(route('document_categories.destroy', $category), ['embedded' => 1])->assertRedirect($index);
+        $this->assertSoftDeleted('document_categories', ['id' => $category->id]);
+        $this->flushSession();
+        $this->actingAs($this->createUserWithRole('Admin', ['is_admin' => false]))->get($index)->assertForbidden();
+    }
+
     public function test_scan_upload_view_download_and_category_removal_preserve_file(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -78,6 +94,48 @@ class DocumentLibraryTest extends TestCase
         $this->postJson(route('workorders.pdf.store', $wo), [
             'pdf' => $this->makeUploadedImage('scan.png'), 'doc_kind' => $category->key,
         ])->assertUnprocessable();
+    }
+
+    public function test_document_edit_updates_name_and_category_without_changing_file_or_source(): void
+    {
+        $wo = $this->createWorkorder();
+        $this->actingAs($this->createUserWithRole('Technician'));
+        $category = DocumentCategory::create(['name' => 'Edited category']);
+        $this->postJson(route('workorders.pdf.store', $wo), ['pdf' => $this->makeUploadedImage('edit.png')])->assertOk();
+        $media = $wo->fresh()->getMedia('pdfs')->first();
+        $originalFile = $media->file_name;
+        $originalHash = hash_file('sha256', $media->getPath());
+        $url = route('workorders.pdf.rename', $media->id);
+        foreach (['bad-category', 'video', 'machining'] as $invalid) {
+            $this->patchJson($url, ['name' => 'Invalid change', 'doc_kind' => $invalid])->assertUnprocessable();
+            $this->assertNotSame('Invalid change', $media->fresh()->getCustomProperty('document_name'));
+        }
+        $this->patchJson($url, ['name' => 'Inspection report', 'doc_kind' => $category->key])->assertOk();
+        $this->getJson(route('workorders.pdfs', $wo))->assertOk()
+            ->assertJsonPath('pdfs.0.name', 'Inspection report')->assertJsonPath('pdfs.0.kind', $category->key)
+            ->assertJsonPath('pdfs.0.kind_label', 'Edited category');
+        $category->delete();
+        $this->patchJson($url, ['name' => 'Retain removed category', 'doc_kind' => $category->key])->assertOk();
+        $this->patchJson($url, ['name' => 'Back to general', 'doc_kind' => 'general'])->assertOk();
+        $this->patchJson($url, ['name' => 'Cannot reassign removed', 'doc_kind' => $category->key])->assertUnprocessable();
+        // Existing rename-only clients retain the category.
+        $this->patchJson($url, ['name' => 'Name only'])->assertOk();
+        $this->assertSame('general', $media->fresh()->getCustomProperty('doc_kind'));
+
+        $media = $media->fresh();
+        $media->forgetCustomProperty('doc_kind');
+        $media->setCustomProperty('source', 'machining_final');
+        $media->setCustomProperty('document_id', 123);
+        $media->save();
+        $this->patchJson($url, ['name' => 'Machining report', 'doc_kind' => 'general'])->assertOk();
+        $this->getJson(route('workorders.pdfs', $wo))->assertOk()->assertJsonPath('pdfs.0.kind', 'general')
+            ->assertJsonPath('pdfs.0.is_generated', true)->assertJsonPath('pdfs.0.source_kind', 'machining');
+        $this->patchJson($url, ['name' => 'Machining report', 'doc_kind' => 'machining'])->assertOk();
+        $this->getJson(route('workorders.pdfs', $wo))->assertJsonPath('pdfs.0.kind', 'machining');
+        $this->assertSame('machining_final', $media->fresh()->getCustomProperty('source'));
+        $this->assertSame(123, $media->fresh()->getCustomProperty('document_id'));
+        $this->assertSame($originalFile, $media->fresh()->file_name);
+        $this->assertSame($originalHash, hash_file('sha256', $media->fresh()->getPath()));
     }
 
     public function test_pdf_still_uploads_and_unsupported_or_large_files_are_rejected(): void

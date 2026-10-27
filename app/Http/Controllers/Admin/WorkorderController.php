@@ -1477,8 +1477,8 @@ class WorkorderController extends Controller
                 $source = $media->getCustomProperty('source');
 
                 if (isset($genBySource[$source])) {
-                    $kind = $genBySource[$source]['kind'];
-                    $label = $genBySource[$source]['label'];
+                    $kind = $media->getCustomProperty('doc_kind') ?: $genBySource[$source]['kind'];
+                    $label = $uploadLabels[$kind] ?? $genBySource[$source]['label'];
                     $generated = true;
                 } else {
                     $kind = $media->getCustomProperty('doc_kind') ?: 'general';
@@ -1498,7 +1498,8 @@ class WorkorderController extends Controller
                     'kind_label' => $label,
                     // generated documents (EC drawings / F&C / Machining) — hidden unless "Show generated"
                     'is_generated' => $generated,
-                    'gen_type' => $generated ? $label : null,
+                    'gen_type' => $generated ? $genBySource[$source]['label'] : null,
+                    'source_kind' => $generated ? $genBySource[$source]['kind'] : null,
                     'url' => route('workorders.pdf.show', [
                         'workorderId' => $workorder->id,
                         'mediaId' => $media->id,
