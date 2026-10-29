@@ -1359,10 +1359,6 @@ class WoBushingController extends Controller
                 'ndt5_name_id' => $processNames['BNI'] ?? null
             ];
 
-            $ndt_processes = Process::whereIn('id', $manualProcesses)
-                ->whereIn('process_names_id', $ndt_ids)
-                ->get();
-
             $getNdtNumber = function($processName) {
                 if (strpos($processName->identityName(), 'NDT-') === 0) {
                     return substr($processName->identityName(), 4);
@@ -1405,8 +1401,8 @@ class WoBushingController extends Controller
                                         $ndtNumber = $getNdtNumber($specificProcessName);
                                         if (!in_array($ndtNumber, $componentNdtMap[$componentId]['ndt_numbers'])) {
                                             $componentNdtMap[$componentId]['ndt_numbers'][] = $ndtNumber;
-                                            $componentNdtMap[$componentId]['processes'][] = $process;
                                         }
+                                        $componentNdtMap[$componentId]['processes'][$process->id] = $process;
                                     }
                                 }
                             }
@@ -1427,22 +1423,39 @@ class WoBushingController extends Controller
 
                 $combinedNdtNumber = implode(' / ', $ndtNumbers);
 
-                $firstProcess = !empty($componentData['processes']) ? $componentData['processes'][0] : null;
+                $firstProcess = collect($componentData['processes'])->first();
 
                 $tableData[] = [
                     'component' => $componentData['component'],
                     'wo_bushing' => $woBushing,
                     'qty' => $componentData['qty'],
                     'combined_ndt_number' => $combinedNdtNumber,
+                    'ndt_selected_processes' => array_values($componentData['processes']),
                     'process' => $firstProcess,
                     'process_name' => $firstProcess ? ProcessName::find($firstProcess->process_names_id) : null
                 ];
             }
 
             $tableData = $applyBushingBatchFilter($tableData);
+            // Print only specifications saved on the bushings actually included
+            // in this batch/component selection, not the manual's whole catalog.
+            $ndt_processes = collect($tableData)->flatMap(fn ($row) => $row['ndt_selected_processes'])
+                ->unique('id')->values();
+            $multipleSpecs = $ndt_processes->groupBy('process_names_id')
+                ->filter(fn ($specs) => $specs->count() > 1)->keys()->all();
+            foreach ($tableData as &$row) {
+                // Keep the standard NDT method number; disambiguate different
+                // specifications of that method beside the affected part.
+                $row['ndt_specification_text'] = collect($row['ndt_selected_processes'])
+                    ->filter(fn ($spec) => in_array($spec->process_names_id, $multipleSpecs))
+                    ->map(fn ($spec) => $getNdtNumber($spec->process_name).': '.$spec->process)
+                    ->implode("\n");
+            }
+            unset($row);
 
             return view('admin.wo_bushings.processesForm', array_merge($viewData, [
                 'ndt_processes' => $ndt_processes,
+                'ndt_use_selected_specifications' => true,
                 'table_data' => $tableData
             ], $ndt_ids));
         }

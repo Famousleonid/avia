@@ -26,6 +26,12 @@ class CombinedProcessFormHandler {
             }
         });
         button.addEventListener('click', () => CombinedProcessFormHandler.open(container));
+        const infoButton = container.querySelector('[data-combined-form-info]');
+        infoButton?.addEventListener('click', () => {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(infoButton.title, 'info', 15000);
+            }
+        });
         CombinedProcessFormHandler.refresh(container);
     }
 
@@ -33,24 +39,28 @@ class CombinedProcessFormHandler {
         return Array.from(container.querySelectorAll('.combined-form-select:checked'));
     }
 
+    static groupKey(checkbox) {
+        return checkbox.dataset.combinedFormGroup || checkbox.dataset.processNameId;
+    }
+
     static refresh(container) {
         const selected = CombinedProcessFormHandler.selected(container);
-        const selectedProcessNameId = selected[0]?.dataset.processNameId || null;
+        const selectedProcessNameId = selected.length ? CombinedProcessFormHandler.groupKey(selected[0]) : null;
         const button = container.combinedFormButton || container.querySelector('[data-combined-form-button]');
 
         container.querySelectorAll('.combined-form-select').forEach((checkbox) => {
             checkbox.disabled = selectedProcessNameId !== null
-                && checkbox.dataset.processNameId !== selectedProcessNameId
+                && CombinedProcessFormHandler.groupKey(checkbox) !== selectedProcessNameId
                 && !checkbox.checked;
         });
 
         if (button) {
             button.disabled = selected.length < 2;
             button.textContent = `Combined Form (${selected.length})`;
-            button.classList.toggle('btn-outline-info', selected.length > 0);
-            button.classList.toggle('btn-outline-primary', selected.length === 0);
+            button.classList.add('btn-outline-info');
+            button.classList.remove('btn-outline-primary');
             button.title = selected.length < 2
-                ? 'Select at least two processes with the same name'
+                ? 'Select at least two processes with the same name (Machining AT and Machining EC may be combined)'
                 : `Open one form for ${selected.length} processes`;
         }
     }
@@ -62,9 +72,9 @@ class CombinedProcessFormHandler {
             return;
         }
 
-        const processNameIds = new Set(selected.map((checkbox) => checkbox.dataset.processNameId));
+        const processNameIds = new Set(selected.map((checkbox) => CombinedProcessFormHandler.groupKey(checkbox)));
         if (processNameIds.size !== 1) {
-            CombinedProcessFormHandler.notify('All selected processes must have the same Process Name.', 'error');
+            CombinedProcessFormHandler.notify('Select the same Process Name, or combine Machining AT with Machining EC.', 'error');
             return;
         }
 

@@ -31,7 +31,7 @@
         </td>
         <td class="quantum-buffer-message">@include('admin.vendor_tracking.partials.quantum_message', ['line' => $line])</td>
         <td>{{ $line->ro_number ?: '--' }}</td>
-        <td>{{ $line->wo_number ?: '--' }}</td>
+        <td>@include('admin.vendor_tracking.partials.quantum_workorder_link')</td>
         <td>{{ $line->vendor_name ?: '--' }}</td>
         <td>{{ $line->pn ?: '--' }}</td>
         <td>{{ $line->description ?: '--' }}</td>

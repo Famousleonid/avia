@@ -120,6 +120,119 @@ class MainQuantumRoTest extends TestCase
         $this->assertStringNotContainsString('main-ro-part-complete', $html);
     }
 
+    public function test_internal_operations_show_at_with_their_own_dates_and_status(): void
+    {
+        $wo = $this->createWorkorder();
+        $part = \App\Models\Component::create(['manual_id' => $wo->unit->manual_id, 'part_number' => 'LOCAL-AT', 'name' => 'Repair Sleeve', 'ipl_num' => '1-1']);
+        $tdr = \App\Models\Tdr::create(['workorder_id' => $wo->id, 'component_id' => $part->id, 'serial_number' => 'NSN', 'qty' => 1]);
+        $name = \App\Models\ProcessName::create(['name' => 'QA Internal', 'process_sheet_name' => 'QA', 'show_in_process_picker' => true]);
+        $process = \App\Models\TdrProcess::create(['tdrs_id' => $tdr->id, 'process_names_id' => $name->id, 'repair_order' => 'AT',
+            'date_start' => '2026-07-28', 'date_finish' => '2026-08-01', 'sort_order' => 1]);
+        $user = $this->createUserWithRole('Manager');
+        $read = fn () => $this->actingAs($user)->getJson(route('mains.quantum-ro-lines', $wo))->assertOk()->json('html');
+        $html = $read();
+        $this->assertStringContainsString('>AT</button>', $html);
+        $this->assertStringContainsString('28/Jul/2026', $html);
+        $this->assertStringContainsString('01/Aug/2026', $html);
+        $this->assertSame(3, substr_count($html, 'class="main-ro-part-complete"'));
+        $this->assertStringContainsString('main-ro-returned', $html);
+        $process->update(['repair_order' => null, 'date_finish' => null]);
+        $html = $read();
+        $this->assertStringContainsString('>AT</button>', $html);
+        $this->assertStringContainsString('main-ro-pending', $html);
+        $this->assertStringNotContainsString('main-ro-part-complete', $html);
+        $this->assertStringContainsString('Returned: <span>-</span>', $html);
+        $process->update(['date_start' => null]);
+        $html = $read();
+        $this->assertStringNotContainsString('>AT</button>', $html);
+        $this->assertStringContainsString('Process 1: not sent, RO not assigned', $html);
+    }
+
+    public function test_external_or_source_backed_operations_are_not_invented_as_at(): void
+    {
+        $name = \App\Models\ProcessName::create(['name' => 'QA External', 'process_sheet_name' => 'QA', 'code' => 'QAEXT', 'show_in_process_picker' => true]);
+        $part = new \App\Models\Component(['part_number' => 'PART-EXT', 'name' => 'External part']);
+        $tdr = new \App\Models\Tdr(['serial_number' => 'SN1']);
+        $process = new \App\Models\TdrProcess(['date_start' => '2026-07-28', 'sort_order' => 1]);
+        $process->id = 123;
+        $process->setRelation('processName', $name);
+        $tdr->setRelation('component', $part)->setRelation('tdrProcesses', collect([$process]));
+        $line = new QuantumRoLine(['pn' => 'PART-EXT', 'serial_number' => 'SN1', 'bom_ref' => 'QAEXT', 'ro_number' => 'R123']);
+        $builder = app(\App\Services\QuantumRoMatrix::class);
+        $matrix = $builder->build(collect([$line]), collect([$tdr]));
+        $this->assertEmpty($matrix['rows'][0]['internal'] ?? []);
+        $process->vendor_id = 123;
+        $this->assertEmpty($builder->build(collect(), collect([$tdr]))['rows']);
+        $process->vendor_id = null;
+        $process->repair_order = 'R124';
+        $this->assertEmpty($builder->build(collect(), collect([$tdr]))['rows']);
+        $process->repair_order = 'AT';
+        $matrix = $builder->build(collect([$line]), collect([$tdr]));
+        $key = json_encode(['PART-EXT', 'SN1']);
+        $this->assertCount(1, $matrix['rows'][0]['cells'][$key]);
+        $this->assertCount(1, $matrix['rows'][0]['internal'][$key]);
+    }
+
+    public function test_applied_ro_with_empty_serial_joins_the_actual_tdr_part_column(): void
+    {
+        $wo = $this->createWorkorder();
+        $part = \App\Models\Component::create(['manual_id' => $wo->unit->manual_id, 'part_number' => '300-QA-SLEEVE', 'name' => 'Repair Sleeve', 'ipl_num' => '1-1']);
+        $tdr = \App\Models\Tdr::create(['workorder_id' => $wo->id, 'component_id' => $part->id, 'serial_number' => 'NSN', 'qty' => 1]);
+        foreach (['AT', 'R-QA-NDT', 'R-QA-CAD'] as $index => $ro) {
+            $name = \App\Models\ProcessName::create(['name' => 'QA Sleeve '.$index, 'code' => 'SLEEVE'.$index, 'process_sheet_name' => 'QA', 'show_in_process_picker' => true]);
+            $process = \App\Models\TdrProcess::create(['tdrs_id' => $tdr->id, 'process_names_id' => $name->id, 'sort_order' => $index,
+                'repair_order' => $ro, 'date_start' => '2026-07-28', 'date_finish' => $index ? '2026-08-20' : null]);
+            if ($index) QuantumRoLine::create([
+                'source_uid' => 'sleeve-matrix:'.$index, 'source_hash' => str_repeat('b', 64), 'wo_number' => 'W'.$wo->number,
+                'pn' => $part->part_number, 'serial_number' => null, 'description' => 'Quantum sleeve', 'bom_ref' => $name->code,
+                'ro_number' => $ro, 'out_date' => '2026-08-12', 'returned_date' => '2026-08-21', 'apply_status' => 'applied',
+                'applied_target_table' => 'tdr_processes', 'applied_target_id' => $process->id,
+                'applied_targets' => $index === 1 ? [['table' => 'tdr_processes', 'id' => $process->id]] : null,
+            ]);
+        }
+        $html = $this->actingAs($this->createUserWithRole('Manager'))->getJson(route('mains.quantum-ro-lines', $wo))->assertOk()->json('html');
+        $this->assertSame(3, substr_count($html, '<th scope="col"'));
+        $this->assertSame(3, substr_count($html, 'data-ro-serial="NSN"'));
+        foreach (['AT', 'R-QA-NDT', 'R-QA-CAD'] as $ro) $this->assertStringContainsString('>'.$ro.'</button>', $html);
+        $this->assertStringContainsString('12/Aug/2026', $html);
+        $this->assertStringContainsString('21/Aug/2026', $html);
+        $this->assertStringNotContainsString('20/Aug/2026', $html);
+        $this->assertStringNotContainsString('main-ro-part-complete', $html);
+    }
+
+    public function test_missing_serial_resolution_requires_one_verified_applied_identity(): void
+    {
+        $name = \App\Models\ProcessName::create(['name' => 'QA Link', 'code' => 'QALINK', 'process_sheet_name' => 'QA', 'show_in_process_picker' => true]);
+        $makeTdr = function ($id, $serial) use ($name) {
+            $process = new \App\Models\TdrProcess(['repair_order' => 'AT', 'date_finish' => '2026-08-01']);
+            $process->id = $id;
+            $process->setRelation('processName', $name);
+            return (new \App\Models\Tdr(['serial_number' => $serial]))
+                ->setRelation('component', new \App\Models\Component(['part_number' => 'P-LINK', 'name' => 'Linked part']))
+                ->setRelation('tdrProcesses', collect([$process]));
+        };
+        $tdrs = collect([$makeTdr(101, 'SN1'), $makeTdr(102, 'SN2')]);
+        $base = ['pn' => 'P-LINK', 'bom_ref' => 'QALINK', 'ro_number' => 'R1', 'apply_status' => 'applied',
+            'applied_targets' => [['table' => 'tdr_processes', 'id' => 101]], 'returned_date' => '2026-08-01'];
+        $builder = app(\App\Services\QuantumRoMatrix::class);
+        foreach ([
+            ['serial_number' => 'SN-OTHER'],
+            ['apply_status' => 'unresolved'],
+            ['applied_targets' => [['table' => 'tdr_processes', 'id' => 999]]],
+            ['applied_targets' => [['table' => 'tdr_processes', 'id' => 101], ['table' => 'tdr_processes', 'id' => 102]]],
+            ['pn' => 'P-OTHER'],
+        ] as $override) {
+            $line = new QuantumRoLine(array_replace($base, $override));
+            $matrix = $builder->build(collect([$line]), $tdrs);
+            $this->assertCount(3, $matrix['columns']);
+            $key = json_encode([$line->pn, $line->serial_number ?: '']);
+            $this->assertSame($line, $matrix['rows'][0]['cells'][$key][0]);
+        }
+        $matrix = $builder->build(collect([new QuantumRoLine($base)]), $tdrs);
+        $this->assertCount(2, $matrix['columns']);
+        $this->assertArrayHasKey(json_encode(['P-LINK', 'SN1']), $matrix['rows'][0]['cells']);
+    }
+
     public function test_empty_state_and_authentication(): void
     {
         $wo = $this->createWorkorder(['number' => 887322]);

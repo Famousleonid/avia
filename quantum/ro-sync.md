@@ -38,7 +38,7 @@ local records.
 The tab now renders only an SP-form-style matrix: description, P/N and S/N in
 column headers and process/REF rows. Cells show clickable RO numbers;
 vendor and sent/returned dates appear in a small click popover.
-Column identity is the normalized P/N + serial pair. Each source detail remains
+Column identity is the normalized P/N + serial pair, with the verified applied-target exception for missing source serials described below. Each source detail remains
 an independent entry, even when several details occupy the same cell. The
 receipt time stays in the staging data and is not shown in the compact UI. Process
 labels use unique `process_names.code` matches and SP form ordering; ambiguous
@@ -46,7 +46,13 @@ or unknown references remain explicit REF rows. T/T1/T2 references appear as
 Traveler rows, without guessing process membership from current local targets.
 No local process values are substituted for the synchronized Quantum dates.
 RO status colors (27/Oct/2026): each source line with returned_date has a green RO-number background; a line without returned_date has a yellow/gold RO number. Apply status and other lines sharing the RO number do not determine this color. Click details and per-line dates remain unchanged.
-Planned steps (27/Oct/2026): supplement the snapshot with visible Parts / Processes from the current WO and its used manuals. Exact normalized P/N + S/N identifies the column; no fuzzy P/N or serial fallback. Ignored/hidden/INSPECT rows are excluded as on Main. Each Traveler group is one step. Gray ordinals (1, 2, 3...) follow each detail's sort_order/id sequence and are shown for steps without Sent or assigned RO, including details with no Quantum lines yet. They are not fabricated RO numbers and do not alter source dates. The Description, P/N and S/N headers are green only when all known source RO lines and all visible planned processes in that column have Returned; any unreturned source line or unfinished planned step keeps it normal. Unique process-code matches share rows with Quantum; ambiguous/missing codes use separate named local process rows.
+Planned steps (27/Oct/2026): supplement the snapshot with visible Parts / Processes from the current WO and its used manuals. Exact normalized P/N + S/N identifies the column; no fuzzy P/N or P/N-only serial fallback. A missing source serial may use its verified applied TDR target as described below. Ignored/hidden/INSPECT rows are excluded as on Main. Each Traveler group is one step. Gray ordinals (1, 2, 3...) follow each detail's sort_order/id sequence and are shown for steps without Sent or assigned RO, including details with no Quantum lines yet. They are not fabricated RO numbers and do not alter source dates. The Description, P/N and S/N headers are green only when all known source RO lines and all visible planned processes in that column have Returned; any unreturned source line or unfinished planned step keeps it normal. Unique process-code matches share rows with Quantum; ambiguous/missing codes use separate named local process rows.
+
+Internal operations (28/Oct/2026): the matrix also shows local AT entries, with each TdrProcess date_start/date_finish in its click popover. Explicit repair_order=AT is retained alongside source RO history. A dated operation with blank RO and no vendor is shown as AT only when that exact P/N + S/N and process row has no Quantum source RO. Unstarted blank-RO rows retain gray ordinals; external RO/vendor rows are not relabeled AT. Traveler members keep their individual dates. AT completion coloring follows its own date_finish; header completion rules are unchanged. Production read-only W107775: REPAIR SLEEVE 300-301-A01 / NSN, TDR1497, Machining (AT)2443 has RO=AT, Sent28/Jul/2026, Returned01/Aug/2026; it was previously omitted by the source-only/unsent-only rendering. Local data at validation had the same Sent but empty Returned, correctly shown yellow, so it must not be mistaken for the production date state.
+
+
+
+Applied-target column identity (28/Oct/2026): a source line with apply_status=applied and empty serial may use the part identity of its saved tdr_processes target. Resolve targets only among the current WO/used-manual TDRs passed to the builder, require exact normalized P/N, and require every TDR target to exist and resolve to a single P/N + S/N identity. applied_targets takes precedence, with singular applied_target_table/id for legacy rows. Unknown, ambiguous, non-applied and conflicting nonempty serials retain their original source columns. This routes source RO cells and their completion states to the same column as local AT/planned operations without replacing source dates or inventing RO numbers. Production W107775 verified: source3528 R9235/N4 targets2444; source3551 R9239/CP targets2445. Both source serials are null; both target processes belong to TDR1497 / 300-301-A01 / NSN, whose third process2443 is AT. Previous strict raw serial grouping split two external ROs from AT. Regression verifies a single column with all three, source dates retained and incomplete AT preventing green header.
 
 
 ## Bridge Architecture
@@ -867,3 +873,19 @@ both with no RO/sent/returned. A diagnostic in-memory copy of the source with
 PN changed to 2821-0222 (never saved) resolved to standalone 4359.
 No source, target, mapping or production code was changed. This evidence is
 from AVIA's received Quantum snapshot, not a direct Oracle query.
+
+Follow-up 28/Oct/2026 (direct Oracle SELECT and production SELECT): R9521
+now links W107946 through new RO_DETAIL 34185 with PN 2821-0222 and REF CHP;
+old detail 34076 is absent from that RO. New staging row 4613 / rod:34185
+was received at 11:53:09 and applied to tdr_processes:4359 at 12:00:02
+(production timestamps), with RO R9521 and Sent 21/Oct/2026.
+Old staging 4497 / rod:34076 remains unresolved with PN 2821-0222R because
+source deletion does not delete staging. The existing per-row checkmark
+in Needs attention dismisses that old record while retaining audit history;
+do not reapply the obsolete row or dismiss the replacement. No production
+mutation was performed during this check.
+
+Quantum buffer WO navigation (28/Oct/2026): WO columns in both Needs attention
+and Latest received link to mains.show using the actual AVIA workorder ID.
+Resolve numbers in one batch for the rendered rows, including search and
+pagination; missing AVIA workorders remain plain text.

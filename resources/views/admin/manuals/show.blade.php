@@ -138,22 +138,6 @@
             border-color: #dee2e6;
         }
 
-        .manual-component-assembly-row {
-            border: 1px solid rgba(255,255,255,.12);
-            border-radius: .5rem;
-            padding: .6rem;
-            background: rgba(255,255,255,.025);
-        }
-
-        .manual-component-assembly-row + .manual-component-assembly-row {
-            margin-top: .5rem;
-        }
-
-        .manual-component-assembly-row .form-label {
-            font-size: .8rem;
-            margin-bottom: .25rem;
-        }
-
         .component-avatar {
             width: 40px;
             height: 40px;
@@ -1831,15 +1815,6 @@
                     </div>
                 </div>
 
-                <div class="manual-component-form-section mt-4">
-                    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
-                        <h6 class="mb-0">{{ __('Assemblies') }}</h6>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="manualAddAssemblyRowBtn">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
-                    </div>
-                    <div id="manualAssemblyRows"></div>
-                </div>
 
                 <div class="manual-component-form-footer mt-4">
                     <div class="d-flex align-items-center justify-content-end gap-2">
@@ -1947,15 +1922,6 @@
                     </div>
                 </div>
 
-                <div class="manual-component-form-section mt-4">
-                    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
-                        <h6 class="mb-0">{{ __('Assemblies') }}</h6>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="manualEditAddAssemblyRowBtn">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
-                    </div>
-                    <div id="manualEditAssemblyRows"></div>
-                </div>
 
                 <div class="manual-component-form-footer mt-4">
                     <div class="d-flex align-items-center justify-content-end gap-2">
@@ -1967,37 +1933,6 @@
         </div>
     </div>
 
-    <template id="manualAssemblyRowTemplate">
-        <div class="manual-component-assembly-row" data-assembly-row>
-            <input type="hidden" data-assembly-field="id">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="small text-muted" data-assembly-title></span>
-                <button type="button" class="btn btn-outline-danger btn-sm" data-remove-assembly>
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-            <div class="row g-2">
-                <div class="col-md-4">
-                    <label class="form-label">{{ __('Assembly IPL Number') }}</label>
-                    <input type="text" class="form-control" data-assembly-field="assy_ipl_num" pattern="^$|^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">{{ __('Assembly Part Number') }}</label>
-                    <input type="text" class="form-control" data-assembly-field="assy_part_number">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">{{ __('Units per Assy') }}</label>
-                    <input type="text" class="form-control" data-assembly-field="units_assy">
-                </div>
-                <div class="col-md-6">
-                    <input type="file" class="form-control" accept="image/*" aria-label="{{ __('Assy Image') }}" data-assembly-field="assy_img">
-                </div>
-                <div class="col-md-6">
-                    <input type="text" class="form-control" placeholder="{{ __('Notes') }}" aria-label="{{ __('Notes') }}" data-assembly-field="notes">
-                </div>
-            </div>
-        </div>
-    </template>
 {{-- ????????? ???? Edit Unit (Update Components) — CMM image, part numbers list, Add PN, Update --}}
     <div class="modal fade" id="editUnitModal" tabindex="-1" role="dialog" aria-labelledby="editUnitModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
@@ -2926,44 +2861,6 @@
                 container.classList.add('d-none');
             }
 
-            function makeManualAssemblyManager(rowsEl, templateEl) {
-                function refreshNames() {
-                    rowsEl.querySelectorAll('[data-assembly-row]').forEach(function (row, index) {
-                        row.querySelectorAll('[data-assembly-field]').forEach(function (field) {
-                            var name = field.getAttribute('data-assembly-field');
-                            field.name = 'assemblies[' + index + '][' + name + ']';
-                        });
-                        var title = row.querySelector('[data-assembly-title]');
-                        if (title) title.textContent = 'Assy #' + (index + 1);
-                    });
-                }
-
-                function add(data) {
-                    data = data || {};
-                    var fragment = templateEl.content.cloneNode(true);
-                    var row = fragment.querySelector('[data-assembly-row]');
-                    row.querySelectorAll('[data-assembly-field]').forEach(function (field) {
-                        var key = field.getAttribute('data-assembly-field');
-                        if (field.type !== 'file') field.value = data[key] || '';
-                    });
-                    row.querySelector('[data-remove-assembly]')?.addEventListener('click', function () {
-                        row.remove();
-                        refreshNames();
-                    });
-                    rowsEl.appendChild(fragment);
-                    refreshNames();
-                }
-
-                function reset(items) {
-                    rowsEl.innerHTML = '';
-                    var list = Array.isArray(items) && items.length ? items : [{}];
-                    list.forEach(add);
-                    refreshNames();
-                }
-
-                return { add: add, reset: reset, refreshNames: refreshNames };
-            }
-
             function initManualComponentDrawer(config) {
                 var offcanvasEl = document.getElementById(config.offcanvasId);
                 var form = document.getElementById(config.formId);
@@ -2971,14 +2868,9 @@
                 var submitBtn = document.getElementById(config.submitId);
                 var isBush = document.getElementById(config.isBushId);
                 var bushContainer = document.getElementById(config.bushContainerId);
-                var rowsEl = document.getElementById(config.rowsId);
-                var addAssemblyBtn = document.getElementById(config.addAssemblyBtnId);
-                var templateEl = document.getElementById('manualAssemblyRowTemplate');
-                if (!offcanvasEl || !form || form.dataset.bound || !rowsEl || !templateEl) return null;
+                if (!offcanvasEl || !form || form.dataset.bound) return null;
                 form.dataset.bound = '1';
 
-                var assemblies = makeManualAssemblyManager(rowsEl, templateEl);
-                addAssemblyBtn?.addEventListener('click', function () { assemblies.add(); });
                 isBush?.addEventListener('change', function () { manualSyncBush(isBush, bushContainer); });
 
                 form.addEventListener('submit', function (event) {
@@ -2988,7 +2880,6 @@
                         form.classList.add('was-validated');
                         return;
                     }
-                    assemblies.refreshNames();
                     manualDrawerSetSubmitting(submitBtn, '{{ __("Saving...") }}', true);
                     fetch(form.action, {
                         method: 'POST',
@@ -3023,7 +2914,7 @@
                         });
                 });
 
-                return { form: form, offcanvasEl: offcanvasEl, assemblies: assemblies, isBush: isBush, bushContainer: bushContainer, errorsBox: errorsBox, config: config };
+                return { form: form, offcanvasEl: offcanvasEl, isBush: isBush, bushContainer: bushContainer, errorsBox: errorsBox, config: config };
             }
 
             var manualCreateDrawer = initManualComponentDrawer({
@@ -3033,15 +2924,12 @@
                 submitId: 'manualCreateComponentSubmitBtn',
                 isBushId: 'manual_drawer_is_bush',
                 bushContainerId: 'manual_drawer_bush_ipl_container',
-                rowsId: 'manualAssemblyRows',
-                addAssemblyBtnId: 'manualAddAssemblyRowBtn'
             });
 
             if (manualCreateDrawer) {
                 manualCreateDrawer.offcanvasEl.addEventListener('show.bs.offcanvas', function () {
                     manualCreateDrawer.form.reset();
                     manualCreateDrawer.form.classList.remove('was-validated');
-                    manualCreateDrawer.assemblies.reset([{}]);
                     manualDrawerSetErrors(manualCreateDrawer.errorsBox, []);
                     manualSyncBush(manualCreateDrawer.isBush, manualCreateDrawer.bushContainer);
                 });
@@ -3054,8 +2942,6 @@
                 submitId: 'manualEditComponentSubmitBtn',
                 isBushId: 'manual_edit_drawer_is_bush',
                 bushContainerId: 'manual_edit_drawer_bush_ipl_container',
-                rowsId: 'manualEditAssemblyRows',
-                addAssemblyBtnId: 'manualEditAddAssemblyRowBtn'
             });
 
             function manualEditSetValue(name, value) {
@@ -3171,7 +3057,6 @@
                         });
                         manualEditSetImage(component.image || null);
                         manualSyncBush(manualEditDrawer.isBush, manualEditDrawer.bushContainer);
-                        manualEditDrawer.assemblies.reset(Array.isArray(component.assemblies) ? component.assemblies : []);
                     })
                     .catch(function () {
                         manualDrawerSetErrors(manualEditDrawer.errorsBox, ['{{ __("Failed to load part.") }}']);

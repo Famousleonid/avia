@@ -67,13 +67,19 @@
             display: grid;
             gap: .35rem;
         }
-        .log-card-partial .lc-assy-group-option {
+        .log-card-partial .lc-assy-group-option,
+        .log-card-partial .lc-part-line {
             display: grid;
             grid-template-columns: 1.1rem minmax(0, 1fr);
             gap: .45rem;
             align-items: start;
             margin: 0;
+        }
+        .log-card-partial .lc-assy-group-option {
             cursor: pointer;
+        }
+        .log-card-partial .lc-part-description {
+            grid-column: 2;
         }
         .log-card-partial .lc-assy-group-option .form-check-input {
             margin-top: .2rem;
@@ -94,12 +100,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th class="text-primary text-center" style="width: 86px;">
-                            <label class="d-inline-flex align-items-center gap-1 mb-0">
-                                <input type="checkbox"
-                                       class="form-check-input lc-include-toggle-all"
-                                       @disabled($logCardTdrReadOnly)>
-                                <span>{{ __('Include') }}</span>
-                            </label>
+                            {{ __('Include') }}
                         </th>
                         <th class="text-primary text-center" style="width: 55%;">{{ __('Part Number') }} / {{ __('IPL') }} / {{ __('Description') }}</th>
                         <th class="text-primary text-center">{{ __('Assy') }} ({{ __('IPL') }} / {{ __('Part Number') }})</th>

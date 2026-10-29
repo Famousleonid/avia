@@ -3,12 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Code;
 use App\Models\Component;
 use App\Models\MachiningWorkStep;
 use App\Models\Main;
 use App\Models\Manual;
-use App\Models\Necessary;
 use App\Models\Process;
 use App\Models\QuantumRoLine;
 use App\Models\StdProcess;
@@ -94,6 +92,26 @@ class MainController extends Controller
         ]);
     }
 
+    public function parts(Workorder $workorder)
+    {
+        $prl_parts = app(\App\Services\WorkorderPartsList::class)->rows($workorder);
+        $orderedQty = $prl_parts->count();
+        $receivedQty = $prl_parts->filter(fn ($part) => !$part->crossed_out && !empty($part->received)
+            && trim((string) $part->po_num) !== '' && $part->received_qty !== null
+            && (int) $part->received_qty === (int) $part->qty)->count();
+
+        return response()->json([
+            'html' => view('admin.mains.partials.parts-content', [
+                'current_workorder' => $workorder,
+                'prl_parts' => $prl_parts,
+                'orderedQty' => $orderedQty,
+                'receivedQty' => $receivedQty,
+            ])->render(),
+            'orderedQty' => $orderedQty,
+            'receivedQty' => $receivedQty,
+        ])->header('Cache-Control', 'no-store');
+    }
+
     public function quantumRoLines(Workorder $workorder, \App\Services\QuantumRoMatrix $matrixBuilder)
     {
         abort_unless(auth()->user()?->roleIs(['Admin', 'Manager']), 403);
@@ -107,7 +125,8 @@ class MainController extends Controller
             ->orderByDesc('ro_number')
             ->orderBy('rod_auto_key')
             ->get(['ro_number', 'pn', 'description', 'serial_number', 'bom_ref',
-                'vendor_name', 'out_date', 'returned_date', 'last_seen_at']);
+                'vendor_name', 'out_date', 'returned_date', 'last_seen_at',
+                'apply_status', 'applied_target_table', 'applied_target_id', 'applied_targets']);
 
         $tdrs = $workorder->tdrs()
             ->whereHas('component', fn ($query) => $query->whereIn('manual_id', $workorder->usedManualIds()))
@@ -228,7 +247,6 @@ class MainController extends Controller
             ->with([
                 'customer', 'user', 'instruction',
                 'unit.manual.media',
-                'unit.manual.components',
             ])
             ->findOrFail($workorder->id);
 
@@ -258,6 +276,23 @@ class MainController extends Controller
 
         $tasksByGeneral = $tasks->groupBy('general_task_id');
         $allTasksByGeneral = $allTasks->groupBy('general_task_id');
+
+        // Only this WO's UI state is needed before the first paint.
+        $woId = (string) $current_workorder->id;
+        $mainTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
+        if ($request->user()?->roleIs(['Admin', 'Manager'])) $mainTabs[] = 'ro';
+        $mainUiSettings = \App\Models\UserUiSetting::query()
+            ->where('user_id', $request->user()->id)->where('scope', 'mains.show')
+            ->whereIn('key', array_merge(["activeTab:{$woId}", "generalTaskTab:{$woId}", 'avia_show_all_right'],
+                array_map(fn ($tab) => "panelWidth:{$woId}:{$tab}", $mainTabs)))
+            ->pluck('value', 'key')->all();
+        $userUiSettingsInitial = ['mains.show' => (object) $mainUiSettings];
+        $initialMainTab = $mainUiSettings["activeTab:{$woId}"] ?? 'overview';
+        if (!in_array($initialMainTab, $mainTabs, true)) $initialMainTab = 'overview';
+        $initialGeneralTask = (string) ($mainUiSettings["generalTaskTab:{$woId}"] ?? '');
+        if (!$general_tasks->contains(fn ($gt) => (string) $gt->id === $initialGeneralTask)) {
+            $initialGeneralTask = (string) ($general_tasks->first()?->id ?? '');
+        }
 
         // mains by task
         $mains = Main::with(['user', 'task'])
@@ -332,38 +367,9 @@ class MainController extends Controller
 
         // Total image count across all configured workorder media groups
         $photoGroups = array_keys(config('workorder_media.groups', ['photos' => 'Photos']));
-        $photoTotalCount = collect($photoGroups)->sum(function (string $group) use ($current_workorder) {
-            return $current_workorder->getMedia($group)
-                ->filter(fn($m) => $m->mime_type && Str::startsWith($m->mime_type, 'image/'))
-                ->count();
-        });
-
-        // TDR ids
-        $tdrIds = Tdr::where('workorder_id', $current_workorder->id)->pluck('id');
-
-        $code = Code::missing();
-        $necessary = Necessary::where('name', 'Order New')->first();
-
-        $ordersPartsNew = collect();
-        $prl_parts = collect();
-        $orderedQty = 0;
-        $receivedQty = 0;
-
-        if ($necessary) {
-            $ordersPartsNew = Tdr::where('workorder_id', $current_workorder->id)
-                ->where('necessaries_id', $necessary->id)
-                ->with([
-                    'codes',
-                    'orderComponent' => function ($query) {
-                        $query->select('id', 'name', 'part_number', 'ipl_num');
-                    }
-                ])
-                ->get();
-
-        }
-        $prl_parts = app(\App\Services\WorkorderPartsList::class)->rows($current_workorder);
-        $orderedQty = $prl_parts->count();
-        $receivedQty = $prl_parts->filter(fn ($part) => !$part->crossed_out && !empty($part->received) && trim((string) $part->po_num) !== '' && $part->received_qty !== null && (int) $part->received_qty === (int) $part->qty)->count();
+        $photoTotalCount = $current_workorder->media()->whereIn('collection_name', $photoGroups)
+            ->where('mime_type', 'like', 'image/%')->count();
+        $documentCount = $current_workorder->media()->where('collection_name', 'pdfs')->count();
 
         // Training
         $user = Auth::user();
@@ -661,6 +667,7 @@ class MainController extends Controller
         }
 
         return view('admin.mains.main', compact(
+            'userUiSettingsInitial', 'mainUiSettings', 'mainTabs', 'initialMainTab', 'initialGeneralTask',
             'users',
             'current_workorder',
             'mains',
@@ -672,10 +679,6 @@ class MainController extends Controller
             'manual',
             'additionalManualLibValues',
             'components',
-            'ordersPartsNew',
-            'prl_parts',
-            'orderedQty',
-            'receivedQty',
             'trainings',
             'user_wo',
             'manual_id',
@@ -684,6 +687,7 @@ class MainController extends Controller
             'mainsByTask',
             'gtAllFinished',
             'photoTotalCount',
+            'documentCount',
             'trainingAuthLatest',
             'trainingHistoryAuth',
             'trainingWoLatest',

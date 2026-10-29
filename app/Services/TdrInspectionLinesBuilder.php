@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Log;
  * count(build()).
  *
  * Order of lines: unit inspections → null-component conditions (+ Missing) →
- * Order New component pairs grouped by REASON → "is necessary" component rows.
+ * Order New component pairs grouped by REASON → component rows with defect reasons.
  *
  * NB: for Order New rows the reason is taken from the CODE (the field edited in
  * the "Ordered Parts" modal), not from conditions. "Customer Request" is not a
@@ -187,19 +187,17 @@ class TdrInspectionLinesBuilder
 
                     if ($showDescription) {
                         $necessaryComponents[] = sprintf(
-                            "(%s) <b>%s</b> IS NECESSARY: %s - %s ( %s )",
+                            "(%s) <b>%s</b> - %s ( %s )",
                             strtoupper($component->ipl_num),
                             strtoupper($component->name),
-                            strtoupper($necessaries->name),
                             strtoupper($codes->name),
                             strtoupper($description),
                         );
                     } else {
                         $necessaryComponents[] = sprintf(
-                            "(%s) <b>%s</b> IS NECESSARY: %s - %s ",
+                            "(%s) <b>%s</b> - %s",
                             strtoupper($component->ipl_num),
                             strtoupper($component->name),
-                            strtoupper($necessaries->name),
                             strtoupper($codes->name),
                         );
                     }

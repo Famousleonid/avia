@@ -80,7 +80,7 @@
 
     .std-group-crossout-reason {
         display: block;
-        font-size: 10px;
+        font-size: 12px;
         font-style: italic;
         line-height: 1.05;
         text-decoration: none;
@@ -673,7 +673,7 @@
 
         .std-ndt-index,
         .std-ndt-value {
-            font-size: 11px;
+            font-size: 12px;
             line-height: 1.05;
         }
 
@@ -697,7 +697,7 @@
 
         .std-instruction-row--cad .std-instruction-text {
             white-space: nowrap;
-            font-size: 10px;
+            font-size: 12px;
             line-height: 1.05;
             overflow: hidden;
             text-overflow: clip;

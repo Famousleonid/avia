@@ -36,11 +36,11 @@
         .task-main { height: 27mm; }
         .task:nth-of-type(2) .task-main, .task:nth-of-type(3) .task-main { height: 22.5mm; }
         .task-main td { vertical-align: middle; }
-        .stage { width: 9.1%; border-right: .75pt solid #000; text-align: center; font-size: 8pt; font-weight: bold; }
+        .stage { width: 9.1%; border-right: .75pt solid #000; text-align: center; font-size: 12px; font-weight: bold; }
         .stage strong { display: block; font-size: 14pt; font-weight: normal; margin-top: 4mm; }
         .task-cell { width: 79%; padding: 2mm 6.5mm; }
         .task-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 9pt; line-height: 1.2; }
-        .stamp { width: 11.9%; padding: 1mm; border-left: .75pt solid #000; text-align: center; font-size: 7.5pt; }
+        .stamp { width: 11.9%; padding: 1mm; border-left: .75pt solid #000; text-align: center; font-size: 12px; }
         .second-stamp { border-top: .75pt solid #000; }
         .reference { height: 6.5mm; border-top: .75pt solid #000; font-size: 9pt; }
         .reference th { width: 30.5%; text-align: left; border-right: .75pt solid #000; padding: .5mm; }

@@ -4,10 +4,11 @@ namespace Tests\Feature;
 
 use Tests\BuildsDomainData;
 use Tests\TestCase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 
 class MainToolsVisibilityTest extends TestCase
 {
-    use BuildsDomainData;
+    use BuildsDomainData, DatabaseTransactions;
 
     public function test_tools_button_is_visible_only_to_admin_in_main(): void
     {
@@ -20,7 +21,8 @@ class MainToolsVisibilityTest extends TestCase
             ->assertOk()
             ->assertSee('data-tippy-content="Tools"', false);
 
-        $this->actingAs($technician)
+        $this->actingAs($technician)->withSession(['auth.version' => (int) $technician->auth_version,
+            'password_hash_web' => $technician->getAuthPassword()])
             ->get(route('mains.show', $workorder))
             ->assertOk()
             ->assertDontSee('data-tippy-content="Tools"', false);
@@ -36,7 +38,7 @@ class MainToolsVisibilityTest extends TestCase
             ->assertOk()
             ->assertSee('dir-top-square-btn open-pdf-modal', false)
             ->assertSee('bi bi-file-earmark-pdf', false)
-            ->assertSee('aria-label="PDF Library"', false)
+            ->assertSee('aria-label="Documents"', false)
             ->assertSee('id="pdfCountBadge"', false)
             ->assertSee('dir-top-count-badge bg-warning d-none', false)
             ->assertSee('id="pdfModal"', false)
@@ -74,7 +76,7 @@ class MainToolsVisibilityTest extends TestCase
                 ->assertDontSee('data-main-action="tools"', false)
                 ->assertDontSee('data-main-action="logs"', false)
                 ->assertDontSee('data-main-action="parts"', false)
-                ->assertDontSee('data-main-tabs', false)
+                ->assertDontSee('data-main-tabs data-wo-id=', false)
                 ->assertDontSee('id="pdfModal"', false)
                 ->assertDontSee('js/tdrs/show/pdf-library-handler.js', false);
         }

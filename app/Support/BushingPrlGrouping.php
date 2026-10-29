@@ -15,40 +15,61 @@ class BushingPrlGrouping
         return $components->whereIn('id', $ids)->values();
     }
 
-    public static function capacity($components): int
+    /** Read once for all families, retaining the original per-family option order. */
+    public static function capacityOptions($components): \Illuminate\Support\Collection
+    {
+        return \App\Models\ManualPartGroupOption::query()
+            ->whereIn('component_id', $components->pluck('id')->unique())
+            ->whereHas('group', fn ($q) => $q->where('type', \App\Models\ManualPartGroup::TYPE_OVERSIZE))
+            ->orderBy('sort_order')->orderBy('id')->get();
+    }
+
+    public static function capacity($components, ?\Illuminate\Support\Collection $options = null): int
+    {
+        $options = ($options ?? self::capacityOptions($components))
+            ->whereIn('component_id', $components->pluck('id'));
+        $original = self::originalComponent($components, $options);
+        if ($original && $options->contains(fn ($option) =>
+            (int) $option->component_id === (int) $original->id
+            && ($option->option_kind === 'original'
+                || ($option->option_kind === 'standard' && is_numeric($original->units_assy)))
+        )) {
+            return max(1, (int) $original->units_assy);
+        }
+
+        return max(1, (int) ($original?->units_assy ?? $components->max('units_assy') ?? 1));
+    }
+
+    public static function originalComponent($components, ?\Illuminate\Support\Collection $options = null): ?Component
     {
         // Imported groups may predate option_kind=original. Their ordered first
         // numeric standard option is the original; never use oversize AR as its limit.
-        $options = \App\Models\ManualPartGroupOption::query()
-            ->whereIn('component_id', $components->pluck('id'))
-            ->whereHas('group', fn ($q) => $q->where('type', \App\Models\ManualPartGroup::TYPE_OVERSIZE))
-            ->orderBy('sort_order')->orderBy('id')->get();
+        $options = ($options ?? self::capacityOptions($components))
+            ->whereIn('component_id', $components->pluck('id'));
         $original = $options->firstWhere('option_kind', 'original')
             ?? $options->first(fn ($option) => $option->option_kind === 'standard'
                 && is_numeric($components->firstWhere('id', $option->component_id)?->units_assy));
         if ($original) {
-            return max(1, (int) $components->firstWhere('id', $original->component_id)?->units_assy);
+            return $components->firstWhere('id', $original->component_id);
         }
 
-        $initial = $components->first(fn (Component $component): bool =>
+        return $components->first(fn (Component $component): bool =>
             trim((string) $component->bush_ipl_num) !== ''
             && trim((string) $component->ipl_num) === trim((string) $component->bush_ipl_num)
         );
-
-        return max(1, (int) ($initial?->units_assy ?? $components->max('units_assy') ?? 1));
     }
 
-    public static function groups($components)
+    public static function groups($components, ?\App\Services\PartVariantGrouping $grouping = null)
     {
-        $keys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($components->pluck('manual_id')->all(), 'bushing');
+        $keys = ($grouping ?? app(\App\Services\PartVariantGrouping::class))->explicitKeys($components->pluck('manual_id')->all(), 'bushing');
 
         return $components->groupBy(fn (Component $component): string => self::groupKeyForComponent($component, $keys));
     }
 
     /** Allocate a single paid family budget, never a separate allowance per P/N. */
-    public static function kitAllocation($components, $selected): array
+    public static function kitAllocation($components, $selected, ?int $capacity = null): array
     {
-        $remaining = self::capacity($components);
+        $remaining = $capacity ?? self::capacity($components);
         $allocation = [];
         foreach ($components->sortBy('id') as $component) {
             if (! $selected->has($component->id)) {

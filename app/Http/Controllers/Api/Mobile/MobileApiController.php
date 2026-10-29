@@ -338,6 +338,34 @@ class MobileApiController extends Controller
             $componentPayload,
             $workorder
         );
+        $catalogGroups = ManualPartGroup::with('options.coverages')->where('manual_id', $manualId)->get();
+        $components = $components->sort(fn ($a, $b) => strnatcasecmp($a->part_number, $b->part_number)
+            ?: \App\Models\StdProcess::compareIplValues($a->ipl_num, $b->ipl_num))->values();
+        $draftGroups = app(\App\Services\LogCardDraftChoiceGroups::class)->merge(
+            $components,
+            $assyGroups->map(fn ($group) => [
+                'group' => (object) ['id' => $group['group_id']],
+                'choices' => collect($group['choices'])->map(fn ($choice) => $choice + [
+                    'component' => $components->firstWhere('id', $choice['component_id']),
+                ]),
+            ]),
+            $catalogGroups
+        );
+        $choiceGroups = $draftGroups->map(fn ($group) => [
+            'group_key' => $group['group_key'],
+            'group_id' => $group['choices']->pluck('manual_part_group_id')->unique()->count() === 1
+                ? $group['choices']->first()['manual_part_group_id'] : null,
+            'selection_type' => $group['choices']->count() > 1 ? 'radio' : 'single',
+            'choices' => $group['choices']->map(function ($choice) use ($componentPayload) {
+                $payload = array_merge($componentPayload($choice['component']), $choice);
+                unset($payload['component']);
+                return $payload;
+            })->values(),
+        ]);
+        $assyGroups = $choiceGroups->filter(fn ($group) => $group['choices']->contains(fn ($choice) => !empty($choice['choice_kind'])))->values();
+        $plainChoiceGroups = $choiceGroups->reject(fn ($group) => $group['choices']->contains(fn ($choice) => !empty($choice['choice_kind'])));
+        $assyGroupedComponentIds = $choiceGroups->flatMap(fn ($group) => $group['choices']->pluck('component_id'));
+        $assemblyChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent($catalogGroups, $components, $workorder);
         $regularComponents = $components
             ->reject(fn (Component $component): bool => $assyGroupedComponentIds->contains((int) $component->id))
             ->values();
@@ -349,6 +377,11 @@ class MobileApiController extends Controller
                 'ipl_group' => (string) $key,
                 'variants' => $group->sortBy('ipl_num')->map($componentPayload)->values()->all(),
             ])
+            ->concat($plainChoiceGroups->map(function ($group) {
+                $families = $group['choices']->map(fn ($choice) => $this->mobileLogCardGroupKey((string) $choice['ipl_num']))->unique();
+                return ['ipl_group' => $families->count() === 1 ? $families->first() : $group['group_key'],
+                    'variants' => $group['choices']->all()];
+            }))
             ->values();
 
         $separate = collect();
@@ -359,6 +392,7 @@ class MobileApiController extends Controller
                     $separate->push(array_merge($componentPayload($c), [
                         'units_assy' => $units,
                         'unit_index' => $i,
+                        'assembly_choices' => $assemblyChoices[(int) $c->id] ?? [],
                     ]));
                 }
             }

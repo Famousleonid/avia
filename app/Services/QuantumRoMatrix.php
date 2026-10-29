@@ -15,12 +15,38 @@ class QuantumRoMatrix
             ->groupBy(fn ($process) => $normalize($process->code));
         $columns = [];
         $rows = [];
+        $targetParts = [];
+        foreach ($tdrs ?? collect() as $tdr) {
+            if (! $tdr->component) continue;
+            foreach ($tdr->tdrProcesses as $process) {
+                $targetParts[$process->id] = [
+                    'pn' => $tdr->component->part_number, 'serial' => $tdr->serial_number,
+                    'description' => $tdr->component->name,
+                ];
+            }
+        }
+        $lineParts = [];
         foreach ($lines as $line) {
-            // A shared P/N alone cannot identify a serialized component.
-            $columnKey = json_encode([$normalize($line->pn), $normalize($line->serial_number)]);
-            $columns[$columnKey] ??= [
+            $part = [
                 'pn' => $line->pn, 'serial' => $line->serial_number, 'description' => $line->description,
             ];
+            // A missing source serial can be resolved by an explicit applied
+            // TDR target in this WO, never by P/N alone or conflicting serials.
+            if ($line->apply_status === 'applied' && $normalize($line->serial_number) === '') {
+                $targets = collect($line->applied_targets ?? []);
+                if ($targets->isEmpty() && $line->applied_target_table) {
+                    $targets = collect([['table' => $line->applied_target_table, 'id' => $line->applied_target_id]]);
+                }
+                $targets = $targets->where('table', 'tdr_processes');
+                $parts = $targets->map(fn ($target) => $targetParts[$target['id'] ?? 0] ?? null);
+                if ($parts->isNotEmpty() && $parts->every(fn ($p) => $p && $normalize($p['pn']) === $normalize($line->pn))) {
+                    $identities = $parts->unique(fn ($p) => json_encode([$normalize($p['pn']), $normalize($p['serial'])]));
+                    if ($identities->count() === 1) $part = $identities->first();
+                }
+            }
+            $columnKey = json_encode([$normalize($part['pn']), $normalize($part['serial'])]);
+            $lineParts[spl_object_id($line)] = $columnKey;
+            $columns[$columnKey] ??= $part;
             $ref = $normalize($line->bom_ref);
             $matches = $codes->get($ref, collect());
             $label = $ref === '' ? 'Unspecified process' : 'REF ' . $ref;
@@ -40,7 +66,7 @@ class QuantumRoMatrix
 
         $completion = [];
         foreach ($lines as $line) {
-            $key = json_encode([$normalize($line->pn), $normalize($line->serial_number)]);
+            $key = $lineParts[spl_object_id($line)];
             $completion[$key][] = ! empty($line->returned_date);
         }
         foreach ($tdrs ?? collect() as $tdr) {
@@ -60,8 +86,7 @@ class QuantumRoMatrix
                 $leader = $group->first();
                 $finished = $group->every(fn ($p) => ! empty($p->date_finish));
                 $completion[$key][] = $finished;
-                // Number only steps that have not been sent and do not yet have an RO.
-                if ($finished || $group->contains(fn ($p) => ! empty($p->date_start) || trim((string) $p->repair_order) !== '')) continue;
+                $pending = ! $finished && ! $group->contains(fn ($p) => ! empty($p->date_start) || trim((string) $p->repair_order) !== '');
                 $process = $leader->processName;
                 $ref = $normalize($process->code);
                 $order = $processes->search(fn ($p) => $p->id === $process->id);
@@ -76,8 +101,24 @@ class QuantumRoMatrix
                 } elseif ($ref !== '' && $codes->get($ref, collect())->count() === 1) {
                     $rowKey = $ref;
                 }
+                // AT is a local operation, so it has no Quantum RO source line.
+                // A dated blank-RO operation without a vendor is also local,
+                // unless this exact part/process already has a Quantum RO.
+                $hasSource = ! empty($rows[$rowKey]['cells'][$key]);
+                $internal = $group->filter(function ($p) use ($normalize, $hasSource) {
+                    $ro = $normalize($p->repair_order);
+                    return $ro === 'AT' || ($ro === '' && ! $p->vendor_id && ! $hasSource
+                        && (! empty($p->date_start) || ! empty($p->date_finish)));
+                });
+                if (! $pending && $internal->isEmpty()) continue;
                 $rows[$rowKey] ??= ['label' => $label, 'ref' => $ref, 'order' => $order === false ? 10000 : $order, 'cells' => []];
-                $rows[$rowKey]['pending'][$key][] = $index + 1;
+                if ($pending) $rows[$rowKey]['pending'][$key][] = $index + 1;
+                foreach ($internal as $local) {
+                    $rows[$rowKey]['internal'][$key][] = [
+                        'process' => $local->processName->name,
+                        'sent' => $local->date_start, 'returned' => $local->date_finish,
+                    ];
+                }
             }
         }
         foreach ($columns as $key => &$column) {

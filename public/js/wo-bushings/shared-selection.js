@@ -1,8 +1,8 @@
 (function () {
     'use strict';
     if (window.BushingSelection) { window.BushingSelection.refresh(); return; }
-    let state = null, applying = false, busy = false, refreshing = false;
-    const dirtyForms = new WeakSet(), staleForms = new WeakSet();
+    let state = null, busy = false, refreshing = false;
+    const staleForms = new WeakSet();
     const printStyle = document.createElement('style');
     printStyle.textContent = `
         .bushing-select-cell[data-bushing-selection-blocked] { cursor: help; }
@@ -25,111 +25,116 @@
     function render(next, own = false) {
         const externalChange = state && state.revision !== next.revision && !own;
         state = next;
-        applying = true;
-        try {
-            const options = new Map(state.groups.flatMap(g => g.options).map(o => [o.id, o]));
-            const drafts = new Map((state.drafts || []).map(d => [Number(d.bushing), d]));
-            forms().forEach(form => {
-                if (externalChange && dirtyForms.has(form)) {
-                    staleForms.add(form);
-                    notify('Bushing selection changed on another screen. Reopen the editor before saving process changes.');
-                }
-                if (!staleForms.has(form) && state.draft_token) hidden(form, 'draft_token', state.draft_token);
-                if (state.bushing_id && form.classList.contains('bushing-create-form')) {
-                    form.action = config().updateFormUrl + '/' + state.bushing_id;
-                    hidden(form, '_method', 'PUT');
-                }
-                form.querySelectorAll('.component-checkbox').forEach(checkbox => {
-                    const option = options.get(componentId(checkbox));
-                    if (!option) return;
-                    const historyRepresented = option.history && form.querySelector('.bushing-history-row[data-component-id="' + option.id + '"]');
-                    // The locked history is already included in this editor's group total.
-                    // Preserve the separately rendered draft (if any), not the aggregate history quantity.
-                    if (historyRepresented) return;
-                    const wasChecked = checkbox.checked;
-                    checkbox.checked = option.selected;
-                    checkbox.disabled = option.locked || option.history || busy;
-                    checkbox.title = option.reason || 'Saved automatically; shared with KIT / Extra parts.';
-                    // Disabled inputs do not emit clicks. Their existing wrapper
-                    // explains the lock without enabling or changing the selection.
-                    const selectionCell = checkbox.closest('.bushing-select-cell');
-                    if (selectionCell) {
-                        if (option.locked || option.history) {
-                            selectionCell.dataset.bushingSelectionBlocked = option.id;
-                            selectionCell.tabIndex = 0;
-                            selectionCell.setAttribute('role', 'button');
-                            selectionCell.setAttribute('aria-label', option.ipl + ' — ' + option.reason);
-                            selectionCell.title = option.reason;
-                        } else {
-                            delete selectionCell.dataset.bushingSelectionBlocked;
-                            selectionCell.removeAttribute('tabindex');
-                            selectionCell.removeAttribute('role');
-                            selectionCell.removeAttribute('aria-label');
-                            selectionCell.removeAttribute('title');
-                        }
+        const options = new Map(state.groups.flatMap(g => g.options).map(o => [o.id, o]));
+        const drafts = new Map((state.drafts || []).map(d => [Number(d.bushing), d]));
+        forms().forEach(form => {
+            const editing = window.BushingEditorDraft?.isDirty(form) || window.BushingEditorDraft?.isSaving(form);
+            if (externalChange && editing) {
+                staleForms.add(form);
+                notify('Bushing selection changed on another screen. Reopen the editor before saving process changes.');
+            }
+            // A focus refresh must never overwrite unsaved selection or processes.
+            if (editing) return;
+            if (!staleForms.has(form) && state.draft_token) hidden(form, 'draft_token', state.draft_token);
+            if (state.bushing_id && form.classList.contains('bushing-create-form')) {
+                form.action = config().updateFormUrl + '/' + state.bushing_id;
+                hidden(form, '_method', 'PUT');
+            }
+            const changedRows = new Map();
+            form.querySelectorAll('.component-checkbox').forEach(checkbox => {
+                const option = options.get(componentId(checkbox));
+                if (!option) return;
+                const historyRepresented = option.history && form.querySelector('.bushing-history-row[data-component-id="' + option.id + '"]');
+                // The locked history is already included in this editor's group total.
+                // Preserve the separately rendered draft (if any), not the aggregate history quantity.
+                if (historyRepresented) return;
+                const wasChecked = checkbox.checked;
+                checkbox.checked = option.selected;
+                checkbox.disabled = option.locked || option.history || busy;
+                checkbox.title = option.reason || 'Saved with Save Bushing Data; shared with KIT / Extra parts.';
+                // Disabled inputs do not emit clicks. Their existing wrapper
+                // explains the lock without enabling or changing the selection.
+                const selectionCell = checkbox.closest('.bushing-select-cell');
+                if (selectionCell) {
+                    if (option.locked || option.history) {
+                        selectionCell.dataset.bushingSelectionBlocked = option.id;
+                        selectionCell.tabIndex = 0;
+                        selectionCell.setAttribute('role', 'button');
+                        selectionCell.setAttribute('aria-label', option.ipl + ' — ' + option.reason);
+                        selectionCell.title = option.reason;
+                    } else {
+                        delete selectionCell.dataset.bushingSelectionBlocked;
+                        selectionCell.removeAttribute('tabindex');
+                        selectionCell.removeAttribute('role');
+                        selectionCell.removeAttribute('aria-label');
+                        selectionCell.removeAttribute('title');
                     }
-                    const qty = field(checkbox, 'qty'), code = field(checkbox, 'codes_id'), noOrder = field(checkbox, 'do_not_order');
-                    if (qty) qty.value = option.qty;
-                    if (noOrder) noOrder.checked = option.do_not_order;
-                    // Restore process fields only when the server restores a previously unselected row.
-                    const draft = drafts.get(option.id);
-                    if (!wasChecked && option.selected && !historyRepresented && draft && !dirtyForms.has(form)) {
-                        const need = field(checkbox, 'need_processes');
-                        if (need) need.checked = draft.need_processes;
-                        Object.entries(draft.processes || {}).forEach(([key, value]) => {
-                            const control = field(checkbox, key) || field(checkbox, key + '][');
-                            if (control) {
-                                const savedValue = Array.isArray(value) ? (value[0] || '') : (value || '');
-                                if (key === 'ndt' && savedValue) {
-                                    const equivalent = [...control.options].find(o => (o.dataset.ndtAliases || '').split(',').includes(String(savedValue)));
-                                    if (equivalent) equivalent.value = String(savedValue);
-                                }
-                                control.value = savedValue;
+                }
+                const qty = field(checkbox, 'qty'), code = field(checkbox, 'codes_id'), noOrder = field(checkbox, 'do_not_order');
+                if (qty) qty.value = option.qty;
+                if (noOrder) noOrder.checked = option.do_not_order;
+                // Restore process fields only when the server restores a previously unselected row.
+                const draft = drafts.get(option.id);
+                if (!wasChecked && option.selected && !historyRepresented && draft) {
+                    const need = field(checkbox, 'need_processes');
+                    if (need) need.checked = draft.need_processes;
+                    Object.entries(draft.processes || {}).forEach(([key, value]) => {
+                        const control = field(checkbox, key) || field(checkbox, key + '][');
+                        if (control) {
+                            window.populateBushingProcessOptions?.(control);
+                            const savedValue = Array.isArray(value) ? (value[0] || '') : (value || '');
+                            if (key === 'ndt' && savedValue) {
+                                const equivalent = [...control.options].find(o => (o.dataset.ndtAliases || '').split(',').includes(String(savedValue)));
+                                if (equivalent) equivalent.value = String(savedValue);
                             }
-                        });
-                    }
-                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-                    const currentCode = field(checkbox, 'codes_id') || code;
-                    if (currentCode && option.codes_id) currentCode.value = option.codes_id;
-                    if (qty) qty.disabled = !option.selected || option.locked || option.history || busy;
-                });
-            });
-            document.querySelectorAll('[data-bushing-selection-id]').forEach(el => {
-                const option = options.get(Number(el.dataset.bushingSelectionId));
-                if (!option) return;
-                el.dataset.kitPrlControllerCrossedOut = option.locked ? '1' : '0';
-                el.dataset.kitPrlManualCrossedOut = !option.locked && option.crossed_out ? '1' : '0';
-                el.classList.toggle('kit-prl-option-crossed-out', option.crossed_out);
-                el.classList.toggle('prl-part-number-crossed-out', option.crossed_out);
-                el.classList.toggle('kit-prl-option-locked', option.locked);
-                if (option.crossed_out) el.dataset.prlPartNumberCrossedOut = '1'; else delete el.dataset.prlPartNumberCrossedOut;
-                el.title = option.reason || 'Click to change selection / QTY. Shared with Bushings.';
-                const row = el.closest('.data-row-prl');
-                if (row) {
-                    const group = groupFor(option.id);
-                    const crossed = group.options.every(o => o.crossed_out);
-                    row.classList.toggle('prl-row-crossed-out', crossed);
-                    if (crossed) row.dataset.prlCrossedOut = '1'; else delete row.dataset.prlCrossedOut;
+                            control.value = savedValue;
+                        }
+                    });
                 }
+                changedRows.set(checkbox.closest('.bushing-row'), checkbox);
+                const currentCode = field(checkbox, 'codes_id') || code;
+                if (currentCode && option.codes_id) currentCode.value = option.codes_id;
+                window.BushingReplacementCodes?.sync(checkbox);
+                if (qty) qty.disabled = !option.selected || option.locked || option.history || busy;
             });
-            document.querySelectorAll('[data-bushing-qty-component-id]').forEach(el => {
-                const option = options.get(Number(el.dataset.bushingQtyComponentId));
-                if (!option) return;
+            changedRows.forEach(checkbox => checkbox.dispatchEvent(new Event('change', { bubbles: true })));
+            window.BushingEditorDraft?.markSaved(form);
+        });
+        document.querySelectorAll('[data-bushing-selection-id]').forEach(el => {
+            const option = options.get(Number(el.dataset.bushingSelectionId));
+            if (!option) return;
+            el.dataset.kitPrlControllerCrossedOut = option.locked ? '1' : '0';
+            el.dataset.kitPrlManualCrossedOut = !option.locked && option.crossed_out ? '1' : '0';
+            el.classList.toggle('kit-prl-option-crossed-out', option.crossed_out);
+            el.classList.toggle('prl-part-number-crossed-out', option.crossed_out);
+            el.classList.toggle('kit-prl-option-locked', option.locked);
+            if (option.crossed_out) el.dataset.prlPartNumberCrossedOut = '1'; else delete el.dataset.prlPartNumberCrossedOut;
+            el.title = option.reason || 'Click to change selection / QTY. Shared with Bushings.';
+            const row = el.closest('.data-row-prl');
+            if (row) {
                 const group = groupFor(option.id);
-                const row = el.closest('.data-row-prl');
-                const allCrossed = group.options.every(o => o.crossed_out);
-                const first = row?.querySelector('[data-bushing-qty-component-id]') === el;
-                const qty = allCrossed ? (first ? group.capacity : null) : (option.crossed_out ? null : (option.order_qty ?? option.qty));
-                el.textContent = qty === null ? '\u00a0' : String(qty);
-                if (qty === null) {
-                    delete el.dataset.prlOptionQty;
-                    el.dataset.prlOptionQtyEmpty = '1';
-                } else {
-                    el.dataset.prlOptionQty = String(qty);
-                    delete el.dataset.prlOptionQtyEmpty;
-                }
-            });
-        } finally { applying = false; }
+                const crossed = group.options.every(o => o.crossed_out);
+                row.classList.toggle('prl-row-crossed-out', crossed);
+                if (crossed) row.dataset.prlCrossedOut = '1'; else delete row.dataset.prlCrossedOut;
+            }
+        });
+        document.querySelectorAll('[data-bushing-qty-component-id]').forEach(el => {
+            const option = options.get(Number(el.dataset.bushingQtyComponentId));
+            if (!option) return;
+            const group = groupFor(option.id);
+            const row = el.closest('.data-row-prl');
+            const allCrossed = group.options.every(o => o.crossed_out);
+            const first = row?.querySelector('[data-bushing-qty-component-id]') === el;
+            const qty = allCrossed ? (first ? group.capacity : null) : (option.crossed_out ? null : (option.order_qty ?? option.qty));
+            el.textContent = qty === null ? '\u00a0' : String(qty);
+            if (qty === null) {
+                delete el.dataset.prlOptionQty;
+                el.dataset.prlOptionQtyEmpty = '1';
+            } else {
+                el.dataset.prlOptionQty = String(qty);
+                delete el.dataset.prlOptionQtyEmpty;
+            }
+        });
         if (externalChange && forms().length === 0) window.refreshSharedBushingView?.();
     }
     async function refresh() {
@@ -217,27 +222,6 @@
     }
     document.addEventListener('click', explainBlockedSelection, true);
     document.addEventListener('keydown', explainBlockedSelection, true);
-    document.addEventListener('change', async event => {
-        if (applying) return;
-        const control = event.target, form = control.closest('form#bushings-form');
-        if (!form) return;
-        const id = componentId(control), group = groupFor(id), option = group?.options.find(o => o.id === id);
-        if (!option) return;
-        if (!control.matches('.component-checkbox,.bushing-qty-input,.bushing-code-select,.bushing-do-not-order')) { dirtyForms.add(form); return; }
-        if (busy || !state) { notify('Wait for the current selection to finish saving.'); if (state) render(state, true); return; }
-        const checkbox = [...form.querySelectorAll('.component-checkbox')].find(c => componentId(c) === id);
-        if (!checkbox) return;
-        const qty = Number(field(checkbox, 'qty')?.value || option.qty);
-        const code = field(checkbox, 'codes_id')?.value;
-        const desired = { selected: checkbox.checked, qty, do_not_order: field(checkbox, 'do_not_order')?.checked || false };
-        if (code) desired.codes_id = Number(code);
-        // If the group is already full, open the same quantity editor used by KIT.
-        const otherQty = group.options.filter(o => o.id !== id && o.selected && !o.do_not_order).reduce((n, o) => n + o.qty, 0);
-        if (desired.selected && !desired.do_not_order && otherQty + qty > group.capacity) {
-            render(state, true); editGroup(id, true); return;
-        }
-        await save(id, { [id]: desired });
-    });
     async function clickPrint(event) {
         const target = event.target.closest?.('[data-bushing-selection-id]');
         if (!target || (event.type === 'keydown' && !['Enter', ' '].includes(event.key))) return;
@@ -253,23 +237,31 @@
     document.addEventListener('click', clickPrint);
     document.addEventListener('keydown', clickPrint);
     document.addEventListener('submit', event => {
-        if (event.target.matches('form#bushings-form') && (busy || staleForms.has(event.target))) {
+        if (event.target.matches('form#bushings-form') && (busy || staleForms.has(event.target) || window.BushingEditorDraft?.isSaving(event.target))) {
             event.preventDefault(); event.stopImmediatePropagation();
-            notify(busy ? 'Wait for selection to finish saving.' : 'Reopen the editor before saving: bushing data changed on another screen.');
+            notify(busy || window.BushingEditorDraft?.isSaving(event.target) ? 'Wait for bushing data to finish saving.' : 'Reopen the editor before saving: bushing data changed on another screen.');
         }
     }, true);
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     async function clear(form) {
-        if (!state || busy) return;
-        const ids = new Set([...form.querySelectorAll('.component-checkbox')].map(componentId));
-        for (const group of state.groups) {
-            const options = group.options.filter(o => ids.has(o.id) && o.selected && !o.history && !o.locked);
-            if (!options.length) continue;
-            const items = Object.fromEntries(options.map(o => [o.id, { selected: false, qty: o.qty }]));
-            if (!await save(options[0].id, items)) break;
-        }
+        if (window.BushingEditorDraft?.isSaving(form)) return;
+        form.querySelectorAll('.component-checkbox:not(:disabled)').forEach(checkbox => {
+            const prefix = checkbox.name.replace('[selected]', '');
+            checkbox.closest('.bushing-row').querySelectorAll('input,select').forEach(control => {
+                if (!control.name.startsWith(prefix + '[')) return;
+                if (control.type === 'checkbox') control.checked = false;
+                else if (control.matches('.bushing-qty-input')) control.value = '1';
+                else if (control.tagName === 'SELECT') {
+                    control.value = '';
+                    window.jQuery?.(control).trigger('change.select2');
+                }
+            });
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        });
     }
-    window.BushingSelection = { refresh, clear, getState: () => state };
+    window.BushingSelection = { refresh, clear, getState: () => state,
+        resetEditor(form) { staleForms.delete(form); refresh(); }
+    };
     refresh();
 })();

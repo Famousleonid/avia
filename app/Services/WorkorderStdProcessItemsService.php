@@ -17,6 +17,23 @@ use Illuminate\Support\Facades\DB;
 
 class WorkorderStdProcessItemsService
 {
+    private ?Workorder $snapshotWorkorder = null;
+    private bool $snapshotPrepared = false;
+    private ?PartGroupCoverageResolver $snapshotCoverage = null;
+    private ?PartVariantGrouping $snapshotGrouping = null;
+    private ?\Closure $snapshotKitQuantities = null;
+
+    public function forSnapshot(Workorder $workorder, PartGroupCoverageResolver $coverage, PartVariantGrouping $grouping, \Closure $kitQuantities): self
+    {
+        $snapshot = clone $this;
+        $snapshot->snapshotWorkorder = $workorder;
+        $snapshot->snapshotPrepared = false;
+        $snapshot->snapshotCoverage = $coverage;
+        $snapshot->snapshotGrouping = $grouping;
+        $snapshot->snapshotKitQuantities = $kitQuantities;
+        return $snapshot;
+    }
+
     /**
      * Rebuild one workorder's reduced STD list from component flags minus current TDR exclusions.
      * Preview retains fully excluded rows in memory only, without changing the stored work list.
@@ -230,22 +247,27 @@ class WorkorderStdProcessItemsService
     {
         StdProcess::assertValidStd($std);
 
-        $hasRows = $this->hasRowsForWorkorder((int) $workorder->id);
-        $scopeQuantities = $hasRows
-            ? app(WorkorderPartScopeResolver::class)->componentQuantities($workorder)
-            : null;
-        $scopedSnapshotNeedsRebuild = $scopeQuantities !== null
-            && $this->scopedSnapshotNeedsRebuild(
-                $workorder,
-                $workorder->scope_type === null
-                    && $workorder->modified_scope_part_group_option_id === null
-            );
+        $isSnapshot = $this->snapshotWorkorder === $workorder;
+        // An empty result is prepared too. Do not rebuild it for every STD type.
+        if (! $isSnapshot || ! $this->snapshotPrepared) {
+            $hasRows = $this->hasRowsForWorkorder((int) $workorder->id);
+            $scopeQuantities = $hasRows
+                ? app(WorkorderPartScopeResolver::class)->componentQuantities($workorder)
+                : null;
+            $scopedSnapshotNeedsRebuild = $scopeQuantities !== null
+                && $this->scopedSnapshotNeedsRebuild(
+                    $workorder,
+                    $workorder->scope_type === null
+                        && $workorder->modified_scope_part_group_option_id === null
+                );
 
-        if (! $hasRows || $scopedSnapshotNeedsRebuild) {
-            $this->rebuild($workorder);
+            if (! $hasRows || $scopedSnapshotNeedsRebuild) {
+                $this->rebuild($workorder);
+            }
+            if ($isSnapshot) $this->snapshotPrepared = true;
         }
 
-        $coverage = app(PartGroupCoverageResolver::class)->coverageForWorkorder($workorder, $std);
+        $coverage = ($isSnapshot ? $this->snapshotCoverage : app(PartGroupCoverageResolver::class))->coverageForWorkorder($workorder, $std);
         $items = $includeExcluded
             ? collect($this->rebuild($workorder, true))->where('std_type', $std)
                 ->map(fn (array $row) => (new WorkorderStdProcessItem())->forceFill($row))
@@ -257,7 +279,7 @@ class WorkorderStdProcessItemsService
             ->get();
         $exclusionReasons = $includeExcluded ? $this->tdrExclusionReasons($workorder, $std, $items) : [];
         $kitQuantities = in_array($std, [StdProcess::STD_NDT, StdProcess::STD_CAD, StdProcess::STD_PAINT], true) && $items->isNotEmpty()
-            ? app(WorkorderPartsList::class)->kitReplacementQuantities($workorder)
+            ? ($isSnapshot ? ($this->snapshotKitQuantities)() : app(WorkorderPartsList::class)->kitReplacementQuantities($workorder))
             : [];
         $rows = $items
             ->map(function (WorkorderStdProcessItem $item) use ($coverage, $exclusionReasons, $kitQuantities): array {
@@ -323,7 +345,7 @@ class WorkorderStdProcessItemsService
             ->values()
             ->all();
 
-        return StdProcess::sortRowsForSnapshot(app(PartVariantGrouping::class)->annotateStdRows($rows, $std));
+        return StdProcess::sortRowsForSnapshot(($isSnapshot ? $this->snapshotGrouping : app(PartVariantGrouping::class))->annotateStdRows($rows, $std));
     }
 
     /** Defect labels for preview only; does not change exclusion quantities or stored snapshots. */

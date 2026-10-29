@@ -257,8 +257,10 @@ class ManualPartGroupController extends Controller
                 ? $group->options()->get()->keyBy(fn (ManualPartGroupOption $option): int => (int) $option->component_id)
                 : collect();
             $keptOptionIds = [];
-            $originalComponentId = $existing->whereIn('component_id', $data['component_ids'])
-                ->firstWhere('option_kind', 'original')?->component_id ?? $data['component_ids'][0];
+            $originalComponentId = $data['default_component_id']
+                ?? $existing->whereIn('component_id', $data['component_ids'])
+                    ->firstWhere('option_kind', 'original')?->component_id
+                ?? $data['component_ids'][0];
 
             foreach ($data['component_ids'] as $index => $componentId) {
                 $component = $components->get($componentId);
@@ -272,7 +274,9 @@ class ManualPartGroupController extends Controller
                     'option_kind' => $group->type === ManualPartGroup::TYPE_OVERSIZE
                         ? ((int) $originalComponentId === (int) $componentId ? 'original' : 'oversize')
                         : 'alternate',
-                    'is_default' => (int) ($data['default_component_id'] ?? $data['component_ids'][0]) === $componentId,
+                    'is_default' => (int) ($group->type === ManualPartGroup::TYPE_OVERSIZE
+                        ? $originalComponentId
+                        : ($data['default_component_id'] ?? $data['component_ids'][0])) === $componentId,
                     'sort_order' => $index,
                 ])->save();
                 $keptOptionIds[] = (int) $option->id;
@@ -474,6 +478,7 @@ class ManualPartGroupController extends Controller
                 'component_id' => $option->component_id ? (int) $option->component_id : null,
                 'part_number' => $option->part_number,
                 'ipl_num' => $option->ipl_num,
+                'option_kind' => $option->option_kind,
                 'is_default' => (bool) $option->is_default,
                 'coverages' => $option->coverages->map(fn ($coverage): array => [
                     'component_id' => $coverage->component_id ? (int) $coverage->component_id : null,

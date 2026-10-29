@@ -137,6 +137,41 @@ class TdrProcessCombinedFormTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_machining_at_and_ec_combine_but_blend_does_not(): void
+    {
+        [$admin, $tdr] = $this->createFormContext();
+        $selections = [];
+        foreach (['Machining (AT)', 'Machining (EC)', 'Machining (Blend)'] as $index => $label) {
+            $name = ProcessName::query()->firstOrCreate(['name' => $label], [
+                'process_sheet_name' => 'MACHINING', 'form_number' => '018',
+                'print_form' => true, 'show_in_process_picker' => true,
+            ]);
+            $process = Process::query()->create([
+                'process_names_id' => $name->id, 'process' => 'Combined machining specification '.$index,
+            ]);
+            ManualProcess::query()->create([
+                'manual_id' => $tdr->workorder->unit->manual_id, 'processes_id' => $process->id,
+            ]);
+            $row = TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id, 'process_names_id' => $name->id,
+                'processes' => [$process->id], 'sort_order' => $index + 1,
+            ]);
+            $selections[] = ['tdr_process_id' => $row->id, 'process_id' => $process->id];
+        }
+        $url = route('tdr-processes.combinedForm', ['tdrId' => $tdr->id]);
+        foreach ([[$selections[0], $selections[1]], [$selections[1], $selections[0]]] as $pair) {
+            $this->actingAs($admin)->post($url, ['selections' => json_encode($pair)])
+                ->assertOk()->assertSee('Combined machining specification 0')
+                ->assertSee('Combined machining specification 1')->assertDontSee('Combined machining specification 2');
+        }
+        $this->actingAs($admin)->post($url, ['selections' => json_encode([$selections[0], $selections[2]])])
+            ->assertStatus(422);
+        // Even within the allowed pair, a specification must belong to its own source row.
+        $selections[0]['process_id'] = $selections[1]['process_id'];
+        $this->actingAs($admin)->post($url, ['selections' => json_encode(array_slice($selections, 0, 2))])
+            ->assertStatus(422);
+    }
+
     private function createFormContext(): array
     {
         $admin = $this->createUserWithRole('Admin');

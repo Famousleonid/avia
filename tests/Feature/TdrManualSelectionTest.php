@@ -37,7 +37,10 @@ class TdrManualSelectionTest extends TestCase
             ]);
             $workorder->update(['not_used_manual_ids' => [$notUsedManual->id]]);
 
-            $response = $this->actingAs($user)->get(route('tdrs.show', $workorder->id));
+            $response = $this->actingAs($user)->withSession([
+                'auth.version' => (int) $user->auth_version,
+                'password_hash_web' => $user->getAuthPassword(),
+            ])->get(route('tdrs.show', $workorder->id));
 
             $response->assertOk();
             $manualIds = $response->viewData('manuals')->pluck('id')->all();

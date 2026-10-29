@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{ asset('css/custom_bootstrap.css') }}?v={{ filemtime(public_path('css/custom_bootstrap.css')) }}">
-    <link rel="stylesheet" href="{{asset('css/main.css')}}">
+    <link rel="stylesheet" href="{{ asset('css/main.css') }}?v={{ filemtime(public_path('css/main.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/password-policy.css') }}?v={{ filemtime(public_path('css/password-policy.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendor/tippy/6.3.7/tippy.css') }}">

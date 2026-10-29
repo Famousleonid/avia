@@ -211,7 +211,8 @@ class TdrInlinePartWorkflowTest extends TestCase
         $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
 
         $before = \App\Models\StdProcess::snapshotComponentsForWorkorder($workorder, \App\Models\StdProcess::STD_NDT);
-        $this->assertCount(1, $before);
+        // Overhaul KIT replacements are already excluded from NDT before Order New.
+        $this->assertCount(0, $before);
         $response = $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])->postJson(route('tdrs.store'), [
             'workorder_id' => $workorder->id,
             'inline_create' => 1,

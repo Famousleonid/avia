@@ -205,16 +205,16 @@
             font-size: 0.75rem;
         }
         .fs-7 {
-            font-size: 0.7rem;
+            font-size: 12px;
         }
         .fs-8 {
             font-size: 0.8rem;
         }
         .fs-6 {
-            font-size: 0.6rem;
+            font-size: 12px;
         }
         .fs-4 {
-            font-size: 0.4rem;
+            font-size: 12px;
         }
 
         .details-row {
@@ -273,7 +273,7 @@
 
         .spec-component-description-ipl {
             display: inline-block;
-            font-size: 0.62rem;
+            font-size: 12px;
             font-weight: 400;
             white-space: nowrap;
             vertical-align: baseline;

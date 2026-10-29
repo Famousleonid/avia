@@ -1,0 +1,3408 @@
+document.addEventListener('DOMContentLoaded', function() {
+    var tdrShowTabListEl = document.getElementById('tdrShowTabList');
+    var tdrShowTabsHeaderEl = document.getElementById('tdrShowTabsHeader');
+    var tdrShowTabsLoadingEl = document.getElementById('tdrShowTabsLoading');
+    var tdrShowTabContentEl = document.getElementById('tdrShowTabContent');
+    var USER_UI_SCOPE = 'tdrs.show';
+    var TAB_STORAGE_KEY = ("activeTab:" + String(window.TdrshowConfig1.value4) + "");
+    var NOTIFICATION_STORAGE_KEY = ("pendingNotification:" + String(window.TdrshowConfig1.value5) + "");
+    var PERSISTENT_TAB_IDS = [
+        'tab-tdr',
+        'tab-log-card',
+        'tab-bushing',
+        'tab-rm-reports',
+        'tab-transfers',
+        'tab-measurements'
+    ];
+
+    window.UserUiSettings.get(USER_UI_SCOPE, NOTIFICATION_STORAGE_KEY, null).then(function(pendingTdrNotification) {
+        if (!pendingTdrNotification) return;
+        window.UserUiSettings.set(USER_UI_SCOPE, NOTIFICATION_STORAGE_KEY, null);
+        window.tdrShowNotify(pendingTdrNotification, 'success', 2500);
+    });
+
+    function isPersistentTabId(tabId) {
+        return !!tabId && PERSISTENT_TAB_IDS.indexOf(tabId) !== -1;
+    }
+
+    function revealTabsContent() {
+        if (tdrShowTabsHeaderEl) {
+            tdrShowTabsHeaderEl.style.visibility = '';
+        }
+        if (tdrShowTabContentEl) {
+            tdrShowTabContentEl.style.visibility = '';
+        }
+        if (tdrShowTabsLoadingEl) {
+            tdrShowTabsLoadingEl.style.display = 'none';
+        }
+    }
+
+    var editTdrModal = document.getElementById('editTdrModal');
+    var processesBodyUrl = ("" + String(window.TdrshowConfig1.value6) + "");
+    var storeProcessUrl = ("" + String(window.TdrshowConfig1.value7) + "");
+    var processOptionsUrl = ("" + String(window.TdrshowConfig1.value8) + "");
+    var editFormUrl = ("" + String(window.TdrshowConfig1.value9) + "");
+    var updateOrderUrl = ("" + String(window.TdrshowConfig1.value10) + "");
+    var body = document.getElementById('componentProcessesTabBody');
+    var activeProcessesContainer = body;
+    var tabLi = document.getElementById('tab-part-processes-li');
+    var tabBtn = document.getElementById('tab-part-processes');
+    var partProcessesShortcutActions = document.getElementById('partProcessesShortcutActions');
+    var woNum = document.getElementById('compProcessesWoNumber');
+    var itemName = document.getElementById('compProcessesName');
+    var itemIpl = document.getElementById('compProcessesIpl');
+    var itemPn = document.getElementById('compProcessesPn');
+    var itemSn = document.getElementById('compProcessesSn');
+    var addProcessBtn = document.getElementById('compProcessesAddProcessBtn');
+    
+    var extraPartsProcessesUrl = window.TdrshowConfig1.value161;
+    var extraPartsBody = document.getElementById('extraPartsProcessesTabBody');
+    var extraProcessesTabBody = document.getElementById('extraProcessesTabBody');
+    var tabExtraProcessesLi = document.getElementById('tab-extra-processes-li');
+    var tabExtraProcessesBtn = document.getElementById('tab-extra-processes');
+    var extraProcessesProcessesUrl = ("" + String(window.TdrshowConfig1.value11) + "");
+    var editExtraProcessUrl = ("" + String(window.TdrshowConfig1.value12) + "");
+    var addExtraProcessUrl = ("" + String(window.TdrshowConfig1.value13) + "");
+    var editExtraProcessProcessUrl = ("" + String(window.TdrshowConfig1.value14) + "");
+    var addExtraPartCreateUrl = ("" + String(window.TdrshowConfig1.value15) + "");
+    var tabExtraPartsProcessesBtn = document.getElementById('tab-extra-parts-processes');
+    var extraGroupFormsHeaderBtn = document.getElementById('extraGroupFormsHeaderBtn');
+    var extraPartsTabActions = document.getElementById('extraPartsTabActions');
+    var logCardTabBody = document.getElementById('logCardTabBody');
+    var logCardPartialUrl = ("" + String(window.TdrshowConfig1.value16) + "");
+    var transfersTabBody = document.getElementById('transfersTabBody');
+    var transfersPartialUrl = window.TdrshowConfig1.value162;
+    var transfersTabActions = document.getElementById('transfersTabActions');
+    var bushingTabBody = document.getElementById('bushingTabBody');
+    var bushingPartialUrl = ("" + String(window.TdrshowConfig1.value17) + "");
+    window.refreshSharedBushingView = function () {
+        if (bushingTabBody && bushingTabBody.dataset.loaded === '1') loadBushingPartial();
+    };
+    var rmReportsTabBody = document.getElementById('rmReportsTabBody');
+    var rmReportsPartialUrl = ("" + String(window.TdrshowConfig1.value18) + "");
+    var logCardStoreUrl = ("" + String(window.TdrshowConfig1.value19) + "");
+    var logCardUpdateUrlTemplate = ("" + String(window.TdrshowConfig1.value20) + "").replace('9999991', '__LC__');
+    var logCardInlineFieldUpdateUrlTemplate = ("" + String(window.TdrshowConfig1.value21) + "").replace('9999991', '__LC__');
+    var editBushingUrl = ("" + String(window.TdrshowConfig1.value22) + "");
+    var getProcessesBaseUrl = ("" + String(window.TdrshowConfig1.value23) + "");
+
+    window.handleEditBushingSaved = function(message) {
+        if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+        var modal = document.getElementById('editBushingModal');
+        var m = modal ? bootstrap.Modal.getInstance(modal) : null;
+        if (m) m.hide();
+        var bodyEl = document.getElementById('editBushingModalBody');
+        if (bodyEl) bodyEl.innerHTML = '';
+        var actionsEl = document.getElementById('editBushingModalActions');
+        if (actionsEl) actionsEl.style.setProperty('display', 'none', 'important');
+        if (bushingTabBody) loadBushingPartial();
+        window.refreshTdrPrlPaperButtons();
+        if (typeof window.tdrShowNotify === 'function') {
+            window.tdrShowNotify(message || ("" + String(window.TdrshowConfig1.value24) + ""), 'success');
+        }
+    };
+
+    window.handleEditBushingCancel = function() {
+        var modal = document.getElementById('editBushingModal');
+        var m = modal ? bootstrap.Modal.getInstance(modal) : null;
+        if (m) m.hide();
+    };
+
+    document.getElementById('editBushingModalClearBtn')?.addEventListener('click', function() {
+        if (typeof window.clearEditBushingForm === 'function') {
+            window.clearEditBushingForm();
+        }
+    });
+
+    document.getElementById('editBushingModalSubmitBtn')?.addEventListener('click', function() {
+        document.querySelector('#editBushingModalBody form#bushings-form')?.requestSubmit();
+    });
+
+    document.getElementById('editBushingModalCancelBtn')?.addEventListener('click', function() {
+        if (typeof window.handleEditBushingCancel === 'function') {
+            window.handleEditBushingCancel();
+        }
+    });
+
+    function openEditBushingModal(woBushingId) {
+        var modal = document.getElementById('editBushingModal');
+        var bodyEl = document.getElementById('editBushingModalBody');
+        var titleEl = document.getElementById('editBushingModalLabel');
+        var actionsEl = document.getElementById('editBushingModalActions');
+        if (!modal || !bodyEl || !woBushingId) return;
+
+        bodyEl.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value25) + "</div>");
+        if (titleEl) titleEl.textContent = ("" + String(window.TdrshowConfig1.value26) + "");
+        if (actionsEl) actionsEl.style.setProperty('display', 'none', 'important');
+        var inst = bootstrap.Modal.getOrCreateInstance(modal);
+        inst.show();
+        modal.addEventListener('shown.bs.modal', function setZ() {
+            modal.style.zIndex = '1080';
+            var b = document.querySelectorAll('.modal-backdrop');
+            if (b.length) b[b.length - 1].style.zIndex = '1075';
+        }, { once: true });
+
+        var finishBushingOpen = window.beginAppBusy?.();
+        var fetchUrl = editBushingUrl.replace('__ID__', woBushingId) + '?modal=1&fragment=1';
+        fetch(fetchUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                bodyEl.innerHTML = html;
+                bodyEl.querySelectorAll('script').forEach(function(oldScript) {
+                    if (oldScript.src.includes('/wo-bushings/editor-draft.js') && window.BushingEditorDraft) {
+                        window.BushingEditorDraft.initAll(); oldScript.remove(); return;
+                    }
+                    if (oldScript.src.includes('/wo-bushings/shared-selection.js') && window.BushingSelection) {
+                        window.BushingSelection.refresh(); oldScript.remove(); return;
+                    }
+                    var newScript = document.createElement('script');
+                    Array.from(oldScript.attributes || []).forEach(function(attr) {
+                        newScript.setAttribute(attr.name, attr.value);
+                    });
+                    newScript.textContent = oldScript.textContent;
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+                if (typeof window.initEditBushingForm === 'function') {
+                    window.initEditBushingForm(bodyEl);
+                }
+                var innerTitle = bodyEl.querySelector('#editBushingFormRoot .card-header h5');
+                if (titleEl && innerTitle) titleEl.textContent = innerTitle.textContent.trim();
+                if (titleEl && !innerTitle) titleEl.textContent = ("" + String(window.TdrshowConfig1.value27) + " WO ") + ("" + String(window.TdrshowConfig1.value28) + "");
+                if (actionsEl) actionsEl.style.removeProperty('display');
+            })
+            .catch(function(err) {
+                bodyEl.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value29) + "") +
+                    (err && err.message ? ' (' + err.message + ')' : '') +
+                    '<br><a class="alert-link" target="_blank" href="' + fetchUrl.replace('&fragment=1', '') + ("\">" + String(window.TdrshowConfig1.value30) + "</a></div>");
+            })
+            .finally(function() { finishBushingOpen?.(); });
+    }
+
+    function updateExtraPartsTabAsterisk() {
+        if (!tabExtraPartsProcessesBtn) return;
+        var wrapper = extraPartsBody && extraPartsBody.querySelector('.extra-part-processes');
+        var hasRecords = wrapper && wrapper.dataset.hasRecords === '1';
+        var baseText = tabExtraPartsProcessesBtn.dataset.baseText || ("" + String(window.TdrshowConfig1.value31) + "");
+        tabExtraPartsProcessesBtn.textContent = baseText + (hasRecords ? ' *' : '');
+    }
+    function updateExtraGroupFormsButtonVisibility() {
+        if (!extraGroupFormsHeaderBtn) return;
+        var wrapper = extraPartsBody && extraPartsBody.querySelector('.extra-part-processes');
+        var count = wrapper && wrapper.dataset.extraProcessCount ? parseInt(wrapper.dataset.extraProcessCount, 10) : 0;
+        var show = count > 1;
+        if (show) extraGroupFormsHeaderBtn.classList.remove('d-none');
+        else extraGroupFormsHeaderBtn.classList.add('d-none');
+    }
+    function loadExtraPartProcesses() {
+        if (!extraPartsBody) return;
+        extraPartsBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value32) + "</div>");
+        fetch(extraPartsProcessesUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                extraPartsBody.innerHTML = html;
+                initExtraPartGroupForms(extraPartsBody);
+                updateExtraPartsTabAsterisk();
+                updateExtraGroupFormsButtonVisibility();
+            })
+            .catch(function() {
+                extraPartsBody.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value33) + "</div>");
+            });
+    }
+
+    var bushingLoadPromise = null;
+    function loadBushingPartial() {
+        if (!bushingTabBody) return;
+        var draftForm = bushingTabBody.querySelector('#bushings-form');
+        if (draftForm && (window.BushingEditorDraft?.isDirty(draftForm) || window.BushingEditorDraft?.isSaving(draftForm))) return;
+        if (bushingLoadPromise) return bushingLoadPromise;
+        bushingTabBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value34) + "</div>");
+        var finishBushingLoad = window.beginAppBusy?.();
+        bushingLoadPromise = fetch(bushingPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin', cache: 'no-store' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text().then(function(html) {
+                    return { response: r, html: html };
+                });
+            })
+            .then(function(payload) {
+                var r = payload.response;
+                var html = payload.html;
+                var finalUrl = (r && r.url) ? String(r.url) : '';
+                var looksLikeLoginUrl = finalUrl.indexOf('/login') !== -1;
+                var looksLikeLoginHtml = /name=["']email["']/i.test(html)
+                    && /name=["']password["']/i.test(html)
+                    && /remember/i.test(html);
+
+                if (looksLikeLoginUrl || looksLikeLoginHtml) {
+                    bushingTabBody.innerHTML = ("<div class=\"alert alert-warning mb-0\">" + String(window.TdrshowConfig1.value35) + "</div>");
+                    window.tdrShowNotify(("" + String(window.TdrshowConfig1.value36) + ""), 'warning', 5000);
+                    return;
+                }
+
+                bushingTabBody.innerHTML = html;
+                bushingTabBody.dataset.loaded = '1';
+                bushingTabBody.querySelectorAll('script').forEach(function(oldScript) {
+                    var newScript = document.createElement('script');
+                    Array.from(oldScript.attributes || []).forEach(function(attr) {
+                        newScript.setAttribute(attr.name, attr.value);
+                    });
+                    newScript.textContent = oldScript.textContent;
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+                var wrap = bushingTabBody.querySelector('.bushing-partial');
+                if (wrap && bushingTabActions) {
+                    var hasWoBushing = wrap.dataset.hasWoBushing === '1';
+                    var editUrl = wrap.dataset.editUrl || '';
+                    var specFormUrl = wrap.dataset.specFormUrl || '';
+                    var woBushingId = wrap.dataset.woBushingId || '';
+                    if (hasWoBushing && editUrl) {
+                        bushingTabActions.innerHTML = '<button type="button" class="btn btn-outline-primary btn-sm open-edit-bushing-modal" data-wo-bushing-id="' + woBushingId + ("\"><i class=\"fas fa-edit\"></i> " + String(window.TdrshowConfig1.value37) + "</button>");
+                    } else if (wrap.dataset.hasBushings === '1') {
+                        bushingTabActions.innerHTML = ("<button type=\"submit\" form=\"bushings-form\" class=\"btn btn-success btn-sm\"><i class=\"fas fa-plus\"></i> " + String(window.TdrshowConfig1.value38) + "</button><button type=\"button\" class=\"btn btn-secondary btn-sm bushing-clear-btn\"><i class=\"fas fa-eraser\"></i> " + String(window.TdrshowConfig1.value39) + "</button>");
+                    }
+                    var headerBtn = document.getElementById('bushingSpFormHeaderBtn');
+                    if (headerBtn) {
+                        if (hasWoBushing && specFormUrl && !headerBtn.querySelector('a[href]')) {
+                            var a = document.createElement('a');
+                            a.href = specFormUrl;
+                            a.target = '_blank';
+                            a.className = 'paper-btn btn-outline-primary paper-portrait p-0';
+                            a.setAttribute('aria-label', ("" + String(window.TdrshowConfig1.value40) + ""));
+                            a.innerHTML = '<svg viewBox="0 0 190 270" width="60" height="80" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><path class="paper" d="M10 10 H140 L180 50 V240 H10 Z"/><polygon class="fold" points="140,10 140,50 180,50"/><path class="line" d="M140 12 V50 H180"/><foreignObject x="20" y="60" width="140" height="140"><div xmlns="http://www.w3.org/1999/xhtml" style="font: 34px Arial,sans-serif;text-align:center;display:flex;align-items:center;justify-content:center;height:100%;width:100%;word-wrap:break-word;">Bushing Form</div></foreignObject></svg>';
+                            headerBtn.appendChild(a);
+                        } else if (!specFormUrl) {
+                            headerBtn.innerHTML = '';
+                        }
+                    }
+                }
+            })
+            .catch(function(err) {
+                delete bushingTabBody.dataset.loaded;
+                bushingTabBody.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value41) + " (") + (err && err.message ? err.message : '') + ')</div>';
+            }).finally(function() { bushingLoadPromise = null;
+                finishBushingLoad?.(); });
+        return bushingLoadPromise;
+    }
+
+    function logCardTabCsrfToken() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.content : '';
+    }
+
+    function syncPartProcessesShortcutActions() {
+        if (!partProcessesShortcutActions) return;
+        var show = !!tabLi && !tabLi.classList.contains('d-none');
+        partProcessesShortcutActions.classList.toggle('d-none', !show);
+    }
+
+    function syncProcessShortcutButtonState(targetSelector) {
+        if (!partProcessesShortcutActions) return;
+        partProcessesShortcutActions.querySelectorAll('[data-process-shortcut-target]').forEach(function(btn) {
+            var isActive = targetSelector && btn.dataset.processShortcutTarget === targetSelector;
+            btn.classList.toggle('active', !!isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+    }
+
+    function showOnlyTdrTabPane(targetSelector) {
+        if (!targetSelector) return;
+        var pane = document.querySelector(targetSelector);
+        if (!pane) return;
+        if (tdrShowTabContentEl) {
+            Array.prototype.forEach.call(tdrShowTabContentEl.children, function(item) {
+                if (item.classList && item.classList.contains('tab-pane') && item !== pane) {
+                    item.classList.remove('show', 'active');
+                }
+            });
+        }
+        pane.classList.add('show', 'active');
+    }
+
+    function activateDetachedTabPane(targetSelector) {
+        if (!targetSelector) return;
+        if (tdrShowTabListEl) {
+            tdrShowTabListEl.querySelectorAll('.nav-link.active').forEach(function(item) {
+                item.classList.remove('active');
+                item.setAttribute('aria-selected', 'false');
+            });
+        }
+        showOnlyTdrTabPane(targetSelector);
+    }
+
+    function openProcessShortcutPane(targetSelector) {
+        if (!targetSelector) return;
+        if (tabLi) tabLi.classList.remove('d-none');
+        syncPartProcessesShortcutActions();
+        syncProcessShortcutButtonState(targetSelector);
+        if (logCardTabActions) logCardTabActions.classList.add('d-none');
+        if (bushingTabActions) bushingTabActions.classList.add('d-none');
+        if (transfersTabActions) transfersTabActions.classList.add('d-none');
+
+        if (targetSelector.indexOf('content-extra-parts-processes') !== -1) {
+            if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
+            if (extraPartsBody && !extraPartsBody.dataset.loaded) {
+                extraPartsBody.dataset.loaded = '1';
+                loadExtraPartProcesses();
+            } else {
+                updateExtraPartsTabAsterisk();
+                updateExtraGroupFormsButtonVisibility();
+            }
+        }
+
+        activateDetachedTabPane(targetSelector);
+    }
+
+    if (partProcessesShortcutActions) {
+        partProcessesShortcutActions.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-process-shortcut-target]');
+            if (!btn) return;
+            e.preventDefault();
+            openProcessShortcutPane(btn.dataset.processShortcutTarget);
+        });
+    }
+
+    function logCardTabClearEditingUi() {
+        var prim = document.getElementById('logCardEnterDataBtn');
+        var sv = document.getElementById('logCardSaveBtn');
+        var cx = document.getElementById('logCardCancelBtn');
+        if (prim) prim.classList.remove('d-none');
+        if (sv) sv.classList.add('d-none');
+        if (cx) cx.classList.add('d-none');
+    }
+
+    function syncLogCardToolbarFromPartial() {
+        var shell = document.getElementById('log-card-partial-shell');
+        var btn = document.getElementById('logCardEnterDataBtn');
+        var lid = shell && shell.getAttribute('data-log-card-id');
+        var editMode = shell && shell.getAttribute('data-edit-mode') === '1';
+        var readOnly = shell && shell.getAttribute('data-readonly') === '1';
+        var readOnlyMessage = shell ? (shell.getAttribute('data-readonly-message') || '') : '';
+        if (btn) {
+            if (lid) {
+                btn.setAttribute('data-log-card-id', lid);
+                btn.setAttribute('data-has-log', '1');
+                btn.classList.remove('btn-success', 'btn-danger');
+                btn.classList.add('btn-primary');
+                btn.innerHTML = ("<i class=\"fas fa-sync-alt\"></i> " + String(window.TdrshowConfig1.value42) + "");
+            } else {
+                btn.setAttribute('data-log-card-id', '');
+                btn.setAttribute('data-has-log', '0');
+                btn.classList.remove('btn-primary', 'btn-danger');
+                btn.classList.add('btn-success');
+                btn.innerHTML = ("<i class=\"fas fa-keyboard\"></i> " + String(window.TdrshowConfig1.value43) + "");
+            }
+
+            btn.dataset.readonly = readOnly ? '1' : '0';
+            btn.dataset.readonlyMessage = readOnlyMessage;
+            btn.disabled = !!readOnly;
+            btn.title = readOnlyMessage;
+        }
+        var sv = document.getElementById('logCardSaveBtn');
+        var cx = document.getElementById('logCardCancelBtn');
+        if (editMode) {
+            if (btn) btn.classList.add('d-none');
+            if (sv) {
+                sv.classList.remove('d-none');
+                sv.disabled = !!readOnly;
+            }
+            if (cx) cx.classList.remove('d-none');
+        } else {
+            if (btn) btn.classList.remove('d-none');
+            if (sv) sv.classList.add('d-none');
+            if (cx) cx.classList.add('d-none');
+        }
+        var paperWrap = document.getElementById('logCardFormPaperWrap');
+        if (paperWrap && shell) {
+            if (lid) {
+                paperWrap.classList.remove('d-none');
+            } else {
+                paperWrap.classList.add('d-none');
+            }
+        }
+    }
+
+    function logCardTabIsReadOnly() {
+        var shell = document.getElementById('log-card-partial-shell');
+        return !!(shell && shell.getAttribute('data-readonly') === '1');
+    }
+
+    function logCardTabReadOnlyMessage() {
+        var shell = document.getElementById('log-card-partial-shell');
+        return shell ? (shell.getAttribute('data-readonly-message') || '') : '';
+    }
+
+    function logCardTabFindByName(root, fieldName) {
+        if (!root || !fieldName) return null;
+        var all = root.querySelectorAll('input, select');
+        for (var i = 0; i < all.length; i++) {
+            if (all[i].name === fieldName) return all[i];
+        }
+        return null;
+    }
+
+    function logCardTabSelectedAssembly(root, groupKey, componentId) {
+        if (!root || !groupKey || !componentId) return null;
+        var name = 'lc_selected_assembly[' + groupKey + ']';
+        var all = Array.prototype.filter.call(root.querySelectorAll('input'), function(input) {
+            return input.name === name && String(input.dataset.componentId || '') === String(componentId);
+        });
+        var fallback = null;
+        for (var i = 0; i < all.length; i++) {
+            if (!fallback) fallback = all[i];
+            if ((all[i].type === 'radio' && all[i].checked) || all[i].type === 'hidden') {
+                return all[i];
+            }
+        }
+
+        return fallback;
+    }
+
+    function logCardTabAssemblyPayload(input) {
+        if (!input || !input.value) return {};
+        var source = input;
+        if (input.tagName === 'SELECT') {
+            source = input.options[input.selectedIndex] || input;
+        }
+
+        return {
+            component_assembly_id: input.value,
+            assy_part_number: source.dataset.assyPartNumber || '',
+            assy_ipl_num: source.dataset.assyIplNum || '',
+            units_assy: source.dataset.unitsAssy || ''
+        };
+    }
+
+    function logCardTabSelectedAssemblyInRow(row, componentId) {
+        if (!row || !componentId) return null;
+        var all = Array.prototype.filter.call(row.querySelectorAll('input[name^="lc_selected_assembly"], select[name^="lc_selected_assembly"]'), function(input) {
+            return String(input.dataset.componentId || '') === String(componentId);
+        });
+        var fallback = null;
+        for (var i = 0; i < all.length; i++) {
+            if (!fallback) fallback = all[i];
+            if (all[i].tagName === 'SELECT' || all[i].type === 'hidden') {
+                return all[i];
+            }
+        }
+
+        return fallback;
+    }
+
+    function logCardTabSavedPayload(root) {
+        if (!root) return null;
+        var data = [];
+        root.querySelectorAll('tr.lc-manual-saved-row, tr.lc-saved-row').forEach(function(row) {
+            if (row.dataset.rowType === 'manual') {
+                data.push({
+                    row_type: 'manual',
+                    manual_id: row.dataset.manualId || '',
+                    manual_label: row.dataset.manualLabel || ''
+                });
+                return;
+            }
+
+            var item = {
+                component_id: row.dataset.componentId || '',
+                serial_number: '',
+                assy_serial_number: '',
+                reason: '',
+                new_serial_number: ''
+            };
+            if (row.dataset.iplGroup) item.ipl_group = row.dataset.iplGroup;
+            if (row.dataset.manualPartGroupId) item.manual_part_group_id = row.dataset.manualPartGroupId;
+            if (row.dataset.manualPartGroupOptionId) item.manual_part_group_option_id = row.dataset.manualPartGroupOptionId;
+            if (row.dataset.manualPartGroupChoice) item.manual_part_group_choice = row.dataset.manualPartGroupChoice;
+            item.assy_selection_explicit = row.dataset.assySelectionExplicit || '0';
+            item.assy_option_id = row.dataset.assyOptionId || '';
+            if (row.dataset.componentAssemblyId) item.component_assembly_id = row.dataset.componentAssemblyId;
+            if (row.dataset.assyPartNumber) item.assy_part_number = row.dataset.assyPartNumber;
+            if (row.dataset.assyIplNum) item.assy_ipl_num = row.dataset.assyIplNum;
+            if (row.dataset.unitsAssy) item.units_assy = row.dataset.unitsAssy;
+            if (row.dataset.unitIndex) item.unit_index = row.dataset.unitIndex;
+            row.querySelectorAll('input, select').forEach(function(field) {
+                if (!field.name) return;
+                if (field.type === 'checkbox') {
+                    item[field.name] = field.checked ? '1' : '0';
+                    return;
+                }
+                item[field.name] = field.value || '';
+            });
+            if (item.component_id) data.push(item);
+        });
+
+        return data.length ? data : null;
+    }
+
+    function logCardTabBuildPayload() {
+        var metaEl = document.getElementById('log-card-tab-meta');
+        var root = document.getElementById('log-card-partial-shell');
+        if (!metaEl || !root) return null;
+        if (root.dataset.state === 'saved') {
+            return logCardTabSavedPayload(root);
+        }
+        var missingChoice = Array.from(root.querySelectorAll('tr')).find(function(row) {
+            return row.querySelector('.lc-include-checkbox:checked')
+                && row.querySelector('.lc-assy-group-radio[type="radio"]')
+                && !row.querySelector('.lc-assy-group-radio:checked');
+        });
+        if (missingChoice) {
+            window.showNotification('Select a part variant for each included row.', 'warning');
+            missingChoice.querySelector('.lc-assy-group-radio').focus();
+            return undefined;
+        }
+        var meta;
+        try { meta = JSON.parse(metaEl.textContent); } catch (e) { return null; }
+        var originalRows = Array.isArray(logCardEditOriginalRows)
+            ? logCardEditOriginalRows
+            : (Array.isArray(meta.original_component_data) ? meta.original_component_data : []);
+        var data = [];
+        var emittedManuals = new Set();
+        root.querySelectorAll('tr').forEach(function(rowEl) {
+            var include = rowEl.querySelector ? rowEl.querySelector('.lc-include-checkbox:checked') : null;
+            if (!include) return;
+            var tr = include.closest('tr');
+            var componentInput = tr ? (
+                tr.querySelector('input[name^="lc_selected_component"]:checked')
+                || tr.querySelector('input[name^="lc_selected_component"]:not([type="radio"]), select[name^="lc_selected_component"]')
+            ) : null;
+            if (!componentInput || !componentInput.value) return;
+
+            var manualId = (tr && tr.dataset.manualId) || '';
+            var manualLabel = (tr && tr.dataset.manualLabel) || '';
+            if (manualId && !emittedManuals.has(manualId)) {
+                var originalManualRow = originalRows.find(function(candidate) {
+                    return candidate
+                        && candidate.row_type === 'manual'
+                        && String(candidate.manual_id || '') === String(manualId);
+                }) || {};
+                var manualRow = Object.assign({}, originalManualRow, {
+                    row_type: 'manual',
+                    manual_id: manualId,
+                    manual_label: manualLabel
+                });
+                delete manualRow._storage_index;
+                data.push(manualRow);
+                emittedManuals.add(manualId);
+            }
+
+            var groupKey = (include && include.dataset.groupKey) || '';
+            var isSeparate = groupKey.indexOf('separate_') !== -1 || !!componentInput.dataset.unitIndex;
+            var originalRow = originalRows.find(function(candidate) {
+                if (!candidate || candidate.row_type === 'manual') return false;
+                if (String(candidate.component_id || '') !== String(componentInput.value)) return false;
+
+                var candidateUnit = String(candidate.unit_index || '');
+                var selectedUnit = String(componentInput.dataset.unitIndex || '');
+                return candidateUnit === selectedUnit;
+            }) || {};
+            var snEl = groupKey ? logCardTabFindByName(root, 'lc_serial_numbers[' + groupKey + ']') : null;
+            var asEl = groupKey ? logCardTabFindByName(root, 'lc_assy_serial_numbers[' + groupKey + ']') : null;
+            var rsEl = groupKey ? logCardTabFindByName(root, 'lc_reasons[' + groupKey + ']') : null;
+            var hasOriginalRow = Object.keys(originalRow).length > 0;
+            var row = Object.assign({}, originalRow, {
+                component_id: componentInput.value,
+                included: '1'
+            });
+            if (snEl) row.serial_number = snEl.value;
+            if (asEl) row.assy_serial_number = asEl.value;
+            if (rsEl) row.reason = rsEl.value;
+            if (!hasOriginalRow) {
+                if (!snEl) row.serial_number = '';
+                if (!asEl) row.assy_serial_number = '';
+                if (!rsEl) row.reason = '';
+                row.new_serial_number = '';
+            }
+            delete row._storage_index;
+            if (manualId) row.manual_id = manualId;
+            if (!isSeparate && componentInput.dataset.iplGroup) row.ipl_group = componentInput.dataset.iplGroup;
+            if (componentInput.dataset.unitIndex) row.unit_index = componentInput.dataset.unitIndex;
+            if (componentInput.dataset.unitsAssy) row.units_assy = componentInput.dataset.unitsAssy;
+            if (componentInput.classList.contains('lc-assy-group-radio') && componentInput.dataset.partGroupChoice) {
+                row.assy_option_id = '';
+                row.assy_selection_explicit = '0';
+                row.manual_part_group_id = componentInput.dataset.manualPartGroupId || '';
+                row.manual_part_group_choice = componentInput.dataset.partGroupChoice || 'component';
+                row.ipl_group = componentInput.dataset.iplGroup || groupKey;
+                if (componentInput.dataset.manualPartGroupOptionId) {
+                    row.manual_part_group_option_id = componentInput.dataset.manualPartGroupOptionId;
+                } else {
+                    delete row.manual_part_group_option_id;
+                }
+                row.component_assembly_id = '';
+                row.assy_part_number = componentInput.dataset.assyPartNumber || '';
+                row.assy_ipl_num = componentInput.dataset.assyIplNum || '';
+                var assySelect = Array.from(tr.querySelectorAll('.lc-group-assy-select')).find(function(select) {
+                    return String(select.dataset.componentId) === String(componentInput.value);
+                });
+                if (assySelect && row.manual_part_group_choice === 'component') {
+                    var selectedAssy = assySelect.options[assySelect.selectedIndex];
+                    row.manual_part_group_id = selectedAssy.dataset.groupId || '';
+                    row.assy_option_id = assySelect.value;
+                    row.assy_selection_explicit = '1';
+                    row.assy_part_number = selectedAssy.dataset.assyPartNumber || '';
+                    row.assy_ipl_num = selectedAssy.dataset.assyIplNum || '';
+                }
+            } else {
+                row.assy_selection_explicit = '0';
+                row.assy_option_id = '';
+                delete row.manual_part_group_id;
+                delete row.manual_part_group_choice;
+                delete row.manual_part_group_option_id;
+                var unitAssySelect = tr.querySelector('.lc-unit-assy-select');
+                if (unitAssySelect) {
+                    // Select within this row: repeated components have independent unit_index values.
+                    var unitAssy = unitAssySelect.options[unitAssySelect.selectedIndex];
+                    row.manual_part_group_choice = 'component';
+                    row.manual_part_group_id = unitAssy.dataset.groupId || '';
+                    row.assy_option_id = unitAssySelect.value;
+                    row.assy_selection_explicit = '1';
+                    row.component_assembly_id = '';
+                    row.assy_part_number = unitAssy.dataset.assyPartNumber || '';
+                    row.assy_ipl_num = unitAssy.dataset.assyIplNum || '';
+                } else {
+                    Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssemblyInRow(tr, componentInput.value)));
+                }
+            }
+            data.push(row);
+        });
+        return data.length ? data : null;
+    }
+
+    function syncLogCardDraftAssyChoices(root) {
+        if (!root || root.dataset.state !== 'draft') return;
+
+        root.querySelectorAll('.lc-group-assy-choice').forEach(function(choice) {
+            var selected = choice.closest('tr').querySelector('.lc-assy-group-radio:checked, .lc-assy-group-radio[type="hidden"]');
+            choice.classList.toggle('d-none', !selected || String(selected.value) !== String(choice.dataset.componentId));
+        });
+
+        root.querySelectorAll('.lc-assy-choice[data-component-id]').forEach(function(choice) {
+            var componentId = choice.dataset.componentId || '';
+            var row = choice.closest('tr');
+            var include = row ? row.querySelector('.lc-include-checkbox') : null;
+            var isSelected = !include || include.checked;
+
+            choice.classList.toggle('d-none', !isSelected);
+        });
+    }
+
+    function loadLogCardPartial(options) {
+        options = options || {};
+        if (!logCardTabBody) return Promise.resolve(false);
+        logCardTabBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value44) + "</div>");
+        var partialUrl = logCardPartialUrl + (options.edit ? (logCardPartialUrl.indexOf('?') === -1 ? '?' : '&') + 'edit=1' : '');
+        return fetch(partialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                logCardTabBody.innerHTML = html;
+                syncLogCardToolbarFromPartial();
+                syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
+                return true;
+            })
+            .catch(function(err) {
+                logCardTabBody.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value45) + " (") + (err && err.message ? err.message : '') + ')</div>';
+                return false;
+            });
+    }
+
+    function loadTransfersPartial() {
+        if (!transfersTabBody || !transfersPartialUrl) return;
+        transfersTabBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value46) + "</div>");
+        fetch(transfersPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                transfersTabBody.innerHTML = html;
+            })
+            .catch(function(err) {
+                transfersTabBody.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value47) + " (") + (err && err.message ? err.message : '') + ')</div>';
+            });
+    }
+
+    // STD list paper buttons are always visible in the TDR header.
+    window.updateTdrStdPaperButtonsFromCounts = function(c) {
+        return c;
+    };
+
+    function loadRmReportsPartial() {
+        if (!rmReportsTabBody) return;
+        rmReportsTabBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value48) + "</div>");
+        fetch(rmReportsPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                rmReportsTabBody.innerHTML = html;
+                rmReportsTabBody.dataset.loaded = '1';
+                rmReportsTabBody.querySelectorAll('script').forEach(function(oldScript) {
+                    var newScript = document.createElement('script');
+                    Array.from(oldScript.attributes || []).forEach(function(attr) {
+                        newScript.setAttribute(attr.name, attr.value);
+                    });
+                    newScript.textContent = oldScript.textContent;
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+            })
+            .catch(function(err) {
+                rmReportsTabBody.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value49) + " (") + (err && err.message ? err.message : '') + ')</div>';
+            });
+    }
+
+    function initExtraPartGroupForms(container) {
+        if (!container) return;
+        var vendorSelects = container.querySelectorAll('.vendor-select');
+        var groupFormButtons = container.querySelectorAll('.group-form-button');
+        var componentCheckboxes = container.querySelectorAll('.component-checkbox');
+        function updateLinkUrl(processNameId) {
+            var link = container.querySelector('.group-form-button[data-process-name-id="' + processNameId + '"]');
+            if (!link || !link.getAttribute('href')) return;
+            var url = new URL(link.getAttribute('href'), window.location.origin);
+            var vendorSelect = container.querySelector('.vendor-select[data-process-name-id="' + processNameId + '"]');
+            if (vendorSelect && vendorSelect.value) url.searchParams.set('vendor_id', vendorSelect.value);
+            else url.searchParams.delete('vendor_id');
+            var checkedBoxes = container.querySelectorAll('.component-checkbox[data-process-name-id="' + processNameId + '"]:checked:not([disabled])');
+            if (checkedBoxes.length > 0) {
+                url.searchParams.set('component_ids', Array.from(checkedBoxes).map(function(c){ return c.value; }).join(','));
+            } else {
+                url.searchParams.delete('component_ids');
+            }
+            link.setAttribute('href', url.toString());
+        }
+        function updateQuantityBadge(processNameId) {
+            var checkedBoxes = container.querySelectorAll('.component-checkbox[data-process-name-id="' + processNameId + '"]:checked:not([disabled])');
+            var badge = container.querySelector('.process-qty-badge[data-process-name-id="' + processNameId + '"]');
+            if (badge && checkedBoxes.length > 0) {
+                var totalQty = 0;
+                checkedBoxes.forEach(function(c){ totalQty += parseInt(c.getAttribute('data-qty')) || 0; });
+                badge.textContent = totalQty + ' pcs';
+            }
+        }
+        vendorSelects.forEach(function(s){ s.addEventListener('change', function(){ updateLinkUrl(this.getAttribute('data-process-name-id')); }); });
+        componentCheckboxes.forEach(function(c){ c.addEventListener('change', function(){ updateLinkUrl(this.getAttribute('data-process-name-id')); updateQuantityBadge(this.getAttribute('data-process-name-id')); }); });
+        groupFormButtons.forEach(function(b){ b.addEventListener('click', function(){ updateLinkUrl(this.getAttribute('data-process-name-id')); }); });
+        groupFormButtons.forEach(function(b){ var pid = b.getAttribute('data-process-name-id'); if (pid) { updateLinkUrl(pid); updateQuantityBadge(pid); } });
+    }
+
+    function loadExtraProcesses(workorderId, componentId) {
+        if (!extraProcessesTabBody) return;
+        extraProcessesTabBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value50) + "</div>");
+        var url = extraProcessesProcessesUrl.replace('__WO__', workorderId).replace('__COMP__', componentId);
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                extraProcessesTabBody.innerHTML = html;
+                extraProcessesTabBody.dataset.workorderId = workorderId;
+                extraProcessesTabBody.dataset.componentId = componentId;
+                bindExtraProcessesHandlers(extraProcessesTabBody);
+            })
+            .catch(function() {
+                extraProcessesTabBody.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value51) + "</div>");
+            });
+    }
+
+    function bindExtraProcessesHandlers(container) {
+        if (!container) return;
+        container.querySelectorAll('.form-link[data-extra-process-id][data-process-name-id]').forEach(function(link) {
+            link.addEventListener('click', function() {
+                var extraProcessId = link.getAttribute('data-extra-process-id');
+                var processNameId = link.getAttribute('data-process-name-id');
+                var vendorSelect = container.querySelector('select.vendor-select[data-extra-process-id="' + extraProcessId + '"][data-process-name-id="' + processNameId + '"]');
+                var href = link.getAttribute('href');
+                if (!href) return;
+                var url = new URL(href, window.location.origin);
+                if (vendorSelect && vendorSelect.value) {
+                    url.searchParams.set('vendor_id', vendorSelect.value);
+                } else {
+                    url.searchParams.delete('vendor_id');
+                }
+                link.setAttribute('href', url.pathname + url.search + url.hash);
+            });
+        });
+        container.querySelectorAll('.load-edit-extra-process-process').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var extraProcessId = btn.dataset.extraProcessId;
+                var processIndex = btn.dataset.processIndex;
+                var processNameId = btn.dataset.processNameId;
+                var workorderId = btn.dataset.workorderId;
+                var componentId = btn.dataset.componentId;
+                if (!extraProcessId) return;
+                var url = editExtraProcessProcessUrl.replace('__ID__', extraProcessId);
+                if (processIndex !== undefined) url += '?process_index=' + processIndex + '&modal=1';
+                else if (processNameId !== undefined) url += '?process_name_id=' + processNameId + '&modal=1';
+                else url += '?modal=1';
+                var editModal = document.getElementById('editTdrProcessModal');
+                var iframe = document.getElementById('editTdrProcessIframe');
+                if (!editModal || !iframe) return;
+                iframe.src = url;
+                var inst = bootstrap.Modal.getOrCreateInstance(editModal);
+                inst.show();
+                editModal.addEventListener('shown.bs.modal', function setZ() { editModal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+            });
+        });
+        container.querySelectorAll('.open-add-extra-process-modal').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (btn.dataset.workorderId && btn.dataset.componentId) openAddExtraProcessModal(btn.dataset.workorderId, btn.dataset.componentId);
+            });
+        });
+        container.querySelectorAll('.delete-process-form').forEach(function(form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var fd = new FormData(form);
+                fetch(form.action, { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '', 'Accept': 'application/json' }, body: fd })
+                    .then(function(r) { return r.json().catch(function() { return {}; }); })
+                    .then(function(data) {
+                        if (data.success) {
+                            var woId = container.dataset.workorderId || window.currentWorkorderId;
+                            var compId = container.dataset.componentId;
+                            if (woId && compId) loadExtraProcesses(woId, compId);
+                            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+                        } else {
+                            window.tdrShowNotify(data.message || ("" + String(window.TdrshowConfig1.value52) + ""), 'error');
+                        }
+                    })
+                    .catch(function() { window.tdrShowNotify(("" + String(window.TdrshowConfig1.value53) + ""), 'error'); });
+            });
+        });
+        var addVendorBtn = container.querySelector('#saveVendorButtonExtra');
+        var addVendorForm = container.querySelector('#addVendorFormExtra');
+        if (addVendorBtn && addVendorForm && ProcessesConfig.storeVendorUrl) {
+            addVendorBtn.onclick = function() {
+                var nameInput = addVendorForm.querySelector('input[name="name"]');
+                if (!nameInput || !nameInput.value.trim()) return;
+                fetch(ProcessesConfig.storeVendorUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '', 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nameInput.value.trim() }) })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.id) {
+                            var m = bootstrap.Modal.getInstance(container.querySelector('#addVendorModalExtra'));
+                            if (m) m.hide();
+                            nameInput.value = '';
+                            var woId = container.dataset.workorderId; var compId = container.dataset.componentId;
+                            if (woId && compId) loadExtraProcesses(woId, compId);
+                        }
+                    });
+            };
+        }
+    }
+
+    function openEditExtraProcessModal(extraProcessId) {
+        var iframe = document.getElementById('editExtraProcessIframe');
+        var modal = document.getElementById('editExtraProcessModal');
+        if (iframe && modal && extraProcessId) {
+            iframe.src = editExtraProcessUrl.replace('__ID__', extraProcessId) + '?modal=1';
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+        }
+    }
+
+    function openAddExtraProcessModal(workorderId, componentId) {
+        var iframe = document.getElementById('addExtraProcessIframe');
+        var modal = document.getElementById('addExtraProcessModal');
+        if (iframe && modal && workorderId && componentId) {
+            iframe.src = addExtraProcessUrl.replace('__WO__', workorderId).replace('__COMP__', componentId) + '?modal=1';
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+        }
+    }
+    function openAddExtraPartModal(workorderId) {
+        var iframe = document.getElementById('addExtraPartIframe');
+        var modal = document.getElementById('addExtraPartModal');
+        if (iframe && modal && workorderId) {
+            iframe.src = addExtraPartCreateUrl.replace('__ID__', workorderId) + '?modal=1';
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+        }
+    }
+    function initTravelerGroupHandlers(container) {
+        var target = container || body;
+        if (!target) return;
+        var wrapper = target.querySelector('.processes-modal-body');
+        if (!wrapper) return;
+        var tdrId = wrapper.dataset.tdrId;
+        var groupUrl = wrapper.dataset.travelerGroupUrl;
+        var ungroupUrl = wrapper.dataset.travelerUngroupUrl;
+        var createBtn = target.querySelector('#btnCreateTraveler');
+        var ungroupBtn = target.querySelector('#btnUngroupTraveler');
+        function selectedTravelerRows() {
+            return Array.from(target.querySelectorAll('.traveler-row-checkbox:checked'));
+        }
+        function selectedTravelerProcessIds(rows) {
+            var ids = [];
+            var seen = new Set();
+            (rows || selectedTravelerRows()).forEach(function(box) {
+                var id = box.value || box.getAttribute('value');
+                if (id && !seen.has(id)) {
+                    seen.add(id);
+                    ids.push(parseInt(id, 10));
+                }
+            });
+            return ids;
+        }
+        function syncTravelerButtonLabel() {
+            if (!createBtn) return;
+            var selectedRows = selectedTravelerRows();
+            var groupedRows = selectedRows.filter(function(box) {
+                return box.getAttribute('data-in-traveler') === '1';
+            });
+            var ungroupedRows = selectedRows.filter(function(box) {
+                return box.getAttribute('data-in-traveler') !== '1';
+            });
+
+            createBtn.textContent = groupedRows.length > 0 && ungroupedRows.length === 0
+                ? ("" + String(window.TdrshowConfig1.value54) + "")
+                : ("" + String(window.TdrshowConfig1.value55) + "");
+        }
+        function syncTravelerGroupSelection(changedBox) {
+            if (!changedBox || changedBox.getAttribute('data-in-traveler') !== '1') return;
+            var group = changedBox.getAttribute('data-traveler-group') || '';
+            if (!group || group === '0') return;
+
+            target.querySelectorAll('.traveler-row-checkbox[data-in-traveler="1"][data-traveler-group="' + group + '"]').forEach(function(box) {
+                box.checked = changedBox.checked;
+            });
+        }
+        target.querySelectorAll('.traveler-row-checkbox').forEach(function(box) {
+            box.addEventListener('change', function() {
+                syncTravelerGroupSelection(box);
+                syncTravelerButtonLabel();
+            });
+        });
+        syncTravelerButtonLabel();
+        if (createBtn && groupUrl) {
+            createBtn.addEventListener('click', function() {
+                var selectedRows = selectedTravelerRows();
+                var groupedRows = selectedRows.filter(function(box) {
+                    return box.getAttribute('data-in-traveler') === '1';
+                });
+                var ungroupedRows = selectedRows.filter(function(box) {
+                    return box.getAttribute('data-in-traveler') !== '1';
+                });
+                if (groupedRows.length > 0 && ungroupedRows.length === 0 && ungroupUrl) {
+                    fetch(ungroupUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            process_ids: selectedTravelerProcessIds(groupedRows),
+                        }),
+                    })
+                        .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+                        .then(function(res) {
+                            if (res.ok && res.data.success) {
+                                loadProcessesAndBind(tdrId, target);
+                            } else {
+                                var ungroupMsg = (res.data && res.data.message) ? res.data.message : ("" + String(window.TdrshowConfig1.value56) + "");
+                                window.tdrShowNotify(ungroupMsg, 'warning');
+                            }
+                        })
+                        .catch(function() {
+                            window.tdrShowNotify(("" + String(window.TdrshowConfig1.value57) + ""), 'error');
+                        });
+                    return;
+                }
+
+                if (groupedRows.length > 0) {
+                    window.tdrShowNotify(("" + String(window.TdrshowConfig1.value58) + ""), 'warning');
+                    return;
+                }
+
+                var ids = selectedTravelerProcessIds(ungroupedRows);
+                if (ids.length < 1) {
+                    window.tdrShowNotify(("" + String(window.TdrshowConfig1.value59) + ""), 'warning');
+                    return;
+                }
+                function submitTravelerGroup(clearConflictingValues) {
+                    return fetch(groupUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            process_ids: ids,
+                            clear_conflicting_values: clearConflictingValues ? 1 : 0,
+                        }),
+                    });
+                }
+
+                submitTravelerGroup(false)
+                    .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+                    .then(function(res) {
+                        if (res.ok && res.data.success) {
+                            loadProcessesAndBind(tdrId, target);
+                        } else if (res.data && res.data.requires_confirmation) {
+                            return window.tdrShowConfirm(
+                                res.data.message || ("" + String(window.TdrshowConfig1.value60) + ""),
+                                ("" + String(window.TdrshowConfig1.value61) + ""),
+                                ("" + String(window.TdrshowConfig1.value62) + "")
+                            ).then(function(confirmed) {
+                                if (!confirmed) return;
+                                return submitTravelerGroup(true)
+                                    .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+                                    .then(function(confirmRes) {
+                                        if (confirmRes.ok && confirmRes.data.success) {
+                                            loadProcessesAndBind(tdrId, target);
+                                        } else {
+                                            var confirmMsg = (confirmRes.data && confirmRes.data.message) ? confirmRes.data.message : ("" + String(window.TdrshowConfig1.value63) + "");
+                                            window.tdrShowNotify(confirmMsg, 'warning');
+                                        }
+                                    });
+                            });
+                        } else {
+                            var msg = (res.data && res.data.message) ? res.data.message : ("" + String(window.TdrshowConfig1.value64) + "");
+                            window.tdrShowNotify(msg, 'warning');
+                        }
+                    })
+                    .catch(function() {
+                        window.tdrShowNotify(("" + String(window.TdrshowConfig1.value65) + ""), 'error');
+                    });
+            });
+        }
+        if (ungroupBtn && ungroupUrl) {
+            ungroupBtn.addEventListener('click', function() {
+                fetch(ungroupUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+                    .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+                    .then(function(res) {
+                        if (res.ok && res.data.success) {
+                            loadProcessesAndBind(tdrId, target);
+                        } else {
+                            var msg2 = (res.data && res.data.message) ? res.data.message : ("" + String(window.TdrshowConfig1.value66) + "");
+                            window.tdrShowNotify(msg2, 'warning');
+                        }
+                    })
+                    .catch(function() {
+                        window.tdrShowNotify(("" + String(window.TdrshowConfig1.value67) + ""), 'error');
+                    });
+            });
+        }
+        target.querySelectorAll('.travel-form-link').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                var u = new URL(link.getAttribute('href'), window.location.origin);
+                var processId = link.getAttribute('data-tdr-process-id') || '';
+                var vendorSelect = processId
+                    ? target.querySelector('select.vendor-select[data-tdr-process-id="' + processId + '"]')
+                    : null;
+                if (!vendorSelect) {
+                    var row = link.closest('tr');
+                    vendorSelect = row ? row.querySelector('select.vendor-select') : null;
+                }
+                if (vendorSelect && vendorSelect.value) {
+                    u.searchParams.set('vendor_id', vendorSelect.value);
+                } else {
+                    u.searchParams.delete('vendor_id');
+                }
+                window.open(u.toString(), '_blank');
+            });
+        });
+    }
+
+    function disposePartProcessesFigSummary(container) {
+        var target = container || body;
+        if (target && typeof target.__partProcessesFigSummaryCleanup === 'function') {
+            target.__partProcessesFigSummaryCleanup();
+        }
+        if (target) target.__partProcessesFigSummaryCleanup = null;
+    }
+
+    function initPartProcessesFigSummary(container) {
+        var target = container || body;
+        var wrapper = target ? target.querySelector('.processes-modal-body') : null;
+        var table = wrapper ? wrapper.querySelector('.tdr-processes-table') : null;
+        var trigger = table ? table.querySelector('[data-fig-summary-trigger]') : null;
+        if (!wrapper || !table || !trigger) return;
+
+        disposePartProcessesFigSummary(target);
+
+        var showTimer = null;
+        var hideTimer = null;
+        var popover = document.createElement('div');
+        popover.className = 'part-process-fig-summary d-none';
+        popover.setAttribute('role', 'dialog');
+        popover.setAttribute('aria-label', ("" + String(window.TdrshowConfig1.value68) + ""));
+
+        var popoverHeader = document.createElement('div');
+        popoverHeader.className = 'part-process-fig-summary__header';
+
+        var title = document.createElement('strong');
+        title.textContent = ("" + String(window.TdrshowConfig1.value69) + "");
+        popoverHeader.appendChild(title);
+
+        var printButton = document.createElement('button');
+        printButton.type = 'button';
+        printButton.className = 'btn btn-sm btn-outline-primary py-0 px-2';
+        printButton.innerHTML = ("<i class=\"bi bi-printer me-1\" aria-hidden=\"true\"></i>" + String(window.TdrshowConfig1.value70) + "");
+        popoverHeader.appendChild(printButton);
+        popover.appendChild(popoverHeader);
+
+        var summaryList = document.createElement('div');
+        summaryList.className = 'part-process-fig-summary__list';
+        popover.appendChild(summaryList);
+        document.body.appendChild(popover);
+
+        function collectFigCounts() {
+            var counts = new Map();
+            table.querySelectorAll('tbody tr[data-id] .process-description-cell').forEach(function(cell) {
+                var text = (cell.textContent || '').replace(/\s+/g, ' ').trim();
+                var figPattern = /\bfig(?:ure)?\.?\s*(?:no\.?\s*)?([0-9][0-9A-Za-z.-]*(?:\s*[,/&]\s*[0-9][0-9A-Za-z.-]*)*)/gi;
+                var match;
+                while ((match = figPattern.exec(text)) !== null) {
+                    (match[1].match(/[0-9][0-9A-Za-z.-]*/g) || []).forEach(function(rawReference) {
+                        var reference = rawReference.replace(/[.,;:]+$/, '');
+                        if (reference) counts.set(reference, (counts.get(reference) || 0) + 1);
+                    });
+                }
+            });
+
+            return Array.from(counts.entries()).sort(function(a, b) {
+                return a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' });
+            });
+        }
+
+        function renderSummary() {
+            summaryList.replaceChildren();
+            var counts = collectFigCounts();
+            if (!counts.length) {
+                var empty = document.createElement('div');
+                empty.className = 'small text-muted py-2';
+                empty.textContent = ("" + String(window.TdrshowConfig1.value71) + "");
+                summaryList.appendChild(empty);
+                return;
+            }
+
+            counts.forEach(function(entry) {
+                var row = document.createElement('div');
+                row.className = 'part-process-fig-summary__row';
+                var label = document.createElement('span');
+                label.textContent = 'Fig. ' + entry[0];
+                var amount = document.createElement('strong');
+                amount.textContent = entry[1] + ' pcs';
+                row.appendChild(label);
+                row.appendChild(amount);
+                summaryList.appendChild(row);
+            });
+        }
+
+        function positionPopover() {
+            var triggerRect = trigger.getBoundingClientRect();
+            var popoverRect = popover.getBoundingClientRect();
+            var left = Math.max(12, Math.min(triggerRect.left, window.innerWidth - popoverRect.width - 12));
+            var top = triggerRect.bottom + 8;
+            if (top + popoverRect.height > window.innerHeight - 12) {
+                top = Math.max(12, triggerRect.top - popoverRect.height - 8);
+            }
+            popover.style.left = left + 'px';
+            popover.style.top = top + 'px';
+        }
+
+        function showPopover() {
+            clearTimeout(hideTimer);
+            renderSummary();
+            popover.classList.remove('d-none');
+            trigger.setAttribute('aria-expanded', 'true');
+            positionPopover();
+        }
+
+        function scheduleShow() {
+            clearTimeout(hideTimer);
+            clearTimeout(showTimer);
+            showTimer = window.setTimeout(showPopover, 500);
+        }
+
+        function scheduleHide() {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+            hideTimer = window.setTimeout(function() {
+                popover.classList.add('d-none');
+                trigger.setAttribute('aria-expanded', 'false');
+            }, 180);
+        }
+
+        function hideImmediately() {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+            popover.classList.add('d-none');
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        function printProcessTable() {
+            var printWindow = window.open('', '_blank', 'width=1100,height=800');
+            if (!printWindow) {
+                window.tdrShowNotify(("" + String(window.TdrshowConfig1.value72) + ""), 'warning');
+                return;
+            }
+
+            var printDocument = printWindow.document;
+            printDocument.open();
+            printDocument.write('<!doctype html><html><head><meta charset="utf-8"><title>Part Processes</title><style>@page{size:landscape;margin:10mm}body{font-family:Arial,sans-serif;margin:0;color:#111}table{border-collapse:collapse;width:100%;font-size:10pt}th,td{border:1px solid #555;padding:5px 7px;vertical-align:top;text-align:left}th{background:#eee;font-weight:700}th:first-child,td:first-child{width:3rem;text-align:center}</style></head><body></body></html>');
+            printDocument.close();
+
+            var printTable = printDocument.createElement('table');
+            var printHead = printDocument.createElement('thead');
+            var printHeadRow = printDocument.createElement('tr');
+            ['#', 'Process Name', 'Process', 'Description'].forEach(function(headerText) {
+                var th = printDocument.createElement('th');
+                th.textContent = headerText;
+                printHeadRow.appendChild(th);
+            });
+            printHead.appendChild(printHeadRow);
+            printTable.appendChild(printHead);
+
+            var printBody = printDocument.createElement('tbody');
+            table.querySelectorAll('tbody tr[data-id]').forEach(function(sourceRow) {
+                var printRow = printDocument.createElement('tr');
+                [0, 1, 2, 3].forEach(function(cellIndex) {
+                    var td = printDocument.createElement('td');
+                    td.textContent = sourceRow.cells[cellIndex] ? sourceRow.cells[cellIndex].innerText.trim() : '';
+                    printRow.appendChild(td);
+                });
+                printBody.appendChild(printRow);
+            });
+            printTable.appendChild(printBody);
+            printDocument.body.appendChild(printTable);
+            printWindow.focus();
+            window.setTimeout(function() { printWindow.print(); }, 250);
+        }
+
+        function handleDocumentPointerDown(event) {
+            if (!popover.contains(event.target) && event.target !== trigger) hideImmediately();
+        }
+
+        function handleDocumentKeyDown(event) {
+            if (event.key === 'Escape') hideImmediately();
+        }
+
+        trigger.addEventListener('mouseenter', scheduleShow);
+        trigger.addEventListener('mouseleave', scheduleHide);
+        trigger.addEventListener('focus', scheduleShow);
+        trigger.addEventListener('blur', scheduleHide);
+        popover.addEventListener('mouseenter', function() { clearTimeout(hideTimer); });
+        popover.addEventListener('mouseleave', scheduleHide);
+        printButton.addEventListener('click', printProcessTable);
+        document.addEventListener('pointerdown', handleDocumentPointerDown);
+        document.addEventListener('keydown', handleDocumentKeyDown);
+        window.addEventListener('resize', hideImmediately);
+        document.addEventListener('scroll', hideImmediately, true);
+
+        target.__partProcessesFigSummaryCleanup = function() {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+            trigger.removeEventListener('mouseenter', scheduleShow);
+            trigger.removeEventListener('mouseleave', scheduleHide);
+            trigger.removeEventListener('focus', scheduleShow);
+            trigger.removeEventListener('blur', scheduleHide);
+            printButton.removeEventListener('click', printProcessTable);
+            document.removeEventListener('pointerdown', handleDocumentPointerDown);
+            document.removeEventListener('keydown', handleDocumentKeyDown);
+            window.removeEventListener('resize', hideImmediately);
+            document.removeEventListener('scroll', hideImmediately, true);
+            popover.remove();
+        };
+    }
+
+    document.addEventListener('traveler-template-applied', function (event) {
+        loadProcessesAndBind(event.detail.tdrId, activeProcessesContainer || body);
+    });
+
+    function loadProcessesAndBind(tdrId, container) {
+        var target = container || body;
+        var isTabTarget = target === body;
+        if (!target) return;
+        activeProcessesContainer = target;
+        disposePartProcessesFigSummary(target);
+        target.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value73) + "</div>");
+        if (isTabTarget) {
+            document.querySelector('[data-process-header-toolbar]')?.replaceChildren();
+            if (woNum) woNum.textContent = '-';
+            if (itemName) itemName.textContent = '-';
+            if (itemIpl) itemIpl.textContent = '-';
+            if (itemPn) itemPn.textContent = '-';
+            if (itemSn) itemSn.textContent = '-';
+            if (addProcessBtn) { addProcessBtn.dataset.tdrId = tdrId; addProcessBtn.disabled = true; }
+        }
+        var url = processesBodyUrl.replace('__ID__', tdrId);
+        url += (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+        return fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+            },
+            credentials: 'same-origin',
+            cache: 'no-store',
+        })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                if (html.indexOf('processes-modal-body') === -1 || /<\s*body[\s>]/i.test(html)) {
+                    throw new Error('Unexpected full page response for Part Processes partial');
+                }
+                disposeProcessRoDeleteTooltips(target);
+                target.innerHTML = html;
+                try {
+                    var wrapper = target.querySelector('.processes-modal-body');
+                    if (isTabTarget && wrapper) {
+                        if (woNum) woNum.textContent = wrapper.dataset.woNumber || '-';
+                        if (itemName) itemName.textContent = wrapper.dataset.componentName || 'N/A';
+                        if (itemIpl) itemIpl.textContent = wrapper.dataset.componentIpl || 'N/A';
+                        if (itemPn) itemPn.textContent = wrapper.dataset.componentPn || 'N/A';
+                        if (itemSn) itemSn.textContent = wrapper.dataset.serialNumber || 'N/A';
+                    }
+                    var processesWrapper = target.querySelector('.processes-modal-body');
+                    if (typeof Sortable !== 'undefined' && typeof SortableHandler !== 'undefined') {
+                        if (!processesWrapper || processesWrapper.dataset.travelerBlock !== '1') {
+                            if (isTabTarget) {
+                                SortableHandler.init(updateOrderUrl);
+                            } else {
+                                var modalSortableBody = target.querySelector('#sortable-tbody');
+                                if (modalSortableBody) {
+                                    Sortable.create(modalSortableBody, {
+                                        animation: 150,
+                                        ghostClass: 'dragging',
+                                        dragClass: 'dragging',
+                                        draggable: 'tr[data-id]',
+                                        filter: 'a, button, input, select, textarea, label, form, [data-process-ro-delete-tooltip]',
+                                        preventOnFilter: false,
+                                        onEnd: function(evt) {
+                                            SortableHandler.renumberVisualRows(evt.to);
+                                            var newOrder = SortableHandler.collectProcessOrder(evt.to);
+                                            SortableHandler.updateProcessOrder(newOrder, updateOrderUrl);
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    bindProcessHandlers(wrapper, target);
+                    if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
+                    if (typeof CombinedProcessFormHandler !== 'undefined') CombinedProcessFormHandler.init(target);
+                    if (isTabTarget && wrapper) {
+                        var toolbar = wrapper.querySelector('.processes-toolbar');
+                        var headerToolbar = document.querySelector('[data-process-header-toolbar]');
+                        if (toolbar && headerToolbar) {
+                            headerToolbar.replaceChildren(toolbar);
+                            wrapper.dataset.headerToolbar = '1';
+                        }
+                    }
+                    initTravelerGroupHandlers(target);
+                    initPartProcessesFigSummary(target);
+                    if (isTabTarget && addProcessBtn) {
+                        addProcessBtn.disabled = false;
+                        addProcessBtn.onclick = function() {
+                            var inlineAddBtn = target.querySelector('[data-inline-process-add]');
+                            if (!inlineAddBtn) {
+                                (typeof showNotification === 'function' ? (m) => showNotification(m, 'warning') : (window.NotificationHandler?.warning || window.notifyWarn))(("" + String(window.TdrshowConfig1.value74) + ""));
+                                return;
+                            }
+                            inlineAddBtn.click();
+                        };
+                    }
+                } catch (initError) {
+                    console.error('Part Processes init failed:', initError);
+                    if (isTabTarget && addProcessBtn) addProcessBtn.disabled = false;
+                }
+            })
+            .catch(function(error) {
+                console.error('Part Processes fetch failed:', error);
+                target.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value75) + "<div class=\"small mt-1\">") + (error && error.message ? error.message : '') + '</div></div>';
+                if (isTabTarget && addProcessBtn) addProcessBtn.disabled = false;
+            });
+    }
+
+    function initInlineProcessCreate(wrapper, container) {
+        if (!wrapper || !container || wrapper.dataset.inlineProcessInitialized === '1') return;
+        wrapper.dataset.inlineProcessInitialized = '1';
+
+        var addRow = container.querySelector('.tdr-process-inline-add-row');
+        var createRow = container.querySelector('[data-inline-process-row]');
+        var addBtn = container.querySelector('[data-inline-process-add]');
+        var nameSelect = container.querySelector('[data-inline-process-name]');
+        var processOptions = container.querySelector('[data-inline-process-options]');
+        var processText = container.querySelector('[data-inline-process-text]');
+        var createProcessBtn = container.querySelector('[data-inline-process-create]');
+        var descriptionInput = container.querySelector('[data-inline-process-description]');
+        var saveBtn = container.querySelector('[data-inline-process-save]');
+        var selectedProcessId = '';
+        var selectedProcessName = '';
+        var selectedProcessCanCreate = false;
+        var selectedProcessCreateMessage = '';
+        var closeInlineProcessTimer = null;
+        var processNamePickerOpen = false;
+
+        if (!addRow || !createRow || !addBtn || !nameSelect || !saveBtn) return;
+
+        // Keep the picker in table flow so its height remains scrollable. While open,
+        // span Process, Description and Traveler, stopping before the Action column.
+        function syncInlineProcessPickerColumns() {
+            var expanded = processOptions && !processOptions.classList.contains('d-none');
+            var cells = createRow.cells;
+            if (cells.length < 6) return;
+            cells[2].colSpan = expanded ? 3 : 1;
+            cells[3].classList.toggle('d-none', Boolean(expanded));
+            cells[4].classList.toggle('d-none', Boolean(expanded));
+        }
+        if (processOptions) {
+            new MutationObserver(syncInlineProcessPickerColumns).observe(processOptions, {attributes: true, attributeFilter: ['class']});
+            syncInlineProcessPickerColumns();
+        }
+        if (processText) {
+            processText.tabIndex = 0;
+            processText.setAttribute('role', 'button');
+            function reopenInlineProcessPicker() {
+                if (!selectedProcessId || !processOptions?.querySelector('input')) return;
+                processOptions.classList.remove('d-none');
+                processText.classList.add('d-none');
+                scrollInlineProcessRowIntoView();
+            }
+            processText.addEventListener('click', reopenInlineProcessPicker);
+            processText.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); reopenInlineProcessPicker(); }
+            });
+        }
+
+        function inlineProcessScroller() {
+            return createRow.closest('.table-wrapper');
+        }
+
+        function reserveInlineProcessScrollSpace() {
+            clearInlineProcessScrollSpace();
+        }
+
+        function clearInlineProcessScrollSpace() {
+            var scroller = inlineProcessScroller();
+            if (!scroller) return;
+
+            scroller.style.paddingBottom = '';
+            scroller.style.scrollPaddingBottom = '';
+        }
+
+        function scrollInlineProcessRowIntoView() {
+            var scroller = inlineProcessScroller();
+            if (!scroller) return;
+
+            window.requestAnimationFrame(function() {
+                reserveInlineProcessScrollSpace();
+
+                var rowRect = createRow.getBoundingClientRect();
+                var scrollerRect = scroller.getBoundingClientRect();
+                var footer = document.querySelector('footer.footer');
+                var footerTop = footer ? footer.getBoundingClientRect().top : window.innerHeight;
+                var visibleBottom = Math.min(scrollerRect.bottom, footerTop - 8, window.innerHeight - 8);
+                var bottomOverflow = rowRect.bottom - visibleBottom;
+                var topOverflow = scrollerRect.top - rowRect.top;
+
+                if (bottomOverflow > 0) {
+                    scroller.scrollTop += bottomOverflow + 24;
+                } else if (topOverflow > 0) {
+                    scroller.scrollTop -= topOverflow + 12;
+                }
+            });
+        }
+
+        function resetInlineProcessRow() {
+            selectedProcessId = '';
+            nameSelect.value = '';
+            if (window.jQuery && jQuery(nameSelect).hasClass('select2-hidden-accessible')) {
+                jQuery(nameSelect).select2('close').trigger('change.select2');
+            }
+            if (processOptions) {
+                processOptions.innerHTML = '';
+                processOptions.classList.add('d-none');
+            }
+            if (processText) {
+                processText.textContent = ("" + String(window.TdrshowConfig1.value76) + "");
+                processText.classList.add('text-muted');
+                processText.classList.remove('d-none');
+            }
+            if (createProcessBtn) {
+                createProcessBtn.classList.add('d-none');
+                createProcessBtn.disabled = false;
+                createProcessBtn.removeAttribute('title');
+            }
+            if (descriptionInput) descriptionInput.value = '';
+            selectedProcessName = '';
+            selectedProcessCanCreate = false;
+            selectedProcessCreateMessage = '';
+            saveBtn.disabled = false;
+            saveBtn.textContent = ("" + String(window.TdrshowConfig1.value77) + "");
+        }
+
+        function closeInlineProcessRow() {
+            window.clearTimeout(closeInlineProcessTimer);
+            resetInlineProcessRow();
+            createRow.classList.add('d-none');
+            addRow.classList.remove('d-none');
+            clearInlineProcessScrollSpace();
+        }
+
+        function scheduleInlineProcessClose() {
+            window.clearTimeout(closeInlineProcessTimer);
+            closeInlineProcessTimer = window.setTimeout(function() {
+                if (createRow.classList.contains('d-none')) return;
+                if (createRow.dataset.saving === '1') return;
+                // Collapsing the picker moves the pointer outside the row. A draft
+                // must survive that mouseleave/focusout; explicit outside clicks
+                // and Escape below cancel it.
+                if (nameSelect.value || selectedProcessId || descriptionInput?.value.trim()) return;
+                if (processNamePickerOpen) return;
+                if (document.getElementById('inlineProcessDefinitionModal')?.classList.contains('show')) return;
+                if (createRow.matches(':hover')) return;
+                if (createRow.contains(document.activeElement)) return;
+                closeInlineProcessRow();
+            }, 220);
+        }
+
+        createRow.addEventListener('mouseenter', function() {
+            window.clearTimeout(closeInlineProcessTimer);
+        });
+
+        createRow.addEventListener('mouseleave', scheduleInlineProcessClose);
+        createRow.addEventListener('focusout', function() {
+            window.setTimeout(scheduleInlineProcessClose, 0);
+        });
+
+        const inlineDismissController = new AbortController();
+        function canDismissInlineProcess() {
+            if (!createRow.isConnected) {
+                inlineDismissController.abort();
+                return false;
+            }
+            return !createRow.classList.contains('d-none')
+                && createRow.dataset.saving !== '1'
+                && !document.querySelector('.modal.show');
+        }
+        document.addEventListener('pointerdown', function(event) {
+            if (!canDismissInlineProcess()) return;
+            if (createRow.contains(event.target) || addBtn.contains(event.target)) return;
+            // Select2 renders its dropdown outside the table row.
+            if (event.target.closest('.select2-container--open')) return;
+            closeInlineProcessRow();
+        }, {capture: true, signal: inlineDismissController.signal});
+        document.addEventListener('keydown', function(event) {
+            if (event.key !== 'Escape' || !canDismissInlineProcess()) return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeInlineProcessRow();
+            addBtn.focus({preventScroll: true});
+        }, {capture: true, signal: inlineDismissController.signal});
+
+        if (processOptions) {
+            processOptions.addEventListener('change', function(event) {
+                var input = event.target.closest('input[type="radio"]');
+                if (!input) return;
+                selectedProcessId = input.checked ? input.value : '';
+            });
+        }
+
+        addBtn.addEventListener('click', function() {
+            resetInlineProcessRow();
+            createRow.classList.remove('d-none');
+            addRow.classList.add('d-none');
+            reserveInlineProcessScrollSpace();
+            scrollInlineProcessRowIntoView();
+            if (window.jQuery && jQuery.fn.select2) {
+                var picker = jQuery(nameSelect);
+                if (!picker.hasClass('select2-hidden-accessible')) {
+                    picker.select2({theme: 'bootstrap-5', width: '100%', minimumResultsForSearch: 0,
+                        dropdownAutoWidth: true, dropdownParent: jQuery(document.body)})
+                        .on('select2:open.inlineProcess', function() {
+                            processNamePickerOpen = true;
+                            window.clearTimeout(closeInlineProcessTimer);
+                            window.setTimeout(function() {
+                                var search = document.querySelector('.select2-container--open .select2-search__field');
+                                if (search) { search.placeholder = ("" + String(window.TdrshowConfig1.value78) + ""); search.focus(); }
+                            }, 0);
+                        })
+                        .on('select2:close.inlineProcess', function() { processNamePickerOpen = false; })
+                        .on('select2:select.inlineProcess', function() {
+                            nameSelect.dispatchEvent(new Event('change', {bubbles: true}));
+                        });
+                }
+                picker.select2('open');
+            } else {
+                nameSelect.focus();
+            }
+        });
+
+        nameSelect.addEventListener('change', function() {
+            selectedProcessId = '';
+            var processNameId = nameSelect.value;
+            selectedProcessName = nameSelect.options[nameSelect.selectedIndex]?.text || '';
+            var manualId = wrapper.dataset.manualId || '';
+            if (!processNameId) {
+                if (processOptions) {
+                    processOptions.innerHTML = '';
+                    processOptions.classList.add('d-none');
+                }
+                if (processText) {
+                    processText.textContent = ("" + String(window.TdrshowConfig1.value79) + "");
+                    processText.classList.add('text-muted');
+                    processText.classList.remove('d-none');
+                }
+                if (createProcessBtn) {
+                    createProcessBtn.classList.add('d-none');
+                    createProcessBtn.disabled = false;
+                    createProcessBtn.removeAttribute('title');
+                }
+            selectedProcessCanCreate = false;
+            selectedProcessCreateMessage = '';
+            delete createRow.dataset.saving;
+            saveBtn.disabled = false;
+                return;
+            }
+
+            if (processText) {
+                processText.textContent = ("" + String(window.TdrshowConfig1.value80) + "");
+                processText.classList.add('text-muted');
+                processText.classList.remove('d-none');
+            }
+            if (processOptions) {
+                processOptions.innerHTML = '';
+                processOptions.classList.add('d-none');
+            }
+            if (createProcessBtn) {
+                createProcessBtn.classList.add('d-none');
+                createProcessBtn.disabled = false;
+                createProcessBtn.removeAttribute('title');
+            }
+            saveBtn.disabled = true;
+
+            var url = new URL(processOptionsUrl, window.location.origin);
+            url.searchParams.set('processNameId', processNameId);
+            url.searchParams.set('manualId', manualId);
+
+            fetch(url.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            })
+                .then(function(response) {
+                    return response.json().catch(function() { return {}; }).then(function(data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (!result.ok) {
+                        throw new Error(result.data.message || result.data.error || ("" + String(window.TdrshowConfig1.value81) + ""));
+                    }
+                    var processes = result.data.existingProcesses || [];
+                    selectedProcessCanCreate = result.data.canCreateProcess === true || result.data.canCreateProcess === 1 || result.data.canCreateProcess === '1';
+                    selectedProcessCreateMessage = result.data.createProcessMessage || '';
+
+                    if (createProcessBtn) {
+                        createProcessBtn.classList.remove('d-none');
+                        createProcessBtn.disabled = !selectedProcessCanCreate;
+                        if (selectedProcessCanCreate) {
+                            createProcessBtn.removeAttribute('title');
+                        } else {
+                            createProcessBtn.setAttribute('title', selectedProcessCreateMessage || ("" + String(window.TdrshowConfig1.value82) + ""));
+                        }
+                    }
+
+                    if (!processes.length) {
+                        selectedProcessId = '';
+                        if (processText) {
+                            processText.textContent = ("" + String(window.TdrshowConfig1.value83) + "");
+                            processText.classList.add('text-muted');
+                            processText.classList.remove('d-none');
+                        }
+                        saveBtn.disabled = false;
+                        return;
+                    }
+
+                    if (processOptions) {
+                        processOptions.innerHTML = '';
+                        processes.forEach(function(process) {
+                            var label = document.createElement('label');
+                            label.className = 'tdr-process-inline-option';
+
+                            var input = document.createElement('input');
+                            input.type = 'radio';
+                            input.name = 'inline_process_' + wrapper.dataset.tdrId;
+                            input.value = String(process.id);
+
+                            var text = document.createElement('span');
+                            text.textContent = process.process || ('#' + process.id);
+
+                            if (process.process_comment) {
+                                var comment = document.createElement('span');
+                                comment.className = 'tdr-process-inline-option-comment';
+                                comment.textContent = process.process_comment;
+                                text.appendChild(comment);
+                            }
+
+                            label.appendChild(input);
+                            label.appendChild(text);
+                            processOptions.appendChild(label);
+
+                            input.addEventListener('change', function() {
+                                selectedProcessId = input.checked ? input.value : '';
+                                if (input.checked && processText) {
+                                    processText.textContent = process.process || ('#' + process.id);
+                                    processText.classList.remove('d-none', 'text-muted');
+                                    processOptions.classList.add('d-none');
+                                    window.clearTimeout(closeInlineProcessTimer);
+                                    syncInlineProcessPickerColumns();
+                                    descriptionInput?.focus({preventScroll: true});
+                                }
+                            });
+                        });
+                        if (processes.length === 1) {
+                            var onlyInput = processOptions.querySelector('input[type="radio"]');
+                            if (onlyInput) {
+                                onlyInput.checked = true;
+                                selectedProcessId = onlyInput.value;
+                            }
+                        }
+                        processOptions.classList.remove('d-none');
+                        scrollInlineProcessRowIntoView();
+                    } else {
+                        selectedProcessId = processes.length === 1 ? String(processes[0].id) : '';
+                    }
+                    if (processText) {
+                        processText.classList.add('d-none');
+                    }
+                    saveBtn.disabled = false;
+                })
+                .catch(function(error) {
+                    selectedProcessId = '';
+                    selectedProcessCanCreate = false;
+                    selectedProcessCreateMessage = error.message || ("" + String(window.TdrshowConfig1.value84) + "");
+                    if (processText) {
+                        processText.textContent = error.message || ("" + String(window.TdrshowConfig1.value85) + "");
+                        processText.classList.add('text-muted');
+                        processText.classList.remove('d-none');
+                    }
+                    if (processOptions) {
+                        processOptions.innerHTML = '';
+                        processOptions.classList.add('d-none');
+                    }
+                    if (createProcessBtn) {
+                        createProcessBtn.classList.add('d-none');
+                        createProcessBtn.disabled = false;
+                        createProcessBtn.removeAttribute('title');
+                    }
+                    saveBtn.disabled = false;
+                });
+        });
+
+        if (createProcessBtn) {
+            createProcessBtn.addEventListener('click', function() {
+                var processNameId = nameSelect.value;
+                if (!processNameId) {
+                    window.tdrShowNotify(("" + String(window.TdrshowConfig1.value86) + ""), 'warning');
+                    return;
+                }
+                if (!selectedProcessCanCreate) {
+                    window.tdrShowNotify(selectedProcessCreateMessage || ("" + String(window.TdrshowConfig1.value87) + ""), 'warning');
+                    return;
+                }
+
+                var modal = document.getElementById('inlineProcessDefinitionModal');
+                if (!modal) return;
+
+                modal.dataset.tdrId = wrapper.dataset.tdrId || '';
+                modal.dataset.manualId = wrapper.dataset.manualId || '';
+                modal.dataset.processNameId = processNameId;
+                modal.dataset.targetWrapperId = wrapper.dataset.tdrId || '';
+
+                var modalProcessName = modal.querySelector('[data-inline-process-modal-name]');
+                var modalInput = modal.querySelector('[data-inline-process-modal-input]');
+                var modalMessage = modal.querySelector('[data-inline-process-modal-message]');
+                var modalSave = modal.querySelector('[data-inline-process-modal-save]');
+                if (modalProcessName) modalProcessName.textContent = selectedProcessName;
+                if (modalInput) {
+                    modalInput.value = '';
+                    modalInput.disabled = false;
+                }
+                if (modalMessage) {
+                    modalMessage.textContent = '';
+                    modalMessage.classList.add('d-none');
+                }
+                if (modalSave) {
+                    modalSave.disabled = false;
+                    modalSave.textContent = ("" + String(window.TdrshowConfig1.value88) + "");
+                }
+
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            });
+        }
+
+        function submitInlineProcess(payload, confirmIncompleteRequirements) {
+            return fetch(storeProcessUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    tdrs_id: payload.tdrs_id,
+                    confirm_incomplete_requirements: confirmIncompleteRequirements,
+                    processes: payload.processes
+                })
+            })
+                .then(function(response) {
+                    return response.json().catch(function() { return {}; }).then(function(data) {
+                        return { ok: response.ok, status: response.status, data: data };
+                    });
+                });
+        }
+
+        saveBtn.addEventListener('click', function() {
+            var processNameId = nameSelect.value;
+            if (!processNameId || !selectedProcessId) {
+                window.tdrShowNotify(("" + String(window.TdrshowConfig1.value89) + ""), 'warning');
+                return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = ("" + String(window.TdrshowConfig1.value90) + "");
+            createRow.dataset.saving = '1';
+
+            var inlineProcessPayload = {
+                tdrs_id: wrapper.dataset.tdrId,
+                processes: [{
+                    process_names_id: processNameId,
+                    processes: [selectedProcessId],
+                    description: descriptionInput ? descriptionInput.value : '',
+                    in_traveler: 0
+                }]
+            };
+
+            submitInlineProcess(inlineProcessPayload, false)
+                .then(function(result) {
+                    if (!result.ok) {
+                        if (result.status === 422 && Array.isArray(result.data.incomplete_requirements)) {
+                            var missing = result.data.incomplete_requirements
+                                .map(function(item) { return 'Process row ' + item.row + ': ' + item.missing.join(', '); })
+                                .join('; ');
+
+                            return window.tdrShowConfirm(
+                                'Description is missing required ' + missing + '. Slava S will not accept the printed form without this information.',
+                                'FIG / ZONE required',
+                                'Save without FIG / ZONE',
+                                'Return and fill'
+                            ).then(function(saveIncomplete) {
+                                return saveIncomplete ? submitInlineProcess(inlineProcessPayload, true) : null;
+                            });
+                        }
+
+                        throw new Error(result.data.error || result.data.message || ("" + String(window.TdrshowConfig1.value91) + ""));
+                    }
+                    return result;
+                })
+                .then(function(result) {
+                    if (!result) {
+                        delete createRow.dataset.saving;
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = ("" + String(window.TdrshowConfig1.value92) + "");
+                        return;
+                    }
+                    if (!result.ok) {
+                        throw new Error(result.data.error || result.data.message || ("" + String(window.TdrshowConfig1.value93) + ""));
+                    }
+                    window.tdrShowNotify(result.data.message || ("" + String(window.TdrshowConfig1.value94) + ""), 'success', 2000);
+                    loadProcessesAndBind(wrapper.dataset.tdrId, container);
+                })
+                .catch(function(error) {
+                    delete createRow.dataset.saving;
+                    window.tdrShowNotify(error.message || ("" + String(window.TdrshowConfig1.value95) + ""), 'error');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = ("" + String(window.TdrshowConfig1.value96) + "");
+                });
+        });
+    }
+
+    (function initInlineProcessDefinitionModal() {
+        var modal = document.getElementById('inlineProcessDefinitionModal');
+        if (!modal || modal.dataset.initialized === '1') return;
+        modal.dataset.initialized = '1';
+
+        var modalInput = modal.querySelector('[data-inline-process-modal-input]');
+        var modalMessage = modal.querySelector('[data-inline-process-modal-message]');
+        var modalSave = modal.querySelector('[data-inline-process-modal-save]');
+
+        function setModalMessage(message, type) {
+            if (!modalMessage) return;
+            modalMessage.textContent = message || '';
+            modalMessage.classList.toggle('d-none', !message);
+            modalMessage.classList.toggle('text-danger', type === 'error');
+            modalMessage.classList.toggle('text-info', type !== 'error');
+        }
+
+        if (modalInput) {
+            modal.addEventListener('shown.bs.modal', function() {
+                modalInput.focus();
+            });
+        }
+
+        if (!modalSave) return;
+        modalSave.addEventListener('click', function() {
+            var processNameId = modal.dataset.processNameId || '';
+            var manualId = modal.dataset.manualId || '';
+            var newProcess = modalInput ? modalInput.value.trim() : '';
+
+            if (!processNameId || !manualId) {
+                setModalMessage(("" + String(window.TdrshowConfig1.value97) + ""), 'error');
+                return;
+            }
+            if (!newProcess) {
+                setModalMessage(("" + String(window.TdrshowConfig1.value98) + ""), 'error');
+                return;
+            }
+
+            modalSave.disabled = true;
+            modalSave.textContent = ("" + String(window.TdrshowConfig1.value99) + "");
+            setModalMessage('', 'info');
+
+            fetch(("" + String(window.TdrshowConfig1.value100) + ""), {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    process_names_id: processNameId,
+                    process: newProcess,
+                    manual_id: manualId
+                })
+            })
+                .then(function(response) {
+                    return response.json().catch(function() { return {}; }).then(function(data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (!result.ok || !result.data.success || !result.data.process) {
+                        throw new Error(result.data.message || result.data.error || ("" + String(window.TdrshowConfig1.value101) + ""));
+                    }
+
+                    var tabBody = document.getElementById('componentProcessesTabBody');
+                    var activeWrapper = tabBody ? tabBody.querySelector('.processes-modal-body') : null;
+                    if (activeWrapper && activeWrapper.dataset.tdrId === modal.dataset.tdrId) {
+                        var activeContainer = activeWrapper.closest('#componentProcessesTabBody') || tabBody;
+                        var nameSelect = activeContainer.querySelector('[data-inline-process-name]');
+                        var processOptions = activeContainer.querySelector('[data-inline-process-options]');
+                        var processText = activeContainer.querySelector('[data-inline-process-text]');
+
+                        if (nameSelect && String(nameSelect.value) === String(processNameId) && processOptions) {
+                            var label = document.createElement('label');
+                            label.className = 'tdr-process-inline-option';
+
+                            var input = document.createElement('input');
+                            input.type = 'radio';
+                            input.name = 'inline_process_' + modal.dataset.tdrId;
+                            input.value = String(result.data.process.id);
+                            input.checked = true;
+
+                            var text = document.createElement('span');
+                            text.textContent = result.data.process.process || ('#' + result.data.process.id);
+
+                            label.appendChild(input);
+                            label.appendChild(text);
+                            processOptions.appendChild(label);
+                            processOptions.classList.remove('d-none');
+                            if (processText) processText.classList.add('d-none');
+
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+
+                    window.tdrShowNotify(result.data.message || ("" + String(window.TdrshowConfig1.value102) + ""), 'success', 2000);
+                    bootstrap.Modal.getOrCreateInstance(modal).hide();
+                    if (modalInput) modalInput.value = '';
+                })
+                .catch(function(error) {
+                    setModalMessage(error.message || ("" + String(window.TdrshowConfig1.value103) + ""), 'error');
+                })
+                .finally(function() {
+                    modalSave.disabled = false;
+                    modalSave.textContent = ("" + String(window.TdrshowConfig1.value104) + "");
+                });
+        });
+    })();
+
+    function disposeProcessRoDeleteTooltips(container) {
+        if (!container || !window.bootstrap || !bootstrap.Tooltip) return;
+
+        container.querySelectorAll('[data-process-ro-delete-tooltip]').forEach(function(trigger) {
+            var tooltip = bootstrap.Tooltip.getInstance(trigger);
+            if (tooltip) tooltip.dispose();
+        });
+    }
+
+    function initProcessRoDeleteTooltips(container) {
+        if (!container || !window.bootstrap || !bootstrap.Tooltip) return;
+
+        container.querySelectorAll('[data-process-ro-delete-tooltip]').forEach(function(trigger) {
+            bootstrap.Tooltip.getOrCreateInstance(trigger, {
+                boundary: 'viewport',
+                container: 'body',
+                delay: { show: 500, hide: 100 },
+                placement: 'top',
+                trigger: 'hover focus'
+            });
+        });
+    }
+
+    function bindProcessHandlers(wrapper, container) {
+        var target = container || body;
+        if (!target) return;
+        initInlineProcessCreate(wrapper, target);
+        initProcessRoDeleteTooltips(target);
+        target.querySelectorAll('.load-edit-process').forEach(function(b) {
+            b.addEventListener('click', function() {
+                var tdrProcessId = this.dataset.tdrProcessId;
+                var editModal = document.getElementById('editTdrProcessModal');
+                var iframe = document.getElementById('editTdrProcessIframe');
+                if (!editModal || !iframe) return;
+                iframe.src = editFormUrl.replace('__ID__', tdrProcessId) + '?modal=1';
+                var inst = bootstrap.Modal.getOrCreateInstance(editModal);
+                inst.show();
+                editModal.addEventListener('shown.bs.modal', function setEditModalZ() {
+                    editModal.style.zIndex = '1080';
+                    var backdrops = document.querySelectorAll('.modal-backdrop');
+                    if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1075';
+                }, { once: true });
+            });
+        });
+        target.querySelectorAll('.ajax-delete-process').forEach(function(b) {
+            b.addEventListener('click', function() {
+                var button = this;
+                window.tdrShowConfirm(("" + String(window.TdrshowConfig1.value105) + "")).then(function(confirmed) {
+                    if (!confirmed) return;
+                    var tdrProcessId = button.dataset.tdrProcessId;
+                    var tdrId = button.dataset.tdrId || (wrapper && wrapper.dataset.tdrId);
+                    var process = button.dataset.process || '';
+                    var formData = new FormData();
+                    formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
+                    formData.append('_method', 'DELETE');
+                    formData.append('tdrId', tdrId);
+                    if (process) formData.append('process', process);
+                    fetch(("" + String(window.TdrshowConfig1.value106) + "").replace('__ID__', tdrProcessId), { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                        .then(function(r) { return r.json().catch(function() { return {}; }).then(function(data) { return { ok: r.ok, data: data }; }); })
+                        .then(function(res) {
+                            if (res.ok && res.data.success !== false) {
+                                loadProcessesAndBind(tdrId, target);
+                            } else {
+                                var dm = (res.data && res.data.message) ? res.data.message : ("" + String(window.TdrshowConfig1.value107) + "");
+                                window.tdrShowNotify(dm, 'warning');
+                            }
+                        })
+                        .catch(function() {
+                            window.tdrShowNotify(("" + String(window.TdrshowConfig1.value108) + ""), 'error');
+                        });
+                });
+            });
+        });
+    }
+
+    var tdrProcessTable = document.getElementById('tdr_process_Table');
+    if (tdrProcessTable) {
+        tdrProcessTable.addEventListener('click', function(e) {
+            var btn = e.target.closest('.open-part-processes-tab');
+            if (!btn || !tdrProcessTable.contains(btn)) return;
+            e.preventDefault();
+            var tdrId = btn.dataset.tdrId;
+            if (!tdrId) return;
+            if (tabLi) tabLi.classList.remove('d-none');
+            syncPartProcessesShortcutActions();
+            loadProcessesAndBind(tdrId);
+            if (tabBtn) {
+                var tab = new bootstrap.Tab(tabBtn);
+                tab.show();
+            }
+        });
+    }
+    var logCardTabActions = document.getElementById('logCardTabActions');
+    var bushingTabActions = document.getElementById('bushingTabActions');
+    function openAddProcessesModalByUrl(url) {
+        var ifr = document.getElementById('addProcessesIframe');
+        var modal = document.getElementById('addProcessesModal');
+        if (ifr && modal && url) {
+            var fullUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'modal=1';
+            ifr.src = fullUrl;
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1090'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1085'; }, { once: true });
+        }
+    }
+    function openAddPartModalByUrl(url) {
+        var ifr = document.getElementById('addPartIframe');
+        var modal = document.getElementById('addPartModal');
+        if (ifr && modal && url) {
+            var fullUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'modal=1';
+            ifr.src = fullUrl;
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1090'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1085'; }, { once: true });
+        }
+    }
+    if (bushingTabBody) {
+        function bushingToastWarn(m) {
+            if (typeof window.notifyWarn === 'function') {
+                window.notifyWarn(m);
+            } else {
+                window.tdrShowNotify(m, 'warning');
+            }
+        }
+        function bushingToastErr(m) {
+            if (typeof window.notifyError === 'function') {
+                window.notifyError(m);
+            } else {
+                window.tdrShowNotify(m, 'error');
+            }
+        }
+        function uncheckOtherBushingBatches(processKey, batchId) {
+            if (!processKey || !batchId || batchId === '0') return;
+            document.querySelectorAll(
+                '.bushing-batch-ungroup-checkbox[data-process-key="' + processKey + '"]:checked'
+            ).forEach(function(cb) {
+                if ((cb.getAttribute('data-batch-id') || '') !== batchId) {
+                    cb.checked = false;
+                }
+            });
+        }
+        bushingTabBody.addEventListener('change', function(e) {
+            var batchCheckbox = e.target.closest('.bushing-batch-ungroup-checkbox');
+            if (!batchCheckbox || !batchCheckbox.checked) return;
+            var processKey = batchCheckbox.getAttribute('data-process-key') || '';
+            var batchId = batchCheckbox.getAttribute('data-batch-id') || '';
+            uncheckOtherBushingBatches(processKey, batchId);
+        });
+        bushingTabBody.addEventListener('click', function(e) {
+            var addProcessesBtn = e.target.closest('.open-add-processes-modal');
+            if (addProcessesBtn && addProcessesBtn.getAttribute('data-add-processes-url')) {
+                e.preventDefault();
+                openAddProcessesModalByUrl(addProcessesBtn.getAttribute('data-add-processes-url'));
+                return;
+            }
+            var addPartBtn = e.target.closest('.open-add-part-modal');
+            if (addPartBtn && addPartBtn.getAttribute('data-add-part-url')) {
+                e.preventDefault();
+                openAddPartModalByUrl(addPartBtn.getAttribute('data-add-part-url'));
+                return;
+            }
+            var formBtn = e.target.closest('.form-btn');
+            if (formBtn && formBtn.getAttribute('href')) {
+                e.preventDefault();
+                var vendorSelectId = formBtn.getAttribute('data-vendor-select');
+                var vendorSelect = vendorSelectId ? document.getElementById(vendorSelectId) : null;
+                var vendorId = vendorSelect ? vendorSelect.value : '';
+                var baseUrl = formBtn.getAttribute('href');
+                var processKey = formBtn.getAttribute('data-process-key');
+                var queryParts = [];
+                if (processKey) {
+                    var seen = {};
+                    document.querySelectorAll(
+                        '.bushing-batch-ungroup-checkbox[data-process-key="' + processKey + '"]:checked'
+                    ).forEach(function(cb) {
+                        var batchId = cb.getAttribute('data-batch-id') || '';
+                        if (batchId !== '' && batchId !== '0' && !seen[batchId]) {
+                            seen[batchId] = true;
+                            queryParts.push('bushing_batch_ids[]=' + encodeURIComponent(batchId));
+                        }
+                    });
+                    if (queryParts.length === 0) {
+                        bushingToastWarn(window.TdrshowConfig1.value0);
+                        return;
+                    }
+                }
+                if (vendorId) {
+                    queryParts.push('vendor_id=' + encodeURIComponent(vendorId));
+                }
+                var finalUrl = baseUrl + (queryParts.length ? (baseUrl.indexOf('?') === -1 ? '?' : '&') + queryParts.join('&') : '');
+                window.open(finalUrl, '_blank');
+                return;
+            }
+
+            var groupLabelBtn = e.target.closest('.js-bushing-batch-label');
+            if (groupLabelBtn) {
+                e.preventDefault();
+                    var routeNumber = groupLabelBtn.getAttribute('data-route-number');
+                    if (routeNumber) {
+                        var table = groupLabelBtn.closest('.bushing-view-table');
+                        if (!table) return;
+                        var routeBoxes = Array.from(table.querySelectorAll('.bushing-batch-ungroup-checkbox'))
+                            .filter(function (cb) { return cb.getAttribute('data-route-number') === routeNumber; });
+                        if (!routeBoxes.length) return;
+                        var selectRoute = !routeBoxes.every(function (cb) { return cb.checked; });
+                        if (selectRoute) {
+                            table.querySelectorAll('.bushing-batch-ungroup-checkbox').forEach(function (cb) {
+                                cb.checked = false;
+                            });
+                        }
+                        routeBoxes.forEach(function (cb) { cb.checked = selectRoute; });
+                        return;
+                    }
+
+                var grpProcessKey = groupLabelBtn.getAttribute('data-process-key') || '';
+                var grpBatchId = groupLabelBtn.getAttribute('data-batch-id');
+                if (grpBatchId === null || typeof grpBatchId === 'undefined') {
+                    grpBatchId = '';
+                }
+                var grpWoPid = groupLabelBtn.getAttribute('data-wo-process-id') || '';
+                if (!grpProcessKey) return;
+                var groupBoxes;
+                if (grpBatchId !== '' && grpBatchId !== '0') {
+                    groupBoxes = Array.from(document.querySelectorAll(
+                        '.bushing-batch-ungroup-checkbox[data-process-key="' + grpProcessKey + '"][data-batch-id="' + grpBatchId + '"]'
+                    ));
+                } else if (grpWoPid) {
+                    groupBoxes = Array.from(document.querySelectorAll(
+                        '.bushing-batch-ungroup-checkbox[data-process-key="' + grpProcessKey + '"][data-wo-process-id="' + grpWoPid + '"]'
+                    ));
+                } else {
+                    return;
+                }
+                if (!groupBoxes.length) return;
+                var allChecked = groupBoxes.every(function (cb) { return !!cb.checked; });
+                if (!allChecked && grpBatchId !== '' && grpBatchId !== '0') {
+                    uncheckOtherBushingBatches(grpProcessKey, grpBatchId);
+                }
+                groupBoxes.forEach(function (cb) { cb.checked = !allChecked; });
+                return;
+            }
+
+            var createBatchBtn = e.target.closest('.js-bushing-create-batch');
+            var ungroupBatchBtn = e.target.closest('.js-bushing-ungroup-batch');
+            if (createBatchBtn || ungroupBatchBtn) {
+                e.preventDefault();
+                var actionBtn = createBatchBtn || ungroupBatchBtn;
+                var actionUrl = actionBtn.getAttribute('data-url');
+                if (!actionUrl) return;
+
+                var scopeKey = actionBtn.getAttribute('data-process-key') || '';
+
+                var selector = createBatchBtn
+                    ? '.bushing-batch-group-checkbox:checked'
+                    : '.bushing-batch-ungroup-checkbox:checked';
+                var checkboxes = Array.from(document.querySelectorAll(selector));
+                if (scopeKey) {
+                    checkboxes = checkboxes.filter(function (cb) {
+                        return (cb.getAttribute('data-process-key') || '') === scopeKey;
+                    });
+                }
+                var selected = checkboxes
+                    .map(function (cb) {
+                        return {
+                            processKey: cb.getAttribute('data-process-key') || '',
+                            id: cb.getAttribute('data-wo-process-id') || ''
+                        };
+                    })
+                    .filter(function (row) { return !!row.id; });
+
+                if (selected.length === 0) {
+                    bushingToastWarn(createBatchBtn
+                        ? window.TdrshowConfig1.value1
+                        : window.TdrshowConfig1.value2);
+                    return;
+                }
+
+                var processKeys = Array.from(new Set(selected.map(function (r) { return r.processKey; })));
+                if (processKeys.length !== 1) {
+                    bushingToastWarn(window.TdrshowConfig1.value3);
+                    return;
+                }
+
+                var tokenEl = document.querySelector('meta[name="csrf-token"]');
+                var csrf = tokenEl ? tokenEl.getAttribute('content') : '';
+                fetch(actionUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        wo_bushing_process_ids: selected.map(function (r) { return parseInt(r.id, 10); })
+                    })
+                })
+                .then(function (r) {
+                    return r.text().then(function (text) {
+                        try { return { status: r.status, json: JSON.parse(text) }; } catch (e) { return { status: r.status, json: null }; }
+                    });
+                })
+                .then(function (res) {
+                    if (res.status >= 200 && res.status < 300) {
+                        if (typeof loadBushingPartial === 'function') loadBushingPartial();
+                        return;
+                    }
+                    var msg = (res.json && (res.json.message || res.json.error)) ? (res.json.message || res.json.error) : ('HTTP ' + res.status);
+                    if (res.json && res.json.errors) {
+                        try { msg += '\n' + JSON.stringify(res.json.errors); } catch (e2) {}
+                    }
+                    if (res.status >= 500) {
+                        bushingToastErr(msg);
+                    } else {
+                        bushingToastWarn(msg);
+                    }
+                })
+                .catch(function (err) {
+                    bushingToastErr('Batch operation failed' + (err && err.message ? ': ' + err.message : '.'));
+                });
+            }
+        });
+        bushingTabBody.addEventListener('invalid', function(e) {
+            var form = e.target.closest('form');
+            if (!form || form.id !== 'bushings-form' || form.dataset.embed !== '1') return;
+            if (typeof window.safeHideSpinner === 'function') {
+                window.safeHideSpinner();
+                return;
+            }
+            if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+        }, true);
+
+        bushingTabBody.addEventListener('submit', function(e) {
+            var form = e.target;
+            if (form.id !== 'bushings-form' || form.dataset.embed !== '1') return;
+            e.preventDefault();
+            function hideGlobalSpinner() {
+                if (typeof window.safeHideSpinner === 'function') {
+                    window.safeHideSpinner();
+                    return;
+                }
+                if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+            }
+
+            if (form.dataset.itemized === '1') {
+                var selectedRows = Array.prototype.slice.call(form.querySelectorAll('.bushing-row'))
+                    .filter(function(row) {
+                        return Array.prototype.slice.call(row.querySelectorAll('.component-checkbox')).some(function(checkbox) {
+                            return checkbox.checked;
+                        });
+                    });
+
+                if (selectedRows.length === 0 && !window.BushingSelection) {
+                    window.tdrShowNotify(("" + String(window.TdrshowConfig1.value109) + ""), 'warning');
+                    hideGlobalSpinner();
+                    return;
+                }
+
+                var itemizedHasErr = false;
+                selectedRows.forEach(function(row) {
+                    row.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
+                        if (!checkbox.checked) return;
+
+                        var componentPrefix = checkbox.name.replace('[selected]', '');
+                        var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
+
+                        if (!qty || !qty.value || parseInt(qty.value, 10) < 1) {
+                            if (qty) qty.style.borderColor = 'red';
+                            itemizedHasErr = true;
+                        } else {
+                            qty.style.borderColor = '';
+                        }
+                    });
+                });
+
+                if (itemizedHasErr) {
+                    window.tdrShowNotify(("" + String(window.TdrshowConfig1.value110) + ""), 'warning');
+                    hideGlobalSpinner();
+                    return;
+                }
+
+                var itemizedSubmitBtn = document.querySelector('button[form="bushings-form"]');
+                if (itemizedSubmitBtn) { itemizedSubmitBtn.disabled = true; }
+                window.BushingEditorDraft?.setSaving(form, true);
+                var itemizedFd = new FormData(form);
+                var itemizedController = new AbortController();
+                var itemizedTimeoutId = setTimeout(function() { itemizedController.abort(); }, 30000);
+                fetch(form.action, {
+                    method: 'POST',
+                    body: itemizedFd,
+                    signal: itemizedController.signal,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                })
+                .then(function(r) {
+                    return r.text().then(function(text) {
+                        try { return { json: JSON.parse(text), status: r.status }; } catch (e) { return { json: null, status: r.status }; }
+                    });
+                })
+                .then(function(result) {
+                    if (result.json) {
+                        if (result.json.success) {
+                            window.BushingEditorDraft?.markSaved(form);
+                            if (typeof loadBushingPartial === 'function') loadBushingPartial();
+                            window.refreshTdrPrlPaperButtons();
+                            window.tdrShowNotify(result.json.message || ("" + String(window.TdrshowConfig1.value111) + ""), 'success');
+                        } else {
+                            window.tdrShowNotify(result.json.message || (result.json.errors ? JSON.stringify(result.json.errors) : '') || ("" + String(window.TdrshowConfig1.value112) + ""), 'error');
+                        }
+                    } else {
+                        window.tdrShowNotify(("" + String(window.TdrshowConfig1.value113) + " (HTTP ") + result.status + ')', 'error');
+                    }
+                })
+                .catch(function(err) {
+                    window.tdrShowNotify(err.name === 'AbortError' ? ("" + String(window.TdrshowConfig1.value114) + "") : (("" + String(window.TdrshowConfig1.value115) + "") + (err.message ? ': ' + err.message : '')), 'error');
+                })
+                .finally(function() {
+                    window.BushingEditorDraft?.setSaving(form, false);
+                    clearTimeout(itemizedTimeoutId);
+                    hideGlobalSpinner();
+                    if (itemizedSubmitBtn) { itemizedSubmitBtn.disabled = false; }
+                });
+                return;
+            }
+
+            // TODO(legacy bushing create): remove this old grouped submit fallback after itemized create/edit has settled.
+            var selected = form.querySelectorAll('.component-checkbox:checked');
+            if (selected.length === 0) {
+                window.tdrShowNotify(("" + String(window.TdrshowConfig1.value116) + ""), 'warning');
+                hideGlobalSpinner();
+                return;
+            }
+            var groups = new Set();
+            selected.forEach(function(c){ groups.add(c.getAttribute('data-group')); });
+            var hasErr = false;
+            groups.forEach(function(gn) {
+                var q = form.querySelector('input[name="group_bushings[' + gn + '][qty]"]');
+                if (!q || !q.value || parseInt(q.value, 10) <= 0) { if (q) q.style.borderColor = 'red'; hasErr = true; }
+                else if (q) q.style.borderColor = '';
+            });
+            if (hasErr) {
+                window.tdrShowNotify(("" + String(window.TdrshowConfig1.value117) + ""), 'warning');
+                hideGlobalSpinner();
+                return;
+            }
+            var submitBtn = document.querySelector('button[form="bushings-form"]');
+            if (submitBtn) { submitBtn.disabled = true; }
+            var fd = new FormData(form);
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
+            fetch(form.action, {
+                method: 'POST',
+                body: fd,
+                signal: controller.signal,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            })
+            .then(function(r) {
+                return r.text().then(function(text) {
+                    try { return { json: JSON.parse(text), status: r.status }; } catch (e) { return { json: null, status: r.status }; }
+                });
+            })
+            .then(function(result) {
+                if (result.json) {
+                    if (result.json.success) {
+                        if (typeof loadBushingPartial === 'function') loadBushingPartial();
+                        window.refreshTdrPrlPaperButtons();
+                        window.tdrShowNotify(result.json.message || ("" + String(window.TdrshowConfig1.value118) + ""), 'success');
+                    } else {
+                        window.tdrShowNotify(result.json.message || (result.json.errors ? JSON.stringify(result.json.errors) : '') || ("" + String(window.TdrshowConfig1.value119) + ""), 'error');
+                    }
+                } else {
+                    window.tdrShowNotify(("" + String(window.TdrshowConfig1.value120) + " (HTTP ") + result.status + ')', 'error');
+                }
+            })
+            .catch(function(err) {
+                window.tdrShowNotify(err.name === 'AbortError' ? ("" + String(window.TdrshowConfig1.value121) + "") : (("" + String(window.TdrshowConfig1.value122) + "") + (err.message ? ': ' + err.message : '')), 'error');
+            })
+            .finally(function() {
+                clearTimeout(timeoutId);
+                hideGlobalSpinner();
+                if (submitBtn) { submitBtn.disabled = false; }
+            });
+        });
+    }
+    if (bushingTabActions) {
+        bushingTabActions.addEventListener('click', function(e) {
+            var clearBtn = e.target.closest('.bushing-clear-btn');
+            if (clearBtn) {
+                e.preventDefault();
+                if (typeof window.bushingClearForm === 'function') window.bushingClearForm();
+                return;
+            }
+            var editBtn = e.target.closest('.open-edit-bushing-modal');
+            if (editBtn && editBtn.dataset.woBushingId) {
+                e.preventDefault();
+                openEditBushingModal(editBtn.dataset.woBushingId);
+            }
+        });
+    }
+    var logCardEnterBtn = document.getElementById('logCardEnterDataBtn');
+    var logCardSaveBtn = document.getElementById('logCardSaveBtn');
+    var logCardCancelBtn = document.getElementById('logCardCancelBtn');
+    var logCardInlineSaveTimer = null;
+    var logCardInlineSaveInFlight = false;
+    var logCardInlineQueuedUpdates = [];
+    var logCardEditOriginalRows = null;
+
+    function logCardWaitForInlineSaves() {
+        return new Promise(function(resolve) {
+            function check() {
+                if (!logCardInlineSaveTimer && !logCardInlineSaveInFlight && logCardInlineQueuedUpdates.length === 0) {
+                    resolve();
+                    return;
+                }
+
+                setTimeout(check, 40);
+            }
+
+            check();
+        });
+    }
+
+    function logCardTabPersistPayload(payload, options) {
+        options = options || {};
+        if (!payload || payload.length < 1) {
+            var warning = ("" + String(window.TdrshowConfig1.value123) + "");
+            if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(warning, 'warning');
+            else if (window.showNotification) window.showNotification(warning, 'warning');
+            return Promise.resolve(false);
+        }
+
+        var metaEl = document.getElementById('log-card-tab-meta');
+        var meta;
+        try { meta = metaEl ? JSON.parse(metaEl.textContent) : {}; } catch (e2) { meta = {}; }
+
+        var fd = new FormData();
+        fd.append('_token', logCardTabCsrfToken());
+        fd.append('workorder_id', String(meta.workorder_id || ''));
+        fd.append('component_data', JSON.stringify(payload));
+        if (meta.log_card_id) fd.append('_method', 'PUT');
+
+        var url = meta.log_card_id
+            ? logCardUpdateUrlTemplate.replace('__LC__', String(meta.log_card_id))
+            : logCardStoreUrl;
+
+        return fetch(url, {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+            .then(function(r) {
+                return r.json().then(function(data) {
+                    return { ok: r.ok, data: data };
+                }).catch(function() {
+                    return { ok: r.ok, data: {} };
+                });
+            })
+            .then(function(res) {
+                if (res.ok && res.data && res.data.success) {
+                    if (options.reload) loadLogCardPartial();
+                    if (options.notify && typeof window.tdrShowNotify === 'function') {
+                        window.tdrShowNotify(res.data.message || ("" + String(window.TdrshowConfig1.value124) + ""), 'success');
+                    }
+                    return true;
+                }
+                var errMsg = (res.data && res.data.message)
+                    ? res.data.message
+                    : ((res.data && res.data.errors) ? Object.values(res.data.errors).flat().join(' ') : ("" + String(window.TdrshowConfig1.value125) + ""));
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(errMsg, 'error');
+                else if (window.notifyError) window.notifyError(errMsg);
+                return false;
+            })
+            .catch(function() {
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(("" + String(window.TdrshowConfig1.value126) + ""), 'error');
+                return false;
+            });
+    }
+
+    function logCardTabPersistInlineField(rowIndex, fieldName, fieldValue) {
+        var metaEl = document.getElementById('log-card-tab-meta');
+        var meta;
+        try { meta = metaEl ? JSON.parse(metaEl.textContent) : {}; } catch (e2) { meta = {}; }
+
+        if (!meta.log_card_id) {
+            return Promise.resolve(false);
+        }
+
+        var fd = new FormData();
+        fd.append('_token', logCardTabCsrfToken());
+        fd.append('_method', 'PATCH');
+        fd.append('row', String(rowIndex));
+        fd.append('field', String(fieldName || ''));
+        fd.append('value', fieldValue == null ? '' : String(fieldValue));
+
+        return fetch(logCardInlineFieldUpdateUrlTemplate.replace('__LC__', String(meta.log_card_id)), {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+            .then(function(r) {
+                return r.json().then(function(data) {
+                    return { ok: r.ok, data: data };
+                }).catch(function() {
+                    return { ok: r.ok, data: {} };
+                });
+            })
+            .then(function(res) {
+                if (res.ok && res.data && res.data.success) {
+                    return true;
+                }
+
+                var errMsg = (res.data && res.data.message)
+                    ? res.data.message
+                    : ((res.data && res.data.errors) ? Object.values(res.data.errors).flat().join(' ') : ("" + String(window.TdrshowConfig1.value127) + ""));
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(errMsg, 'error');
+                else if (window.notifyError) window.notifyError(errMsg);
+                return false;
+            })
+            .catch(function() {
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(("" + String(window.TdrshowConfig1.value128) + ""), 'error');
+                return false;
+            });
+    }
+
+    function logCardScheduleNextInlineSave() {
+        if (logCardInlineSaveInFlight || !logCardInlineQueuedUpdates.length) {
+            return;
+        }
+
+        var nextUpdate = logCardInlineQueuedUpdates.shift();
+        logCardInlineSaveInFlight = true;
+
+        logCardTabPersistInlineField(nextUpdate.rowIndex, nextUpdate.fieldName, nextUpdate.fieldValue).finally(function() {
+            logCardInlineSaveInFlight = false;
+            if (logCardInlineQueuedUpdates.length) {
+                logCardScheduleNextInlineSave();
+            }
+        });
+    }
+
+    function logCardEnqueueInlineSave(rowIndex, fieldName, fieldValue) {
+        var updateKey = String(rowIndex) + '::' + String(fieldName);
+        var replaced = false;
+
+        logCardInlineQueuedUpdates = logCardInlineQueuedUpdates.map(function(item) {
+            if (String(item.rowIndex) + '::' + String(item.fieldName) === updateKey) {
+                replaced = true;
+                return {
+                    rowIndex: rowIndex,
+                    fieldName: fieldName,
+                    fieldValue: fieldValue
+                };
+            }
+
+            return item;
+        });
+
+        if (!replaced) {
+            logCardInlineQueuedUpdates.push({
+                rowIndex: rowIndex,
+                fieldName: fieldName,
+                fieldValue: fieldValue
+            });
+        }
+
+        logCardScheduleNextInlineSave();
+    }
+
+    if (logCardEnterBtn) {
+        logCardEnterBtn.addEventListener('click', function() {
+            if (logCardTabIsReadOnly()) {
+                var readOnlyMessage = logCardTabReadOnlyMessage() || ("" + String(window.TdrshowConfig1.value129) + "");
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(readOnlyMessage, 'warning');
+                return;
+            }
+
+            var logCardId = logCardEnterBtn.getAttribute('data-log-card-id') || '';
+            if (logCardId) {
+                logCardEditOriginalRows = null;
+                logCardEnterBtn.disabled = true;
+                logCardEnterBtn.innerHTML = ("<i class=\"fas fa-spinner fa-spin\"></i> " + String(window.TdrshowConfig1.value130) + "");
+                logCardWaitForInlineSaves()
+                    .then(function() {
+                        return loadLogCardPartial({ edit: true });
+                    })
+                    .then(function(opened) {
+                        if (!opened) logCardEditOriginalRows = null;
+                    });
+                return;
+            }
+
+            var payload = logCardTabBuildPayload();
+            if (payload === undefined) return;
+            if (!payload || payload.length < 1) {
+                logCardTabPersistPayload(payload, { reload: true, notify: true });
+                syncLogCardToolbarFromPartial();
+                return;
+            }
+
+            logCardEnterBtn.disabled = true;
+            logCardEnterBtn.innerHTML = ("<i class=\"fas fa-spinner fa-spin\"></i> " + String(window.TdrshowConfig1.value131) + "");
+            logCardTabPersistPayload(payload, { reload: true, notify: true })
+                .then(function(saved) {
+                    if (!saved) syncLogCardToolbarFromPartial();
+                })
+                .finally(function() {
+                    logCardEnterBtn.disabled = logCardTabIsReadOnly();
+                });
+        });
+    }
+
+    if (logCardSaveBtn) {
+        logCardSaveBtn.addEventListener('click', function() {
+            if (logCardTabIsReadOnly()) {
+                var readOnlyMessage = logCardTabReadOnlyMessage() || ("" + String(window.TdrshowConfig1.value132) + "");
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(readOnlyMessage, 'warning');
+                return;
+            }
+
+            var payload = logCardTabBuildPayload();
+            if (payload === undefined) return;
+            if (!payload || payload.length < 1) {
+                logCardTabPersistPayload(payload, { reload: false, notify: false });
+                return;
+            }
+
+            if (typeof window.confirmDialog !== 'function') {
+                var unavailableMessage = ("" + String(window.TdrshowConfig1.value133) + "");
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(unavailableMessage, 'error');
+                else if (window.notifyError) window.notifyError(unavailableMessage);
+                return;
+            }
+
+            window.confirmDialog({
+                title: ("" + String(window.TdrshowConfig1.value134) + ""),
+                message: ("" + String(window.TdrshowConfig1.value135) + ""),
+                okText: ("" + String(window.TdrshowConfig1.value136) + ""),
+                cancelText: ("" + String(window.TdrshowConfig1.value137) + "")
+            }).then(function(confirmed) {
+                if (!confirmed) return;
+
+                logCardSaveBtn.disabled = true;
+                logCardSaveBtn.innerHTML = ("<i class=\"fas fa-spinner fa-spin\"></i> " + String(window.TdrshowConfig1.value138) + "");
+                logCardTabPersistPayload(payload, { reload: true, notify: true })
+                    .then(function(saved) {
+                        if (saved) logCardEditOriginalRows = null;
+                    })
+                    .finally(function() {
+                        logCardSaveBtn.disabled = false;
+                        logCardSaveBtn.innerHTML = ("<i class=\"fas fa-save\"></i> " + String(window.TdrshowConfig1.value139) + "");
+                    });
+            });
+        });
+    }
+
+    if (logCardCancelBtn) {
+        logCardCancelBtn.addEventListener('click', function() {
+            logCardEditOriginalRows = null;
+            logCardCancelBtn.disabled = true;
+            loadLogCardPartial().finally(function() {
+                logCardCancelBtn.disabled = false;
+            });
+        });
+    }
+
+    if (logCardTabBody) {
+        logCardTabBody.addEventListener('change', function(e) {
+            if (logCardTabIsReadOnly()) return;
+            var includeCheckbox = e.target.closest && e.target.closest('.lc-include-checkbox');
+            if (includeCheckbox) {
+                var includedRow = includeCheckbox.closest('tr');
+                if (!includeCheckbox.checked && includedRow) {
+                    includedRow.querySelectorAll('.lc-assy-group-radio[type="radio"]').forEach(function(radio) {
+                        radio.checked = false;
+                    });
+                }
+                syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
+                return;
+            }
+            var assyGroupRadio = e.target.closest && e.target.closest('.lc-assy-group-radio');
+            if (assyGroupRadio) {
+                var assyGroupRow = assyGroupRadio.closest('tr');
+                var assyGroupInclude = assyGroupRow ? assyGroupRow.querySelector('.lc-include-checkbox') : null;
+                if (assyGroupInclude && !assyGroupInclude.checked && !assyGroupInclude.disabled) {
+                    assyGroupInclude.checked = true;
+                }
+                syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
+                return;
+            }
+        });
+
+        function logCardPersistInlineSave(field) {
+            clearTimeout(logCardInlineSaveTimer);
+            var row = field && field.closest ? field.closest('.lc-saved-row') : null;
+            if (!field || !row) return;
+
+            var rowIndex = row.dataset.rowIndex;
+            var fieldName = field.name || '';
+            var fieldValue = field.type === 'checkbox' ? (field.checked ? '1' : '0') : field.value;
+
+            logCardInlineSaveTimer = setTimeout(function() {
+                logCardInlineSaveTimer = null;
+                logCardEnqueueInlineSave(rowIndex, fieldName, fieldValue);
+            }, 350);
+        }
+
+        function logCardQueueInlineSave(e) {
+            if (logCardTabIsReadOnly()) return;
+            var field = e.target.closest && e.target.closest('.lc-saved-field');
+            if (!field) return;
+
+            var isTextInput = field.tagName === 'INPUT' && field.type === 'text';
+
+            if (isTextInput) {
+                if (e.type === 'input') {
+                    return;
+                }
+
+                if (e.type === 'change' && field.dataset.logCardSkipNextChange === '1') {
+                    field.dataset.logCardSkipNextChange = '0';
+                    return;
+                }
+            }
+
+            logCardPersistInlineSave(field);
+        }
+
+        logCardTabBody.addEventListener('change', logCardQueueInlineSave);
+        logCardTabBody.addEventListener('input', logCardQueueInlineSave);
+        logCardTabBody.addEventListener('keydown', function(e) {
+            if (logCardTabIsReadOnly()) return;
+            var field = e.target.closest && e.target.closest('.lc-saved-field');
+            var isTextInput = field && field.tagName === 'INPUT' && field.type === 'text';
+            if (!isTextInput || e.key !== 'Enter') return;
+
+            e.preventDefault();
+            field.dataset.logCardSkipNextChange = '1';
+            clearTimeout(logCardInlineSaveTimer);
+            var row = field.closest('.lc-saved-row');
+            if (row) {
+                logCardEnqueueInlineSave(row.dataset.rowIndex, field.name || '', field.value);
+            }
+            if (typeof field.blur === 'function') field.blur();
+        });
+    }
+    
+    
+    if (extraPartsBody) {
+        extraPartsBody.addEventListener('click', function(e) {
+            var editBtn = e.target.closest('.open-edit-extra-process-modal');
+            if (editBtn && editBtn.dataset.extraProcessId) {
+                e.preventDefault();
+                openEditExtraProcessModal(editBtn.dataset.extraProcessId);
+                return;
+            }
+            var addBtn = e.target.closest('.open-add-extra-process-modal');
+            if (addBtn && addBtn.dataset.workorderId && addBtn.dataset.componentId) {
+                e.preventDefault();
+                openAddExtraProcessModal(addBtn.dataset.workorderId, addBtn.dataset.componentId);
+                return;
+            }
+            var addExtraPartBtn = e.target.closest('.open-add-extra-part-modal-btn');
+            if (addExtraPartBtn) {
+                e.preventDefault();
+                var woId = addExtraPartBtn.dataset.workorderId || window.currentWorkorderId;
+                if (woId) openAddExtraPartModal(woId);
+                return;
+            }
+            var procBtn = e.target.closest('.open-extra-processes-tab');
+            if (procBtn && procBtn.dataset.workorderId && procBtn.dataset.componentId) {
+                e.preventDefault();
+                if (tabExtraProcessesLi) tabExtraProcessesLi.classList.remove('d-none');
+                loadExtraProcesses(procBtn.dataset.workorderId, procBtn.dataset.componentId);
+                if (tabExtraProcessesBtn) { var tab = new bootstrap.Tab(tabExtraProcessesBtn); tab.show(); }
+            }
+        });
+    }
+    var openAddExtraPartModalBtn = document.getElementById('openAddExtraPartModalBtn');
+    if (openAddExtraPartModalBtn) {
+        openAddExtraPartModalBtn.addEventListener('click', function() {
+            var woId = this.dataset.workorderId || window.currentWorkorderId;
+            if (woId) openAddExtraPartModal(woId);
+        });
+    }
+
+    window.TdrshowConfig1InitTransfers();
+    var restoringTdrTab = true;
+    tdrShowTabListEl?.addEventListener('shown.bs.tab', function(e) {
+        var activeTabId = e?.target?.id || '';
+        if (!restoringTdrTab && isPersistentTabId(activeTabId)) {
+            window.UserUiSettings.set(USER_UI_SCOPE, TAB_STORAGE_KEY, activeTabId);
+        }
+
+        var target = (e.target.getAttribute && e.target.getAttribute('data-bs-target')) || (e.target.getAttribute && e.target.getAttribute('href'));
+        var targetName = target ? String(target) : '';
+        showOnlyTdrTabPane(targetName);
+        if (targetName.indexOf('content-extra-parts-processes') === -1) {
+            syncProcessShortcutButtonState('');
+        }
+        if (target && targetName.indexOf('content-part-processes') !== -1) {
+            syncPartProcessesShortcutActions();
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
+            if (rmReportsTabBody) rmReportsTabBody.dataset.loaded = '';
+            return;
+        }
+        if (target && targetName.indexOf('content-extra-parts-processes') !== -1) {
+            syncProcessShortcutButtonState('#content-extra-parts-processes');
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
+            if (extraPartsBody && !extraPartsBody.dataset.loaded) {
+                extraPartsBody.dataset.loaded = '1';
+                loadExtraPartProcesses();
+            } else {
+                updateExtraPartsTabAsterisk();
+                updateExtraGroupFormsButtonVisibility();
+            }
+        } else if (target && String(target).indexOf('content-log-card') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.remove('d-none');
+            if (logCardTabBody && !logCardTabBody.dataset.loaded) {
+                logCardTabBody.dataset.loaded = '1';
+                loadLogCardPartial();
+            }
+        } else if (target && String(target).indexOf('content-bushing') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.remove('d-none');
+            if (bushingTabBody && !bushingTabBody.dataset.loaded) {
+                loadBushingPartial();
+            }
+        } else if (target && String(target).indexOf('content-rm-reports') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
+            if (rmReportsTabBody && !rmReportsTabBody.dataset.loaded) {
+                rmReportsTabBody.dataset.loaded = '1';
+                loadRmReportsPartial();
+            }
+        } else if (target && String(target).indexOf('content-transfers') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.remove('d-none');
+            if (transfersTabBody && !transfersTabBody.dataset.loaded) {
+                transfersTabBody.dataset.loaded = '1';
+                loadTransfersPartial();
+            }
+        } else if (target && String(target).indexOf('content-extra-processes') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
+        } else {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
+        }
+        if (target && String(target).indexOf('content-part-processes') === -1) {
+            if (tabLi) tabLi.classList.add('d-none');
+            syncPartProcessesShortcutActions();
+            if (body) body.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value140) + "</div>");
+        }
+        if (target && String(target).indexOf('content-extra-processes') === -1) {
+            if (tabExtraProcessesLi) tabExtraProcessesLi.classList.add('d-none');
+            if (extraProcessesTabBody) extraProcessesTabBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value141) + "</div>");
+        }
+    });
+
+    // The server renders the saved tab; initialise only that tab's deferred content.
+    tdrShowTabListEl?.querySelector('.nav-link.active')?.dispatchEvent(new Event('shown.bs.tab', {bubbles: true}));
+    restoringTdrTab = false;
+    revealTabsContent();
+
+    function loadModalContentViaAjax(modalId, bodyId, url, type) {
+        var modal = document.getElementById(modalId);
+        var bodyEl = document.getElementById(bodyId);
+        if (!modal || !bodyEl) return;
+        if (!url || typeof url !== 'string') { bodyEl.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value142) + "</div>"); return; }
+        var fetchUrl = url;
+        if (url.startsWith('/') && !url.startsWith('//')) {
+            fetchUrl = window.location.origin + url;
+        } else if (url.startsWith('http')) {
+            try {
+                var u = new URL(url);
+                if (u.origin !== window.location.origin) {
+                    fetchUrl = window.location.origin + u.pathname + u.search;
+                }
+            } catch (e) {}
+        }
+        bodyEl.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value143) + "</div>");
+        var inst = bootstrap.Modal.getOrCreateInstance(modal);
+        inst.show();
+        modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1090'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1085'; }, { once: true });
+        fetch(fetchUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+                return r.text();
+            })
+            .then(function(html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var formEl = doc.querySelector('form');
+                var container = doc.querySelector('.container') || doc.querySelector('.card') || (formEl && formEl.parentElement);
+                var content = container ? container.outerHTML : (doc.body ? doc.body.innerHTML : html);
+                bodyEl.innerHTML = content;
+                var scope = bodyEl;
+                var form = scope.querySelector('form');
+                var hasExpectedForm = (type === 'processes' && scope.querySelector('#createCMMForm')) || (type === 'components' && (scope.querySelector('#createForm') || scope.querySelector('#createComponentForm')));
+                if (!form || !hasExpectedForm) {
+                    bodyEl.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value144) + " " + String(window.TdrshowConfig1.value145) + "</div>");
+                    return;
+                }
+                if (window.$ && $.fn.select2) {
+                    var $ = window.$;
+                    if (type === 'processes') {
+                        var pn = scope.querySelector('#process_name_id');
+                        if (pn) $(pn).select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $(modal) });
+                        var exList = scope.querySelector('#ex_process-list');
+                        var manualInput = scope.querySelector('input[name="manual_id"]');
+                        if (pn && exList && manualInput) {
+                            function loadExisting() {
+                                var pid = $(pn).val();
+                                if (!pid) { exList.innerHTML = ''; return; }
+                                var gpBase = (typeof getProcessesBaseUrl !== 'undefined' ? getProcessesBaseUrl : '/get-processes');
+                                fetch(gpBase + (gpBase.indexOf('?') >= 0 ? '&' : '?') + 'processNameId=' + encodeURIComponent(pid) + '&manualId=' + encodeURIComponent(manualInput.value))
+                                    .then(function(r) { return r.json(); })
+                                    .then(function(data) {
+                                        exList.innerHTML = '';
+                                        if (data.existingProcesses && data.existingProcesses.length) {
+                                            data.existingProcesses.forEach(function(p) {
+                                                var d = document.createElement('div'); d.className = 'process-item'; d.textContent = p.process; d.style.marginBottom = '5px'; exList.appendChild(d);
+                                            });
+                                        } else exList.innerHTML = '<div class="text-muted small">There are no existing processes</div>';
+                                    })
+                                    .catch(function() { exList.innerHTML = '<div class="text-danger small">Failed to load processes</div>'; });
+                            }
+                            $(pn).on('change', loadExisting);
+                            loadExisting();
+                        }
+                    } else if (type === 'components') {
+                        var manualSel = scope.querySelector('#manual_id');
+                        if (manualSel) $(manualSel).select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $(modal) });
+                        var bushCb = scope.querySelector('#is_bush');
+                        var bushCnt = scope.querySelector('#bush_ipl_container');
+                        var bushInp = scope.querySelector('#bush_ipl_num');
+                        if (bushCb && bushCnt && bushInp) {
+                            bushCb.addEventListener('change', function() {
+                                if (this.checked) { bushCnt.style.display = 'block'; bushInp.required = true; } else { bushCnt.style.display = 'none'; bushInp.required = false; bushInp.value = ''; }
+                            });
+                            if (bushCb.checked) { bushCnt.style.display = 'block'; bushInp.required = true; }
+                        }
+                    }
+                }
+                scope.querySelectorAll('a.btn-outline-secondary, a[href*="return_to"], a[href*="redirect"]').forEach(function(lnk) {
+                    lnk.addEventListener('click', function(ev) {
+                        ev.preventDefault();
+                        var m = bootstrap.Modal.getInstance(modal);
+                        if (m) m.hide();
+                    });
+                });
+                var form = scope.querySelector('form');
+                if (form) {
+                    form.addEventListener('submit', function(ev) {
+                        ev.preventDefault();
+                        var fd = new FormData(form);
+                        var submitBtn = form.querySelector('button[type="submit"]');
+                        if (submitBtn) { submitBtn.disabled = true; }
+                        fetch(form.action, {
+                            method: 'POST',
+                            body: fd,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                            credentials: 'same-origin'
+                        })
+                        .then(function(r) { return r.json().catch(function() { return {}; }); })
+                        .then(function(data) {
+                            if (data.success) {
+                                var m = bootstrap.Modal.getInstance(modal);
+                                if (m) m.hide();
+                                bodyEl.innerHTML = '';
+                                if (bushingTabBody) loadBushingPartial();
+                                window.refreshTdrPrlPaperButtons();
+                                var editIfr = document.getElementById('editBushingIframe');
+                                if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
+                            } else {
+                                window.tdrShowNotify(data.message || (data.errors ? JSON.stringify(data.errors) : '') || ("" + String(window.TdrshowConfig1.value146) + ""), 'error');
+                            }
+                        })
+                        .catch(function() {
+                            window.tdrShowNotify(("" + String(window.TdrshowConfig1.value147) + ""), 'error');
+                        })
+                        .finally(function() {
+                            if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+                            if (submitBtn) { submitBtn.disabled = false; }
+                        });
+                    });
+                }
+            })
+            .catch(function(err) {
+                var msg = ("" + String(window.TdrshowConfig1.value148) + "");
+                if (err && err.message && err.message.indexOf('HTTP') === 0) msg += ' (' + err.message + ')';
+                bodyEl.innerHTML = '<div class="alert alert-danger">' + msg + '<br><a href="' + fetchUrl + ("\" target=\"_blank\" class=\"alert-link mt-2 d-inline-block\">" + String(window.TdrshowConfig1.value149) + "</a></div>");
+            });
+    }
+
+    window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'createProcessSuccess' && e.data.tdrId) {
+            loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
+            window.tdrShowNotify(e.data.message || ("" + String(window.TdrshowConfig1.value150) + ""), 'success', 2500);
+        } else if (e.data && e.data.type === 'createProcessCancel') {
+            return;
+        } else if (e.data && e.data.type === 'editProcessSuccess' && e.data.tdrId) {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editTdrProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+            loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
+            window.tdrShowNotify(e.data.message || ("" + String(window.TdrshowConfig1.value151) + ""), 'success', 2500);
+        } else if (e.data && e.data.type === 'editProcessCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editTdrProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'editExtraProcessSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editExtraProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editExtraProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+        } else if (e.data && e.data.type === 'editExtraProcessCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editExtraProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editExtraProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'createExtraProcessSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addExtraProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+            var woId = e.data.workorderId; var compId = e.data.componentId;
+            if (extraProcessesTabBody && woId && compId) loadExtraProcesses(woId, compId);
+        } else if (e.data && e.data.type === 'createExtraProcessCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addExtraProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'addExtraPartSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraPartModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addExtraPartIframe');
+            if (ifr) ifr.src = 'about:blank';
+            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+        } else if (e.data && e.data.type === 'addExtraPartCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraPartModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addExtraPartIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'editExtraProcessProcessSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editTdrProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+            var woId = e.data.workorderId; var compId = e.data.componentId;
+            if (extraProcessesTabBody && woId && compId) loadExtraProcesses(woId, compId);
+            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+        } else if (e.data && e.data.type === 'editExtraProcessProcessCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editTdrProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'editBushingSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editBushingModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editBushingIframe');
+            if (ifr) ifr.src = 'about:blank';
+            if (bushingTabBody) loadBushingPartial();
+            window.refreshTdrPrlPaperButtons();
+        } else if (e.data && e.data.type === 'editBushingCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editBushingModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editBushingIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'openAddProcessesModal' && e.data.url) {
+            openAddProcessesModalByUrl(e.data.url);
+        } else if (e.data && e.data.type === 'addProcessesCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addProcessesModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addProcessesIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'openAddPartModal' && e.data.url) {
+            openAddPartModalByUrl(e.data.url);
+        } else if (e.data && e.data.type === 'addPartCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addPartModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addPartIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && (e.data.type === 'addProcessesSuccess' || e.data.type === 'addPartSuccess')) {
+            if (e.data.type === 'addProcessesSuccess' && typeof window.addBushingProcessOption === 'function') {
+                window.addBushingProcessOption(e.data.process, e.data.processName || '');
+            }
+            var procModal = document.getElementById('addProcessesModal');
+            var partModal = document.getElementById('addPartModal');
+            var m1 = procModal ? bootstrap.Modal.getInstance(procModal) : null;
+            var m2 = partModal ? bootstrap.Modal.getInstance(partModal) : null;
+            if (m1) m1.hide();
+            if (m2) m2.hide();
+            var ifr1 = document.getElementById('addProcessesIframe');
+            var b2 = document.getElementById('addPartModalBody');
+            if (ifr1) ifr1.src = 'about:blank';
+            if (b2) b2.innerHTML = '';
+            if (bushingTabBody) loadBushingPartial();
+            window.refreshTdrPrlPaperButtons();
+            var editIfr = document.getElementById('editBushingIframe');
+            if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
+            window.tdrShowNotify(e.data.message || (e.data.type === 'addPartSuccess' ? ("" + String(window.TdrshowConfig1.value152) + "") : ("" + String(window.TdrshowConfig1.value153) + "")), 'success', 2500);
+        }
+    });
+    document.getElementById('editTdrProcessModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('editTdrProcessIframe');
+        if (ifr) ifr.src = 'about:blank';
+    });
+    document.getElementById('editExtraProcessModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('editExtraProcessIframe');
+        if (ifr) ifr.src = 'about:blank';
+    });
+    document.getElementById('addExtraProcessModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('addExtraProcessIframe');
+        if (ifr) ifr.src = 'about:blank';
+    });
+    document.getElementById('editBushingModal')?.addEventListener('hidden.bs.modal', function() {
+        var bodyEl = document.getElementById('editBushingModalBody');
+        if (bodyEl) bodyEl.innerHTML = '';
+        var actionsEl = document.getElementById('editBushingModalActions');
+        if (actionsEl) actionsEl.style.setProperty('display', 'none', 'important');
+    });
+    document.getElementById('addProcessesModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('addProcessesIframe');
+        if (ifr) ifr.src = 'about:blank';
+        var editIfr = document.getElementById('editBushingIframe');
+        if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
+    });
+    document.getElementById('addPartModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('addPartIframe');
+        if (ifr) ifr.src = 'about:blank';
+        var editIfr = document.getElementById('editBushingIframe');
+        if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
+    });
+    if (editTdrModal) {
+        editTdrModal.addEventListener('show.bs.modal', function(e) {
+            var btn = e.relatedTarget;
+            var body = document.getElementById('editTdrModalBody');
+            if (!body) return;
+            body.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value154) + "</div>");
+            if (btn && btn.dataset.tdrId) {
+                var tdrId = btn.dataset.tdrId;
+                var url = ("" + String(window.TdrshowConfig1.value155) + "").replace('__ID__', tdrId);
+                fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
+                    .then(function(r) { return r.text(); })
+                    .then(function(html) {
+                        body.innerHTML = html;
+                        if (window.$ && window.$.fn.select2) {
+                            var $ = window.$;
+                            $('#edit_codes_id, #edit_necessaries_id, #edit_component_id').select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $(document.body) });
+                        }
+                        var form = body.querySelector('#editTdrForm');
+                        if (form) {
+                            var repairQty = form.querySelector('#edit_repair_qty');
+                            function syncRepairQty() {
+                                var necessary = form.querySelector('#edit_necessaries_id');
+                                var repair = form.dataset.manufacturePair === '1' || necessary?.selectedOptions[0]?.textContent.trim().toLowerCase() === 'repair';
+                                var part = form.querySelector('#edit_component_id');
+                                repairQty.disabled = !repair;
+                                var assySerial = form.querySelector('#edit_assy_serial_number');
+                                if (assySerial) {
+                                    assySerial.disabled = repair && form.dataset.manufacturePair !== '1';
+                                    assySerial.parentElement.classList.toggle('d-none', repair && form.dataset.manufacturePair !== '1');
+                                }
+                                form.querySelector('#edit_repair_qty_group').classList.toggle('d-none', !repair);
+                                repairQty.max = part?.selectedOptions[0]?.dataset.unitsAssy || repairQty.dataset.manualMax;
+                            }
+                            if (repairQty) {
+                                syncRepairQty();
+                                if (window.$) window.$(form).find('#edit_necessaries_id, #edit_component_id').on('change.repairQty', syncRepairQty);
+                                else form.addEventListener('change', syncRepairQty);
+                            }
+                            form.addEventListener('submit', function(ev) {
+                                ev.preventDefault();
+                                var submitBtn = form.querySelector('button[type="submit"]');
+                                var origText = submitBtn ? submitBtn.innerHTML : '';
+                                if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = ("<span class=\"spinner-border spinner-border-sm\"></span> " + String(window.TdrshowConfig1.value156) + ""); }
+                                var formData = new FormData(form);
+                                fetch(form.action, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '' } })
+                                    .then(function(res) { return res.json().catch(function() { return {}; }); })
+                                    .then(function(data) {
+                                        if (data.redirect || !data.errors) {
+                                            var m = bootstrap.Modal.getInstance(editTdrModal);
+                                            if (m) m.hide();
+                                            window.UserUiSettings
+                                                .set(USER_UI_SCOPE, NOTIFICATION_STORAGE_KEY, data.message || ("" + String(window.TdrshowConfig1.value157) + ""))
+                                                .finally(function() { window.location.reload(); });
+                                        } else {
+                                            window.tdrShowNotify(data.message || ("" + String(window.TdrshowConfig1.value158) + ""), 'error');
+                                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origText; }
+                                        }
+                                    })
+                                    .catch(function() {
+                                        window.tdrShowNotify(("" + String(window.TdrshowConfig1.value159) + ""), 'error');
+                                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origText; }
+                                    });
+                            });
+                        }
+                    })
+                    .catch(function() {
+                        body.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value160) + "</div>");
+                    });
+            }
+        });
+    }
+});

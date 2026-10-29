@@ -57,6 +57,7 @@ class RmReportController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeTemplateManagement();
         $request->validate(['workorder_id' => ['required', 'integer', 'exists:workorders,id']]);
         $workorder = Workorder::findOrFail($request->integer('workorder_id'));
         $validated = $this->validateRecord($request, $workorder);
@@ -185,7 +186,8 @@ public function rmRecordForm(Request $request, $id)
     
     $rmRecords = app(\App\Services\WorkorderRepairRows::class)->rows($current_wo, $rmRecords)
         ->reject(fn ($row) => $row['deleted'])->map(function ($row) {
-            $row['part_description'] = trim($row['ipl'].' '.$row['part_description']);
+            $ipl = trim($row['ipl']);
+            $row['part_description'] = trim(($ipl !== '' ? '('.$ipl.') ' : '').$row['part_description']);
             $row['ident_method'] = trim($row['ident_method'].' '.$row['ident_number']);
             return (object) $row;
         });
@@ -226,12 +228,14 @@ public function rmRecordForm(Request $request, $id)
             'workorder_id' => ['required', 'integer', 'exists:workorders,id'],
             'selected_records' => ['nullable', 'json'],
             'notes' => ['nullable', 'array'],
-            'notes.*' => ['nullable', 'string'],
+            'notes.*' => ['nullable', 'string', 'max:256'],
             'editor_rows' => ['sometimes', 'array'],
             'editor_rows.*.key' => ['required', 'string', 'distinct'],
+            'editor_rows.*.ipl' => ['nullable', 'string', 'max:100'],
+            'editor_rows.*.part_description' => ['nullable', 'string', 'max:500'],
             'editor_rows.*.mod_repair' => ['required', 'in:Repair,Modification,SB'],
             'editor_rows.*.description' => ['nullable', 'string', 'max:2000'],
-            'editor_rows.*.ident_method' => ['nullable', 'string', 'max:250'],
+            'editor_rows.*.ident_method' => ['nullable', 'string', 'max:501'],
             'editor_rows.*.ident_number' => ['nullable', 'string', 'max:250'],
             'editor_rows.*.deleted' => ['required', 'boolean'],
         ]);
@@ -258,7 +262,7 @@ public function rmRecordForm(Request $request, $id)
         if ($request->has('editor_rows')) {
             $allowedKeys = $rowService->rows($workorder, $rmRecords, [])->pluck('key')->all();
             foreach ($request->input('editor_rows', []) as $row) {
-                if (!in_array($row['key'], $allowedKeys, true)) {
+                if (!in_array($row['key'], $allowedKeys, true) && !$rowService::isCustomKey($row['key'])) {
                     throw ValidationException::withMessages(['editor_rows' => 'The repair row does not belong to this work order.']);
                 }
             }
@@ -300,6 +304,7 @@ public function rmRecordForm(Request $request, $id)
      */
         public function destroy($id)
     {
+        $this->authorizeTemplateManagement();
         $rmReport = RmReport::findOrFail($id);
         abort_if($rmReport->is_admin_template && ! auth()->user()?->roleIs('Admin'), 403, 'Only Admin can delete protected R&M templates.');
         
@@ -382,6 +387,7 @@ public function rmRecordForm(Request $request, $id)
      */
     public function destroyMultiple(Request $request)
     {
+        $this->authorizeTemplateManagement();
         $selectedRecords = json_decode($request->selected_records, true);
         abort_if(! auth()->user()?->roleIs('Admin') && RmReport::whereIn('id', $selectedRecords ?: [])->where('is_admin_template', true)->exists(), 403);
         $workorder_id = $request->workorder_id;
@@ -563,6 +569,7 @@ public function rmRecordForm(Request $request, $id)
      */
     public function updateRecord(Request $request, $id, WorkorderAssemblyModificationService $modificationService)
     {
+        $this->authorizeTemplateManagement();
         $rmReport = RmReport::findOrFail($id);
         $request->validate(['workorder_id' => ['required', 'integer', 'exists:workorders,id']]);
         $workorder = Workorder::findOrFail($request->integer('workorder_id'));
@@ -644,6 +651,12 @@ public function rmRecordForm(Request $request, $id)
 
         return redirect()->route('rm_reports.show', $validated['workorder_id'])
             ->with('success', 'R&M Record updated successfully');
+    }
+
+    private function authorizeTemplateManagement(): void
+    {
+        abort_unless(auth()->user()?->roleIs('Admin') || auth()->user()?->roleIs('Manager'), 403,
+            'Only Manager and Admin can manage R&M templates.');
     }
 
     /** @return array<string, mixed> */

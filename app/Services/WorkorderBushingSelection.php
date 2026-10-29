@@ -10,33 +10,40 @@ use Illuminate\Validation\ValidationException;
 /** One selection shared by the bushing editor and the printed KIT. */
 class WorkorderBushingSelection
 {
-    public function families(Workorder $wo)
+    public function families(Workorder $wo, ?PartVariantGrouping $grouping = null)
     {
+        $iplRules = app(ManualIplBranchRuleResolver::class);
         $parts = app(WorkorderPartScopeResolver::class)->filterTdrComponents(
             Component::whereIn('manual_id', $wo->usedManualIds())->bushingCandidates()->get(), $wo
-        )->filter(fn ($part) => app(ManualIplBranchRuleResolver::class)->allowsComponentForUnit(
+        )->filter(fn ($part) => $iplRules->allowsComponentForUnit(
             $wo->unit, (string) $part->ipl_num, (int) $part->manual_id));
-        return BushingPrlGrouping::groups($parts);
+        return BushingPrlGrouping::groups($parts, $grouping);
     }
 
     public function lines(Workorder $wo)
     {
         return WoBushingLine::withoutGlobalScope('selected')->where(function ($q) use ($wo) {
             $q->where('workorder_id', $wo->id)->orWhereHas('woBushing', fn ($b) => $b->where('workorder_id', $wo->id));
-        })->with(['processes.process.process_name', 'processes.batch'])->orderBy('id')->get();
+        })->with([
+            'processes' => fn ($query) => $query->withCount('machiningWorkSteps'),
+            'processes.process.process_name',
+            'processes.batch' => fn ($query) => $query->withCount('machiningWorkSteps'),
+        ])->orderBy('id')->get();
     }
 
-    public function snapshot(Workorder $wo): array
+    public function snapshot(Workorder $wo, ?PartGroupCoverageResolver $coverageResolver = null, ?PartVariantGrouping $grouping = null): array
     {
         $lines = $this->lines($wo);
         $protected = app(BushingRouteBatches::class)->protectedLineIds($lines);
         $decisions = DB::table('workorder_bushing_decisions')->where('workorder_id', $wo->id)->orderBy('family_key')->get();
         $crossouts = WorkorderKitPrlCrossout::where('workorder_id', $wo->id)->orderBy('component_id')->pluck('component_id');
-        $coverage = $wo->isOverhaul() ? app(PartGroupCoverageResolver::class)
+        $coverage = $wo->isOverhaul() ? ($coverageResolver ?? app(PartGroupCoverageResolver::class))
             ->coverageForWorkorder($wo, 'prl', true, false) : [];
         $groups = [];
-        foreach ($this->families($wo) as $key => $family) {
-            $capacity = BushingPrlGrouping::capacity($family);
+        $families = $this->families($wo, $grouping);
+        $capacityOptions = BushingPrlGrouping::capacityOptions($families->flatten(1));
+        foreach ($families as $key => $family) {
+            $capacity = BushingPrlGrouping::capacity($family, $capacityOptions);
             $familyLines = $lines->whereIn('component_id', $family->pluck('id'));
             // Do Not Order excludes the chosen part from purchasing, not the
             // size selection: unselected alternatives must remain excluded.

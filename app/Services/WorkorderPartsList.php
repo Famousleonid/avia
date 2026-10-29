@@ -10,10 +10,10 @@ use Illuminate\Support\Facades\DB;
 class WorkorderPartsList
 {
     /** Mandatory replacements from the active KIT, excluding Extra Parts and crossed options. */
-    public function kitReplacementQuantities(Workorder $workorder): array
+    public function kitReplacementQuantities(Workorder $workorder, ?Collection $kitRows = null): array
     {
         $quantities = [];
-        foreach (app(TdrPrintFormController::class)->kitRows($workorder) as $row) {
+        foreach ($kitRows ?? app(TdrPrintFormController::class)->kitRows($workorder) as $row) {
             if (! empty($row['prl_crossed_out'])) {
                 continue;
             }
@@ -33,8 +33,7 @@ class WorkorderPartsList
     public function rows(Workorder $workorder): Collection
     {
         $generator = app(TdrPrintFormController::class);
-        $kit = $generator->kitRows($workorder);
-        $prl = $generator->prlRows($workorder);
+        [$kit, $prl] = $generator->receiptRows($workorder);
         $receipts = DB::table('workorder_part_receipts')->where('workorder_id', $workorder->id)->get()->keyBy('row_key');
         // Only inherit an unambiguous historical receipt from a TDR removed by KIT supply.
         $legacy = Tdr::where('workorder_id', $workorder->id)

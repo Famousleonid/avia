@@ -56,7 +56,6 @@
 
 
             .container-fluid {
-                max-height: calc(100vh - 20px); /* Оставляем место для футера */
                 min-height: calc(279.4mm - (var(--rm-print-edge-margin) * 2));
                 max-height: none;
                 overflow: visible;
@@ -97,6 +96,21 @@
                 print-color-adjust: exact;
             }
 
+        }
+
+        /* Chrome fires beforeprint while screen media is still active. Measure
+           the same page padding, section spacing and footer as the printed sheet. */
+        .container-fluid.rm-measuring-print {
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box;
+        }
+        .rm-measuring-print .row {
+            margin-bottom: 0 !important;
+        }
+        .rm-measuring-print footer {
+            padding: var(--print-footer-padding, 1px 1px);
+            padding-top: var(--rm-footer-print-gap);
         }
 
         .border-all {
@@ -345,6 +359,7 @@
     <style>
         /* Keep the QR above the WO box, within the printable page. */
         @media print { .container-fluid > .title { padding-top: 44px; } }
+        .rm-measuring-print > .title { padding-top: 44px; }
     </style>
 @endif
 
@@ -365,10 +380,9 @@
         $technicalNotesList = array_values($technicalNotes);
     }
 
-    // Repeat the complete Notes block on every page, with at least seven writing lines.
-    $notesPerPage = max(7, count($technicalNotesList));
-    $totalNotes = count($technicalNotesList);
-    $totalNotesPages = max(1, (int)ceil($totalNotes / $notesPerPage));
+    // Continue Notes in groups of seven; do not repeat previous notes.
+    $notesPerPage = 7;
+    $totalNotesPages = max(1, (int) ceil(count($technicalNotesList) / $notesPerPage));
 
     // Все записи rmRecords - используем значение по умолчанию из Print Settings (15 строк на страницу)
     $rmRecordsCollection = $rmRecords ?? collect();
@@ -403,7 +417,6 @@
         $rmRecordsPages = [[]];
     }
 
-    // Общее количество страниц = максимум из страниц Notes и страниц rmRecords
     $totalPages = max($totalNotesPages, count($rmRecordsPages));
 
     // Глобальные индексы для нумерации строк
@@ -432,11 +445,12 @@
         </div>
     </div>
 
-    {{-- Repeat Technical Notes on each sheet. --}}
-    <div class="row border-all-b  m-sm-0">
+    {{-- Show only this sheet's notes; later R&M-only sheets have no Notes block. --}}
+    @if($pageIndex < $totalNotesPages)
+    <div class="row border-all-b m-sm-0" data-rm-technical-notes>
         <h5 class="ps-1 fs-9">Technical Notes:</h5>
         @php
-            $notesStartIndex = 0;
+            $notesStartIndex = $pageIndex * $notesPerPage;
         @endphp
         @for($i = 0; $i < $notesPerPage; $i++)
             @php
@@ -445,7 +459,8 @@
             <div class="border-b pt-2 rm-technical-note" style="min-height: 30px; white-space: pre-wrap; overflow-wrap: anywhere;">{{ $noteValue }}</div>
         @endfor
     </div>
-    <p></p>
+    <p data-rm-notes-spacing></p>
+    @endif
 
     {{-- Таблица с данными rmRecords: распределяем по страницам в зависимости от лимита строк --}}
     @php
@@ -866,6 +881,8 @@
 
     // Перераспределение строк по страницам в зависимости от настроек Print Settings
     function redistributeRowsToPages(rmMaxRows) {
+        const notes = @json($technicalNotesList);
+        const notesPageCount = Math.max(1, Math.ceil(notes.length / 7));
         const oldPages = Array.from(document.querySelectorAll('[data-rm-print-page]'));
         if (!oldPages.length) return;
         const rows = [];
@@ -892,7 +909,15 @@
         const pages = [];
         function newPage() {
             const page = prototype.cloneNode(true);
+            page.classList.add('rm-measuring-print');
             page.classList.toggle('page-break', pages.length > 0);
+            if (pages.length >= notesPageCount) {
+                page.querySelectorAll('[data-rm-technical-notes], [data-rm-notes-spacing]').forEach(el => el.remove());
+            } else {
+                page.querySelectorAll('.rm-technical-note').forEach((cell, index) => {
+                    cell.textContent = notes[pages.length * 7 + index] ?? '';
+                });
+            }
             page.style.width = budget.width + 'px';
             page.style.maxWidth = 'none';
             page.style.minHeight = '0';
@@ -912,13 +937,14 @@
         rows.forEach(cells => {
             if (current.count >= limit) current = newPage();
             cells.forEach(cell => current.table.appendChild(cell));
-            if (!fits(current) && current.count > 0) {
+            while (!fits(current) && (current.count > 0 || current.page.querySelector('[data-rm-technical-notes]'))) {
                 cells.forEach(cell => cell.remove());
                 current = newPage();
                 cells.forEach(cell => current.table.appendChild(cell));
             }
             current.count++;
         });
+        while (pages.length < notesPageCount) current = newPage();
         if (qc) {
             current.page.querySelector('footer').before(qc);
             if (!fits(current) && current.count > 0) {
@@ -940,6 +966,7 @@
             page.querySelector('.rm-page-number').textContent = `Page ${index + 1} of ${pages.length}`;
             page.style.minHeight = '';
             page.querySelector('footer').style.marginTop = '';
+            page.classList.remove('rm-measuring-print');
         });
         marker.remove();
     }

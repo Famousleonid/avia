@@ -1,7 +1,7 @@
 @php
     $storedReplacementCodes = \App\Models\Code::query()->whereNotNull('code')->where('code', '!=', '')
         ->get(['id', 'name', 'code']);
-    $replacementCodeOrder = ['K', 'P', 'L', 'D', 'KIT', 'S'];
+    $replacementCodeOrder = ['K', 'P', 'L', 'D', 'S'];
     $replacementCodes = collect($replacementCodeOrder)->map(fn ($code) => $storedReplacementCodes->firstWhere('code', $code))
         ->filter()->values();
 @endphp
@@ -14,6 +14,9 @@
     .bushing-code-control .bushing-code-select option { background-color: #1c3044; color: #edf5ff; }
     .bushing-code-control .bushing-code-select option:checked { background-color: #285b70; color: #fff; }
     .bushing-code-badge { padding: 0 4px; min-width: 24px; height: 25px; font-weight: 600; font-size: .8rem; }
+    .bushing-itemized-table .bushing-code-control { position: relative; width: 24px; height: 28px; margin-left: 0; }
+    .bushing-itemized-table .bushing-code-select { position: absolute; top: 0; left: 0; width: 164px; max-width: none; z-index: 5; }
+    .bushing-itemized-table td:has(.bushing-code-control) { overflow: visible; }
 </style>
 <script>
 (function () {
@@ -43,7 +46,7 @@
                 select.setAttribute('aria-label', 'Replacement code for ' + (checkbox.dataset.ipl || checkbox.value));
                 select.add(new Option('Code…', ''));
                 window.BushingReplacementCodes.codes.forEach(code => {
-                    const option = new Option((code.code === 'KIT' ? 'KIT' : code.name) + ' . ' + code.code, String(code.id));
+                    const option = new Option(code.name + ' . ' + code.code, String(code.id));
                     option.dataset.code = code.code;
                     select.add(option);
                 });
@@ -77,6 +80,10 @@
             }
             const select = control.querySelector('select');
             const badge = control.querySelector('button');
+            if (checkbox.checked && !select.value) {
+                const worn = window.BushingReplacementCodes.codes.find(code => code.code === 'K');
+                if (worn) select.value = String(worn.id);
+            }
             const option = select.selectedOptions[0];
             const hasCode = Boolean(select.value);
             control.hidden = !checkbox.checked;
@@ -99,3 +106,5 @@
     document.querySelectorAll('.component-checkbox').forEach(window.BushingReplacementCodes.sync);
 })();
 </script>
+
+<script src="{{ asset('js/wo-bushings/editor-draft.js') }}?v={{ filemtime(public_path('js/wo-bushings/editor-draft.js')) }}"></script>

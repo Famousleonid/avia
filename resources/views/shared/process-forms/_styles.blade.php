@@ -167,7 +167,8 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .data-page .data-row:not([data-stress="true"]) { font-size: var(--other-table-data-font-size, 13px); }
 .table-header:has(+ .data-page .data-row:not([data-stress="true"])) .row { font-size: var(--process-table-header-font-size, 12px); }
 .details-row { display: flex; justify-content: center; align-items: center; height: 36px; }
-.ndt-data-container .data-row-us-measurement > div { min-height: 32px; height: auto !important; }
+.ndt-data-container .data-row-us-measurement > div,
+.ndt-data-container .data-row-ndt-specification > div { min-height: 32px; height: auto !important; }
 .ndt-data-container .data-row-ndt > div:first-child,
 .data-page .data-row > div:first-child,
 .table-header .row > div:first-child { line-height: 1.1; }

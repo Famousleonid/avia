@@ -1180,7 +1180,7 @@ class TdrProcessController extends Controller
             ->keyBy('id');
 
         $selectedRows = collect();
-        $processNameId = null;
+        $combinedGroupKey = null;
         foreach ($normalizedSelections as $selection) {
             $source = $records->get($selection['tdr_process_id']);
             if (! $source || (int) $source->tdrs_id !== (int) $current_tdr->id) {
@@ -1190,9 +1190,10 @@ class TdrProcessController extends Controller
                 abort(422, 'One of the selected processes has no printable form.');
             }
 
-            $processNameId ??= (int) $source->process_names_id;
-            if ((int) $source->process_names_id !== $processNameId) {
-                abort(422, 'All selected processes must have the same Process Name.');
+            $sourceGroupKey = ProcessName::groupFormsGroupKey($source->processName);
+            $combinedGroupKey ??= $sourceGroupKey;
+            if ($sourceGroupKey !== $combinedGroupKey) {
+                abort(422, 'Select the same Process Name, or combine Machining AT with Machining EC.');
             }
 
             $selectedRow = clone $source;
@@ -1205,7 +1206,7 @@ class TdrProcessController extends Controller
 
                 $validProcess = Process::query()
                     ->whereKey($specificProcessId)
-                    ->where('process_names_id', $processNameId)
+                    ->where('process_names_id', $source->process_names_id)
                     ->exists();
                 if (! $validProcess) {
                     abort(422, 'Selected process does not match the Process Name.');
@@ -1272,7 +1273,7 @@ class TdrProcessController extends Controller
         } else {
             $viewData += [
                 'process_components' => Process::whereIn('id', $manualProcesses)
-                    ->where('process_names_id', $processNameId)
+                    ->whereIn('process_names_id', $selectedRows->pluck('process_names_id')->unique())
                     ->get(),
                 'process_tdr_components' => $selectedRows,
             ];

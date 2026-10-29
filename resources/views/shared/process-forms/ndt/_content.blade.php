@@ -10,6 +10,10 @@
             $ndt_processes_by_id[$process->process_names_id] = $process;
         }
     }
+    if (!empty($ndt_use_selected_specifications)) {
+        $ndt_processes_by_id = collect($ndt_processes ?? [])->groupBy('process_names_id')
+            ->map(fn ($specs) => (object) ['process' => $specs->pluck('process')->unique()->implode("\n")])->all();
+    }
     $totalRows = $formConfig['ndt_table_rows'] ?? 17;
     $dataRows = isset($ndt_components) ? count($ndt_components) : (isset($table_data) ? count($table_data) : 0);
     $emptyRows = max(0, $totalRows - $dataRows);
@@ -211,14 +215,14 @@
                 }
             @endphp
             @if($comp)
-            <div class="row fs-8 data-row-ndt {{ $isUsMeasurement ? 'data-row-us-measurement' : '' }}" data-row-index="{{ $rowIndex }}">
+            <div class="row fs-8 data-row-ndt {{ $isUsMeasurement ? 'data-row-us-measurement' : '' }} {{ !empty($data['ndt_specification_text']) ? 'data-row-ndt-specification' : '' }}" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">{{ $comp->ipl_num }}</div>
                 <div class="col-3 border-l-b details-row text-center" style="height: 32px; line-height: 1">
                     {{ $comp->part_number }}
                     @if($serial)<br>SN {{ $serial }}@endif
                 </div>
                 <div class="col-3 border-l-b details-row text-center" style="height: 32px">{{ $comp->name }}</div>
-                <div class="col-2 border-l-b details-row text-center" style="{{ $isUsMeasurement ? 'min-height: 32px; height: auto; white-space: pre-line; overflow-wrap: anywhere' : 'height: 32px' }}">{{ $processNumbers }}</div>
+                <div class="col-2 border-l-b details-row text-center" style="{{ $isUsMeasurement || !empty($data['ndt_specification_text']) ? 'min-height: 32px; height: auto; white-space: pre-line; overflow-wrap: anywhere; flex-direction: column' : 'height: 32px' }}">{{ $processNumbers }}@if(!empty($data['ndt_specification_text']))<span class="process-description">{{ $data['ndt_specification_text'] }}</span>@endif</div>
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">{{ $qty }}</div>
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
                 <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>

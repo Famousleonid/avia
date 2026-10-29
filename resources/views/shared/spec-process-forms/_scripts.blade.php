@@ -13,10 +13,10 @@
         processTableMinRows: {{ $formConfig['process_table_min_rows'] ?? 10 }},
         processTableExtraEmptyRows: {{ $formConfig['process_table_extra_empty_rows'] ?? 0 }},
         processTableRowHeight: {{ $formConfig['process_table_row_height'] ?? 22 }},
-        processNameFontSize: {{ $formConfig['process_name_font_size'] ?? 11 }},
-        componentDescriptionFontSize: {{ $formConfig['component_description_font_size'] ?? 11 }},
-        componentPartNoFontSize: {{ $formConfig['component_part_no_font_size'] ?? 11 }},
-        componentSerialNoFontSize: {{ $formConfig['component_serial_no_font_size'] ?? 11 }}
+        processNameFontSize: {{ $formConfig['process_name_font_size'] ?? 14 }},
+        componentDescriptionFontSize: {{ $formConfig['component_description_font_size'] ?? 14 }},
+        componentPartNoFontSize: {{ $formConfig['component_part_no_font_size'] ?? 14 }},
+        componentSerialNoFontSize: {{ $formConfig['component_serial_no_font_size'] ?? 14 }}
     };
 
     function loadPrintSettings() {

@@ -4,26 +4,33 @@
 
     <script>
         (() => {
-            const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
-            @if(auth()->user()?->roleIs(['Admin', 'Manager']))
-                allowedTabs.push('ro');
-            @endif
-            const woId = @json((string) ($current_workorder->id ?? ''));
-            let tab = document.documentElement.getAttribute('data-main-tab') || 'overview';
-
-            if (!allowedTabs.includes(tab)) {
-                tab = 'overview';
+            const tabs = @json($mainTabs);
+            const settings = @json($mainUiSettings);
+            const woId = @json((string) $current_workorder->id);
+            const match = location.hash.match(/^#qa-main:(.+)$/);
+            const target = match ? new URLSearchParams(match[1]) : null;
+            const requested = target?.get('tab') || @json($initialMainTab);
+            const tab = tabs.includes(requested) ? requested : 'overview';
+            document.documentElement.dataset.mainTab = tab;
+            const width = Number.parseInt(settings['panelWidth:' + woId + ':' + tab], 10);
+            if (tab !== 'overview' && Number.isFinite(width) && width > 0) {
+                document.documentElement.style.setProperty('--initial-main-tab-panel-width', Math.max(520, width) + 'px');
             }
-
-            document.documentElement.setAttribute('data-main-tab', tab);
-
-            if (tab === 'overview') {
-                return;
-            }
-
-            document.documentElement.style.removeProperty('--initial-main-tab-panel-width');
+            const groups = @json($general_tasks->pluck('id')->map(fn ($id) => (string) $id)->values());
+            const taskGroups = @json($tasks->pluck('general_task_id', 'id'));
+            const group = String(target?.get('general_task') || taskGroups[target?.get('task')] || @json($initialGeneralTask));
+            document.documentElement.dataset.mainGt = groups.includes(group) ? group : @json($initialGeneralTask);
+            document.documentElement.dataset.mainShowAll = settings.avia_show_all_right === true || settings.avia_show_all_right === '1' ? '1' : '0';
         })();
     </script>
+    <style>
+        .js-gt-pane { display: none !important; }
+        @foreach($general_tasks as $gt)
+        html[data-main-gt="{{ $gt->id }}"] .js-gt-pane[data-gt-id="{{ $gt->id }}"] { display: flex !important; }
+        html[data-main-gt="{{ $gt->id }}"] .js-gt-btn[data-gt-id="{{ $gt->id }}"] { box-shadow: 0 0 0 1px currentColor; }
+        @endforeach
+        html[data-main-show-all="0"] [data-main-tabs] tr[data-closed="1"]:not([data-std-row="1"]) { display: none; }
+    </style>
 
     @include('admin.mains.partials.styles')
     <style>
@@ -395,7 +402,8 @@
                                                         <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
                                                     </button>
                                                     <span id="pdfCountBadge"
-                                                          class="dir-top-count-badge bg-warning d-none"></span>
+                                                          data-count-loaded="1"
+                                                          class="dir-top-count-badge bg-warning {{ $documentCount ? '' : 'd-none' }}">{{ $documentCount ?: '' }}</span>
                                                 </span>
 
                                                 @admin
@@ -484,7 +492,7 @@
                                                         Parts
                                                     </button>
                                                     @endunless
-                                                    <span class="dir-top-v main-parts-count {{ ($orderedQty ?? 0) == ($receivedQty ?? 0) ? 'is-complete' : '' }}" title="Total IPL rows / rows with receipt source and received date">(<span class="main-parts-ordered" id="orderedRows{{ $current_workorder->number }}">{{ $orderedQty ?? 0 }}</span>/<span class="main-parts-received" id="receivedQty{{ $current_workorder->number }}">{{ $receivedQty ?? 0 }}</span>)</span>
+                                                    <span class="dir-top-v main-parts-count d-none" title="Total IPL rows / fully received rows">(<span class="main-parts-ordered" id="orderedRows{{ $current_workorder->number }}"></span>/<span class="main-parts-received" id="receivedQty{{ $current_workorder->number }}"></span>)</span>
                                                 </div>
                                                 <div class="dir-top-line main-parts-summary-opened">
                                                     <span class="dir-top-k">Opened:</span>
@@ -505,21 +513,7 @@
                 </div>
 
                 @unless($isDraftMain)
-                <script>
-                    (function () {
-                        const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
-                        @if(auth()->user()?->roleIs(['Admin', 'Manager']))
-                            allowedTabs.push('ro');
-                        @endif
-                        const woId = '{{ (int)($current_workorder->id ?? 0) }}';
-                        const hashMatch = window.location.hash.match(/^#qa-main:(.+)$/);
-                        const hashTab = hashMatch ? new URLSearchParams(hashMatch[1]).get('tab') : '';
-                        let tab = 'overview';
-                        if (hashTab && allowedTabs.includes(hashTab)) tab = hashTab;
-                        if (!allowedTabs.includes(tab)) tab = 'overview';
-                        document.documentElement.setAttribute('data-main-tab', tab);
-                    })();
-                </script>
+
 
                 {{-- Bottom --}}
                 <div class="main-tabs-shell gradient-pane border-info" data-main-tabs data-wo-id="{{ (int)($current_workorder->id ?? 0) }}">
@@ -556,21 +550,12 @@
                     <div class="bottom-col left gradient-pane border-info p-1" >
                         <div class="left-pane d-flex flex-column gap-2 h-100">
 
-                            <div id="mainLeftLoading" class="main-left-loading">
-                                <span class="main-left-loading-dots" aria-label="Loading left panel">
-                                    <span class="main-left-loading-dot"></span>
-                                    <span class="main-left-loading-dot"></span>
-                                    <span class="main-left-loading-dot"></span>
-                                </span>
-                            </div>
-
                             {{-- Tables --}}
-                            <div class="d-flex flex-column flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}"
-                                 hidden>
+                            <div class="d-flex flex-column flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}">
 
                                 @foreach($general_tasks as $i => $gt)
 
-                                    <div class="js-gt-pane d-none flex-grow-1 min-h-0 d-flex flex-column"
+                                    <div class="js-gt-pane flex-grow-1 min-h-0 d-flex flex-column"
                                          data-gt-id="{{ $gt->id }}">
                                         <div class="main-gt-scroll-area border border-secondary rounded flex-grow-1 min-h-0">
                                             <div class="d-flex flex-column gap-3 main-gt-scroll-inner min-h-0">
@@ -603,9 +588,6 @@
                                                         <col class="col-start">
                                                     @endif
                                                     <col class="col-finish">
-                                                    @role('Admin')
-                                                    <col class="col-log">
-                                                    @endrole
                                                 </colgroup>
                                                 <tbody>
                                                 @forelse(($tasksByGeneral[$gt->id] ?? collect()) as $task)
@@ -774,28 +756,11 @@
                                                                 </form>
                                                             </div>
                                                         </td>
-
-                                                        @role('Admin')
-                                                        {{-- Logs --}}
-                                                        <td class="text-center">
-                                                            @if($main)
-                                                                <button type="button"
-                                                                        class="btn btn-outline-info btn-sm js-open-log"
-                                                                        data-main-id="{{ $main->id }}"
-                                                                        data-url="{{ route('mains.activity', $main->id) }}"
-                                                                        title="Activity log">
-                                                                    <i class="bi bi-journal-text"></i>
-                                                                </button>
-                                                            @else
-                                                                <span class="text-muted small">—</span>
-                                                            @endif
-                                                        </td>
-                                                        @endrole
                                                     </tr>
 
                                                 @empty
                                                     <tr>
-                                                        <td colspan="5"
+                                                        <td colspan="{{ $showStartCol ? 5 : 4 }}"
                                                             class="text-center text-muted small py-3">
                                                             No tasks
                                                         </td>
@@ -1700,7 +1665,7 @@
     </script>
 
     @unless($isDraftMain)
-    <script src="{{ asset('js/tdrs/show/pdf-badge-handler.js') }}"></script>
+    <script src="{{ asset('js/tdrs/show/pdf-badge-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-badge-handler.js')) }}"></script>
     <script src="{{ asset('js/tdrs/show/pdf-library-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-library-handler.js')) }}"></script>
     <script src="{{ asset('js/tdrs/show/pdf-viewer-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-viewer-handler.js')) }}"></script>
     <script src="{{ asset('js/tdrs/show/pdf-upload-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-upload-handler.js')) }}"></script>
@@ -1714,7 +1679,7 @@
     @include('admin.mains.partials.js.mains-general-tasks')
 
     {{-- Photo and Logs --}}
-    @include('admin.mains.partials.js.mains-photos-logs')
+
 
     {{-- Parts / PO / TDRS / Training --}}
     @include('admin.mains.partials.js.mains-parts-training')
@@ -1736,6 +1701,7 @@
                 const resizeHandle = shell.querySelector('[data-main-tab-resize]');
                 const roPanel = shell.querySelector('[data-ro-url]');
                 let roLoading = false;
+                let roLoadedAt = 0;
                 let activeTab = 'overview';
                 let tabSelectedByUser = false;
                 let roPopovers = [];
@@ -1765,7 +1731,7 @@
                 }
 
                 async function loadRoLines() {
-                    if (!roPanel || roLoading) return;
+                    if (!roPanel || roLoading || Date.now() - roLoadedAt < 30000) return;
                     roLoading = true;
                     const content = roPanel.querySelector('[data-ro-content]');
                     roPopovers.forEach(instance => instance.destroy());
@@ -1782,6 +1748,7 @@
                         if (typeof data.html !== 'string') throw new Error('Invalid RO response');
                         content.innerHTML = data.html;
                         initRoPopovers(content);
+                        roLoadedAt = Date.now();
                     } catch (error) {
                         content.innerHTML = '<p class="p-3 text-danger" role="alert">Could not load RO lines. Reopen the RO tab to retry.</p>';
                     } finally {
@@ -1850,8 +1817,9 @@
                     const width = await window.UserUiSettings.get(settingsScope, widthKey(tab), '');
                     if (activeTab !== tab) return;
 
-                    if (width) {
-                        shell.style.setProperty('--main-tab-panel-width', `${parseInt(width, 10)}px`);
+                    const parsedWidth = Number.parseInt(width, 10);
+                    if (Number.isFinite(parsedWidth) && parsedWidth > 0) {
+                        shell.style.setProperty('--main-tab-panel-width', `${Math.max(520, parsedWidth)}px`);
                     } else {
                         shell.style.setProperty('--main-tab-panel-width', '100%');
                     }
@@ -2191,6 +2159,7 @@
             if (!checkbox) return;
 
             function applyFilter(showAll) {
+                document.documentElement.dataset.mainShowAll = showAll ? '1' : '0';
                 const rightPanel = document.querySelector('.bottom-col.right');
                 if (!rightPanel) return;
 
@@ -2214,6 +2183,7 @@
                         }
                     }
                 });
+                window.__mainsInitDatePickers?.();
             }
 
             window.UserUiSettings.get('mains.show', STORAGE_KEY, false).then((saved) => {

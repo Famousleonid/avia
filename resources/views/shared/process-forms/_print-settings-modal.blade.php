@@ -196,7 +196,7 @@
                                             </label>
                                             <div class="input-group">
                                                 <input type="number" class="form-control" id="ndtTableDataFontSize" name="ndtTableDataFontSize"
-                                                    min="6" max="20" step="0.5" value="{{ $formConfig['ndt_table_data_font_size'] ?? 9 }}">
+                                                    min="6" max="20" step="0.5" value="{{ $formConfig['ndt_table_data_font_size'] ?? 13 }}">
                                             </div>
                                         </div>
                                         @endif
@@ -210,7 +210,7 @@
                                             </label>
                                             <div class="input-group">
                                                 <input type="number" class="form-control" id="stressTableDataFontSize" name="stressTableDataFontSize"
-                                                    min="6" max="20" step="0.5" value="{{ $formConfig['stress_table_data_font_size'] ?? 9 }}">
+                                                    min="6" max="20" step="0.5" value="{{ $formConfig['stress_table_data_font_size'] ?? 13 }}">
                                             </div>
                                         </div>
                                         @endif
@@ -224,7 +224,7 @@
                                             </label>
                                             <div class="input-group">
                                                 <input type="number" class="form-control" id="otherTableDataFontSize" name="otherTableDataFontSize"
-                                                    min="6" max="20" step="0.5" value="{{ $formConfig['other_table_data_font_size'] ?? 9 }}">
+                                                    min="6" max="20" step="0.5" value="{{ $formConfig['other_table_data_font_size'] ?? 13 }}">
                                             </div>
                                         </div>
                                         @endif

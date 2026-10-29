@@ -589,7 +589,7 @@
 
         .spec-component-header-row > .col-10 > .row.g-0 > .col .part-no-data,
         .spec-component-header-row > .col-10 > .row.g-0 > .col .part-no-data div {
-            font-size: 9px !important;
+            font-size: 10px !important;
         }
 
         .border-r {
@@ -723,10 +723,10 @@
             font-size: 0.8rem;
         }
         .fs-7 {
-            font-size: 0.7rem;
+            font-size: 12px;
         }
         .fs-4 {
-            font-size: 0.4rem;
+            font-size: 12px;
         }
 
         .details-row {

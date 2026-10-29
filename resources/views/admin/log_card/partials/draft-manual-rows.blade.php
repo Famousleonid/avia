@@ -22,7 +22,6 @@
     @if(($orderedRow['row_type'] ?? '') === 'assy_group')
         @php
             $assyGroup = $orderedRow['assy_group'];
-            $partGroup = $assyGroup['group'];
             $choices = collect($assyGroup['choices']);
             $baseGroupKey = (string) $assyGroup['group_key'];
             $rowGroupKey = $sectionKey !== '' ? $sectionKey.'_'.$baseGroupKey : $baseGroupKey;
@@ -33,31 +32,20 @@
                     (int) ($saved['component_id'] ?? 0) === (int) $choice['component_id']
                 );
             });
-            $savedRow = $savedRowsForGroup->first();
+            $savedRow = $savedRowsForGroup->count() === 1 ? $savedRowsForGroup->first() : null;
             $selectedChoiceKey = null;
             if ($savedRow) {
-                $selectedOptionId = (int) ($savedRow['manual_part_group_option_id'] ?? 0);
-                $savedAssyPartNumber = trim((string) ($savedRow['assy_part_number'] ?? ''));
-                $matchedChoice = $choices->first(function ($choice) use ($savedRow, $selectedOptionId, $savedAssyPartNumber) {
-                    if ($selectedOptionId > 0) {
-                        return (int) ($choice['manual_part_group_option_id'] ?? 0) === $selectedOptionId;
-                    }
-                    if ($savedAssyPartNumber !== '' && ($choice['choice_kind'] ?? '') === 'assy') {
-                        return strcasecmp($savedAssyPartNumber, trim((string) ($choice['assy_part_number'] ?? ''))) === 0;
-                    }
-
-                    return ($choice['choice_kind'] ?? '') === 'component'
-                        && (int) ($choice['component_id'] ?? 0) === (int) ($savedRow['component_id'] ?? 0);
-                });
+                $matchedChoice = $choices->first(fn ($choice) =>
+                    (int) $choice['component_id'] === (int) $savedRow['component_id']);
                 $selectedChoiceKey = $matchedChoice['choice_key'] ?? null;
             }
-            $selectedChoiceKey ??= (string) ($choices->first()['choice_key'] ?? '');
+            // Single parts need no radio. A new multi-variant row requires an explicit choice.
+            if ($choices->count() === 1) $selectedChoiceKey = (string) $choices->first()['choice_key'];
         @endphp
 
         <tr class="lc-assy-group-row"
             data-manual-id="{{ $manual->id ?? '' }}"
-            data-manual-label="{{ $manualLabel }}"
-            data-manual-part-group-id="{{ $partGroup->id }}">
+            data-manual-label="{{ $manualLabel }}">
             <td class="text-center">
                 <input type="checkbox"
                        class="form-check-input lc-include-checkbox"
@@ -65,28 +53,30 @@
                        value="1"
                        data-group-key="{{ $rowGroupKey }}"
                        data-ipl-group="{{ $baseGroupKey }}"
-                       @checked((bool) $savedRow)
+                       @checked($savedRowsForGroup->isNotEmpty())
                        @disabled($logCardTdrReadOnly)>
             </td>
             <td>
-                <div class="small fw-semibold text-info mb-1">{{ $choices->contains(fn ($choice) => count($choice['assembly_choices'] ?? []) > 1) ? __('Part / ASSY') : $partGroup->name.' · ASSY' }}</div>
-                <div class="lc-assy-group-options" role="radiogroup" aria-label="{{ $partGroup->name }}">
+                @if($savedRowsForGroup->count() > 1)
+                    <div class="small text-warning">{{ __('Multiple variants were saved. Select the one to keep before saving.') }}</div>
+                @endif
+                <div class="lc-assy-group-options" @if($choices->count() > 1) role="radiogroup" aria-label="{{ __('Select a part') }}" @endif>
                     @foreach($choices as $choice)
                         <label class="lc-assy-group-option">
-                            <input type="radio"
+                            <input type="{{ $choices->count() > 1 ? 'radio' : 'hidden' }}"
                                    class="form-check-input lc-assy-group-radio"
                                    name="lc_selected_component[{{ $rowGroupKey }}]"
                                    value="{{ $choice['component_id'] }}"
                                    data-component-id="{{ $choice['component_id'] }}"
                                    data-ipl-group="{{ $baseGroupKey }}"
-                                   data-manual-part-group-id="{{ $partGroup->id }}"
+                                   data-manual-part-group-id="{{ $choice['manual_part_group_id'] ?? '' }}"
                                    data-manual-part-group-option-id="{{ $choice['manual_part_group_option_id'] ?? '' }}"
                                    data-part-group-choice="{{ $choice['choice_kind'] }}"
                                    data-assy-part-number="{{ $choice['assy_part_number'] }}"
                                    data-assy-ipl-num="{{ $choice['assy_ipl_num'] }}"
                                    @checked($selectedChoiceKey === (string) $choice['choice_key'])
                                    @disabled($logCardTdrReadOnly)>
-                            <span>
+                            <span class="lc-part-description">
                                 <strong>{{ $choice['part_number'] }}</strong>
                                 @if(filled($choice['ipl_num']))
                                     <span class="lc-ipl text-secondary">({{ $choice['ipl_num'] }})</span>
@@ -102,7 +92,7 @@
                     @php
                         $assemblyChoices = collect($choice['assembly_choices'] ?? []);
                         $selectedAssemblyGroup = (int) (($savedRow && (int) ($savedRow['component_id'] ?? 0) === (int) $choice['component_id'])
-                            ? ($savedRow['manual_part_group_id'] ?? $partGroup->id) : $partGroup->id);
+                            ? ($savedRow['manual_part_group_id'] ?? $choice['manual_part_group_id']) : $choice['manual_part_group_id']);
                         $selectedAssemblyOption = $savedRow && (int) ($savedRow['component_id'] ?? 0) === (int) $choice['component_id']
                             ? (int) ($savedRow['assy_option_id'] ?? 0) : 0;
                         if ($assemblyChoices->count() === 1 && !($savedRow && app(\App\Services\LogCardAssemblyIdentity::class)->isExplicitNoAssembly($savedRow))) {
@@ -129,6 +119,18 @@
                                                 ? $selectedAssemblyOption === (int) $assemblyChoice['option_id']
                                                 : ($savedRow && $selectedAssemblyGroup === (int) $assemblyChoice['group_id'] && ($savedRow['assy_part_number'] ?? '') === $assemblyChoice['part_number']))>
                                         {{ $assemblyChoice['ipl_num'] }} / {{ $assemblyChoice['part_number'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        @elseif(($choice['choice_kind'] ?? '') === '' && $choice['component']->assemblies->isNotEmpty())
+                            <select name="lc_selected_assembly[{{ $rowGroupKey }}_{{ $choice['component_id'] }}]"
+                                    class="form-select form-select-sm lc-assy-select"
+                                    data-component-id="{{ $choice['component_id'] }}" @disabled($logCardTdrReadOnly)>
+                                @foreach($choice['component']->assemblies as $assembly)
+                                    <option value="{{ $assembly->id }}" data-assy-part-number="{{ $assembly->assy_part_number }}"
+                                            data-assy-ipl-num="{{ $assembly->assy_ipl_num }}" data-units-assy="{{ $assembly->units_assy }}"
+                                            @selected((int) ($savedRow['component_assembly_id'] ?? 0) === (int) $assembly->id)>
+                                        {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
                                     </option>
                                 @endforeach
                             </select>
@@ -218,10 +220,14 @@
                    @else
                        data-ipl-group="{{ $iplGroup }}"
                    @endif>
-            {{ $component->part_number }} <span class="lc-ipl text-secondary">({{ $component->ipl_num }})</span> {{ $component->name }}
-            @if($isMultipleUnit)
-                <small class="text-muted text-nowrap ms-2">{{ __('Unit') }} {{ $unitIndex }} {{ __('of') }} {{ $unitsAssy }}</small>
-            @endif
+            <div class="lc-part-line">
+                <span class="lc-part-description">
+                    {{ $component->part_number }} <span class="lc-ipl text-secondary">({{ $component->ipl_num }})</span> {{ $component->name }}
+                    @if($isMultipleUnit)
+                        <small class="text-muted text-nowrap ms-2">{{ __('Unit') }} {{ $unitIndex }} {{ __('of') }} {{ $unitsAssy }}</small>
+                    @endif
+                </span>
+            </div>
         </td>
         <td class="text-start ps-3">
             @if($unitAssemblyChoices->isNotEmpty())

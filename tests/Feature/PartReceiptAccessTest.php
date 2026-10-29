@@ -30,7 +30,7 @@ class PartReceiptAccessTest extends TestCase
         $this->postJson(route('workorders.log-card-transfer.store', $wo), [])->assertForbidden();
         $this->deleteJson(route('workorders.log-card-transfer.destroy', $wo), [])->assertForbidden();
         $this->assertNull($tdr->fresh()->po_num);
-        $html = $this->get(route('mains.show', $wo))->assertOk()->getContent();
+        $html = $this->getJson(route('mains.parts', $wo))->assertOk()->json('html');
         $dom = new \DOMDocument();
         @$dom->loadHTML($html);
         $xpath = new \DOMXPath($dom);

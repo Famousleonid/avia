@@ -14,6 +14,7 @@
                 'component_id' => $option->component_id ? (int) $option->component_id : null,
                 'part_number' => $option->part_number,
                 'ipl_num' => $option->ipl_num,
+                'option_kind' => $option->option_kind,
                 'is_default' => (bool) $option->is_default,
                 'coverages' => $option->coverages->map(fn ($coverage) => [
                     'component_id' => $coverage->component_id ? (int) $coverage->component_id : null,
@@ -48,6 +49,7 @@
         'ipl_num' => (string) $part->ipl_num,
         'part_number' => (string) $part->part_number,
         'name' => (string) $part->name,
+        'units_assy' => $part->units_assy,
     ])->values();
 @endphp
 
@@ -441,13 +443,13 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('manual-part-group-nested-help').textContent = '{{ __('Only directly included groups are listed. Expand a group to see its contents.') }}';
         document.getElementById('manual-part-group-default-heading').textContent = isAssy()
             ? '{{ __('ASSY part') }}'
-            : '{{ __('Default') }}';
+            : (type.value === 'oversize' ? '{{ __('Original') }}' : '{{ __('Default') }}');
         document.getElementById('manual-part-group-member-help').textContent = isAssy()
             ? '{{ __('Select the ASSY part and every part included in it.') }}'
             : (isKit()
                 ? '{{ __('Select ordinary parts here; include complete ASSY groups below.') }}'
                 : (type.value === 'oversize'
-                    ? '{{ __('Add the original bushing first, followed by its oversizes. The Bushing checkbox is not required.') }}'
+                    ? '{{ __('Select Original. Its Qty from Parts is the maximum total quantity shared by all selected sizes.') }}'
                     : '{{ __('All selected P/Ns are variants of one detail.') }}'));
         updateSuggestedGroupName();
         renderMembers();
@@ -457,8 +459,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderMembers() {
         tbody.innerHTML = members.map(function (member, index) {
             const invalidBushing = isAssy() && memberBelongsToBushingGroup(member);
+            const displayedQty = type.value === 'oversize'
+                ? Math.max(1, parseInt(partCatalog.find(part => Number(part.component_id) === Number(member.component_id))?.units_assy, 10) || 1)
+                : Number(member.qty || 1);
             return '<tr data-index="' + index + '" class="' + (invalidBushing ? 'table-warning' : '') + '"><td>' + escapeHtml(member.ipl_num) + '</td><td>' + escapeHtml(member.part_number) + '</td><td>' + escapeHtml(member.name) + '</td>' +
-                '<td><input type="number" min="1" max="9999" class="form-control form-control-sm part-group-member-qty" value="' + Number(member.qty || 1) + '" ' + (!isBundle() ? 'disabled' : '') + '></td>' +
+                '<td><input type="number" min="1" max="9999" class="form-control form-control-sm part-group-member-qty" value="' + displayedQty + '" ' + (!isBundle() ? 'disabled' : '') + '></td>' +
                 '<td class="text-center"><input type="radio" name="part-group-default" class="form-check-input part-group-member-default" ' + (member.is_default ? 'checked' : '') + ' ' + (isKit() ? 'disabled' : '') + '></td>' +
                 '<td><button type="button" class="btn btn-sm btn-outline-danger part-group-member-remove" aria-label="Remove"><i class="bi bi-x"></i></button></td></tr>';
         }).join('');
@@ -578,6 +583,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const cells = row?.querySelectorAll('td') || [];
             return { component_id: item.component_id, ipl_num: item.ipl_num || '', part_number: item.part_number || '', name: cells[3]?.textContent.trim() || '', qty: 1, is_default: item.is_default };
         });
+        if (type.value === 'oversize') {
+            const original = group.options.find(item => item.option_kind === 'original')
+                || group.options.find(item => item.option_kind === 'standard'
+                    && /^\d+(\.\d+)?$/.test(String(partCatalog.find(part => Number(part.component_id) === Number(item.component_id))?.units_assy ?? '')))
+                || group.options.find(item => item.is_default) || group.options[0];
+            members.forEach(member => { member.is_default = Number(member.component_id) === Number(original?.component_id); });
+        }
         if (isAssy()) {
             members.forEach(function (member) { member.is_default = Number(member.component_id) === Number(option.component_id); });
         }

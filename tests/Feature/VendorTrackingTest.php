@@ -451,6 +451,8 @@ class VendorTrackingTest extends TestCase
         $page = $this->actingAs($admin)->get(route('vendor-tracking.index'));
         $page->assertOk();
         $pageHtml = (string) $page->getContent();
+        $mainLink = 'href="' . route('mains.show', ['workorder' => $openWorkorder->id]) . '"';
+        $this->assertStringContainsString($mainLink, $pageHtml);
 
         $this->assertStringContainsString('R-OPEN-UNRES-' . $suffix, $pageHtml);
         $this->assertStringContainsString('R-OPEN-APPLIED-' . $suffix, $pageHtml);
@@ -460,6 +462,7 @@ class VendorTrackingTest extends TestCase
         $recent = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.recent'));
         $recent->assertOk();
         $recentHtml = (string) $recent->json('html');
+        $this->assertStringContainsString($mainLink, $recentHtml);
         $this->assertStringContainsString('R-OPEN-UNRES-' . $suffix, $recentHtml);
         $this->assertStringContainsString('R-OPEN-APPLIED-' . $suffix, $recentHtml);
         $this->assertStringNotContainsString('R-CLOSED-UNRES-' . $suffix, $recentHtml);
@@ -482,6 +485,8 @@ class VendorTrackingTest extends TestCase
             ->assertJsonPath('found', true)
             ->assertJsonPath('total', 2)
             ->assertJsonPath('unparsed_total', 1);
+        $this->assertStringContainsString($mainLink, (string) $openSearch->json('html'));
+        $this->assertStringContainsString($mainLink, (string) $openSearch->json('unparsed_html'));
     }
 
     public function test_quantum_not_applicable_rows_do_not_show_in_unparsed_section(): void

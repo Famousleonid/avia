@@ -12,6 +12,22 @@
     const retake = document.getElementById('pilotCameraRetake');
     const resume = document.getElementById('pilotCameraResume');
     const close = document.getElementById('pilotCameraClose');
+    // Build compatibility controls in JS so older cached Blade still works.
+    const phoneCamera = document.createElement('button');
+    phoneCamera.id = 'pilotCameraPhone';
+    phoneCamera.type = 'button';
+    phoneCamera.className = 'btn btn-outline-light';
+    phoneCamera.textContent = 'Use phone camera';
+    phoneCamera.hidden = true;
+    capture.parentElement.insertBefore(phoneCamera, capture);
+    const phoneInput = document.createElement('input');
+    phoneInput.type = 'file';
+    phoneInput.accept = 'image/*';
+    phoneInput.setAttribute('capture', 'environment');
+    // This picker has its own preview/validation below, inside the camera dialog.
+    phoneInput.setAttribute('data-mobile-photo-retry', '');
+    phoneInput.hidden = true;
+    dialog.appendChild(phoneInput);
     // Create the overlay here so updating /public also supports older Blade HTML.
     const categoryLabel = document.createElement('p');
     categoryLabel.id = 'pilotCameraCategory';
@@ -38,6 +54,9 @@
     let cameraRequest = 0;
     let session = 0;
     let frame = null;
+    let frameValid = false;
+    let phoneMode = false;
+    let phonePickerSession = null;
     let frameUrl = null;
     let orientationVersion = 0;
     let stableAfter = 0;
@@ -45,7 +64,11 @@
     let confirming = false;
     let videoFrameCallback = null;
     let videoSize = '';
+    let rotationRecoveryTimer = null;
+    let landscapeRestarted = false;
+    let viewportLandscape = window.matchMedia('(orientation: landscape)').matches;
     const ROTATE_MESSAGE = 'Turn your phone horizontally';
+    const FRAME_ROTATE_MESSAGE = 'Adjusting camera for landscape…';
 
     function fitLiveVideo() {
         if (!dialog.open || !video.videoWidth || !video.videoHeight) return;
@@ -103,15 +126,19 @@
         resume.textContent = next === 'playback' ? 'Start preview' : 'Resume camera';
         close.disabled = next === 'saving' || next === 'capturing';
         save.disabled = next === 'saving';
+        if (reviewing && !frameValid) save.disabled = true;
         retake.disabled = next === 'saving';
         save.textContent = next === 'saving' ? 'Saving…' : 'Save photo';
         capture.disabled = true;
         dialog.dataset.blocked = 'false';
-        if (next === 'live') refreshCapture();
+        phoneCamera.hidden = next !== 'error' && next !== 'playback';
+        if (next === 'live' || next === 'native') refreshCapture();
     }
 
     function stopCamera() {
         cameraRequest++;
+        window.clearTimeout(rotationRecoveryTimer);
+        rotationRecoveryTimer = null;
         if (videoFrameCallback !== null) {
             cancelAnimationFrame(videoFrameCallback);
             videoFrameCallback = null;
@@ -124,6 +151,7 @@
 
     function releaseFrame() {
         frame = null;
+        frameValid = false;
         preview.removeAttribute('src');
         if (frameUrl) URL.revokeObjectURL(frameUrl);
         frameUrl = null;
@@ -137,6 +165,8 @@
         dialog.querySelectorAll('.notify-status').forEach(notification => notification.remove());
         dialog.close();
         setState('closed');
+        phoneMode = false;
+        phonePickerSession = null;
         target = null;
     }
 
@@ -152,20 +182,59 @@
             return 'Hold still while the camera adjusts…';
         }
         if (video.videoWidth <= video.videoHeight) {
-            return 'The camera frame is vertical. Keep the phone horizontal and wait for the picture to rotate.';
+            return landscapeRestarted
+                ? 'Use phone camera to take a landscape photo.'
+                : FRAME_ROTATE_MESSAGE;
         }
         return '';
     }
 
     function refreshCapture() {
+        if (state === 'native') {
+            capture.disabled = !window.matchMedia('(orientation: landscape)').matches;
+            dialog.dataset.blocked = String(capture.disabled);
+            setStatus(capture.disabled ? ROTATE_MESSAGE : 'Tap the camera button to take a photo.');
+            return;
+        }
         if (state !== 'live') return;
         const reason = captureBlocker();
         capture.disabled = !!reason;
         dialog.dataset.blocked = String(!!reason);
         setStatus(reason);
+        const needsRestart = landscapeRestarted && video.videoWidth > 0
+            && video.videoWidth <= video.videoHeight
+            && window.matchMedia('(orientation: landscape)').matches;
+        resume.hidden = !needsRestart;
+        phoneCamera.hidden = !needsRestart;
+        // Two recovery actions fit short landscape screens; an unusable shutter
+        // would otherwise push the top action into the close button.
+        capture.hidden = needsRestart;
+        if (needsRestart) resume.textContent = 'Restart camera';
+        if (reason === FRAME_ROTATE_MESSAGE && rotationRecoveryTimer === null) {
+            const request = cameraRequest;
+            // Let ordinary camera rotation settle first. Some Android browsers
+            // retain the portrait stream until it is acquired again in landscape.
+            rotationRecoveryTimer = window.setTimeout(() => {
+                rotationRecoveryTimer = null;
+                if (request !== cameraRequest || state !== 'live' || document.hidden) return;
+                if (captureBlocker() !== FRAME_ROTATE_MESSAGE) { refreshCapture(); return; }
+                landscapeRestarted = true;
+                startCamera(false, true);
+            }, 1000);
+        } else if (reason !== FRAME_ROTATE_MESSAGE) {
+            window.clearTimeout(rotationRecoveryTimer);
+            rotationRecoveryTimer = null;
+        }
     }
 
     function orientationChanged() {
+        const landscape = window.matchMedia('(orientation: landscape)').matches;
+        // Video resize/playing and browser-toolbar resizes are not new turns.
+        // Limit automatic recovery to one attempt per actual orientation change.
+        if (landscape !== viewportLandscape) {
+            viewportLandscape = landscape;
+            landscapeRestarted = false;
+        }
         fitLiveVideo();
         orientationVersion++;
         stableAfter = performance.now() + 500;
@@ -175,7 +244,9 @@
     }
 
     function returnToCamera() {
-        if (document.hidden) {
+        if (phoneMode) {
+            setState('native');
+        } else if (document.hidden) {
             stopCamera();
             setState('paused', 'Camera paused when you left the page. Tap Resume camera.');
         } else if (stream?.getVideoTracks().some(track => track.readyState === 'live' && !track.muted)) {
@@ -213,7 +284,8 @@
         }
     }
 
-    async function startCamera(permissionRetry = false) {
+    async function startCamera(permissionRetry = false, orientationRecovery = false) {
+        if (!orientationRecovery) landscapeRestarted = false;
         stopCamera();
         accessResult.hidden = true;
         accessResult.textContent = '';
@@ -222,12 +294,27 @@
             return;
         }
         const request = cameraRequest;
-        setState('opening', 'Allow camera access when your phone asks.');
+        setState('opening', orientationRecovery ? FRAME_ROTATE_MESSAGE : 'Allow camera access when your phone asks.');
         try {
-            const acquired = await navigator.mediaDevices.getUserMedia({
-                audio: false,
-                video: { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } },
-            });
+            const constraints = { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } };
+            if (orientationRecovery) {
+                constraints.aspectRatio = { ideal: 4 / 3 };
+                // Ask for an uncropped camera mode, instead of reacquiring the
+                // same browser crop/scale mode that may remain stuck in portrait.
+                if (navigator.mediaDevices.getSupportedConstraints?.().resizeMode) {
+                    constraints.resizeMode = { exact: 'none' };
+                }
+            }
+            let acquired;
+            try {
+                acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: constraints });
+            } catch (error) {
+                if (!orientationRecovery || error.name !== 'OverconstrainedError') throw error;
+                if (request !== cameraRequest || state === 'closed' || document.hidden) return;
+                // Optional camera-mode negotiation must not exclude a browser
+                // that can only provide its default mode. Never retry a denial.
+                acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' } } });
+            }
             if (request !== cameraRequest || state === 'closed' || document.hidden) {
                 acquired.getTracks().forEach(track => track.stop());
                 return;
@@ -301,6 +388,7 @@
     }
 
     capture.addEventListener('click', async () => {
+        if (state === 'native') { openPhoneCamera(); return; }
         if (state !== 'live' || captureBlocker()) { refreshCapture(); return; }
         dialog.querySelectorAll('.notify-status').forEach(notification => notification.remove());
         const current = session;
@@ -320,6 +408,7 @@
                 return;
             }
             frame = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+            frameValid = true;
             frameUrl = URL.createObjectURL(frame);
             preview.src = frameUrl;
             setState('review', 'Photo not saved.');
@@ -340,7 +429,7 @@
     });
 
     save.addEventListener('click', async () => {
-        if (state !== 'review' || !frame || confirming) return;
+        if (state !== 'review' || !frame || !frameValid || confirming) return;
         setState('saving', 'Saving photo… Please keep this page open.');
         const currentTarget = target;
         const body = new FormData();
@@ -371,10 +460,53 @@
     });
 
     close.addEventListener('click', requestClose);
-    dialog.addEventListener('cancel', event => { event.preventDefault(); requestClose(); });
+    function openPhoneCamera() {
+        if (frame || confirming || ['closed', 'saving', 'capturing', 'review'].includes(state)) return;
+        if (!window.matchMedia('(orientation: landscape)').matches) {
+            setStatus(ROTATE_MESSAGE);
+            return;
+        }
+        phoneMode = true;
+        stopCamera(); // Release the camera before the system camera needs it.
+        setState('native');
+        phoneInput.value = '';
+        phonePickerSession = session;
+        phoneInput.click(); // Must remain synchronous with the user's tap.
+    }
+    phoneCamera.addEventListener('click', openPhoneCamera);
+    phoneInput.addEventListener('change', async () => {
+        const selected = phoneInput.files?.[0];
+        phoneInput.value = '';
+        if (!selected || phonePickerSession !== session || !phoneMode || state === 'closed' || state === 'saving') return;
+        const current = session;
+        releaseFrame();
+        frame = selected;
+        frameUrl = URL.createObjectURL(selected);
+        preview.src = frameUrl;
+        setState('review', 'Checking photo… Photo not saved.');
+        try {
+            if (typeof window.MobileLandscapePhoto?.validateFiles !== 'function') throw new Error('Photo validation is unavailable.');
+            const valid = await window.MobileLandscapePhoto.validateFiles([selected]);
+            if (current !== session || frame !== selected) return;
+            frameValid = valid;
+            setState('review', valid ? 'Photo not saved.' : 'Photo not saved. Take a new photo horizontally.');
+        } catch (error) {
+            if (current !== session || frame !== selected) return;
+            setState('review', 'Photo not saved. This image could not be checked. Retake it as a JPEG photo.');
+        }
+    });
+    dialog.addEventListener('cancel', event => {
+        // A file input's cancel event bubbles too; cancelling the system picker
+        // must not be interpreted as Escape/back on the camera dialog.
+        if (event.target !== dialog) return;
+        event.preventDefault();
+        requestClose();
+    });
     resume.addEventListener('click', () => {
         if (state === 'playback' && stream?.getVideoTracks().some(track => track.readyState === 'live')) startPreview();
         else if (['paused', 'error', 'playback'].includes(state)) startCamera();
+        else if (state === 'live' && landscapeRestarted && video.videoWidth <= video.videoHeight
+            && window.matchMedia('(orientation: landscape)').matches) startCamera(false, true);
     });
     allow.addEventListener('click', () => {
         // A user gesture retries the browser request; a remembered Deny still

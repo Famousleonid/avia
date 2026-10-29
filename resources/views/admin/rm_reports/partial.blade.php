@@ -1,3 +1,6 @@
+@php
+    $canManageRmTemplates = auth()->user()->roleIs('Admin') || auth()->user()->roleIs('Manager');
+@endphp
 <div class="rm-reports-partial">
     <style>
         .rm-reports-partial {
@@ -36,9 +39,8 @@
             position: relative;
         }
         .table-scroll-technical-notes {
-            max-height: 18vh;
-            overflow-y: auto;
-            overflow-x: auto;
+            max-height: none;
+            overflow: visible;
             position: relative;
         }
         .table-scroll-rm-records thead th,
@@ -56,9 +58,35 @@
         #previewRecordsTableBody td { vertical-align: top; padding: .25rem; }
         #previewRecordsTableBody .form-control { min-width: 0; width: 100%; font-size: 12px; }
         #previewRecordsTableBody textarea { min-height: 65px; resize: vertical; }
-        #previewRecordsTableBody select { min-width: 105px; }
-        .rm-preview-card-body .table-scroll-rm-records { overflow-x: auto; }
-        .rm-preview-card-body .table-scroll-rm-records table { min-width: 650px; }
+        #previewRecordsTableBody [aria-label="ipl"] { min-width: 72px; }
+        #previewRecordsTableBody [aria-label="part_description"] { min-width: 125px; }
+        #previewRecordsTableBody select { min-width: 0; }
+        .rm-reports-partial .rm-preview-card-body {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .rm-record-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+        .rm-preview-card-body .table-scroll-rm-records { overflow: visible; }
+        .rm-note-actions { display: flex; align-items: center; gap: .5rem; white-space: nowrap; }
+        #technicalNotesTableBody input { width: 100%; min-width: 0; }
+        .table-scroll-technical-notes table { table-layout: fixed; width: 100%; }
+        .rm-preview-card-body .table-scroll-rm-records table { min-width: 750px; table-layout: fixed; }
+        .rm-record-heading {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            flex: 0 0 auto;
+            align-items: center;
+            gap: .5rem;
+        }
+        .rm-record-heading h4 { grid-column: 2; text-align: center; }
+        .rm-record-heading-actions { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: .5rem; white-space: nowrap; }
+        @media (max-width: 767px) {
+            .rm-record-heading { grid-template-columns: minmax(0, 1fr); }
+            .rm-note-actions,
+            .rm-record-heading h4,
+            .rm-record-heading-actions { grid-column: 1; }
+        }
         .rm-records-table-right {
             font-size: 12px;
         }
@@ -93,26 +121,67 @@
             background: var(--dir-thead-bg, var(--avia-surface-raised)) !important;
             color: var(--avia-text, var(--bs-body-color)) !important;
         }
-        .rm-record-card #previewTechnicalNotes {
-            background: var(--avia-input, var(--bs-body-bg));
-            border-color: var(--avia-border, var(--bs-border-color)) !important;
+        .rm-reports-partial .rm-templates-drawer {
+            --bs-offcanvas-width: min(950px, 100vw);
+            width: min(950px, 100vw);
+            max-width: 100vw;
+            bottom: var(--admin-footer-height, 35px);
+            background: var(--avia-surface, var(--bs-body-bg));
+            color: var(--avia-text, var(--bs-body-color));
         }
-        .rm-record-card #rmEditorSaveStatus { color: var(--avia-text-muted); }
+        .rm-templates-drawer .rm-editor-card-body { height: auto; overflow-y: auto; }
+        .rm-templates-drawer .rm-records-table-right { min-width: 650px; }
+        .rm-record-card .table-scroll-technical-notes td:first-child { white-space: pre-wrap; }
+        .rm-record-card .table-scroll-technical-notes td:last-child { width: 85px; white-space: nowrap; }
+        .rm-record-card #rmEditorSaveStatus {
+            color: var(--avia-text-muted);
+            display: inline-block;
+            width: 10ch;
+            flex: 0 0 10ch;
+            text-align: right;
+        }
+        .rm-record-card #rmEditorSaveStatus[data-state="saving"] { color: #ffc107; }
     </style>
 
     <div class="row g-3">
         {{-- Card 1: Workorder repair records --}}
-        <div class="col-md-6">
+        <div class="col-12">
             <div class="card h-100 rm-record-card border">
                 <div class="card-body rm-preview-card-body">
-                    <h4 class="text-center">{{__('Repair and Modification Record WO')}}{{$current_wo->number}}</h4>
-                    <div id="rmEditorSaveStatus" class="small text-end" aria-live="polite"></div>
-                    <div class="p-2">
-                        <h6>{{__('Technical Notes')}}</h6>
-                        <div id="previewTechnicalNotes" class="border rounded p-2" style="min-height: 50px; white-space: pre-wrap;"></div>
+                    <div class="rm-record-heading mb-2">
+                        <div class="rm-note-actions">
+                            <h5 class="text-primary mb-0 rm-section-title">{{ __('Technical Notes') }}</h5>
+                            <button type="button" class="btn btn-outline-info btn-sm" id="rmAddNote">
+                                {{ __('Add Notes') }}
+                            </button>
+                            <button type="button" class="btn btn-outline-info btn-sm" id="rmAddRow">{{ __('Add row') }}</button>
+                        </div>
+
+                        <h4 class="mb-0 rm-section-title">{{ __('Repair and Modification Record') }} <span class="text-info text-nowrap">W {{ $current_wo->number }}</span></h4>
+                        <div class="rm-record-heading-actions">
+                            <span id="rmEditorSaveStatus" class="small" aria-live="polite"></span>
+                            <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="offcanvas" data-bs-target="#rmTemplatesDrawer" aria-controls="rmTemplatesDrawer">{{ __('Templates') }}</button>
+                        </div>
+                    </div>
+                    <div class="rm-record-scroll">
+                    {{-- Technical Notes section --}}
+                    <div class="mb-3 rm-editor-section">
+                        <div class="table-responsive table-scroll-technical-notes">
+                            <table class="table table-bordered dir-table">
+                                <tbody id="technicalNotesTableBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                     <div class="mt-3 table-scroll-rm-records">
                         <table class="table table-bordered table-hover text-center align-middle dir-table" style="font-size: 12px">
+                            <colgroup>
+                                <col style="width: 100px">
+                                <col style="width: 18%">
+                                <col data-rm-type-column style="width: 130px">
+                                <col>
+                                <col style="width: 20%">
+                                <col style="width: 80px">
+                            </colgroup>
                             <thead>
                             <tr>
                                 <th class="border align-middle">{{ __('IPL') }}</th>
@@ -125,38 +194,30 @@
                             </thead>
                             <tbody id="previewRecordsTableBody"></tbody>
                         </table>
-                    </div>
+                        </div>
+                </div>
                 </div>
             </div>
         </div>
 
-        {{-- Card 2: Technical Notes + Repair and Modification --}}
-        <div class="col-md-6">
-            <div class="card bg-gradient h-100">
-                <div class="card-body rm-editor-card-body">
-                    {{-- Technical Notes section --}}
-                    <div class="mb-3 rm-editor-section">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h5 class="text-primary mb-0 rm-section-title">{{ __('Technical Notes') }}</h5>
-                            <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#technicalNoteModal">
-                                {{ __('Add Notes') }}
-                            </button>
-                        </div>
-                        <div class="table-responsive table-scroll-technical-notes">
-                            <table class="table table-bordered dir-table">
-                                <tbody id="technicalNotesTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
+    </div>
 
+    <div class="offcanvas offcanvas-end rm-templates-drawer" tabindex="-1" id="rmTemplatesDrawer" aria-labelledby="rmTemplatesDrawerTitle">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title" id="rmTemplatesDrawerTitle">{{ __('Templates') }} — {{ $current_wo->unit->manual->number ?? '' }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ __('Close templates') }}"></button>
+        </div>
+        <div class="offcanvas-body rm-editor-card-body">
                     {{-- Repair and Modification section --}}
                     <div class="rm-editor-section rm-editor-section--records">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h5 class="text-primary mb-0 rm-section-title">{{ __('Repair and Modification') }}</h5>
                             <div class="d-flex gap-2 align-items-center">
+                                @if($canManageRmTemplates)
                                 <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#addRmRecordModal">
-                                    {{ __('ADD')}}
+                                    {{ __('Add template')}}
                                 </button>
+                                @endif
                             </div>
                         </div>
 
@@ -219,7 +280,7 @@
                                                         </div>
                                                     </td>
                                                     <td class="align-middle">
-                                                        @if(! $report->is_admin_template || auth()->user()->roleIs('Admin'))
+                                                        @if($canManageRmTemplates && (! $report->is_admin_template || auth()->user()->roleIs('Admin')))
                                                         <button class="btn btn-sm btn-outline-primary me-1" onclick="window.rmPartialEditRecord({{ $report->id }})" data-bs-toggle="modal" data-bs-target="#editRmRecordModal">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
@@ -235,17 +296,15 @@
                                     </div>
                                 @else
                                     <div class="alert alert-info mt-3">
-                                        {{ __('No R&M records found for this work order.') }}
-                                        {{ __('Use "Add Repair OR Modification" to create the first record.') }}
+                                        {{ __('No templates found for this manual.') }}
                                     </div>
                                 @endif
                             </div>
                         </div>
-                </div>
-            </div>
         </div>
     </div>
 
+    @if($canManageRmTemplates)
     <div class="modal fade" id="addRmRecordModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content bg-gradient">
@@ -436,24 +495,8 @@
         </div>
     </div>
 
-    <div class="modal fade" id="technicalNoteModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content bg-gradient">
-                <div class="modal-header">
-                    <h5 class="modal-title">{{ __('Enter Note') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <textarea id="technicalNoteInput" class="form-control" rows="3" placeholder="{{ __('Enter technical note') }}"></textarea>
-                    <input type="hidden" id="technicalNoteIndex" value="-1">
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
-                    <button type="button" class="btn btn-outline-primary" id="rmPartialSaveTechnicalNoteBtn">{{ __('Save') }}</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    @endif
+
 </div>
 
 <script>
@@ -463,6 +506,20 @@
     if (!Array.isArray(technicalNotes)) technicalNotes = [];
 
     var editorRows = @json(app(\App\Services\WorkorderRepairRows::class)->rows($current_wo, $rm_reports->whereIn('id', $savedRecordIds)));
+    var templatesDrawer = document.getElementById('rmTemplatesDrawer');
+    function restoreTemplatesFocus() {
+        if (templatesDrawer.classList.contains('show') && !document.querySelector('.modal.show')) {
+            var drawer = bootstrap.Offcanvas.getInstance(templatesDrawer);
+            if (drawer && drawer._focustrap) {
+                drawer._focustrap.deactivate();
+                drawer._focustrap.activate();
+            }
+        }
+    }
+    ['addRmRecordModal', 'editRmRecordModal'].forEach(function(id) {
+        var modal = document.getElementById(id);
+        if (modal) modal.addEventListener('hidden.bs.modal', restoreTemplatesFocus);
+    });
     var DEBOUNCE_MS = 400;
     var saveTimeout = null;
     var storeUrl = '{{ route("rm_reports.store") }}';
@@ -539,9 +596,6 @@
     }
 
     function updatePreview() {
-        var notesEl = document.getElementById('previewTechnicalNotes');
-        if (notesEl) notesEl.textContent = technicalNotes.join('\n');
-
         var tbody = document.getElementById('previewRecordsTableBody');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -556,13 +610,15 @@
                 description: cell('description'), ident_method: cell('ident-method'), ident_number: '', deleted: false});
         });
         editorRows.filter(row => !row.deleted).forEach(function(row) {
+            if (row.ident_number) {
+                row.ident_method = [row.ident_method, row.ident_number].filter(Boolean).join(' ');
+                row.ident_number = '';
+            }
             var tr = document.createElement('tr');
             tr.dataset.repairRow = row.key;
             function textCell(text) { var td = document.createElement('td'); td.textContent = text; tr.appendChild(td); return td; }
-            textCell(row.ipl);
-            textCell(row.part_description);
             function control(field, options) {
-                var input = document.createElement(options ? 'select' : (field === 'description' ? 'textarea' : 'input'));
+                var input = document.createElement(options ? 'select' : (['description', 'part_description', 'ident_method'].includes(field) ? 'textarea' : 'input'));
                 input.className = 'form-control form-control-sm';
                 input.setAttribute('aria-label', field);
                 if (options) {
@@ -570,16 +626,17 @@
                     options.forEach(value => { var option = document.createElement('option'); option.value = value; option.textContent = value || '—'; input.appendChild(option); });
                 }
                 input.value = row[field] || '';
-                if (!options) input.maxLength = field === 'description' ? 2000 : 250;
+                if (!options) input.maxLength = ({description: 2000, part_description: 500, ident_method: 501, ipl: 100})[field] || 250;
                 input.addEventListener('input', function() { row[field] = input.value; });
                 input.addEventListener('change', function() { row[field] = input.value; triggerDebouncedSave(); });
                 return input;
             }
+            textCell('').appendChild(control('ipl'));
+            textCell('').appendChild(control('part_description'));
             textCell('').appendChild(control('mod_repair', ['Repair', 'Modification', 'SB']));
             textCell('').appendChild(control('description'));
             var identification = textCell('');
-            identification.appendChild(control('ident_method', ['', 'Inkmark', 'Vibropeen']));
-            var number = control('ident_number'); number.placeholder = 'Number'; identification.appendChild(number);
+            identification.appendChild(control('ident_method'));
             var remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn btn-sm btn-outline-danger';
             remove.setAttribute('aria-label', 'Remove repair row'); remove.innerHTML = '<i class="fas fa-trash"></i>';
             remove.addEventListener('click', async function() {
@@ -590,13 +647,22 @@
                     if (cb) { cb.checked = false; cb.dispatchEvent(new Event('change')); }
                     return;
                 }
-                if (!await rmPartialConfirmDelete('Remove this row from the R&M form? The TDR will remain unchanged.')) return;
+                if (!await rmPartialConfirmDelete(row.key.startsWith('custom:') ? 'Remove this row from the R&M form?' : 'Remove this row from the R&M form? The TDR will remain unchanged.')) return;
                 row.deleted = true; updatePreview();
                 if (!await performSave()) { row.deleted = false; updatePreview(); }
             });
             textCell('').appendChild(remove);
             tbody.appendChild(tr);
         });
+        var typeSelect = tbody.querySelector('[aria-label="mod_repair"]');
+        var typeColumn = document.querySelector('[data-rm-type-column]');
+        if (typeSelect && typeColumn) {
+            var style = getComputedStyle(typeSelect);
+            var measure = document.createElement('canvas').getContext('2d');
+            measure.font = style.font || (style.fontSize + ' ' + style.fontFamily);
+            var longest = Math.max(...Array.from(tbody.querySelectorAll('[aria-label="mod_repair"] option'), option => measure.measureText(option.textContent).width));
+            typeColumn.style.width = Math.ceil(longest + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + 32) + 'px';
+        }
     }
 
     function triggerDebouncedSave() {
@@ -622,6 +688,7 @@
         if (confirmation && bootstrap.Modal.getInstance(confirmation)?._isTransitioning) {
             await new Promise(function(resolve) { confirmation.addEventListener('hidden.bs.modal', resolve, {once: true}); });
         }
+        restoreTemplatesFocus();
         if (!confirmed && modal) modal.show();
         return confirmed;
     }
@@ -638,6 +705,9 @@
             okText: '{{ __('Delete') }}',
             cancelText: '{{ __('Cancel') }}',
             danger: true
+        }).then(function(confirmed) {
+            restoreTemplatesFocus();
+            return confirmed;
         });
     }
 
@@ -651,20 +721,20 @@
     function sendRepairSave() {
         saveTimeout = null;
         var saveStatus = document.getElementById('rmEditorSaveStatus');
-        if (saveStatus) saveStatus.textContent = 'Saving…';
+        if (saveStatus) { saveStatus.textContent = 'Saving…'; saveStatus.dataset.state = 'saving'; }
         var selectedRecords = [];
         document.querySelectorAll('.record-checkbox:checked').forEach(function(cb) { selectedRecords.push(cb.value); });
         var formData = new FormData();
         formData.append('selected_records', JSON.stringify(selectedRecords));
         editorRows.forEach(function(row, index) {
-            ['key', 'mod_repair', 'description', 'ident_method', 'ident_number', 'deleted'].forEach(function(field) {
+            ['key', 'ipl', 'part_description', 'mod_repair', 'description', 'ident_method', 'ident_number', 'deleted'].forEach(function(field) {
                 formData.append('editor_rows[' + index + '][' + field + ']', field === 'deleted' ? (row.deleted ? '1' : '0') : (row[field] || ''));
             });
         });
         formData.append('workorder_id', workorderId);
         formData.append('_token', csrfToken);
         formData.append('_method', 'PUT');
-        technicalNotes.forEach(function(note, i) { formData.append('notes[' + i + ']', note); });
+        technicalNotes.forEach(function(note, i) { formData.append('notes[' + i + ']', note || ''); });
 
         return fetch(updateUrl, {
             method: 'POST',
@@ -674,19 +744,19 @@
         }).then(function(r) { return r.json().catch(function() { return {}; }); })
         .then(function(data) {
             if (!data.success) {
-                if (saveStatus) saveStatus.textContent = 'Not saved';
+                if (saveStatus) { saveStatus.textContent = 'Not saved'; saveStatus.dataset.state = 'error'; }
                 notifyRm(responseError(data, '{{ __('Unable to save the R&M selection.') }}'), 'error');
                 return false;
             }
             var status = document.getElementById('rmAssemblyScopeStatus');
-            if (saveStatus) saveStatus.textContent = 'Saved';
+            if (saveStatus) { saveStatus.textContent = 'Saved'; saveStatus.dataset.state = 'saved'; }
             var value = status ? status.querySelector('[data-rm-modified-value]') : null;
             var modification = data.modification || {};
             if (status) status.classList.toggle('d-none', !modification.target_option_id);
             if (value) value.textContent = modification.modified || '';
             return true;
         }).catch(function() {
-            if (saveStatus) saveStatus.textContent = 'Not saved';
+            if (saveStatus) { saveStatus.textContent = 'Not saved'; saveStatus.dataset.state = 'error'; }
             notifyRm('{{ __('Unable to save the R&M selection.') }}', 'error');
             return false;
         });
@@ -717,6 +787,7 @@
                     cancelText: '{{ __('Cancel') }}',
                     danger: false
                 });
+                restoreTemplatesFocus();
                 if (!confirmed) {
                     cb.checked = !changedTo;
                     updatePreview();
@@ -739,54 +810,52 @@
         tbody.innerHTML = '';
         technicalNotes.forEach(function(note, index) {
             var tr = document.createElement('tr');
-            tr.innerHTML = '<td class="align-middle" style="white-space: pre-wrap; overflow-wrap: anywhere;">' + escapeHtml(note) + '</td>' +
-                '<td class="text-end" style="width: 120px;">' +
-                '<button type="button" class="btn btn-sm btn-outline-primary me-1" data-edit-idx="' + index + '"><i class="fas fa-edit"></i></button>' +
-                '<button type="button" class="btn btn-sm btn-outline-danger" data-delete-idx="' + index + '"><i class="fas fa-trash"></i></button>' +
-                '</td>';
-            tbody.appendChild(tr);
-        });
-        tbody.querySelectorAll('[data-edit-idx]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var idx = parseInt(this.getAttribute('data-edit-idx'), 10);
-                document.getElementById('technicalNoteInput').value = technicalNotes[idx] || '';
-                document.getElementById('technicalNoteIndex').value = idx;
-                new bootstrap.Modal(document.getElementById('technicalNoteModal')).show();
+            var cell = document.createElement('td');
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.maxLength = 256;
+            input.className = 'form-control form-control-sm';
+            input.setAttribute('aria-label', 'Technical note ' + (index + 1));
+            input.value = note || '';
+            input.addEventListener('input', function() {
+                technicalNotes[index] = input.value;
+                triggerDebouncedSave();
             });
-        });
-        tbody.querySelectorAll('[data-delete-idx]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var idx = parseInt(this.getAttribute('data-delete-idx'), 10);
-                technicalNotes.splice(idx, 1);
+            cell.appendChild(input); tr.appendChild(cell);
+            var actions = document.createElement('td');
+            actions.className = 'text-end';
+            var remove = document.createElement('button');
+            remove.type = 'button'; remove.className = 'btn btn-sm btn-outline-danger';
+            remove.setAttribute('aria-label', 'Remove technical note');
+            remove.innerHTML = '<i class="fas fa-trash"></i>';
+            remove.addEventListener('click', function() {
+                technicalNotes.splice(index, 1);
                 renderTechnicalNotesTable();
                 triggerDebouncedSave();
             });
+            actions.appendChild(remove); tr.appendChild(actions); tbody.appendChild(tr);
         });
-        updatePreview();
     }
 
-    document.getElementById('technicalNoteModal') && document.getElementById('rmPartialSaveTechnicalNoteBtn') && document.getElementById('rmPartialSaveTechnicalNoteBtn').addEventListener('click', function() {
-        var noteText = (document.getElementById('technicalNoteInput') && document.getElementById('technicalNoteInput').value) ? document.getElementById('technicalNoteInput').value.trim() : '';
-        var index = parseInt(document.getElementById('technicalNoteIndex') ? document.getElementById('technicalNoteIndex').value : -1, 10);
-        if (!noteText && typeof showNotification === 'function') {
-            showNotification('{{ __("Please enter a note text.") }}', 'warning');
-            return;
-        }
-        if (!isNaN(index) && index >= 0 && index < technicalNotes.length) {
-            technicalNotes[index] = noteText;
-        } else {
-            technicalNotes.push(noteText);
-        }
-        document.getElementById('technicalNoteInput').value = '';
-        document.getElementById('technicalNoteIndex').value = '-1';
-        var m = bootstrap.Modal.getInstance(document.getElementById('technicalNoteModal'));
-        if (m) m.hide();
+    document.getElementById('rmAddNote').addEventListener('click', function() {
+        technicalNotes.push('');
         renderTechnicalNotesTable();
+        document.querySelector('#technicalNotesTableBody tr:last-child input')?.focus();
         triggerDebouncedSave();
     });
 
-    document.getElementById('technicalNoteModal') && document.getElementById('technicalNoteModal').addEventListener('show.bs.modal', function() {
-        document.getElementById('technicalNoteInput').focus();
+    document.getElementById('rmAddRow').addEventListener('click', function() {
+        var bytes = crypto.getRandomValues(new Uint8Array(16));
+        bytes[6] = (bytes[6] & 15) | 64;
+        bytes[8] = (bytes[8] & 63) | 128;
+        var hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+        var key = 'custom:' + [hex.slice(0,8), hex.slice(8,12), hex.slice(12,16), hex.slice(16,20), hex.slice(20)].join('-');
+        editorRows.push({key: key, ipl: '', part_description: '', mod_repair: 'Repair',
+            description: '', ident_method: '', ident_number: '', deleted: false});
+        updatePreview();
+        var row = Array.from(document.querySelectorAll('[data-repair-row]')).find(row => row.dataset.repairRow === key);
+        row?.querySelector('input')?.focus();
+        triggerDebouncedSave();
     });
 
     document.querySelectorAll('.record-checkbox').forEach(bindRecordCheckbox);

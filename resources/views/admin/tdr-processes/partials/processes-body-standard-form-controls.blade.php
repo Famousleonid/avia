@@ -14,6 +14,7 @@
                class="form-check-input mt-0 combined-form-select"
                data-tdr-process-id="{{ $tdrProcessRow->id }}"
                data-process-name-id="{{ $tdrProcessRow->process_names_id }}"
+               data-combined-form-group="{{ \App\Models\ProcessName::groupFormsGroupKey($tdrProcessRow->processName) }}"
                @if($combinedFormProcessId !== null) data-process-id="{{ $combinedFormProcessId }}" @endif
                aria-label="{{ __('Select process for combined form') }}"
                title="{{ __('Select process for combined form') }}">

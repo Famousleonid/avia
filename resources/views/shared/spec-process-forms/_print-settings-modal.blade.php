@@ -31,7 +31,7 @@
                             <div class="col-md-4">
                                 <label for="processNameFontSize" class="form-label">Process Name Font (px)</label>
                                 <input type="number" class="form-control" id="processNameFontSize" name="processNameFontSize"
-                                    min="6" max="24" step="0.5" value="{{ $formConfig['process_name_font_size'] ?? 11 }}">
+                                    min="6" max="24" step="0.5" value="{{ $formConfig['process_name_font_size'] ?? 14 }}">
                             </div>
                         </div>
                     </div>
@@ -41,17 +41,17 @@
                             <div class="col-md-4">
                                 <label for="componentDescriptionFontSize" class="form-label">Description Font (px)</label>
                                 <input type="number" class="form-control" id="componentDescriptionFontSize" name="componentDescriptionFontSize"
-                                    min="6" max="24" step="0.5" value="{{ $formConfig['component_description_font_size'] ?? 11 }}">
+                                    min="6" max="24" step="0.5" value="{{ $formConfig['component_description_font_size'] ?? 14 }}">
                             </div>
                             <div class="col-md-4">
                                 <label for="componentPartNoFontSize" class="form-label">Part No. Font (px)</label>
                                 <input type="number" class="form-control" id="componentPartNoFontSize" name="componentPartNoFontSize"
-                                    min="6" max="24" step="0.5" value="{{ $formConfig['component_part_no_font_size'] ?? 11 }}">
+                                    min="6" max="24" step="0.5" value="{{ $formConfig['component_part_no_font_size'] ?? 14 }}">
                             </div>
                             <div class="col-md-4">
                                 <label for="componentSerialNoFontSize" class="form-label">Serial No. Font (px)</label>
                                 <input type="number" class="form-control" id="componentSerialNoFontSize" name="componentSerialNoFontSize"
-                                    min="6" max="24" step="0.5" value="{{ $formConfig['component_serial_no_font_size'] ?? 11 }}">
+                                    min="6" max="24" step="0.5" value="{{ $formConfig['component_serial_no_font_size'] ?? 14 }}">
                             </div>
                         </div>
                     </div>

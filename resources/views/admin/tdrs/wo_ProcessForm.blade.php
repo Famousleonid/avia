@@ -76,13 +76,13 @@
             .stamp-box {
                 width: 80px;
                 height: 35px;
-                font-size: 11px;
+                font-size: 12px;
             }
 
             .date-box {
                 width: 110px;
                 height: 35px;
-                font-size: 11px;
+                font-size: 12px;
             }
 
 
@@ -92,11 +92,11 @@
             }
 
             .fs-8 {
-                font-size: 11px;
+                font-size: 12px;
             }
 
             .fs-9 {
-                font-size: 10px;
+                font-size: 12px;
             }
 
             /*h5 {*/
@@ -225,10 +225,10 @@
             font-size: 0.8rem;
         }
         .fs-7 {
-            font-size: 0.7rem;
+            font-size: 12px;
         }
         .fs-4 {
-            font-size: 0.4rem;
+            font-size: 12px;
         }
 
         .stamp-box {

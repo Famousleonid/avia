@@ -1,7 +1,7 @@
 // main.js
 
 // =====================================================
-// SPINNER with DELAY 200ms + safe wrappers
+// Delayed activity indicator: short operations do not flash.
 // =====================================================
 
 // элемент с data-spinner или старым классом .press-spinner
@@ -9,26 +9,53 @@
 // fetch(url, { method:'POST', body: fd, spinner: false }); - если нужно не включать спинер
 
 (function () {
-    const SHOW_DELAY_MS = 200;
+    const SHOW_DELAY_MS = 500;
 
     let pendingSpinner = 0;
     let showTimer = null;
+    const operations = new Set();
 
     function getSpinnerEl() {
-        return document.querySelector('#spinner-load');
+        let el = document.querySelector('#spinner-load');
+        if (!el && document.body) {
+            el = document.createElement('div');
+            el.id = 'spinner-load';
+            el.className = 'spinner-win d-none';
+            el.setAttribute('role', 'status');
+            document.body.append(el);
+        }
+        return el;
     }
 
     function showNow() {
         const el = getSpinnerEl();
         if (!el) return;
+        el.classList.remove('spinner-border');
+        el.classList.add('app-busy-dots');
+        if (!el.querySelector('.app-busy-dot')) {
+            el.innerHTML = '<span class="app-busy-dot"></span><span class="app-busy-dot"></span><span class="app-busy-dot"></span><span class="visually-hidden">Loading...</span>';
+        }
         el.classList.remove('d-none');
     }
 
     function hideNow() {
         const el = getSpinnerEl();
         if (!el) return;
+        if ([...operations].some(op => op.visible)) return;
         el.classList.add('d-none');
     }
+
+    // Independent leases survive legacy safeHideSpinner calls from form validation.
+    window.beginAppBusy = function () {
+        const operation = { visible: false };
+        operations.add(operation);
+        const timer = setTimeout(() => { operation.visible = true; showNow(); }, SHOW_DELAY_MS);
+        return function end() {
+            clearTimeout(timer);
+            operations.delete(operation);
+            if (!pendingSpinner) hideNow();
+        };
+    };
 
     // публичные (совместимость со старым кодом)
     window.showLoadingSpinner = function () {
@@ -141,12 +168,11 @@
     if (typeof window.fetch !== 'function') return;
 
     const originalFetch = window.fetch.bind(window);
-    let pendingFetch = 0;
 
     function shouldSkipSpinner(input, init) {
-        // Default policy: do NOT show global spinner for fetch/ajax.
-        // Enable only when explicitly requested: fetch(..., { spinner: true }).
-        if (!init || init.spinner !== true) return true;
+        // Writes are foreground operations by default. Background callers opt out.
+        const method = String(init?.method || input?.method || 'GET').toUpperCase();
+        if (init.spinner !== true && ['GET', 'HEAD'].includes(method)) return true;
 
         // explicit off still supported
         if (init && init.spinner === false) return true;
@@ -174,27 +200,32 @@
     }
 
     window.fetch = function (input, init = {}) {
+        init = init || {};
 
         const skip = shouldSkipSpinner(input, init);
 
-        if (!skip) {
-            pendingFetch++;
-            if (pendingFetch === 1 && typeof window.safeShowSpinner === 'function') {
-                window.safeShowSpinner();
-            }
-        }
+        const finishBusy = skip ? null : window.beginAppBusy?.();
 
         return originalFetch(input, init)
             .finally(() => {
-                if (!skip) {
-                    pendingFetch = Math.max(0, pendingFetch - 1);
-                    if (pendingFetch === 0 && typeof window.hideLoadingSpinner === 'function') {
-                        // именно hideLoadingSpinner (а не safeHide), чтобы pendingSpinner корректно уменьшался
-                        window.hideLoadingSpinner();
-                    }
-                }
+                finishBusy?.();
             });
     };
+    function bindAjaxActivity() {
+        if (!window.jQuery || window.__ajaxActivityBound) return;
+        window.__ajaxActivityBound = true;
+        const active = new WeakMap();
+        window.jQuery(document).on('ajaxSend.appActivity', function (_event, xhr, settings) {
+            if (!shouldSkipSpinner(settings.url, { ...settings, method: settings.type })) {
+                active.set(xhr, window.beginAppBusy?.());
+            }
+        }).on('ajaxComplete.appActivity', function (_event, xhr) {
+            active.get(xhr)?.();
+            active.delete(xhr);
+        });
+    }
+    bindAjaxActivity();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindAjaxActivity, { once: true });
 })();
 
 
@@ -676,6 +707,11 @@ window.confirmDialog = function ({
         okBtn.className = danger ? 'btn btn-danger' : 'btn btn-info';
 
         const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static' });
+        const parentModal = [...document.querySelectorAll('.modal.show')]
+            .filter(el => el !== modalEl)
+            .sort((a, b) => (parseInt(getComputedStyle(b).zIndex) || 0) - (parseInt(getComputedStyle(a).zIndex) || 0))[0];
+        const confirmZ = Math.max(11000, (parseInt(parentModal && getComputedStyle(parentModal).zIndex) || 0) + 20);
+        modalEl.style.zIndex = String(confirmZ);
 
         let resolved = false;
         let shown = false;
@@ -720,6 +756,10 @@ window.confirmDialog = function ({
         };
 
         const onHidden = () => {
+            if (parentModal?.classList.contains('show')) {
+                document.body.classList.add('modal-open');
+                bootstrap.Modal.getInstance(parentModal)?._focustrap?.activate();
+            }
             // если закрыли крестиком/тапом
             finish(choice === undefined ? false : choice);
         };
@@ -733,6 +773,8 @@ window.confirmDialog = function ({
         modalEl.addEventListener('hidden.bs.modal', onHidden);
 
         bsModal.show();
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = String(confirmZ - 5);
     });
 };
 

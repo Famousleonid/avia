@@ -175,7 +175,7 @@ class LogCardAssemblyIdentityTest extends TestCase
             $this->assertLessThanOrEqual(2, $radios->length);
         }
         foreach ($rows as $saved) {
-            $this->assertSame(1, $xpath->query($rowPath.'//input[@type="radio" and @checked and @value="'.$saved['component_id'].'"]')->length);
+            $this->assertSame(1, $xpath->query($rowPath.'//input[(@type="radio" or @type="hidden") and @checked and @value="'.$saved['component_id'].'"]')->length);
         }
         $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertSee('49103-13')->assertSee('49103-11')->assertSee('49106-5');
         $this->putJson(route('mobile.log-card.update', $wo->id), ['rows' => $rows])->assertOk();
@@ -190,6 +190,72 @@ class LogCardAssemblyIdentityTest extends TestCase
             'workorder_id' => $wo->id, 'component_data' => json_encode([...$rows, $duplicate]),
         ])->assertStatus(422);
         $this->putJson(route('mobile.log-card.update', $wo->id), ['rows' => [...$rows, $duplicate]])->assertStatus(422);
+    }
+
+    public function test_draft_merges_ipl_and_alternative_variants_across_assy_parents_without_default_radio(): void
+    {
+        [$admin, $wo, $left, $first, $second] = $this->scopedMainFitting();
+        $wo->update(['scope_type' => 'full_unit', 'scope_part_group_option_id' => null]);
+        $second->coverages()->delete();
+        $right = Component::create(['manual_id' => $left->manual_id, 'part_number' => '2822-0111',
+            'ipl_num' => '14-210B', 'name' => 'Main Fitting RH', 'units_assy' => 1, 'log_card' => true]);
+        $second->coverages()->create(['component_id' => $right->id, 'qty' => 1]);
+        $alternate = Component::create(['manual_id' => $left->manual_id, 'part_number' => 'ALT-210',
+            'ipl_num' => '15-50', 'name' => 'Alternate Fitting', 'units_assy' => 1, 'log_card' => true]);
+        $alt = ManualPartGroup::create(['manual_id' => $left->manual_id, 'code' => 'ALT-FITTING',
+            'name' => 'Alternative Fitting', 'type' => 'alternative_pn', 'behavior' => 'choose_one']);
+        foreach ([$right, $alternate] as $p) $alt->options()->create(['component_id' => $p->id,
+            'part_number' => $p->part_number, 'ipl_num' => $p->ipl_num]);
+        $pin = Component::create(['manual_id' => $left->manual_id, 'part_number' => '2821-0067',
+            'ipl_num' => '9-550', 'name' => 'Pin, Pintle', 'units_assy' => 1, 'log_card' => true]);
+        $this->actingAs($admin);
+        $draft = $this->get(route('log_card.partial', $wo).'?edit=1')->assertOk();
+        $mobile = $this->getJson(route('mobile.log-card.template', $wo->id))->assertOk();
+        $mobileFamily = collect($mobile->json('data.assy_groups'))->first(fn ($group) =>
+            collect($group['choices'])->contains('component_id', $left->id));
+        $this->assertEqualsCanonicalizing([$left->id, $right->id, $alternate->id], collect($mobileFamily['choices'])->pluck('component_id')->all());
+        $mobileRight = collect($mobileFamily['choices'])->firstWhere('component_id', $right->id);
+        $this->assertSame($second->id, $mobileRight['assembly_choices'][0]['option_id']);
+        $this->assertCount(1, $mobileRight['assembly_choices']);
+        $parse = function ($html) {
+            $dom = new \DOMDocument();
+            @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+            return new \DOMXPath($dom);
+        };
+        $xpath = $parse($draft->getContent());
+        $base = '//tr[.//input[@type="radio" and @value="'.$left->id.'"]]';
+        $this->assertSame(3, $xpath->query($base.'//input[@type="radio"]')->length);
+        $this->assertSame(0, $xpath->query('//input[@type="radio" and @checked]')->length);
+        $this->assertSame(0, $xpath->query('//thead//input[@type="checkbox"]')->length);
+        $this->assertSame(0, $xpath->query('//input[@type="radio" and @value="'.$pin->id.'"]')->length);
+        foreach ([$left->id => $first, $right->id => $second] as $id => $parent) {
+            $select = $base.'//select[@data-component-id="'.$id.'"]';
+            $this->assertSame(2, $xpath->query($select.'/option')->length);
+            $this->assertSame(1, $xpath->query($select.'/option[@value="'.$parent->id.'"]')->length);
+        }
+        // Select the RH component with its own parent, then reopen and print it.
+        $row = ['component_id' => (string) $right->id, 'manual_part_group_choice' => 'component',
+            'manual_part_group_id' => (string) $second->manual_part_group_id, 'assy_option_id' => (string) $second->id,
+            'assy_selection_explicit' => '1', 'serial_number' => 'RH-ONLY', 'assy_serial_number' => 'RH-ASSY'];
+        $this->postJson(route('log_card.store'), ['workorder_id' => $wo->id, 'component_data' => json_encode([$row])])->assertOk();
+        $log = LogCard::where('workorder_id', $wo->id)->firstOrFail();
+        $saved = json_decode($log->component_data, true);
+        $this->assertCount(1, $saved);
+        $this->assertSame($second->part_number, $saved[0]['assy_part_number']);
+        $xpath = $parse($this->get(route('log_card.partial', $wo).'?edit=1')->assertOk()->getContent());
+        $this->assertSame(1, $xpath->query($base.'//input[@type="radio" and @checked and @value="'.$right->id.'"]')->length);
+        $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertSee('RH-ONLY')
+            ->assertSee('2822-0111')->assertDontSee('2821-0111')->assertSee($second->part_number);
+        // A regular alternative has no ASSY identity; its selection must also survive editing.
+        $this->putJson(route('log_card.update', $log), ['workorder_id' => $wo->id,
+            'component_data' => json_encode([['component_id' => (string) $alternate->id, 'serial_number' => 'ALT-SN']])])->assertOk();
+        $xpath = $parse($this->get(route('log_card.partial', $wo).'?edit=1')->assertOk()->getContent());
+        $this->assertSame(1, $xpath->query($base.'//input[@type="radio" and @checked and @value="'.$alternate->id.'"]')->length);
+        $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertSee('ALT-SN')->assertSee('ALT-210')->assertDontSee('RH-ONLY');
+        $this->putJson(route('mobile.log-card.update', $wo->id), ['rows' => [$row]])->assertOk();
+        $mobileSaved = $this->getJson(route('mobile.log-card.data', $wo->id))->assertOk();
+        $this->assertStringContainsString('RH-ONLY', $mobileSaved->getContent());
+        $this->get(route('log_card.logCardForm', $wo))->assertOk()->assertSee('RH-ONLY')->assertSee($second->part_number);
     }
 
     private function scopedMainFitting(): array

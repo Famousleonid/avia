@@ -2575,9 +2575,6 @@ ${sections}
         msFcUserOff = (to === 'all');
         msSetViewMode(to);
     });
-    if(document.getElementById('content-measurements')?.classList.contains('active')){
-        loaded=true; loadData();
-        const w = document.getElementById('ms-fc-btn-wrap');
-        if (w) { w.classList.remove('d-none'); w.classList.add('d-flex'); }
-    }
+    // TDR dispatches shown.bs.tab once after restoring the server-rendered tab.
+    // Use that same path for initial loading and subsequent tab switches.
 })();

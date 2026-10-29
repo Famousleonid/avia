@@ -11,6 +11,56 @@ class BushingReplacementCodeTest extends TestCase
 {
     use BuildsDomainData, DatabaseTransactions;
 
+    public function test_explicit_editor_save_commits_selection_code_quantity_and_process_together(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id]);
+        $part = Component::create(['manual_id' => $wo->unit->manual_id, 'ipl_num' => '8-230',
+            'bush_ipl_num' => '8-230', 'part_number' => 'EXPLICIT-SAVE', 'name' => 'Bushing',
+            'is_bush' => true, 'units_assy' => 2]);
+        $type = ProcessName::whereIdentityName('NDT-4')->firstOrFail();
+        $processes = collect(['ASTM E1417', 'DCMP-161'])->map(function ($spec) use ($type, $wo) {
+            $process = Process::create(['process_names_id' => $type->id, 'process' => $spec]);
+            $process->manuals()->attach($wo->unit->manual_id);
+            return $process;
+        });
+        $worn = Code::firstOrCreate(['name' => 'Worn'], ['code' => 'K']);
+        $corroded = Code::firstOrCreate(['name' => 'Corroded'], ['code' => 'L']);
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version,
+            'password_hash_web' => $admin->getAuthPassword()])->withHeaders(['X-Requested-With' => 'XMLHttpRequest']);
+        $item = ['selected' => 1, 'qty' => 1, 'codes_id' => $worn->id,
+            'need_processes' => 1, 'ndt' => [$processes[0]->id]];
+        $payload = ['workorder_id' => $wo->id, 'group_bushings' => ['8-230' => ['items' => [$part->id => $item]]]];
+        $this->getJson(route('workorders.bushing-selection.show', $wo))->assertOk();
+        $this->assertFalse(WoBushing::where('workorder_id', $wo->id)->exists());
+        $this->postJson(route('wo_bushings.store'), $payload)->assertOk()->assertJsonPath('success', true);
+        $bushing = WoBushing::where('workorder_id', $wo->id)->firstOrFail();
+        $line = $bushing->lines()->firstOrFail();
+        $this->assertSame($processes[0]->id, $line->processes()->value('process_id'));
+        $payload['draft_token'] = app(WoBushingRelationalSync::class)->editState($bushing)['token'];
+        $item = array_merge($item, ['qty' => 3, 'codes_id' => $corroded->id, 'ndt' => [$processes[1]->id]]);
+        $payload['group_bushings']['8-230']['items'][$part->id] = $item;
+        $this->putJson(route('wo_bushings.update', $bushing), $payload)->assertUnprocessable();
+        $this->assertSame(1, $line->fresh()->qty);
+        $this->assertSame($worn->id, $line->fresh()->codes_id);
+        $this->assertSame($processes[0]->id, $line->processes()->value('process_id'));
+        $payload['group_bushings']['8-230']['items'][$part->id]['qty'] = 2;
+        $this->putJson(route('wo_bushings.update', $bushing), $payload)->assertOk()->assertJsonPath('success', true);
+        $line = $bushing->lines()->where('selection_active', true)->firstOrFail();
+        $this->assertSame(2, $line->qty);
+        $this->assertSame($corroded->id, $line->codes_id);
+        $this->assertSame([$processes[1]->id], $line->processes()->pluck('process_id')->all());
+        $this->assertSame([2], $line->processes()->pluck('qty')->all());
+        $snapshot = $this->getJson(route('workorders.bushing-selection.show', $wo))->assertOk()->json();
+        $option = collect($snapshot['groups'])->flatMap(fn ($group) => $group['options'])->firstWhere('id', $part->id);
+        $this->assertTrue($option['selected']);
+        $this->assertSame(2, $option['qty']);
+        $this->assertSame($corroded->id, $option['codes_id']);
+        // A stale editor cannot overwrite the successful save.
+        $this->putJson(route('wo_bushings.update', $bushing), $payload)->assertUnprocessable();
+        $this->assertSame(2, $line->fresh()->qty);
+    }
+
     public function test_codes_save_reopen_and_print_separately_for_two_variants(): void
     {
         $admin = $this->createUserWithRole('Admin');

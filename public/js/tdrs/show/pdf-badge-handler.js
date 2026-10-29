@@ -40,6 +40,7 @@ const PdfBadgeHandler = {
      * @param {number|string} workorderId - ID рабочего заказа
      */
     init(workorderId) {
+        if (document.getElementById('pdfCountBadge')?.dataset.countLoaded === '1') return;
         if (workorderId) {
             this.updatePdfCountBadge(workorderId);
         }

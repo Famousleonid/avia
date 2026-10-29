@@ -9,6 +9,23 @@ use Illuminate\Validation\ValidationException;
 /** Shared display identity for KIT, STD forms and their counters. */
 class PartVariantGrouping
 {
+    private ?array $snapshotValues = null;
+
+    /** Reuse catalogue reads only inside a single read-only calculation. */
+    public function forSnapshot(): self
+    {
+        $snapshot = clone $this;
+        $snapshot->snapshotValues = [];
+        return $snapshot;
+    }
+
+    private function snapshotValue(string $key, callable $calculate)
+    {
+        if ($this->snapshotValues === null) return $calculate();
+        if (!array_key_exists($key, $this->snapshotValues)) $this->snapshotValues[$key] = $calculate();
+        return $this->snapshotValues[$key];
+    }
+
     /** RS means repair sleeve, a separate part rather than an IPL alternative. */
     public static function repairSleeveIplKey(string $ipl): ?string
     {
@@ -30,15 +47,23 @@ class PartVariantGrouping
     /** @return array<int, string> Component ID => explicit group identity. */
     public function explicitKeys(array $manualIds, string $scope): array
     {
+        $manualIds = array_values(array_unique(array_map('intval', $manualIds)));
+        sort($manualIds);
+        return $this->snapshotValue('keys:'.$scope.':'.json_encode($manualIds),
+            fn () => $this->calculateExplicitKeys($manualIds, $scope));
+    }
+
+    private function calculateExplicitKeys(array $manualIds, string $scope): array
+    {
         $keys = [];
         if ($manualIds === []) {
             return $keys;
         }
-        $groups = ManualPartGroup::query()
+        $groups = $this->snapshotValue('groups:'.json_encode($manualIds), fn () => ManualPartGroup::query()
             ->whereIn('manual_id', array_unique($manualIds))
             ->whereIn('type', [ManualPartGroup::TYPE_ALTERNATIVE, ManualPartGroup::TYPE_OVERSIZE])
             ->with('options:id,manual_part_group_id,component_id')
-            ->get();
+            ->get());
         foreach ($groups as $group) {
             if (! ($scope === 'bushing' && $group->type === ManualPartGroup::TYPE_OVERSIZE)
                 && ! $group->appliesTo($scope === 'bushing' ? 'prl' : $scope)) {
@@ -60,7 +85,8 @@ class PartVariantGrouping
         }
         // Letter variants inherit a position's explicit alternative identity.
         // Do not arbitrarily bridge two explicitly different bushing families.
-        $parts = Component::whereIn('manual_id', array_unique($manualIds))->get(['id', 'manual_id', 'ipl_num']);
+        $parts = $this->snapshotValue('parts:'.json_encode($manualIds),
+            fn () => Component::whereIn('manual_id', $manualIds)->get(['id', 'manual_id', 'ipl_num']));
         foreach ($parts->groupBy(fn ($p) => $p->manual_id.'|'.self::iplFamily($p->ipl_num)) as $family) {
             $familyKeys = $family->map(fn ($p) => $keys[(int) $p->id] ?? null)->filter()->unique();
             if ($familyKeys->count() === 1) {

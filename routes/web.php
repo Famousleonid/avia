@@ -322,6 +322,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/mains/resolve-workorder-number', [MainController::class, 'resolveWorkorderNumber'])->name('mains.resolve-workorder-number');
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
     Route::get('/mains/{workorder}/photos', [MainController::class, 'photos'])->name('mains.photos');
+    Route::get('/mains/{workorder}/parts', [MainController::class, 'parts'])->name('mains.parts');
     Route::get('/mains/{workorder}/quantum-ro-lines', [MainController::class, 'quantumRoLines'])->name('mains.quantum-ro-lines');
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/repair-order', [MainController::class, 'updateWoBushingProcessGroupRepairOrder'])->name('mains.wo_bushing_group.repair_order');
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/dates', [MainController::class, 'updateWoBushingProcessGroupDates'])->name('mains.wo_bushing_group.dates');
@@ -359,6 +360,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/edit-form/{id}', [TdrController::class, 'editForm'])->name('tdrs.editForm');
 
         Route::get('tdrs/show/{id}', [TdrController::class, 'show'])->name('tdrs.show');
+        Route::get('tdrs/show/{id}/fragments', [TdrController::class, 'showFragments'])->name('tdrs.show.fragments');
         Route::post('workorders/{workorder}/tdrs/order', [TdrController::class, 'reorder'])->name('tdrs.reorder');
         Route::get('tdrs/{workorder}/service-bulletin-log', [ServiceBulletinLogController::class, 'show'])->name('tdrs.serviceBulletinLog');
         Route::post('tdrs/{workorder}/service-bulletin-log', [ServiceBulletinLogController::class, 'update'])->name('tdrs.serviceBulletinLog.update');

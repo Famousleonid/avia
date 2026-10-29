@@ -166,7 +166,84 @@
 
         .mobile-log-card-draft-choice {
             min-width: 0;
+            margin: .85rem 0;
+            padding: .75rem;
+            border-radius: .85rem;
         }
+        .mobile-log-card-draft-choice.is-included { border-color: #2bb8cf; }
+        .mobile-draft-heading {
+            padding: .5rem 0;
+            font-size: .85rem;
+            font-weight: 600;
+        }
+        .mobile-draft-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .5rem;
+            margin-bottom: .75rem;
+        }
+        .mobile-draft-top > strong { min-width: 0; overflow-wrap: anywhere; }
+        .draft-include {
+            flex: 0 0 auto;
+            min-height: 48px;
+            min-width: 116px;
+            padding: .6rem .85rem;
+            border-radius: .55rem;
+            border: 1px solid #72808d;
+            background: #343d45;
+            color: #fff;
+            font-size: 1rem;
+        }
+        .draft-include[aria-pressed="true"] { color: #a3efd7; background: #174f42; border-color: #3da488; }
+        .mobile-draft-options { display: grid; gap: .5rem; min-width: 0; }
+        .mobile-draft-option {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 24px;
+            gap: .6rem;
+            align-items: center;
+            width: 100%;
+            min-height: 64px;
+            padding: .75rem;
+            margin: 0;
+            text-align: left;
+            border: 1px solid #65727f;
+            border-radius: .6rem;
+            background: #252b31;
+            color: #f5f7f9;
+        }
+        .mobile-draft-option[aria-checked="true"], .mobile-draft-option[aria-pressed="true"] {
+            background: #144b61;
+            border: 2px solid #29c9ee;
+            padding: calc(.75rem - 1px);
+        }
+        .mobile-draft-option[hidden] { display: none; }
+        .mobile-draft-part { min-width: 0; overflow-wrap: anywhere; }
+        .mobile-draft-identity { font-size: 1rem; }
+        .mobile-draft-identity .mobile-log-card-meta { font-size: .9rem; color: #c3d1dc; }
+        .mobile-draft-description { display: block; margin-top: .25rem; color: #cbd3d9; font-size: .9rem; }
+        .mobile-draft-mark {
+            width: 24px; height: 24px;
+            display: grid; place-items: center;
+            border: 1px solid #9aaab6; border-radius: 50%;
+        }
+        .mobile-draft-option[aria-checked="true"] .mobile-draft-mark,
+        .mobile-draft-option[aria-pressed="true"] .mobile-draft-mark {
+            background: #29c9ee; color: #102832; border-color: #29c9ee;
+        }
+        .mobile-draft-details { min-width: 0; display: grid; gap: .65rem; margin-top: 1rem; }
+        .mobile-draft-details[hidden] { display: none; }
+        .mobile-draft-serial-label, .mobile-draft-details .mobile-group-assy-choice { color: #bfd2df; font-size: .85rem; }
+        .mobile-draft-details .form-control, .mobile-draft-details .form-select {
+            min-height: 52px; font-size: 1rem; margin-top: .35rem; border-radius: .55rem;
+        }
+        .mobile-draft-photo {
+            width: 100%; min-height: 52px; font-size: 1rem;
+            background: #243943; color: #60dbf3;
+            border: 1px solid #35bedb; border-radius: .55rem;
+        }
+        .mobile-log-card-draft-choice button:disabled { opacity: .65; }
+        .mobile-log-card-draft-choice button:focus-visible { outline: 3px solid #f3d76c; outline-offset: 2px; }
 
         .mobile-log-card-draft-choice .form-select,
         .mobile-log-card-draft-choice .form-control,
@@ -191,6 +268,7 @@
          class="mobile-log-card-page"
          data-workorder-id="{{ $workorder->id }}"
          data-workorder-number="{{ $workorder->number }}"
+         data-draft-settings-url="{{ route('user-ui-settings.store') }}"
          data-data-url="{{ route('mobile.log-card.data', $workorder->id) }}"
          data-template-url="{{ route('mobile.log-card.template', $workorder->id) }}"
          data-store-url="{{ route('mobile.log-card.store', $workorder->id) }}"

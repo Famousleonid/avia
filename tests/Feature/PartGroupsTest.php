@@ -24,6 +24,56 @@ class PartGroupsTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_selected_original_controls_bushing_capacity_and_preserves_option_ids(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $manual = $this->createManual();
+        $a = $this->createPartGroupComponent($manual->id, '8-230', 'ORIGINAL-TWO');
+        $b = $this->createPartGroupComponent($manual->id, '8-231', 'OTHER-THREE');
+        $a->update(['units_assy' => 2, 'is_bush' => true, 'bush_ipl_num' => '8-230']);
+        $b->update(['units_assy' => 3, 'is_bush' => true, 'bush_ipl_num' => '8-230']);
+        $parts = collect([$a, $b]);
+        $payload = ['type' => 'oversize', 'applies_to' => ['prl'],
+            'component_ids' => [$a->id, $b->id], 'default_component_id' => $b->id];
+        $response = $this->postJson(route('manuals.part-groups.store', $manual), $payload)->assertOk();
+        $group = ManualPartGroup::findOrFail($response->json('group.id'));
+        $ids = $group->options()->pluck('id', 'component_id')->all();
+        $this->assertSame(3, \App\Support\BushingPrlGrouping::capacity($parts));
+        $this->assertSame($b->id, \App\Support\BushingPrlGrouping::originalComponent($parts)->id);
+        $this->assertSame('original', collect($response->json('group.options'))->firstWhere('component_id', $b->id)['option_kind']);
+        $payload['default_component_id'] = $a->id;
+        $payload['component_ids'] = [$b->id, $a->id]; // Selection wins over row order.
+        $this->putJson(route('manuals.part-groups.update', [$manual, $group]), $payload)->assertOk();
+        $this->assertEquals($ids, $group->options()->pluck('id', 'component_id')->all());
+        $this->assertSame(1, $group->options()->where('option_kind', 'original')->count());
+        $this->assertDatabaseHas('manual_part_group_options', ['id' => $ids[$a->id], 'option_kind' => 'original', 'is_default' => true]);
+        $this->assertDatabaseHas('manual_part_group_options', ['id' => $ids[$b->id], 'option_kind' => 'oversize', 'is_default' => false]);
+        $this->assertSame(2, \App\Support\BushingPrlGrouping::capacity($parts));
+        $this->assertSame($a->id, \App\Support\BushingPrlGrouping::originalComponent($parts)->id);
+
+        $wo = $this->createWorkorder(['user_id' => $admin->id,
+            'unit_id' => $this->createUnit(['manual_id' => $manual->id])->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id]);
+        $state = $this->getJson(route('workorders.bushing-selection.show', $wo))->assertOk()->json();
+        $woBushing = WoBushing::create(['workorder_id' => $wo->id]);
+        foreach ([route('wo_bushings.partial', $wo), route('wo_bushings.edit', $woBushing)] as $url) {
+            $this->get($url)->assertOk()
+                ->assertSee('data-part-qty-component="'.$a->id.'">2</div>', false)
+                ->assertSee('data-part-qty-component="'.$b->id.'"></div>', false);
+        }
+        $this->patchJson(route('workorders.bushing-selection.update', [$wo, $a]), [
+            'revision' => $state['revision'], 'items' => [$b->id => ['selected' => true, 'qty' => 3]],
+        ])->assertUnprocessable();
+        $this->patchJson(route('workorders.bushing-selection.update', [$wo, $a]), [
+            'revision' => $state['revision'], 'items' => [
+                $a->id => ['selected' => true, 'qty' => 1], $b->id => ['selected' => true, 'qty' => 1],
+            ],
+        ])->assertOk();
+        $this->assertSame(2, (int) $a->fresh()->units_assy);
+        $this->assertSame(3, (int) $b->fresh()->units_assy);
+    }
+
     public function test_assigned_technician_can_create_and_edit_assy_only_in_assigned_manual(): void
     {
         $user = $this->createUserWithRole('Technician');

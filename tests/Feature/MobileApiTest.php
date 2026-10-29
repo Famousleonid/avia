@@ -949,7 +949,9 @@ class MobileApiTest extends TestCase
         $template->assertOk()
             ->assertJsonPath('data.assy_groups.0.group_id', $group->id)
             ->assertJsonPath('data.assy_groups.0.selection_type', 'radio');
-        $this->assertSame(3, count($template->json('data.assy_groups.0.choices')));
+        // The shared ASSY does not make the independent 8-20 member an alternative to 8-10/A.
+        $this->assertSame(2, count($template->json('data.assy_groups.0.choices')));
+        $this->assertSame(1, count($template->json('data.assy_groups.1.choices')));
         $this->assertSame([], $template->json('data.groups'));
 
         $this->withMobileToken($user)

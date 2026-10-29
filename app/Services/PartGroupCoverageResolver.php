@@ -12,6 +12,27 @@ use Illuminate\Support\Collection;
 
 class PartGroupCoverageResolver
 {
+    private ?Workorder $snapshotWorkorder = null;
+    private array $snapshotValues = [];
+
+    /** A disposable, read-only calculation; never bind this instance as a singleton. */
+    public function forSnapshot(Workorder $workorder): self
+    {
+        $snapshot = clone $this;
+        $snapshot->snapshotWorkorder = $workorder;
+        $snapshot->snapshotValues = [];
+        return $snapshot;
+    }
+
+    private function snapshotValue(Workorder $workorder, string $key, callable $calculate)
+    {
+        if ($this->snapshotWorkorder !== $workorder) return $calculate();
+        if (!array_key_exists($key, $this->snapshotValues)) {
+            $this->snapshotValues[$key] = $calculate();
+        }
+        return $this->snapshotValues[$key];
+    }
+
     /**
      * KIT supply excludes a bundle's own head and shares nested bushing supply
      * across ordered sizes. Other forms retain the full composition.
@@ -19,21 +40,27 @@ class PartGroupCoverageResolver
      */
     public function coverageForWorkorder(Workorder $workorder, string $scope, bool $excludeSelectedHead = false, bool $includeBushingChoices = true): array
     {
+        return $this->snapshotValue($workorder, 'coverage:'.json_encode([$scope, $excludeSelectedHead, $includeBushingChoices]),
+            fn () => $this->calculateCoverage($workorder, $scope, $excludeSelectedHead, $includeBushingChoices));
+    }
+
+    private function calculateCoverage(Workorder $workorder, string $scope, bool $excludeSelectedHead, bool $includeBushingChoices): array
+    {
         if (! in_array($scope, ManualPartGroup::validScopes(), true)) {
             throw new \InvalidArgumentException("Invalid part group scope: {$scope}");
         }
 
-        $allGroups = ManualPartGroup::query()
+        $allGroups = $this->snapshotValue($workorder, 'groups', fn () => ManualPartGroup::query()
             ->whereIn('manual_id', $workorder->usedManualIds())
             ->with([
                 'options.coverages',
                 'serviceBulletin:id,ac_mfg_service_bulletin_no,oem_service_bulletin_no',
             ])
             ->get()
-            ->keyBy('id');
+            ->keyBy('id'));
         $groups = $allGroups->filter(fn (ManualPartGroup $group): bool => $group->appliesTo($scope));
 
-        $automaticCoverage = $this->automaticIplCoverage($workorder);
+        $automaticCoverage = $this->snapshotValue($workorder, 'automatic', fn () => $this->automaticIplCoverage($workorder));
         if ($groups->isEmpty()) {
             return $automaticCoverage;
         }
@@ -45,8 +72,8 @@ class PartGroupCoverageResolver
         $selected = $this->explicitSelections($workorder, $groups);
         $selected = $this->inferSelectionsFromTdrs($workorder, $groups, $selected);
         $coverage = ($includeBushingChoices ? $this->bushingCoverageFromLines($workorder, $groups) : []) + $automaticCoverage;
-        $iplFamilies = $this->bundleIplFamilies($workorder, $allGroups);
-        $configuredMembers = app(WorkorderAssyConfiguration::class)->selectedCoverageIds($workorder);
+        $iplFamilies = $this->snapshotValue($workorder, 'families', fn () => $this->bundleIplFamilies($workorder, $allGroups));
+        $configuredMembers = $this->snapshotValue($workorder, 'configuration', fn () => app(WorkorderAssyConfiguration::class)->selectedCoverageIds($workorder));
         $selectedBushingQuantities = $excludeSelectedHead
             ? WoBushingLine::query()->where(function ($query) use ($workorder): void {
                 $query->where('workorder_id', $workorder->id)

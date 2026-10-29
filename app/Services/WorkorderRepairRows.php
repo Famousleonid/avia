@@ -8,6 +8,11 @@ use Illuminate\Support\Collection;
 
 class WorkorderRepairRows
 {
+    public static function isCustomKey(string $key): bool
+    {
+        return preg_match('/^custom:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i', $key) === 1;
+    }
+
     public function rows(Workorder $workorder, Collection $records, ?array $overrides = null): Collection
     {
         $saved = json_decode((string) $workorder->rm_report, true) ?: [];
@@ -32,11 +37,21 @@ class WorkorderRepairRows
                 'ident_number' => '', 'deleted' => false,
             ]);
         }
+        foreach ($overrides as $key => $override) {
+            if (self::isCustomKey((string) $key)) {
+                $rows->push([
+                    'key' => $key, 'ipl' => '', 'part_description' => '', 'mod_repair' => 'Repair',
+                    'description' => '', 'ident_method' => '', 'ident_number' => '', 'deleted' => false,
+                ]);
+            }
+        }
         return $rows->map(function ($row) use ($overrides) {
             $override = $overrides->get($row['key'], []);
             $row = array_replace($row, array_intersect_key($override, array_flip([
-                'mod_repair', 'description', 'ident_method', 'ident_number', 'deleted',
+                'ipl', 'part_description', 'mod_repair', 'description', 'ident_method', 'ident_number', 'deleted',
             ])));
+            $row['ipl'] = (string) ($row['ipl'] ?? '');
+            $row['part_description'] = (string) ($row['part_description'] ?? '');
             $row['deleted'] = (bool) $row['deleted'];
             return $row;
         });

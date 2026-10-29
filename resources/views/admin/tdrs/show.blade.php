@@ -1,533 +1,11 @@
 @extends('admin.master')
 
+@section('style')
+<link rel="stylesheet" href="{{ asset('css/tdrs/show.css') }}?v={{ filemtime(public_path('css/tdrs/show.css')) }}">
+@endsection
+
 @section('content')
-    <style>
-        .text-center {
-            text-align: center;
-            align-content: center;
-        }
 
-        .fs-8 {
-            font-size: 0.8rem;
-        }
-
-        .fs-7 {
-            font-size: 0.7rem;
-        }
-
-        .fs-75 {
-            font-size: 0.75rem;
-        }
-
-        #tdr_inspect_Table thead {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        #tdr_inspect_Table thead th {
-            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        #tdr__Table thead th {
-            background-color: #030334 !important;
-            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        .order-modal .modal-dialog {
-            max-height: 85vh;
-        }
-
-        .order-modal .modal-content {
-            max-height: 85vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .order-modal .modal-header {
-            flex-shrink: 0;
-        }
-
-        .order-modal .order-modal-table-wrapper {
-            overflow-y: auto;
-            flex: 1;
-            min-height: 0;
-        }
-
-        .order-modal .order-modal-table thead {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        .order-modal .order-modal-table thead th {
-            background-color: #030334 !important;
-            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        .img-icon:hover {
-            cursor: pointer;
-        }
-
-        .tdr-show-back-btn {
-            min-height: 55px;
-            padding: .25rem .55rem !important;
-            border-width: 1px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: .35rem;
-            font-weight: 700;
-            color: #31d2f2 !important;
-            background: rgba(13, 202, 240, .08);
-            text-decoration: none !important;
-        }
-
-        .tdr-show-back-btn:hover,
-        .tdr-show-back-btn:focus {
-            color: #5ee3ff !important;
-            border-color: #5ee3ff !important;
-            background: rgba(13, 202, 240, .16) !important;
-            box-shadow: 0 0 0 .12rem rgba(13, 202, 240, .22);
-            text-decoration: none !important;
-        }
-
-        .tdr-show-back-arrow {
-            font-size: 1.35rem;
-            line-height: 1;
-            font-weight: 900;
-            color: #fff;
-        }
-
-        .tdr-show-back-text {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: flex-start;
-            line-height: 1.02;
-            text-align: left;
-        }
-
-        .tdr-show-back-text .t1 {
-            font-size: 1rem;
-            opacity: .95;
-        }
-
-        .tdr-show-back-text .t2 {
-            font-size: 1.3rem;
-            font-weight: 700;
-        }
-
-        .tdr-show-paper-strip {
-            align-items: flex-start !important;
-        }
-
-        .tdr-pdf-paper-wrap {
-            display: flex;
-            align-items: flex-start;
-            line-height: 0;
-        }
-
-        .tdr-pdf-paper-wrap .paper-btn {
-            display: block;
-        }
-
-        .tdr-show-paper-main,
-        .tdr-show-paper-std,
-        .tdr-show-paper-extra {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .5rem;
-        }
-
-        .tdr-show-paper-divider {
-            align-self: stretch;
-            width: 1px;
-            min-height: 76px;
-            margin: 2px .55rem;
-            background: rgba(255, 255, 255, .22);
-        }
-
-        .tdr-show-paper-std {
-            gap: .15rem;
-        }
-
-        .tdr-show-paper-std.is-unavailable {
-            filter: grayscale(1);
-            opacity: .42;
-        }
-
-        .tdr-show-paper-std.is-unavailable .paper-btn {
-            cursor: not-allowed;
-        }
-
-        .tdr-show-paper-std.is-unavailable .paper-btn svg {
-            transform: none;
-        }
-
-
-        @media (max-width: 1479.98px) {
-            .tdr-show-paper-strip {
-                column-gap: .35rem;
-                margin-left: .35rem !important;
-                padding-left: .25rem !important;
-            }
-
-            .tdr-pdf-paper-wrap {
-                margin-right: .5rem !important;
-            }
-
-            .tdr-show-paper-main,
-            .tdr-show-paper-std,
-            .tdr-show-paper-extra {
-                gap: .25rem;
-            }
-
-            .tdr-show-paper-divider {
-                min-height: 56px;
-                margin-left: .25rem;
-                margin-right: .25rem;
-            }
-
-            .tdr-show-paper-main .me-3,
-            .tdr-show-paper-std,
-            .tdr-show-paper-extra {
-                margin-right: .35rem !important;
-            }
-
-            .tdr-show-paper-strip .paper-btn {
-                display: inline-block;
-                zoom: .7;
-            }
-
-            .tdr-show-paper-strip .badge {
-                min-width: 14px !important;
-                height: 14px !important;
-                font-size: .49rem !important;
-                padding: 0 3px !important;
-                top: -4px !important;
-                left: 1px !important;
-            }
-        }
-
-        @media (max-width: 1280px) {
-            .tdr-show-paper-wo {
-                display: none !important;
-            }
-        }
-
-        #pdfCountBadge {
-            align-items: center;
-            color: #000;
-            display: flex;
-            font-size: .7rem;
-            height: 20px;
-            justify-content: center;
-            left: 2px;
-            min-width: 20px;
-            padding: 0 5px;
-            right: auto;
-            top: -5px;
-        }
-
-        #tdrShowTabList {
-            --tdr-tabs-bg: var(--avia-surface);
-            border-bottom: 0 !important;
-            align-items: flex-end;
-        }
-
-        #tdrShowTabList .nav-link {
-            border-radius: 6px 6px 0 0;
-            border-color: transparent;
-            margin-bottom: 0;
-            padding-bottom: .55rem;
-            padding-top: .55rem;
-            position: relative;
-        }
-
-        #tdrShowTabList .nav-link:not(.active)::after {
-            background: rgba(13, 202, 240, .55);
-            bottom: 0;
-            content: "";
-            height: 1px;
-            left: 0;
-            position: absolute;
-            right: 0;
-        }
-
-        #tdrShowTabList .nav-link.active {
-            background-color: transparent;
-            border-color: rgba(13, 202, 240, .8) rgba(13, 202, 240, .8) var(--tdr-tabs-bg);
-            color: #5ee3ff;
-            isolation: isolate;
-            margin-bottom: 0;
-            z-index: 3;
-        }
-
-        #tdrShowTabList .nav-link.active::after {
-            background: var(--tdr-tabs-bg);
-            bottom: 0;
-            content: "";
-            height: 1px;
-            left: 1px;
-            position: absolute;
-            right: 1px;
-        }
-
-        /* Select2 in modals - ensure dropdown appears above modal (Bootstrap modal z-index: 1055) */
-        #componentInspectionModal .select2-container--open,
-        .select2-container--open {
-            z-index: 1065 !important;
-        }
-
-        .select2-dropdown {
-            z-index: 1065 !important;
-        }
-
-        #componentInspectionModal .modal-body {
-            overflow-x: visible;
-            overflow-y: auto;
-        }
-
-        /* Select2 selection — как инпуты (form-control) в модалке */
-        #componentInspectionModal .select2-container .select2-selection--single,
-        #componentInspectionModal .select2-container .select2-selection--multiple {
-            background-color: rgba(33, 37, 41, .85) !important;
-            border: 1px solid rgba(255, 255, 255, .15) !important;
-            border-radius: 0.375rem !important;
-            min-height: 38px !important;
-            padding: 0.375rem 0.75rem !important;
-        }
-
-        #componentInspectionModal .select2-container .select2-selection__rendered {
-            color: rgba(248, 249, 250, .95) !important;
-            line-height: 1.5 !important;
-        }
-
-        /* Иконка 'x' (clear) — справа */
-        #componentInspectionModal .select2-container .select2-selection {
-            position: relative !important;
-            padding-right: 2rem !important;
-        }
-
-        #componentInspectionModal .select2-selection__clear {
-            position: absolute !important;
-            right: 8px !important;
-            left: auto !important;
-            top: 50% !important;
-            transform: translateY(-50%) !important;
-            z-index: 2 !important;
-        }
-
-        /* Select2 Dark Theme for dropdown (when appended to body) */
-        html[data-bs-theme="dark"] .select2-dropdown,
-        html[data-bs-theme="dark"] .select2-container--default .select2-results > .select2-results__options {
-            background-color: var(--avia-input) !important;
-            color: #e9ecef !important;
-            border: 1px solid var(--avia-border) !important;
-        }
-
-        html[data-bs-theme="dark"] .select2-results__option {
-            color: #e9ecef !important;
-        }
-
-        html[data-bs-theme="dark"] .select2-results__option--highlighted[aria-selected] {
-            background-color: #6ea8fe !important;
-            color: #000000 !important;
-        }
-
-        html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
-            background-color: var(--avia-surface-raised) !important;
-            color: #e9ecef !important;
-            border: 1px solid var(--avia-border) !important;
-        }
-
-        /* Edit Part Process and related modals (iframe) - ensure on top */
-        #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal {
-            z-index: 1080 !important;
-        }
-
-        #addProcessesModal.modal.show, #addPartModal.modal.show {
-            z-index: 1090 !important;
-        }
-
-        #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop {
-            z-index: 1075 !important;
-        }
-
-        /* Part / Extra processes (AJAX block) — заметнее подсветка строки при наведении */
-        .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
-        .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th,
-        .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
-        .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
-            --bs-table-hover-color: var(--dir-text);
-            --bs-table-hover-bg: var(--dir-row-hover);
-            background-color: var(--dir-row-hover) !important;
-            color: var(--dir-text) !important;
-        }
-
-        html[data-bs-theme="dark"] .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
-        html[data-bs-theme="dark"] .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th,
-        html[data-bs-theme="dark"] .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
-        html[data-bs-theme="dark"] .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
-            --bs-table-hover-bg: var(--dir-row-hover);
-            background-color: var(--dir-row-hover) !important;
-            color: var(--dir-text) !important;
-        }
-
-        /* Traveler-блок: фон без table-secondary, чтобы hover совпадал с остальными строками */
-        .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td,
-        .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th {
-            background-color: rgba(108, 117, 125, 0.12);
-            box-shadow: none;
-        }
-
-        .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td:first-child,
-        .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th:first-child {
-            box-shadow: inset 3px 0 0 rgba(108, 117, 125, 0.45);
-        }
-
-        html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td,
-        html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th {
-            background-color: rgba(255, 255, 255, 0.06);
-            box-shadow: none;
-        }
-
-        html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td:first-child,
-        html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th:first-child {
-            box-shadow: inset 3px 0 0 rgba(173, 181, 189, 0.5);
-        }
-
-        .processes-modal-body .processes-toolbar {
-            display: flex;
-            justify-content: flex-end;
-            margin: 0 1rem .35rem 0;
-        }
-
-        .processes-modal-body .process-action-col {
-            width: 78px;
-            min-width: 78px;
-            max-width: 78px;
-            white-space: nowrap;
-        }
-
-        .processes-modal-body .process-action-cell {
-            white-space: nowrap;
-            width: 78px;
-            min-width: 78px;
-            max-width: 78px;
-            padding-left: .15rem !important;
-            padding-right: .15rem !important;
-        }
-
-        .processes-modal-body .process-action-cell .btn {
-            border: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            padding: .05rem .2rem !important;
-            margin: 0 !important;
-            line-height: 1;
-        }
-
-        .processes-modal-body .form-link,
-        .processes-modal-body .travel-form-link {
-            padding: .05rem .35rem !important;
-            line-height: 1.15;
-        }
-
-        /* Pass the available page height down to the bushing scroll area. */
-        .tdr-show-card:has(#content-bushing.active) {
-            flex: 1 1 0;
-            min-height: 0;
-        }
-
-        .tdr-show-card:has(#content-bushing.active) > .card-header {
-            flex-shrink: 0;
-        }
-
-        .tdr-show-card:has(#content-bushing.active) > .card-body {
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-
-        .tdr-show-card:has(#content-bushing.active) #tdrShowTabsHeader {
-            flex-shrink: 0;
-        }
-
-        #tdrShowTabContent:has(#content-bushing.active) {
-            flex: 1 1 0;
-            min-height: 0;
-        }
-
-        #content-bushing {
-            height: 100%;
-            min-height: 0;
-        }
-
-        #bushingTabBody {
-            min-height: 0;
-            overflow: auto;
-        }
-
-        .tdr-show-card:has(#content-part-processes.active) { flex: 1 1 0; min-height: 0; }
-        .tdr-show-card:has(#content-part-processes.active) > .card-header,
-        .tdr-show-card:has(#content-part-processes.active) #tdrShowTabsHeader { flex-shrink: 0; }
-        .tdr-show-card:has(#content-part-processes.active) > .card-body { display: flex; flex-direction: column; min-height: 0; }
-        #tdrShowTabContent:has(#content-part-processes.active) { flex: 1 1 0; min-height: 0; }
-        #content-part-processes { height: 100%; min-height: 0; }
-        #content-part-processes .card {
-            height: 100%;
-            min-height: 0;
-            overflow: hidden;
-        }
-
-        #componentProcessesTabBody {
-            flex: 1 1 0;
-            min-height: 0 !important;
-            overflow: hidden !important;
-        }
-
-        #componentProcessesTabBody .processes-modal-body {
-            display: grid;
-            grid-template-rows: auto minmax(0, 1fr) auto;
-            height: 100%;
-            min-height: 0;
-        }
-
-        #componentProcessesTabBody .processes-modal-body[data-header-toolbar] {
-            grid-template-rows: minmax(0, 1fr) auto;
-        }
-        #content-part-processes .card > .card-header { flex-shrink: 0; }
-        #partProcessesHeaderActions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-left: auto; }
-        #partProcessesHeaderActions .processes-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin: 0; }
-        .tdr-show-card:has(#content-part-processes.active) #partProcessesShortcutActions { display: none !important; }
-
-        #componentProcessesTabBody .processes-modal-body:has(> [data-traveler-picker]) {
-            grid-template-rows: auto auto minmax(0, 1fr) auto;
-        }
-
-        .processes-modal-body > [data-traveler-picker] {
-            min-width: 0;
-            max-height: 30dvh;
-            overflow: auto;
-        }
-
-        [data-traveler-picker] label {
-            flex: 1 1 18rem;
-            max-width: 32rem;
-            min-width: 0;
-        }
-
-        #componentProcessesTabBody .processes-modal-body > .table-wrapper {
-            height: auto !important;
-            min-height: 0;
-            max-height: none !important;
-            margin-right: 0 !important;
-            overflow: auto !important;
-            padding-bottom: 0;
-            box-sizing: border-box;
-        }
-    </style>
 
     @if($current_wo->unit->manuals->builder)
         <div class="card bg-gradient tdr-show-card">
@@ -554,9 +32,9 @@
                                             ariaLabel="{{ __('Documents') }}"
                                             data-id="{{ $current_wo->id }}"
                                             data-number="{{ $current_wo->number }}"/>
-                            <span id="pdfCountBadge"
-                                  class="badge bg-warning rounded-pill position-absolute d-none"
-                                  style="top: -5px; left: 2px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: black; font-size: 0.7rem; padding: 0 5px;"></span>
+                            <span id="pdfCountBadge" data-count-loaded="1"
+                                  class="badge bg-warning rounded-pill position-absolute {{ $documentCount ? '' : 'd-none' }}"
+                                  style="top: -5px; left: 2px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: black; font-size: 0.7rem; padding: 0 5px;">{{ $documentCount ?: '' }}</span>
                         </div>
                         {{-- x-paper buttons --}}
                         @php
@@ -699,33 +177,7 @@
                                 </span>
                         </div>
                         <div class="tdr-show-paper-divider" aria-hidden="true"></div>
-                        <div class="tdr-show-paper-extra ms-2" id="tdr-prl-paper-group">
-                            @if(($kitPrlCount ?? 0) > 0)
-                                <div class="position-relative d-inline-block ">
-                                    <x-paper-button text="KIT"
-                                                    href="{{ route('tdrs.kitForm', ['id' => $current_wo->id]) }}"
-                                                    target="_blank" color="outline-primary"/>
-                                    <span class="badge bg-success rounded-pill"
-                                          style="{{ $paperCountBadgeStyle }}">{{ $kitPrlCount }}</span>
-                                </div>
-                            @endif
-                            @if(($prlPartsCount ?? 0) > 0)
-                                <div class="position-relative d-inline-block ">
-                                    <x-paper-button text="PRL"
-                                                    href="{{ route('tdrs.prlForm', ['id' => $current_wo->id]) }}"
-                                                    target="_blank" color="outline-primary"/>
-                                    <span class="badge bg-success rounded-pill"
-                                          style="{{ $paperCountBadgeStyle }}">{{ $prlPartsCount }}</span>
-                                </div>
-                            @endif
-                            <button type="button" id="woAssyConfigurationOpen"
-                                    class="btn btn-outline-info btn-sm d-none align-self-center"
-                                    data-index-url="{{ route('workorders.assy-configuration.index', $current_wo) }}"
-                                    data-update-url="{{ route('workorders.assy-configuration.update', $current_wo) }}"
-                                    data-locked="{{ $current_wo->done_at ? '1' : '0' }}">
-                                {{ __('ASSY composition') }} <span id="woAssyConfigurationPending" class="badge bg-warning text-dark d-none"></span>
-                            </button>
-                        </div>
+                        @include('admin.tdrs.partials.prl-paper-group')
 
                     </div>
                 </div>
@@ -733,136 +185,89 @@
 
             {{-- Body: tabs (header links as tabs), TDR tab = main content --}}
             <div class="card-body p-1">
-                <style>
-                    .tdr-tabs-loading {
-                        min-height: 34px;
-                        display: flex;
-                        align-items: center;
-                        margin-bottom: .75rem;
-                    }
 
-                    .tdr-tabs-loading-dots {
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 6px;
-                    }
 
-                    .tdr-tabs-loading-dot {
-                        width: 7px;
-                        height: 7px;
-                        border-radius: 999px;
-                        background: rgba(173, 181, 189, .9);
-                        animation: tdrTabsDotWave 1s infinite ease-in-out;
-                    }
-
-                    .tdr-tabs-loading-dot:nth-child(2) {
-                        animation-delay: .12s;
-                    }
-
-                    .tdr-tabs-loading-dot:nth-child(3) {
-                        animation-delay: .24s;
-                    }
-
-                    @keyframes tdrTabsDotWave {
-                        0%, 80%, 100% {
-                            transform: translateY(0);
-                            opacity: .45;
-                        }
-                        40% {
-                            transform: translateY(-4px);
-                            opacity: 1;
-                        }
-                    }
-                </style>
-                <div id="tdrShowTabsLoading" class="tdr-tabs-loading">
-                    <span class="tdr-tabs-loading-dots" aria-label="Loading tabs">
-                        <span class="tdr-tabs-loading-dot"></span>
-                        <span class="tdr-tabs-loading-dot"></span>
-                        <span class="tdr-tabs-loading-dot"></span>
-                    </span>
-                </div>
                 <div id="tdrShowTabsHeader"
-                     class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"
-                     style="visibility:hidden;">
+                     class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                     <ul class="nav nav-tabs mb-0" role="tablist" id="tdrShowTabList">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="tab-tdr" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-tdr' ? 'active' : '' }}" id="tab-tdr" data-bs-toggle="tab"
                                     data-bs-target="#content-tdr" type="button" role="tab">{{ __('TDR') }}</button>
                         </li>
                         {{-- Temporary Inspect tab (opened by the 📏 button on a TDR row; reuses the measurements pane in single-part mode) --}}
                         <li class="nav-item d-none" role="presentation" id="tab-ms-inspect-li">
-                            <button class="nav-link" id="tab-ms-inspect" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-ms-inspect' ? 'active' : '' }}" id="tab-ms-inspect" data-bs-toggle="tab"
                                     data-bs-target="#content-measurements" type="button" role="tab">
                                 <i class="bi bi-rulers"></i> {{ __('Inspect') }}
                             </button>
                         </li>
                         {{-- Temporary Part Processes tab (shown when user clicks Component Processes, hidden when switching to another tab) --}}
                         <li class="nav-item d-none" role="presentation" id="tab-part-processes-li">
-                            <button class="nav-link" id="tab-part-processes" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-part-processes' ? 'active' : '' }}" id="tab-part-processes" data-bs-toggle="tab"
                                     data-bs-target="#content-part-processes" type="button" role="tab">
                                 {{ __('Part Processes') }}
                             </button>
                         </li>
                         {{-- Temporary Extra Processes tab (shown when user clicks Processes in Extra Part Processes table) --}}
                         <li class="nav-item d-none" role="presentation" id="tab-extra-processes-li">
-                            <button class="nav-link" id="tab-extra-processes" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-extra-processes' ? 'active' : '' }}" id="tab-extra-processes" data-bs-toggle="tab"
                                     data-bs-target="#content-extra-processes" type="button" role="tab">
                                 {{ __('Extra Processes') }}
                             </button>
                         </li>
                         @if($showLogCardTab ?? false)
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-log-card" data-bs-toggle="tab"
+                                <button class="nav-link {{ $initialTdrTab === 'tab-log-card' ? 'active' : '' }}" id="tab-log-card" data-bs-toggle="tab"
                                         data-bs-target="#content-log-card" type="button"
                                         role="tab">{{ __('Log Card') }}</button>
                             </li>
                         @endif
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="tab-bushing" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-bushing' ? 'active' : '' }}" id="tab-bushing" data-bs-toggle="tab"
                                     data-bs-target="#content-bushing" type="button"
                                     role="tab">{{ __('Bushing Processes') }}</button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="tab-rm-reports" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-rm-reports' ? 'active' : '' }}" id="tab-rm-reports" data-bs-toggle="tab"
                                     data-bs-target="#content-rm-reports" type="button"
                                     role="tab">{{ __('Repair & Modification') }}</button>
                         </li>
                         @if($hasTransfers)
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-transfers" data-bs-toggle="tab"
+                                <button class="nav-link {{ $initialTdrTab === 'tab-transfers' ? 'active' : '' }}" id="tab-transfers" data-bs-toggle="tab"
                                         data-bs-target="#content-transfers" type="button"
                                         role="tab">{{ __('Transfers') }}</button>
                             </li>
                         @endif
                         @unless(auth()->user()?->roleIs(['Shipping', 'Paint', 'Machining', 'Technician', 'Team Leader']))
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="tab-measurements" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-measurements' ? 'active' : '' }}" id="tab-measurements" data-bs-toggle="tab"
                                     data-bs-target="#content-measurements" type="button"
                                     role="tab">{{ __('Measurements') }}</button>
                         </li>
                         @endunless
                         {{-- Temporary Ordered-parts tab (opened by the Ordered button in Measurements; reuses the measurements pane) --}}
                         <li class="nav-item d-none" role="presentation" id="tab-ms-new-li">
-                            <button class="nav-link" id="tab-ms-new" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-ms-new' ? 'active' : '' }}" id="tab-ms-new" data-bs-toggle="tab"
                                     data-bs-target="#content-measurements" type="button" role="tab">
                                 <i class="bi bi-box-seam"></i> {{ __('Ordered Parts') }}
                             </button>
                         </li>
                         {{-- dynamic tab: shown by the Req. Bushings button, hidden on leaving --}}
                         <li class="nav-item d-none" role="presentation" id="tab-req-bushings-li">
-                            <button class="nav-link" id="tab-req-bushings" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-req-bushings' ? 'active' : '' }}" id="tab-req-bushings" data-bs-toggle="tab"
                                     data-bs-target="#content-req-bushings" type="button"
                                     role="tab"><i class="bi bi-nut"></i> {{ __('Required Bushings') }}</button>
                         </li>
                         {{-- dynamic tab: Final Dimensional Report (bushing fits) --}}
                         <li class="nav-item d-none" role="presentation" id="tab-final-report-li">
-                            <button class="nav-link" id="tab-final-report" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-final-report' ? 'active' : '' }}" id="tab-final-report" data-bs-toggle="tab"
                                     data-bs-target="#content-final-report" type="button"
                                     role="tab"><i class="bi bi-clipboard-data"></i> {{ __('Final Report') }}</button>
                         </li>
                         {{-- dynamic tab: F&C Table --}}
                         <li class="nav-item d-none" role="presentation" id="tab-fc-table-li">
-                            <button class="nav-link" id="tab-fc-table" data-bs-toggle="tab"
+                            <button class="nav-link {{ $initialTdrTab === 'tab-fc-table' ? 'active' : '' }}" id="tab-fc-table" data-bs-toggle="tab"
                                     data-bs-target="#content-fc-table" type="button"
                                     role="tab">&#128438; {{ __('F&C Table') }}</button>
                         </li>
@@ -955,12 +360,12 @@
                     @endif
                 </div>
 
-                <div class="tab-content" id="tdrShowTabContent" style="visibility:hidden;">
-                    <div class="tab-pane fade show active" id="content-tdr" role="tabpanel">
+                <div class="tab-content" id="tdrShowTabContent">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-tdr' ? 'show active' : '' }}" id="content-tdr" role="tabpanel">
                         @include('admin.tdrs.partials.tdr-body')
                     </div>
                     {{-- Temporary Part Processes tab content --}}
-                    <div class="tab-pane fade" id="content-part-processes" role="tabpanel">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-part-processes' ? 'show active' : '' }}" id="content-part-processes" role="tabpanel">
                         <div class="card bg-gradient">
                             <div class="card-header d-flex flex-wrap align-items-center gap-2">
                                 <div class="d-flex flex-wrap align-items-baseline gap-2">
@@ -984,7 +389,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="content-extra-processes" role="tabpanel">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-extra-processes' ? 'show active' : '' }}" id="content-extra-processes" role="tabpanel">
                         <div class="card bg-gradient h-100">
                             <div class="card-body p-2 overflow-auto" id="extraProcessesTabBody"
                                  style="height: calc(100vh - 280px); min-height: 400px;">
@@ -994,7 +399,7 @@
                         </div>
                     </div>
 
-                    <div class="tab-pane fade" id="content-extra-parts-processes" role="tabpanel">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-extra-parts-processes' ? 'show active' : '' }}" id="content-extra-parts-processes" role="tabpanel">
                         <div class="card bg-gradient h-100">
                             <div class="card-body p-2 overflow-auto" id="extraPartsProcessesTabBody"
                                  style="height: calc(100vh - 280px); min-height: 400px;">
@@ -1003,7 +408,7 @@
                         </div>
                     </div>
                     @if($showLogCardTab ?? false)
-                        <div class="tab-pane fade" id="content-log-card" role="tabpanel">
+                        <div class="tab-pane fade {{ $initialTdrTab === 'tab-log-card' ? 'show active' : '' }}" id="content-log-card" role="tabpanel">
                             <div class="card bg-gradient h-100">
                                 <div class="card-body p-2" id="logCardTabBody"
                                      style="height: calc(100vh - 218px); min-height: 400px; overflow: hidden; display: flex; flex-direction: column;">
@@ -1012,7 +417,7 @@
                             </div>
                         </div>
                     @endif
-                    <div class="tab-pane fade" id="content-bushing" role="tabpanel">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-bushing' ? 'show active' : '' }}" id="content-bushing" role="tabpanel">
                         <div class="card bg-gradient h-100">
                             <div class="card-body p-0 w-100" id="bushingTabBody"
                                  style="padding: 0 !important; max-width: none;">
@@ -1020,16 +425,15 @@
                             </div>
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="content-rm-reports" role="tabpanel">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-rm-reports' ? 'show active' : '' }}" id="content-rm-reports" role="tabpanel">
                         <div class="card bg-gradient h-100">
-                            <div class="card-body p-2" id="rmReportsTabBody"
-                                 style="height: calc(100dvh - 280px); min-height: 0; overflow: hidden;">
+                            <div class="card-body p-2" id="rmReportsTabBody">
                                 <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
                             </div>
                         </div>
                     </div>
                     @if($hasTransfers)
-                        <div class="tab-pane fade" id="content-transfers" role="tabpanel">
+                        <div class="tab-pane fade {{ $initialTdrTab === 'tab-transfers' ? 'show active' : '' }}" id="content-transfers" role="tabpanel">
                             <div class="card bg-gradient h-100">
                                 <div class="card-body p-2 overflow-auto" id="transfersTabBody"
                                      style="height: calc(100vh - 280px); min-height: 400px;">
@@ -1040,21 +444,21 @@
                     @endif
                     @unless(auth()->user()?->roleIs(['Shipping', 'Paint', 'Machining']))
                     {{-- Measurements tab — доступно всем ролям, кроме Shipping/Paint/Machining --}}
-                    <div class="tab-pane fade" id="content-measurements" role="tabpanel">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-measurements' ? 'show active' : '' }}" id="content-measurements" role="tabpanel">
                         @include('admin.measurements._tab', ['wo' => $current_wo])
                     </div>
                     {{-- Required Bushings (dynamic, opened from Measurements) --}}
-                    <div class="tab-pane fade" id="content-req-bushings" role="tabpanel">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-req-bushings' ? 'show active' : '' }}" id="content-req-bushings" role="tabpanel">
                         <iframe id="req-bushings-frame" src="about:blank"
                                 style="width:100%;height:calc(100vh - 220px);border:0;background:transparent"></iframe>
                     </div>
                     {{-- Final Dimensional Report (dynamic, opened from Measurements) --}}
-                    <div class="tab-pane fade" id="content-final-report" role="tabpanel">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-final-report' ? 'show active' : '' }}" id="content-final-report" role="tabpanel">
                         <iframe id="final-report-frame" src="about:blank"
                                 style="width:100%;height:calc(100vh - 220px);border:0;background:transparent"></iframe>
                     </div>
                     {{-- F&C Table (dynamic, opened from Measurements) --}}
-                    <div class="tab-pane fade" id="content-fc-table" role="tabpanel">
+                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-fc-table' ? 'show active' : '' }}" id="content-fc-table" role="tabpanel">
                         <iframe id="fc-table-frame" src="about:blank"
                                 style="width:100%;height:calc(100vh - 220px);border:0;background:transparent"></iframe>
                     </div>

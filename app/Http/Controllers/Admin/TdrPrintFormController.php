@@ -46,6 +46,28 @@ class TdrPrintFormController extends Controller
     private const DEFAULT_QTY = 1;
     private const DEFAULT_PROCESS = 1;
     private const PROCESS_TYPE_LOG = 'log';
+    private ?PartGroupCoverageResolver $partsCoverageResolver = null;
+    private ?\App\Services\PartVariantGrouping $partsGrouping = null;
+
+    /** Share catalogue reads only for this one KIT + PRL calculation. */
+    public function receiptRows(Workorder $workorder): array
+    {
+        $generator = $this->forSnapshot($workorder);
+        return [$generator->kitRows($workorder), $generator->prlRows($workorder)];
+    }
+
+    public function forSnapshot(Workorder $workorder, ?PartGroupCoverageResolver $coverage = null, ?\App\Services\PartVariantGrouping $grouping = null): self
+    {
+        $generator = clone $this;
+        $generator->partsCoverageResolver = $coverage ?? app(PartGroupCoverageResolver::class)->forSnapshot($workorder);
+        $generator->partsGrouping = $grouping ?? app(\App\Services\PartVariantGrouping::class)->forSnapshot();
+        return $generator;
+    }
+
+    private function coverageResolver(): PartGroupCoverageResolver
+    {
+        return $this->partsCoverageResolver ?? app(PartGroupCoverageResolver::class);
+    }
 
     public function prlForm(Request $request, $id){
         $current_wo = Workorder::findOrFail($id);
@@ -83,25 +105,8 @@ class TdrPrintFormController extends Controller
     /** Order/receipt rows; printed PRL additionally routes overhaul bushings to KIT. */
     public function prlRows(Workorder $current_wo)
     {
-        // Получаем данные о manual_id, связанном с этим Workorder
-        $manual_id = $current_wo->unit->manual_id;
-
-        // Извлекаем компоненты, связанные с manual_id
-        $components = $this->filterComponentsForUnit(
-            Component::where('manual_id', $manual_id)->get(),
-            $current_wo
-        );
-
-        $builders = Builder::all();
-        $codes = Code::all();
-        $necessaries = Necessary::all();
-
         $necessary = Necessary::where('name', 'Order New')->first();
         $code = Code::missing();
-
-        $manuals = Manual::where('id', $manual_id)
-            ->with('builder')
-            ->get();
 
         // PRL includes regular Order New rows and every Missing row. Missing rows
         // created by the part-number workflow may only have component_id populated.
@@ -139,7 +144,7 @@ class TdrPrintFormController extends Controller
         });
 
         $groupCoverage = $current_wo->isOverhaul()
-            ? app(PartGroupCoverageResolver::class)->coverageForWorkorder($current_wo, \App\Models\ManualPartGroup::SCOPE_PRL)
+            ? $this->coverageResolver()->coverageForWorkorder($current_wo, \App\Models\ManualPartGroup::SCOPE_PRL)
             : [];
         $groupOptionComponentIds = ManualPartGroupOption::query()
             ->whereIn('id', collect($groupCoverage)->pluck('option_id')->filter()->unique()->all())
@@ -401,6 +406,7 @@ class TdrPrintFormController extends Controller
 
         // Explicit bushing orders use the same reachable ASSY members as the
         // picker. Do not expand the automatic KIT or the effective Work Scope.
+        $iplRules = app(ManualIplBranchRuleResolver::class);
         $bushingComponents = app(WorkorderPartScopeResolver::class)->filterTdrComponents(
             Component::query()
                 ->where('manual_id', $manualId)
@@ -409,7 +415,7 @@ class TdrPrintFormController extends Controller
                 ->get(),
             $workorder
         )->filter(fn (Component $component): bool =>
-            app(ManualIplBranchRuleResolver::class)->allowsComponentForUnit(
+            $iplRules->allowsComponentForUnit(
                 $workorder->unit, (string) $component->ipl_num, (int) $component->manual_id
             )
         )->values();
@@ -467,15 +473,17 @@ class TdrPrintFormController extends Controller
         );
         $selected = $this->selectedBushingComponents($workorder);
         $componentIds = [];
-        foreach (BushingPrlGrouping::groups($kitBushings) as $family) {
+        $capacityOptions = BushingPrlGrouping::capacityOptions($kitBushings);
+        foreach (BushingPrlGrouping::groups($kitBushings, $this->partsGrouping) as $family) {
             if (! $family->contains(fn (Component $part): bool => (bool) $part->kit)) {
                 continue;
             }
-            $allocation = BushingPrlGrouping::kitAllocation($family, $selected);
+            $capacity = BushingPrlGrouping::capacity($family, $capacityOptions);
+            $allocation = BushingPrlGrouping::kitAllocation($family, $selected, $capacity);
             foreach ($family as $part) {
                 // Unselected alternatives also disappear from the extra PRL.
                 $componentIds[(int) $part->id] = $allocation[(int) $part->id]
-                    ?? BushingPrlGrouping::capacity($family);
+                    ?? $capacity;
             }
         }
 
@@ -524,7 +532,8 @@ class TdrPrintFormController extends Controller
         $additionalCrossedOutComponentIds = $additionalCrossedOutIdentities['component_ids'] ?? [];
         $additionalCrossedOutReasons = $additionalCrossedOutIdentities['reasons'] ?? [];
 
-        $bushingGroupKeys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($bushingComponents->pluck('manual_id')->all(), 'bushing');
+        $bushingGroupKeys = ($this->partsGrouping ?? app(\App\Services\PartVariantGrouping::class))->explicitKeys($bushingComponents->pluck('manual_id')->all(), 'bushing');
+        $capacityOptions = BushingPrlGrouping::capacityOptions($bushingComponents);
         return $bushingComponents
             ->sort(function (Component $left, Component $right): int {
                 $manualCompare = strnatcasecmp(
@@ -557,7 +566,7 @@ class TdrPrintFormController extends Controller
                 $alternatives = $group->reject(fn ($part) => $selectedByComponent->has($part->id));
                 return $byCode->values()->map(fn ($parts, $index) => $index === 0 ? $parts->concat($alternatives) : $parts)->all();
             })
-            ->map(function ($group) use ($selectedByComponent, $code, $additionalCrossedOutComponentIds, $additionalCrossedOutReasons, $manualCrossedOutComponentIds, $omittedKitSupply, $bushingGroupKeys, $kitUnitEff): ?array {
+            ->map(function ($group) use ($selectedByComponent, $code, $additionalCrossedOutComponentIds, $additionalCrossedOutReasons, $manualCrossedOutComponentIds, $omittedKitSupply, $bushingGroupKeys, $kitUnitEff, $capacityOptions): ?array {
                 $components = $group->values();
                 $applicable = $kitUnitEff === null ? $components : $components
                     ->filter(fn ($c) => StdProcess::stdRowEffMatchesUnit($c->eff_code, $kitUnitEff))->values();
@@ -568,13 +577,13 @@ class TdrPrintFormController extends Controller
                     ->filter(fn (Component $component): bool => $selectedByComponent->has($component->id))
                     ->values();
                 $displayComponent = $selectedComponents->first() ?? $initial;
-                $qty = $code === 'KIT' ? BushingPrlGrouping::capacity($applicable->isNotEmpty() ? $applicable : $components) : ($selectedComponents->isNotEmpty()
+                $qty = $code === 'KIT' ? BushingPrlGrouping::capacity($applicable->isNotEmpty() ? $applicable : $components, $capacityOptions) : ($selectedComponents->isNotEmpty()
                     ? $selectedComponents->sum(function (Component $component) use ($selectedByComponent): int {
                         return max(1, (int) ($selectedByComponent->get($component->id)['qty'] ?? 1));
                     })
-                    : BushingPrlGrouping::capacity($components));
+                    : BushingPrlGrouping::capacity($components, $capacityOptions));
                 $kitChoicesPending = $code === 'KIT' && $selectedComponents->isEmpty();
-                $kitAllocation = $code === 'KIT' ? BushingPrlGrouping::kitAllocation($applicable, $selectedByComponent) : [];
+                $kitAllocation = $code === 'KIT' ? BushingPrlGrouping::kitAllocation($applicable, $selectedByComponent, BushingPrlGrouping::capacity($applicable, $capacityOptions)) : [];
                 $bushIpl = trim((string) ($initial->bush_ipl_num ?? ''));
                 $row = $this->makePrlArrayRow($displayComponent, $qty);
                 $row['receipt_key'] = strtolower($code === 'KIT' ? 'kit-bush:' : 'prl-bush:').hash('sha256', BushingPrlGrouping::groupKeyForComponent($initial, $bushingGroupKeys).'|'.($code === 'KIT' ? 'KIT' : ($selectedByComponent->get($displayComponent->id)['codes_id'] ?? 'none')));
@@ -697,7 +706,7 @@ class TdrPrintFormController extends Controller
             Component::whereIn('manual_id', $manualIds)->bushingCandidates()->with('manual:id,number')->get(),
             $workorder, $includeExtraBushings
         );
-        $bushingFamilies = BushingPrlGrouping::groups($allBushings);
+        $bushingFamilies = BushingPrlGrouping::groups($allBushings, $this->partsGrouping);
         $kitBushingComponents = $bushingFamilies
             ->filter(fn ($family): bool => $family->contains(fn (Component $part): bool => (bool) $part->kit))
             ->flatten(1)->values();
@@ -817,7 +826,8 @@ class TdrPrintFormController extends Controller
     {
         $components = $components->keyBy('id');
         $unitEff = (string) ($workorder->unit->eff_code ?? '');
-        return $rows->map(function (array $row) use ($components, $unitEff): array {
+        $capacityOptions = BushingPrlGrouping::capacityOptions($components);
+        return $rows->map(function (array $row) use ($components, $unitEff, $capacityOptions): array {
             $key = isset($row['kit_component_options']) ? 'kit_component_options' : 'prl_part_numbers';
             $excluded = false;
             foreach ($row[$key] as &$option) {
@@ -841,7 +851,7 @@ class TdrPrintFormController extends Controller
                     ->filter(fn ($c) => $c && StdProcess::stdRowEffMatchesUnit($c->eff_code, $unitEff))->values();
                 if ($applicable->isNotEmpty()) {
                     $row['qty'] = $key === 'prl_part_numbers'
-                        ? BushingPrlGrouping::capacity($applicable)
+                        ? BushingPrlGrouping::capacity($applicable, $capacityOptions)
                         : $applicable->max(fn ($c) => max(1, (int) $c->units_assy));
                     if (isset($row['bushing_kit_capacity'])) $row['bushing_kit_capacity'] = $row['qty'];
                 }
@@ -853,7 +863,7 @@ class TdrPrintFormController extends Controller
 
     private function applySharedBushingSelection(Workorder $workorder, $rows)
     {
-        $selection = app(\App\Services\WorkorderBushingSelection::class)->snapshot($workorder);
+        $selection = app(\App\Services\WorkorderBushingSelection::class)->snapshot($workorder, $this->partsCoverageResolver, $this->partsGrouping);
         $selectionOptions = collect($selection['groups'])->flatMap(fn ($group) => $group['options'])->keyBy('id');
         return $rows->map(function ($row) use ($selectionOptions) {
             if (!isset($row['prl_bushing_group'])) return $row;
@@ -882,7 +892,7 @@ class TdrPrintFormController extends Controller
         $crossedOutComponentIds = $crossedOutIdentities['component_ids'] ?? [];
         $crossedOutReasons = $crossedOutIdentities['reasons'] ?? [];
 
-        $groupKeys = app(\App\Services\PartVariantGrouping::class)->componentKeys($components);
+        $groupKeys = ($this->partsGrouping ?? app(\App\Services\PartVariantGrouping::class))->componentKeys($components);
         $rows = $components
             ->groupBy(fn (Component $component): string => KitPrlGrouping::groupKeyForComponent($component, $groupKeys))
             ->map(function ($group, $groupKey) use ($code, $crossedOutComponentIds, $crossedOutReasons, $manualCrossedOutComponentIds) {
@@ -1052,7 +1062,7 @@ class TdrPrintFormController extends Controller
         if (! $workorder->isOverhaul()) {
             return ['component_ids' => [], 'part_numbers' => [], 'reasons' => []];
         }
-        $coverage = app(PartGroupCoverageResolver::class)
+        $coverage = $this->coverageResolver()
             ->coverageForWorkorder($workorder, \App\Models\ManualPartGroup::SCOPE_PRL, excludeSelectedHead: $forKit);
         $componentIds = collect($coverage)->mapWithKeys(fn (array $item, $componentId): array => [
             (int) $componentId => (int) $item['covered_qty'],

@@ -451,38 +451,6 @@
             border-color: #dee2e6;
         }
 
-        .component-assembly-row {
-            border: 1px solid rgba(255,255,255,.12);
-            border-radius: .5rem;
-            padding: .6rem;
-            background: rgba(255,255,255,.025);
-        }
-
-        .component-assembly-row + .component-assembly-row {
-            margin-top: .5rem;
-        }
-
-        .component-assembly-row .form-label {
-            font-size: .8rem;
-            margin-bottom: .25rem;
-        }
-
-        .component-assembly-row .form-control {
-            min-height: 36px;
-            padding-top: .35rem;
-            padding-bottom: .35rem;
-        }
-
-        .component-assembly-row input[type="file"].form-control {
-            padding-top: .3rem;
-            padding-bottom: .3rem;
-        }
-
-        html[data-bs-theme="light"] .component-assembly-row {
-            border-color: #dee2e6;
-            background: #f8f9fa;
-        }
-
         .components-header-title {
             font-size: 1.1rem;
         }
@@ -730,15 +698,6 @@
                         </div>
                     </div>
 
-                    <div class="component-form-section mt-4">
-                        <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
-                            <h6 class="mb-0">{{ __('Assemblies') }}</h6>
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="addAssemblyRowBtn">
-                                <i class="bi bi-plus-lg"></i>
-                            </button>
-                        </div>
-                        <div id="assemblyRows"></div>
-                    </div>
 
                     <div class="component-form-footer mt-4">
                         <div class="d-flex align-items-center justify-content-end gap-2">
@@ -749,48 +708,6 @@
                         </div>
                     </div>
                 </form>
-                <template id="assemblyRowTemplate">
-                    <div class="component-assembly-row" data-assembly-row>
-                        <input type="hidden" data-assembly-field="id">
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="small text-muted" data-assembly-title></span>
-                            <button type="button" class="btn btn-outline-danger btn-sm" data-remove-assembly>
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <label class="form-label">{{ __('Assembly IPL Number') }}</label>
-                                <input type="text"
-                                       class="form-control"
-                                       data-assembly-field="assy_ipl_num"
-                                       pattern="^$|^\d+-\d+[A-Za-z]?$">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">{{ __('Assembly Part Number') }}</label>
-                                <input type="text" class="form-control" data-assembly-field="assy_part_number">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">{{ __('Units per Assy') }}</label>
-                                <input type="text" class="form-control" data-assembly-field="units_assy">
-                            </div>
-                            <div class="col-md-6">
-                                <input type="file"
-                                       class="form-control"
-                                       accept="image/*"
-                                       aria-label="{{ __('Assy Image') }}"
-                                       data-assembly-field="assy_img">
-                            </div>
-                            <div class="col-md-6">
-                                <input type="text"
-                                       class="form-control"
-                                       placeholder="{{ __('Notes') }}"
-                                       aria-label="{{ __('Notes') }}"
-                                       data-assembly-field="notes">
-                            </div>
-                        </div>
-                    </div>
-                </template>
             </div>
         </div>
 
@@ -904,15 +821,6 @@
                         </div>
                     </div>
 
-                    <div class="component-form-section mt-4">
-                        <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
-                            <h6 class="mb-0">{{ __('Assemblies') }}</h6>
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="editAddAssemblyRowBtn">
-                                <i class="bi bi-plus-lg"></i>
-                            </button>
-                        </div>
-                        <div id="editAssemblyRows"></div>
-                    </div>
 
                     <div class="component-form-footer mt-4">
                         <div class="d-flex align-items-center justify-content-end gap-2">
@@ -1093,67 +1001,6 @@
                         safeHideSpinner() {
                             if (typeof safeHideSpinner === 'function') safeHideSpinner();
                         },
-                        makeAssemblyManager(rows, template, idPrefix) {
-                            const renumber = () => {
-                                rows?.querySelectorAll('[data-assembly-row]').forEach((row, index) => {
-                                    const title = row.querySelector('[data-assembly-title]');
-                                    if (title) title.textContent = `Assembly ${index + 1}`;
-
-                                    row.querySelectorAll('[data-assembly-field]').forEach((field) => {
-                                        const key = field.dataset.assemblyField;
-                                        field.name = `assemblies[${index}][${key}]`;
-                                        field.id = `${idPrefix}_assembly_${index}_${key}`;
-                                    });
-
-                                    row.querySelectorAll('label').forEach((label) => {
-                                        const field = label.parentElement?.querySelector('[data-assembly-field]');
-                                        if (field) label.setAttribute('for', field.id);
-                                    });
-
-                                    const removeBtn = row.querySelector('[data-remove-assembly]');
-                                    if (removeBtn) removeBtn.classList.toggle('d-none', rows.children.length <= 1);
-                                });
-                            };
-
-                            const add = (values = {}) => {
-                                if (!rows || !template) return null;
-
-                                const fragment = template.content.cloneNode(true);
-                                const row = fragment.querySelector('[data-assembly-row]');
-                                row?.querySelectorAll('[data-assembly-field]').forEach((field) => {
-                                    const key = field.dataset.assemblyField;
-                                    if (field.type !== 'file') {
-                                        field.value = values[key] ?? '';
-                                    }
-                                });
-
-                                rows.appendChild(fragment);
-                                renumber();
-
-                                return rows.lastElementChild;
-                            };
-
-                            const reset = (items = [{}]) => {
-                                if (!rows) return;
-
-                                rows.innerHTML = '';
-                                (items.length ? items : [{}]).forEach(item => add(item));
-                            };
-
-                            rows?.addEventListener('click', (event) => {
-                                const removeBtn = event.target.closest('[data-remove-assembly]');
-                                if (!removeBtn) return;
-
-                                removeBtn.closest('[data-assembly-row]')?.remove();
-                                if (!rows.children.length) {
-                                    add();
-                                } else {
-                                    renumber();
-                                }
-                            });
-
-                            return { add, reset, renumber };
-                        },
                     };
 
                     function initCreateComponentDrawer() {
@@ -1165,9 +1012,6 @@
                         const isBush = document.getElementById('drawer_is_bush');
                         const bushContainer = document.getElementById('drawer_bush_ipl_container');
                         const bushInput = document.getElementById('drawer_bush_ipl_num');
-                        const assemblyRows = document.getElementById('assemblyRows');
-                        const assemblyTemplate = document.getElementById('assemblyRowTemplate');
-                        const addAssemblyRowBtn = document.getElementById('addAssemblyRowBtn');
                         const indexManualFilter = document.getElementById('manualFilter');
 
                         if (!offcanvasEl || !form || form.dataset.bound) return;
@@ -1196,9 +1040,6 @@
                         isBush?.addEventListener('change', syncBush);
                         syncBush();
 
-                        const assemblyManager = drawerHelpers.makeAssemblyManager(assemblyRows, assemblyTemplate, 'drawer');
-                        addAssemblyRowBtn?.addEventListener('click', () => assemblyManager.add());
-                        assemblyManager.reset();
 
                         offcanvasEl.addEventListener('show.bs.offcanvas', () => {
                             setErrors([]);
@@ -1241,7 +1082,6 @@
                                 form.reset();
                                 form.classList.remove('was-validated');
                                 drawerHelpers.setSelectValue(manualSelect, '');
-                                assemblyManager.reset();
                                 syncBush();
 
                                 const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
@@ -1271,9 +1111,6 @@
                         const isBush = document.getElementById('edit_drawer_is_bush');
                         const bushContainer = document.getElementById('edit_drawer_bush_ipl_container');
                         const bushInput = document.getElementById('edit_drawer_bush_ipl_num');
-                        const assemblyRows = document.getElementById('editAssemblyRows');
-                        const assemblyTemplate = document.getElementById('assemblyRowTemplate');
-                        const addAssemblyRowBtn = document.getElementById('editAddAssemblyRowBtn');
 
                         if (!offcanvasEl || !form || form.dataset.bound) return;
                         form.dataset.bound = '1';
@@ -1290,7 +1127,6 @@
                         }
 
                         const setErrors = (messages) => drawerHelpers.setErrors(errorsBox, messages);
-                        const assemblyManager = drawerHelpers.makeAssemblyManager(assemblyRows, assemblyTemplate, 'edit_drawer');
 
                         const syncBush = () => {
                             bushContainer?.classList.add('d-none');
@@ -1324,14 +1160,10 @@
                                 if (checkbox) checkbox.checked = !!component[field];
                             });
 
-                            let assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
-                            assemblyManager.reset(assemblies.length ? assemblies : [{}]);
                             syncBush();
                         };
 
-                        addAssemblyRowBtn?.addEventListener('click', () => assemblyManager.add());
                         isBush?.addEventListener('change', syncBush);
-                        assemblyManager.reset();
                         syncBush();
 
                         document.addEventListener('click', async (event) => {

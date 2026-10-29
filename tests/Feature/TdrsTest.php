@@ -2519,7 +2519,7 @@ class TdrsTest extends TestCase
         };
         $mk('Bushing', '1-30', $cracked, $orderNew);          // grouped, scrap
         $mk('End, Rod', '1-170', $customerRequest, $orderNew); // grouped, no scrap
-        $mk('Sleeve', '2-40', $corroded, $repair);             // "is necessary"
+        $mk('Sleeve', '2-40', $corroded, $repair);             // component + defect
 
         $lines = app(\App\Services\TdrInspectionLinesBuilder::class)->build($workorder);
         $joined = implode("\n", $lines);
@@ -2531,7 +2531,8 @@ class TdrsTest extends TestCase
         $this->assertStringContainsString('Cracked (scrap): (1-30)', $joined);
         $this->assertStringContainsString('Customer Request: (1-170)', $joined);
         $this->assertStringNotContainsString('Customer Request (scrap)', $joined);
-        $this->assertStringContainsString('IS NECESSARY', $joined);
+        $this->assertStringContainsString('(2-40) <b>SLEEVE</b> - CORRODED', $joined);
+        $this->assertStringNotContainsString('IS NECESSARY', $joined);
     }
 
     public function test_tdr_form_prints_teardown_inspection_rows_before_tdr_rows(): void

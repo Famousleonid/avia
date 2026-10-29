@@ -315,11 +315,17 @@
     <div class="processes-toolbar gap-2">
         @include('admin.tdr-processes.partials.traveler-template-picker')
         <button type="button"
-                class="btn btn-sm btn-outline-primary text-nowrap"
+                class="btn btn-sm btn-outline-info text-nowrap"
                 data-combined-form-button
                 disabled
                 title="{{ __('Select at least two processes with the same name') }}">
             {{ __('Combined Form') }} (0)
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-info"
+                data-combined-form-info
+                aria-label="{{ __('About Combined Form') }}"
+                title="{{ __('Combines selected process rows for this TDR part into one printable form. Select at least two rows in the Form column with the same Process Name. Machining AT and Machining EC may also be combined. Selected vendors must match.') }}">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
         </button>
     </div>
     <div class="table-wrapper me-3">

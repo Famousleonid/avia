@@ -227,16 +227,16 @@
             font-size: 0.75rem; /* или любое другое подходящее значение */
         }
         .fs-7 {
-            font-size: 0.7rem; /* или любое другое подходящее значение */
+            font-size: 12px; /* или любое другое подходящее значение */
         }
         .fs-8 {
             font-size: 0.8rem; /* или любое другое подходящее значение */
         }
         .fs-6 {
-            font-size: 0.6rem; /* или любое другое подходящее значение */
+            font-size: 12px; /* или любое другое подходящее значение */
         }
         .fs-4 {
-            font-size: 0.4rem; /* или любое другое подходящее значение */
+            font-size: 12px; /* или любое другое подходящее значение */
         }
 
         .details-row {
@@ -297,7 +297,7 @@
 
         .spec-component-description-ipl {
             display: inline-block;
-            font-size: 0.62rem;
+            font-size: 12px;
             font-weight: 400;
             white-space: nowrap;
             vertical-align: baseline;

@@ -81,6 +81,7 @@ class VendorTrackingController extends Controller
         $quantumRecentRows = $this->quantumRecentRows();
         $quantumRecentTotal = $this->quantumRecentTotal();
         $quantumUnparsedRows = $this->quantumUnparsedRows();
+        $quantumWorkorderUrls = $this->quantumWorkorderUrls($quantumRecentRows->concat($quantumUnparsedRows));
         $quantumUnparsedTotal = $this->quantumUnparsedTotal();
         $quantumStatusCounts = $this->quantumStatusCounts();
         $quantumSyncHealth = $this->quantumSyncHealth();
@@ -101,6 +102,7 @@ class VendorTrackingController extends Controller
             'quantumRecentRows',
             'quantumRecentTotal',
             'quantumUnparsedRows',
+            'quantumWorkorderUrls',
             'quantumUnparsedTotal',
             'quantumStatusCounts',
             'quantumSyncHealth'
@@ -206,6 +208,7 @@ class VendorTrackingController extends Controller
             'success' => true,
             'html' => view('admin.vendor_tracking.partials.quantum_recent_rows', [
                 'quantumRecentRows' => $rows,
+                'quantumWorkorderUrls' => $this->quantumWorkorderUrls($rows),
             ])->render(),
             'has_more' => $hasMore,
             'next_page' => $hasMore ? $page + 1 : null,
@@ -257,6 +260,7 @@ class VendorTrackingController extends Controller
         }
 
         $line = $recentRows->first();
+        $quantumWorkorderUrls = $this->quantumWorkorderUrls($recentRows->concat($unparsedRows));
         $found = $filterActive && $line !== null;
         $hasMore = ! $filterActive && $recentRows->count() < $filteredTotal;
 
@@ -270,9 +274,11 @@ class VendorTrackingController extends Controller
                 : null,
             'html' => view('admin.vendor_tracking.partials.quantum_recent_rows', [
                 'quantumRecentRows' => $recentRows,
+                'quantumWorkorderUrls' => $quantumWorkorderUrls,
             ])->render(),
             'unparsed_html' => view('admin.vendor_tracking.partials.quantum_unparsed_rows', [
                 'quantumUnparsedRows' => $unparsedRows,
+                'quantumWorkorderUrls' => $quantumWorkorderUrls,
             ])->render(),
             'line_id' => $line ? (int) $line->id : null,
             'line_ids' => $recentRows->pluck('id')->map(fn ($id) => (int) $id)->values(),
@@ -794,6 +800,19 @@ class VendorTrackingController extends Controller
                 $inner->orWhereNull('traveler_group');
             }
         });
+    }
+
+    private function quantumWorkorderUrls(Collection $lines): array
+    {
+        $numbers = $lines->pluck('wo_number')
+            ->map(fn ($number) => preg_replace('/\D+/', '', (string) $number))
+            ->filter()->map(fn ($number) => (int) $number)->unique()->values();
+
+        return $numbers->isEmpty() ? [] : Workorder::query()
+            ->whereIn('number', $numbers)
+            ->get(['id', 'number'])
+            ->mapWithKeys(fn (Workorder $wo) => [(int) $wo->number => route('mains.show', ['workorder' => $wo->id])])
+            ->all();
     }
 
     private function quantumUnparsedRows(): Collection

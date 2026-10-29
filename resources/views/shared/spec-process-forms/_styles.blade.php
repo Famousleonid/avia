@@ -13,7 +13,7 @@
     width: 30px;
 }
 .spec-process-row-cell .spec-process-number-list {
-    font-size: calc(var(--spec-process-name-font-size) * 0.72) !important;
+    font-size: max(12px, calc(var(--spec-process-name-font-size) * 0.72)) !important;
     letter-spacing: -0.2px;
     white-space: nowrap;
 }

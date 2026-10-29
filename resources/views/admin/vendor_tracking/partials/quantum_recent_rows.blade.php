@@ -53,7 +53,7 @@
         </td>
         <td class="js-quantum-status-cell"><span class="badge {{ $statusClass }}">{{ $statusLabel }}</span></td>
         <td>{{ $line->ro_number ?: '--' }}</td>
-        <td>{{ $line->wo_number ?: '--' }}</td>
+        <td>@include('admin.vendor_tracking.partials.quantum_workorder_link')</td>
         <td>{{ $line->vendor_name ?: '--' }}</td>
         <td>{{ $line->pn ?: '--' }}</td>
         <td>{{ $line->class ?: '--' }}</td>

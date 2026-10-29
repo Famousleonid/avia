@@ -31,6 +31,20 @@
                                 </template>
                             </span>
                         @endforeach
+                        @foreach($row['internal'][$key] ?? [] as $internal)
+                            <span class="main-ro-entry">
+                                <button type="button" class="main-ro-number {{ $internal['returned'] ? 'main-ro-returned' : 'main-ro-pending' }}" aria-expanded="false"
+                                        aria-label="Details for AT — {{ $internal['returned'] ? 'Returned' : 'Not returned' }}">AT</button>
+                                <template class="main-ro-details">
+                                    <div class="main-ro-popover">
+                                        <strong>AT</strong>
+                                        <div>AVIATECHNIK — {{ $internal['process'] }}</div>
+                                        <div class="mt-2">Sent: <span>@projectDate($internal['sent'])</span></div>
+                                        <div>Returned: <span>@projectDate($internal['returned'])</span></div>
+                                    </div>
+                                </template>
+                            </span>
+                        @endforeach
                         @foreach($row['pending'][$key] ?? [] as $position)
                             <span class="main-ro-entry main-ro-step-pending" title="Process {{ $position }}: not sent, RO not assigned" aria-label="Process {{ $position }}: not sent, RO not assigned">{{ $position }}</span>
                         @endforeach

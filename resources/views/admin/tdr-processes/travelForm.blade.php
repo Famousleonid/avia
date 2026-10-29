@@ -260,7 +260,7 @@
             width: 99px;
         }
         .fs-7 {
-            font-size: 0.7rem; /* или любое другое подходящее значение */
+            font-size: 12px; /* или любое другое подходящее значение */
         }
         .fs-75 {
             font-size: 0.75rem; /* или любое другое подходящее значение */
@@ -272,7 +272,7 @@
             font-size: 0.9rem; /* или любое другое подходящее значение */
         }
         .fs-4 {
-            font-size: 0.4rem; /* или любое другое подходящее значение */
+            font-size: 12px; /* или любое другое подходящее значение */
         }
 
         .details-row {
@@ -306,7 +306,6 @@
             text-align: center;
         }
 
-        .traveler-title,
         .traveler-subtitle,
         .parent > div {
             font-size: var(--component-name-font-size, 16px);
@@ -343,6 +342,10 @@
             box-shadow: none;
         }
         .traveler-document-header > .row { margin: 0; }
+        .traveler-heading { position: relative; width: 100%; padding: 8px 0; }
+        .traveler-heading-logo { position: absolute; top: 0; left: 0; width: 180px; height: auto; }
+        .traveler-heading .traveler-title { margin: 0 0 3px !important; padding: 0 !important; font-size: 24px !important; line-height: 1.15; text-align: center; }
+        .traveler-heading .traveler-subtitle { margin: 0; font-size: 16px; line-height: 1.2; text-align: center; }
         .traveler-process-table .traveler-table-header { font-size: 12px !important; }
         @media print {
             .container-fluid > .row { display: block; margin: 0; }
@@ -393,15 +396,10 @@
     <div class="row">
 <table class="table mt-2 traveler-process-table"><colgroup><col style="width:4%"><col style="width:14%"><col style="width:36%"><col style="width:9%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:9%"></colgroup><thead>
     <tr><td colspan="8" class="traveler-document-header"><div class="row">
-        <div class="col-4">
-            <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                 style="width: 180px; margin: 6px 10px 0;">
-        </div>
-        <div class="col-8 ">
-            <h4 class="pt-4 ms-5 text-black traveler-title"><strong>PART TRAVELER</strong></h4>
-        </div>
-        <div class="text-center traveler-subtitle" style="margin-top: -10px">
-            <h6>(This document must accompany the part and must be returned to the originator)</h6>
+        <div class="traveler-heading">
+            <img class="traveler-heading-logo" src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo">
+            <h4 class="text-black traveler-title"><strong>PART TRAVELER</strong></h4>
+            <p class="traveler-subtitle">(This document must accompany the part and must be returned to the originator)</p>
         </div>
 
         <div class="parent">

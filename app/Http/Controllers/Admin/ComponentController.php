@@ -617,9 +617,9 @@ class ComponentController extends Controller
             ->values();
         $firstAssembly = $assemblies->first();
 
-        $validated['assy_part_number'] = $request->input('assy_part_number', $firstAssembly['assy_part_number'] ?? null);
+        $validated['assy_part_number'] = $request->input('assy_part_number', $firstAssembly['assy_part_number'] ?? ($request->has('assemblies') ? null : $component->assy_part_number));
         $validated['units_assy'] = $request->input('units_assy', $firstAssembly['units_assy'] ?? null);
-        $validated['assy_ipl_num'] = $request->input('assy_ipl_num', $firstAssembly['assy_ipl_num'] ?? null);
+        $validated['assy_ipl_num'] = $request->input('assy_ipl_num', $firstAssembly['assy_ipl_num'] ?? ($request->has('assemblies') ? null : $component->assy_ipl_num));
         $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
         unset($validated['img'], $validated['assy_img'], $validated['assemblies']);

@@ -325,6 +325,12 @@ class LogCardController extends Controller
             $components,
             $current_wo
         );
+        $assyChoiceGroups = app(\App\Services\LogCardDraftChoiceGroups::class)->merge(
+            $components,
+            $assyChoiceGroups,
+            ManualPartGroup::with('options')->where('manual_id', $manual_id)->get()
+        );
+        $assyGroupedComponentIds = $assyChoiceGroups->flatMap(fn ($group) => $group['choices']->pluck('component_id'));
         $regularComponents = $components
             ->reject(fn (Component $component): bool => $assyGroupedComponentIds->contains((int) $component->id))
             ->values();

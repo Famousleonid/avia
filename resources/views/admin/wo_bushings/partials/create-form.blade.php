@@ -19,8 +19,9 @@
     .bushing-create-table-wrap { width: 100%; max-height: calc(90vh - 150px); overflow-y: auto; overflow-x: auto; }
     .bushing-itemized-table {
         --bushing-col-bushing-width: 280px;
-        --bushing-fixed-cols-width: calc(var(--bushing-col-bushing-width) + 526px);
-        --bushing-ndt-col-width: 96px;
+        --bushing-fixed-cols-width: calc(var(--bushing-col-bushing-width) + 370px);
+        --bushing-process-col-width: calc((100% - var(--bushing-fixed-cols-width)) / 6.7);
+        --bushing-ndt-col-width: var(--bushing-process-col-width);
         --bushing-line-height: 28px;
         width: 100%;
         min-width: 1200px;
@@ -28,14 +29,14 @@
         table-layout: fixed;
     }
     .bushing-itemized-table col.bushing-col-bushing { width: var(--bushing-col-bushing-width); }
-    .bushing-itemized-table col.bushing-col-part-qty { width: 74px; }
-    .bushing-itemized-table col.bushing-col-select { width: 190px; }
-    .bushing-itemized-table col.bushing-col-no-order { width: 104px; }
+    .bushing-itemized-table col.bushing-col-part-qty { width: 44px; }
+    .bushing-itemized-table col.bushing-col-select { width: 128px; }
+    .bushing-itemized-table col.bushing-col-no-order { width: 40px; }
     .bushing-itemized-table col.bushing-col-qty { width: 70px; }
     .bushing-itemized-table col.bushing-col-toggle { width: 88px; }
     .bushing-itemized-table col.bushing-col-ndt { width: var(--bushing-ndt-col-width); }
     .bushing-itemized-table col.bushing-col-process {
-        width: calc((100% - var(--bushing-fixed-cols-width) - var(--bushing-ndt-col-width)) / 6);
+        width: var(--bushing-process-col-width);
     }
     .bushing-create-table th { position: sticky; top: 0; z-index: 2; background: #303841; font-size: .78rem; }
     .bushing-create-table td { vertical-align: middle; font-size: .8rem; }
@@ -44,6 +45,7 @@
         padding-left: .25rem !important;
         padding-right: .25rem !important;
     }
+    .bushing-itemized-table col.bushing-col-process:last-child { width: calc(var(--bushing-process-col-width) * .7); }
     .bushing-line-list { display: flex; flex-direction: column; gap: .45rem; }
     .bushing-line-list > div { height: var(--bushing-line-height); min-height: var(--bushing-line-height); flex: 0 0 var(--bushing-line-height); display: flex; align-items: center; }
     .bushing-part-cell { min-width: 0; white-space: normal; line-height: 1.25; }
@@ -57,7 +59,10 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    .bushing-select-cell { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; }
+    .bushing-select-cell { display: inline-flex; align-items: center; gap: .25rem; white-space: nowrap; }
+    .bushing-select-cell > .form-check-input { flex: 0 0 auto; }
+    .bushing-itemized-table th:nth-child(2),
+    .bushing-itemized-table th:nth-child(4) { white-space: normal; overflow-wrap: normal; line-height: 1.15; }
     .bushing-select-ipl { color: var(--bs-body-color); font-size: .8rem; }
     .bushing-qty-input {
         width: 54px;
@@ -89,6 +94,7 @@
               data-embed="{{ $embed ? '1' : '0' }}"
               data-itemized="1">
             @csrf
+                    @include('admin.wo_bushings.partials.process-option-pools')
             <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
 
             <div class="card-body {{ $embed ? 'p-0' : 'p-2' }}">
@@ -138,10 +144,10 @@
                             @foreach($bushings as $bushIplNum => $bushingGroup)
                                 @php
                                     $groupKey = (string) ($bushIplNum ?: 'no_ipl');
-                                    $initialBushing = $bushingGroup->first(fn ($candidate) =>
-                                        trim((string) $candidate->ipl_num) === trim((string) $candidate->bush_ipl_num)
-                                    );
-                                    $groupMaxOrderQty = \App\Support\BushingPrlGrouping::capacity($bushingGroup);
+                                    $capacityOptions = \App\Support\BushingPrlGrouping::capacityOptions($bushingGroup);
+                                    $initialBushing = \App\Support\BushingPrlGrouping::originalComponent($bushingGroup, $capacityOptions)
+                                        ?? $bushingGroup->sortByDesc('units_assy')->first();
+                                    $groupMaxOrderQty = \App\Support\BushingPrlGrouping::capacity($bushingGroup, $capacityOptions);
                                 @endphp
                                 <tr class="bushing-row"
                                     data-group-key="{{ $groupKey }}"
@@ -160,7 +166,7 @@
                                     <td class="text-center bushing-readonly-qty">
                                         <div class="bushing-line-list align-items-center">
                                             @foreach($bushingGroup as $bushing)
-                                                <div>{{ $bushing->units_assy ?? 1 }}</div>
+                                                <div data-part-qty-component="{{ $bushing->id }}">{{ (int) $bushing->id === (int) $initialBushing?->id ? ($bushing->units_assy ?? 1) : '' }}</div>
                                             @endforeach
                                         </div>
                                     </td>
@@ -234,9 +240,6 @@
                                                                 data-process-field="{{ $field }}"
                                                                 data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField[$field] ?? []) }}">
                                                             <option value="">...</option>
-                                                            @foreach($column['options'] as $process)
-                                                                <option data-process-comment="{{ trim((string) ($bushingProcessComments[$process->id] ?? '')) }}" value="{{ $process->id }}">{{ $process->process }}</option>
-                                                            @endforeach
                                                         </select>
                                                     </div>
                                                 @endforeach
@@ -253,7 +256,7 @@
                                                             data-process-field="ndt"
                                                             data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField['ndt'] ?? []) }}">
                                                         <option value="">...</option>
-                                                        @include('admin.wo_bushings.partials.ndt-options', ['selectedNdt' => null])
+
                                                     </select>
                                                 </div>
                                             @endforeach
@@ -270,9 +273,6 @@
                                                                 data-process-field="{{ $field }}"
                                                                 data-process-name-ids="{{ implode(',', $bushingProcessNameIdsByField[$field] ?? []) }}">
                                                             <option value="">...</option>
-                                                            @foreach($column['options'] as $process)
-                                                                <option data-process-comment="{{ trim((string) ($bushingProcessComments[$process->id] ?? '')) }}" value="{{ $process->id }}">{{ $process->process }}</option>
-                                                            @endforeach
                                                         </select>
                                                     </div>
                                                 @endforeach
@@ -364,12 +364,14 @@
             var processNameId = String(process.process_names_id);
             form.querySelectorAll('.bushing-process-control[data-process-name-ids]').forEach(function(select) {
                 var allowedIds = (select.dataset.processNameIds || '').split(',').filter(Boolean);
+                    window.populateBushingProcessOptions?.(select);
                 if (allowedIds.indexOf(processNameId) === -1 || select.querySelector('option[value="' + processId + '"]')) return;
 
                 var label = select.dataset.processField === 'ndt'
                     ? (processName || process.process || ('#' + processId))
                     : (process.process || processName || ('#' + processId));
                 var option = new Option(label, processId);
+                option.title = process.process || label;
                 option.dataset.processComment = process.process_comment || '';
                 select.add(option);
             });
@@ -406,6 +408,7 @@
                     line.classList.toggle('is-hidden', !showProcesses);
                     line.querySelectorAll('.bushing-process-control').forEach(function(control) {
                         control.disabled = !showProcesses;
+                            if (showProcesses) window.enhanceBushingProcessControl?.(control);
                         // Hidden process values are restored with the selection.
                         if (window.jQuery) window.jQuery(control).trigger('change.select2');
                     });
@@ -504,6 +507,7 @@
         }, true);
 
         syncAllRows();
+        window.BushingEditorDraft?.init(form);
     }
 
     window.initCreateBushingForm = initCreateBushingForm;

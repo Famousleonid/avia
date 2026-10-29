@@ -1256,6 +1256,7 @@ class WoBushingSortingTest extends TestCase
         $ndt1 = $this->attachProcessToManual($manualId, 'NDT-1', 'Unused NDT one');
         $ndt1->process_name->update(['print_form' => false]);
         $ndt4 = $this->attachProcessToManual($manualId, 'NDT-4', 'ASTM-E-1417 Level 3 or 4');
+        $this->attachProcessToManual($manualId, 'NDT-4', 'WRONG UNSELECTED DCMP-161');
         $bushing = WoBushing::create(['workorder_id' => $wo->id]);
         $batch = WoBushingBatch::create(['workorder_id' => $wo->id, 'process_id' => $ndt4->id, 'process_column_key' => 'ndt']);
         foreach (['52120-5', '52120-7'] as $index => $pn) {
@@ -1266,10 +1267,43 @@ class WoBushingSortingTest extends TestCase
         $url = route('wo_bushings.processesForm', ['id' => $bushing->id, 'processNameId' => $ndt4->process_names_id]);
         $this->actingAs($admin)->get(route('wo_bushings.partial', $wo->id))->assertOk()->assertSee($url, false);
         $this->get($url.'?'.http_build_query(['bushing_batch_ids' => [$batch->id]]))
-            ->assertOk()->assertSee('52120-5')->assertSee('52120-7')->assertSee('B1')->assertSee('ASTM-E-1417');
+            ->assertOk()->assertSee('52120-5')->assertSee('52120-7')->assertSee('B1')->assertSee('ASTM-E-1417')
+            ->assertDontSee('WRONG UNSELECTED')->assertDontSee('Unused NDT one');
         $ndt4->process_name->update(['print_form' => false]);
         $this->get(route('wo_bushings.partial', $wo->id))->assertOk()->assertDontSee($url, false);
         $this->get($url)->assertRedirect();
+    }
+
+    public function test_ndt_bushing_print_keeps_multiple_selected_specs_and_filters_other_batches(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $wo = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $wo->unit->manual_id;
+        $specs = collect(['Selected ASTM E 1417', 'Selected DCMP-161', 'Other batch specification'])
+            ->map(fn ($text) => $this->attachProcessToManual($manualId, 'NDT-4', $text));
+        $this->attachProcessToManual($manualId, 'NDT-4', 'Unselected catalog specification');
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        $batch = WoBushingBatch::create(['workorder_id' => $wo->id, 'process_id' => $specs[0]->id, 'process_column_key' => 'ndt']);
+        $otherBatch = WoBushingBatch::create(['workorder_id' => $wo->id, 'process_id' => $specs[2]->id, 'process_column_key' => 'ndt']);
+        $components = [];
+        foreach ($specs as $index => $spec) {
+            $component = Component::create(['manual_id' => $manualId, 'ipl_num' => '1-'.($index + 1), 'part_number' => 'SPEC-PART-'.$index, 'name' => 'Bushing', 'is_bush' => true]);
+            $components[] = $component;
+            $line = WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id, 'component_id' => $component->id, 'qty' => 2, 'qty_remaining' => 2, 'group_key' => $component->ipl_num, 'sort_order' => $index]);
+            WoBushingProcess::create(['wo_bushing_line_id' => $line->id, 'process_id' => $spec->id, 'batch_id' => $index === 2 ? $otherBatch->id : $batch->id, 'qty' => 2]);
+        }
+        $url = route('wo_bushings.processesForm', ['id' => $bushing->id, 'processNameId' => $specs[0]->process_names_id]);
+        $response = $this->actingAs($admin)->get($url.'?'.http_build_query(['bushing_batch_ids' => [$batch->id]]))->assertOk();
+        $response->assertSee('Selected ASTM E 1417')->assertSee('Selected DCMP-161')
+            ->assertDontSee('Other batch specification')->assertDontSee('Unselected catalog specification');
+        $rows = $response->viewData('table_data');
+        $this->assertCount(2, $rows);
+        $this->assertSame('4: Selected ASTM E 1417', $rows[0]['ndt_specification_text']);
+        $this->assertSame('4: Selected DCMP-161', $rows[1]['ndt_specification_text']);
+        $filtered = $this->get($url.'?'.http_build_query(['bushing_batch_ids' => [$batch->id], 'bushing_component_ids' => [$components[0]->id]]))->assertOk();
+        $filtered->assertSee('Selected ASTM E 1417')->assertDontSee('Selected DCMP-161');
+        $this->assertSame('', $filtered->viewData('table_data')[0]['ndt_specification_text']);
+        $this->get($url)->assertOk()->assertDontSee('Selected ASTM E 1417')->assertDontSee('Selected DCMP-161');
     }
 
     public function test_bushing_pickers_use_comments_from_the_current_manual(): void

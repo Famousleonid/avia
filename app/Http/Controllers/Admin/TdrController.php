@@ -55,6 +55,7 @@ use League\Csv\Reader;
 
 class TdrController extends Controller
 {
+    private ?\App\Services\WorkorderFormCalculation $showCalculation = null;
     const DEFAULT_QTY = 1;
     const DEFAULT_PROCESS = 1;
     const PROCESS_TYPE_NDT = 'ndt';
@@ -1783,15 +1784,22 @@ class TdrController extends Controller
         return view('admin.tdrs.show', $viewData);
     }
 
+    public function showFragments($id)
+    {
+        return response()->view('admin.tdrs.partials.show-fragments', $this->getShowData($id, true))
+            ->header('Cache-Control', 'no-store, private');
+    }
+
     /**
      * Prepare data for TDR show view.
      *
      * @param int $id Workorder ID
      * @return array
      */
-    private function getShowData($id)
+    private function getShowData($id, bool $tdrFragment = false)
     {
         $current_wo = Workorder::with(['unit.manuals.builder', 'instruction'])->findOrFail($id);
+        $this->showCalculation = new \App\Services\WorkorderFormCalculation($current_wo);
         $units = Unit::all();
         $user = Auth::user();
         $user_wo = $current_wo->user_id;
@@ -1815,7 +1823,7 @@ class TdrController extends Controller
         $logCardTdrAccess = app(LogCardTdrAccessService::class)->forWorkorder($current_wo, $user);
         $showDestructionCert = LogCardDestructionCertificate::availableFor($current_wo);
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
-        $components = $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
+        $components = $tdrFragment ? collect() : $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)
                 ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
                 ->get(),
@@ -1823,7 +1831,7 @@ class TdrController extends Controller
         ));
         $bushingComponents = BushingPrlGrouping::candidates($components);
         $hasBushings = $bushingComponents->isNotEmpty();
-        $bushingPrlCount = app(TdrPrintFormController::class)->countBushingPrlRows($current_wo);
+        $bushingPrlCount = $tdrFragment ? 0 : app(TdrPrintFormController::class)->countBushingPrlRows($current_wo);
         $kitComponents = $this->filterComponentsForUnit(
             Component::query()
                 ->whereIn('manual_id', $current_wo->usedManualIds())
@@ -1835,23 +1843,23 @@ class TdrController extends Controller
             $kitComponents = collect();
         }
         $kitBushingIds = BushingPrlGrouping::candidates($kitComponents)->pluck('id');
-        $bushingGroupKeys = app(\App\Services\PartVariantGrouping::class)->explicitKeys($kitComponents->pluck('manual_id')->all(), 'bushing');
+        $bushingGroupKeys = $this->showCalculation->grouping->explicitKeys($kitComponents->pluck('manual_id')->all(), 'bushing');
         $kitPrlCount = $this->countKitPrlGroups(
             $kitComponents->whereNotIn('id', $kitBushingIds)
         ) + $kitComponents
             ->whereIn('id', $kitBushingIds)
             ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component, $bushingGroupKeys))
             ->count();
-        $stdFormCounts = [
+        $stdFormCounts = $tdrFragment ? [] : [
             'ndt' => $this->countStdFormQty($current_wo, StdProcess::STD_NDT),
             'cad' => $this->countStdFormQty($current_wo, StdProcess::STD_CAD),
             'stress' => $this->countStdFormQty($current_wo, StdProcess::STD_STRESS),
             'paint' => $this->countPaintStdFormQty($current_wo),
         ];
-        $spFormColumnsCount = $this->countSpecProcessFormColumns($current_wo);
-        $bushingSpFormColumnsCount = $this->countBushingSpecProcessColumns($woBushing);
-        $rmFormRowsCount = $this->countRmFormRows($current_wo);
-        $tdrFormRowsCount = $this->countTdrFormRows($current_wo);
+        $spFormColumnsCount = $tdrFragment ? 0 : $this->countSpecProcessFormColumns($current_wo);
+        $bushingSpFormColumnsCount = $tdrFragment ? 0 : $this->countBushingSpecProcessColumns($woBushing);
+        $rmFormRowsCount = $tdrFragment ? 0 : $this->countRmFormRows($current_wo);
+        $tdrFormRowsCount = $tdrFragment ? 0 : $this->countTdrFormRows($current_wo);
         $code = Code::missing();
         $missingCondition = Condition::partsMissing();
         $conditions = Condition::all();
@@ -1929,8 +1937,7 @@ class TdrController extends Controller
             ->get();
         // Count the final printed quantities, including KIT/Kit_E supply,
         // assembly coverage and the routing of overhaul bushings to KIT.
-        $prlPartsCount = (int) app(TdrPrintFormController::class)
-            ->prlPrintRows($current_wo)->sum('qty');
+        $prlPartsCount = (int) $this->showCalculation->printedPrlRows()->sum('qty');
 
         $planes = Plane::all();
         $builders = Builder::all();
@@ -2015,8 +2022,20 @@ class TdrController extends Controller
 
         $showLogCardTab = true;
 
+        $tdrUiSettings = \App\Models\UserUiSetting::query()
+            ->where('user_id', $user->id)->where('scope', 'tdrs.show')
+            ->whereIn('key', ["activeTab:{$id}", "pendingNotification:{$id}"])
+            ->pluck('value', 'key')->all();
+        $userUiSettingsInitial = ['tdrs.show' => (object) $tdrUiSettings];
+        $allowedTabs = ['tab-tdr', 'tab-log-card', 'tab-bushing', 'tab-rm-reports'];
+        if ($hasTransfers) $allowedTabs[] = 'tab-transfers';
+        if (! $user->roleIs(['Shipping', 'Paint', 'Machining'])) $allowedTabs[] = 'tab-measurements';
+        $initialTdrTab = $tdrUiSettings["activeTab:{$id}"] ?? 'tab-tdr';
+        if (! in_array($initialTdrTab, $allowedTabs, true)) $initialTdrTab = 'tab-tdr';
+        $documentCount = $current_wo->media()->where('collection_name', 'pdfs')->count();
+
         // Broader inspection choices must not inflate the KIT/PRL counters above.
-        $components = $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
+        $components = $tdrFragment ? collect() : $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)
                 ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
                 ->get(),
@@ -2037,7 +2056,7 @@ class TdrController extends Controller
             'showDestructionCert', 'logCardTdrAccess',
             'logCardSerialsByComponent',
             'allowedManualIds', 'canManageManualParts', 'canManageAllManualParts',
-            'dimensionFigures'
+            'dimensionFigures', 'userUiSettingsInitial', 'initialTdrTab', 'documentCount', 'tdrFragment'
         );
     }
 
@@ -2310,6 +2329,13 @@ class TdrController extends Controller
                 $validated['tdr_type'] = Tdr::TYPE_ORDER_NEW;
                 $validated['order_component_id'] = $lockedTdr->order_component_id
                     ?: ($validated['component_id'] ?? $lockedTdr->component_id);
+
+                // Validate the actual replacement before deleting the repair route.
+                if (Component::withTrashed()->whereKey($validated['order_component_id'])->where('np', true)->exists()) {
+                    throw ValidationException::withMessages([
+                        'order_component_id' => __('NP parts cannot be ordered'),
+                    ]);
+                }
 
                 // Order New has no repair/process route. Delete model instances so
                 // activity logging runs; machining work steps are removed by FK cascade.
@@ -2724,7 +2750,7 @@ class TdrController extends Controller
     private function countStdFormQty(Workorder $workorder, string $std): int
     {
         return $this->sumStdRowsQty(
-            StdProcess::snapshotComponentsForWorkorder($workorder, $std)
+            $this->showCalculation ? $this->showCalculation->stdRows($std) : StdProcess::snapshotComponentsForWorkorder($workorder, $std)
         );
     }
 
@@ -2761,7 +2787,7 @@ class TdrController extends Controller
             }
         }
 
-        $rows = collect(StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_PAINT))
+        $rows = collect($this->showCalculation ? $this->showCalculation->stdRows(StdProcess::STD_PAINT) : StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_PAINT))
             ->filter(function (array $row) use ($excludedIplNums): bool {
                 $normalizedIpl = $this->normalizeIplNum((string) ($row['ipl_num'] ?? ''));
                 $manualIplKey = (int) ($row['manual_id'] ?? 0) . '|' . $normalizedIpl;
@@ -2804,7 +2830,7 @@ class TdrController extends Controller
 
     private function countKitPrlGroups($components): int
     {
-        $keys = app(\App\Services\PartVariantGrouping::class)->componentKeys($components);
+        $keys = ($this->showCalculation?->grouping ?? app(\App\Services\PartVariantGrouping::class))->componentKeys($components);
         return collect($components)
             ->groupBy(fn ($component): string => KitPrlGrouping::groupKeyForComponent($component, $keys))
             ->count();
