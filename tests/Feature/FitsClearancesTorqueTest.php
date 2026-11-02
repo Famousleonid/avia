@@ -16,9 +16,12 @@ class FitsClearancesTorqueTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    private $admin = null;
+
+    /** One admin per test — a second actingAs with another user gets logged out (AuthenticateSession). */
     private function admin()
     {
-        return $this->createUserWithRole('Admin', ['stamp' => 'FC' . random_int(1, 9999)]);
+        return $this->admin ??= $this->createUserWithRole('Admin', ['stamp' => 'FC' . random_int(1, 9999)]);
     }
 
     // ---- ManualFit model: derived clearances + mismatch flag ----

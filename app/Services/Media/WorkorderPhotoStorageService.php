@@ -19,10 +19,27 @@ class WorkorderPhotoStorageService
         Workorder $workorder,
         UploadedFile $photo,
         string $collection,
-        array $customProperties = []
+        array $customProperties = [],
+        ?string $uploadKey = null
     ): Media {
-        return DB::transaction(function () use ($workorder, $photo, $collection, $customProperties): Media {
+        return DB::transaction(function () use ($workorder, $photo, $collection, $customProperties, $uploadKey): Media {
             $lockedWorkorder = $this->lockWorkorder($workorder);
+            if ($uploadKey !== null) {
+                $fingerprint = hash_file('sha256', $photo->getPathname());
+                abort_unless(is_string($fingerprint), 422, 'Photo file cannot be read.');
+                $existing = $lockedWorkorder->media()->where('collection_name', $collection)
+                    ->where('custom_properties->native_upload_key', $uploadKey)->first();
+                if ($existing) {
+                    abort_unless(hash_equals((string) $existing->getCustomProperty('native_upload_hash', ''), $fingerprint),
+                        409, 'Photo changed. Retake it and try again.');
+                    abort_unless(is_file($existing->getPath()), 409, 'The saved photo could not be found. Please contact support.');
+
+                    return $existing;
+                }
+                $customProperties = array_merge($customProperties, [
+                    'native_upload_key' => $uploadKey, 'native_upload_hash' => $fingerprint,
+                ]);
+            }
             $filename = $this->nextFilenameLocked(
                 $lockedWorkorder,
                 $collection,

@@ -238,7 +238,10 @@
                 const assy = (Array.isArray(row.assemblies) ? row.assemblies : []).find(item =>
                     Number(item?.componentId) === Number(panel.dataset.componentId));
                 const select = panel.querySelector('select');
-                if (assy && Array.from(select.options).some(item => item.value === String(assy.value))) select.value = String(assy.value);
+                // Laravel normalizes an empty option to null in user-ui-settings.
+                // It still means an explicit No ASSY, including with one parent.
+                const savedValue = assy?.value == null ? '' : String(assy.value);
+                if (assy && Array.from(select.options).some(item => item.value === savedValue)) select.value = savedValue;
             });
             card.dataset.draftTouched = '1';
             syncDraftCard(card);

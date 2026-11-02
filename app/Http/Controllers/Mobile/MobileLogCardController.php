@@ -32,7 +32,7 @@ class MobileLogCardController extends Controller
         ]);
     }
 
-    public function storePhoto(Request $request, Workorder $workorder): JsonResponse
+    public function storePhoto(Request $request, Workorder $workorder, ?string $uploadKey = null): JsonResponse
     {
         $workorder->load(['unit.manual', 'main.task']);
         abort_unless(app(MobileReviewAccess::class)->canAccessWorkorder($request->user(), $workorder), 404);
@@ -71,15 +71,20 @@ class MobileLogCardController extends Controller
                 $this->landscapePhotoProcessor->discardTemporaryFile($request->file('photo'), $photo);
             }
         } else {
-            $media = $this->photoStorage->store(
-                $workorder,
-                $photo,
-                'logs',
-                array_filter([
-                    'source' => 'mobile_log_card',
-                    'log_card_row_index' => $data['row_index'] ?? null,
-                ], static fn ($value) => $value !== null)
-            );
+            try {
+                $media = $this->photoStorage->store(
+                    $workorder,
+                    $photo,
+                    'logs',
+                    array_filter([
+                        'source' => 'mobile_log_card',
+                        'log_card_row_index' => $data['row_index'] ?? null,
+                    ], static fn ($value) => $value !== null),
+                    $uploadKey
+                );
+            } finally {
+                $this->landscapePhotoProcessor->discardTemporaryFile($request->file('photo'), $photo);
+            }
         }
 
         $workorder->load('media');

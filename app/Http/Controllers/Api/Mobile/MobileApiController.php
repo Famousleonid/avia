@@ -194,8 +194,11 @@ class MobileApiController extends Controller
             ->groupBy(fn (Component $c) => $c->manual_id . '|' . $this->mobileLogCardGroupKey((string) $c->ipl_num));
 
         $rows = app(\App\Services\ManualLogCardOrder::class)->displayRows($rows, $workorder);
+        $assemblyChoices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent(
+            ManualPartGroup::with('options.coverages')->whereIn('manual_id', $manualIds)->get(), $components, $workorder
+        );
         $payloadRows = collect($rows)->map(function ($row, $index) use (
-            $components, $tdrByComponent, $missingCode, $orderNew, $groupComponents, $resolver, $workorder, $primaryManualId
+            $components, $tdrByComponent, $missingCode, $orderNew, $groupComponents, $resolver, $workorder, $primaryManualId, $assemblyChoices
         ) {
             if (! is_array($row)) {
                 return null;
@@ -249,6 +252,9 @@ class MobileApiController extends Controller
                 'reason' => (string) ($row['reason'] ?? ''),
                 'new_serial_number' => (string) ($row['new_serial_number'] ?? ''),
                 'component_assembly_id' => (int) ($row['component_assembly_id'] ?? 0) ?: null,
+                'assy_option_id' => (int) ($row['assy_option_id'] ?? 0) ?: null,
+                'assy_selection_explicit' => (string) ($row['assy_selection_explicit'] ?? '0') === '1',
+                'assembly_choices' => $assemblyChoices[(int) ($component?->id ?? 0)] ?? [],
                 'assy_part_number' => (string) ($row['assy_part_number'] ?? ''),
                 'assy_ipl_num' => (string) ($row['assy_ipl_num'] ?? ''),
                 'units_assy' => (string) ($row['units_assy'] ?? ''),
@@ -420,6 +426,55 @@ class MobileApiController extends Controller
         ]);
     }
 
+    public function logCardDraft(Request $request, int $workorderId): JsonResponse
+    {
+        $workorder = $this->findWorkorder($workorderId);
+        $setting = \App\Models\UserUiSetting::query()
+            ->where('user_id', $request->user()->id)->where('scope', 'mobile.log-card.draft')
+            ->where('key', 'wo:'.$workorder->id)->first();
+
+        return $this->ok(['draft' => $setting?->value]);
+    }
+
+    public function saveLogCardDraft(Request $request, int $workorderId): JsonResponse
+    {
+        $workorder = $this->findWorkorder($workorderId);
+        $data = $request->validate([
+            'value' => ['present', 'nullable', 'array'],
+            'value.version' => [\Illuminate\Validation\Rule::requiredIf($request->input('value') !== null), 'integer', 'in:1'],
+            'value.rows' => ['array', 'max:500'],
+        ]);
+        $data['value'] = $data['value'] ?? null;
+        abort_if($data['value'] !== null && ! array_key_exists('rows', $data['value']), 422, 'Draft rows are required.');
+        abort_if(strlen(json_encode($data['value'])) > 200000, 422, 'Draft is too large.');
+        $key = ['user_id' => $request->user()->id, 'scope' => 'mobile.log-card.draft', 'key' => 'wo:'.$workorder->id];
+        if ($data['value'] === null) {
+            \App\Models\UserUiSetting::query()->where($key)->delete();
+        } else {
+            \App\Models\UserUiSetting::updateOrCreate($key, ['value' => $data['value']]);
+        }
+
+        return $this->ok(['draft' => $data['value']]);
+    }
+
+    public function logCardPhoto(Request $request, int $workorderId): JsonResponse
+    {
+        $workorder = $this->findWorkorder($workorderId);
+        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, $request->user());
+        abort_if($access['read_only'] ?? false, 423, $access['message'] ?? 'Log Card editing is locked.');
+        $data = $request->validate(['upload_id' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/D']]);
+        $uploadKey = empty($data['upload_id']) ? null : hash('sha256', 'log-card|'.$request->user()->id.'|'.($request->input('row_index') ?? '').'|'.$data['upload_id']);
+        $response = app(\App\Http\Controllers\Mobile\MobileLogCardController::class)->storePhoto($request, $workorder, $uploadKey);
+        $payload = $response->getData(true);
+        // Native clients fetch media with bearer auth rather than a web session.
+        $payload['photos'] = $this->mediaPayloads($workorder->getMedia('logs'));
+        if (! empty($payload['photo']['id'])) {
+            $payload['photo'] = $this->mediaPayload($workorder->getMedia('logs')->firstWhere('id', $payload['photo']['id']));
+        }
+
+        return $this->ok($payload);
+    }
+
     /** Creates the card through the desktop store() so normalization and
      *  activity logging stay identical. */
     public function storeLogCard(Request $request, int $workorderId): JsonResponse
@@ -570,9 +625,11 @@ class MobileApiController extends Controller
 
         $data = $request->validate([
             'component_assembly_id' => ['nullable', 'integer', 'exists:component_assemblies,id'],
+            'assy_selection_explicit' => ['nullable', 'boolean'],
+            'assy_option_id' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        return DB::transaction(function () use ($logCard, $row, $data) {
+        return DB::transaction(function () use ($logCard, $row, $data, $workorder) {
             $logCard = LogCard::query()->lockForUpdate()->findOrFail($logCard->id);
             $rows = $this->decodeMobileLogCardRows($logCard);
             abort_unless(
@@ -592,7 +649,24 @@ class MobileApiController extends Controller
             }
 
             $beforeRow = $rows[$row];
-            $this->applyMobileLogCardAssembly($rows[$row], $component, $assembly);
+            if (! empty($data['assy_selection_explicit'])) {
+                $choices = app(LogCardAssemblyIdentity::class)->assemblyChoicesByComponent(
+                    ManualPartGroup::with('options.coverages')->where('manual_id', $component->manual_id)->get(),
+                    collect([$component]), $workorder
+                );
+                $optionId = (int) ($data['assy_option_id'] ?? 0);
+                $choice = collect($choices[(int) $component->id] ?? [])->firstWhere('option_id', $optionId);
+                abort_if($optionId && ! $choice, 422, 'Assembly does not belong to this component.');
+                $input = array_merge($rows[$row], [
+                    'assy_selection_explicit' => '1', 'assy_option_id' => $optionId ?: null,
+                    'manual_part_group_choice' => 'component', 'manual_part_group_id' => $choice['group_id'] ?? null,
+                    'manual_part_group_option_id' => null, 'component_assembly_id' => null,
+                ]);
+                $rows[$row] = collect($this->buildMobileLogCardRows([$input], $workorder, $logCard))
+                    ->first(fn ($value) => ! empty($value['component_id']));
+            } else {
+                $this->applyMobileLogCardAssembly($rows[$row], $component, $assembly);
+            }
             if ($beforeRow !== $rows[$row]) {
                 $logCard->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
                 $logCard->save();
@@ -732,6 +806,11 @@ class MobileApiController extends Controller
             }
 
             $identity = app(LogCardAssemblyIdentity::class);
+            if (! $logCard && (int) $component->units_assy > 1) {
+                $unitIndex = (int) ($inputRow['unit_index'] ?? 0);
+                abort_unless($unitIndex >= 1 && $unitIndex <= (int) $component->units_assy,
+                    422, 'Select the individual unit for part '.$component->part_number.'.');
+            }
             $choices = $explicitChoices[(int) $component->id] ?? [];
             abort_if(!$identity->isExplicitNoAssembly($inputRow) && $identity->needsAssemblyChoice($inputRow) && count($choices) > 1,
                 422, 'Select an ASSY for part '.$component->part_number.'.');
@@ -1273,13 +1352,21 @@ class MobileApiController extends Controller
             'label' => ['nullable', 'string', 'max:40'],
             'photos' => ['required', 'array', 'min:1'],
             'photos.*' => ['file', 'image', 'max:102400'],
+            'upload_id' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/D'],
         ]);
 
         $category = $data['category'] ?? 'photos';
-        $photos = app(MobileLandscapePhotoProcessor::class)
-            ->prepareMany($request->file('photos', []), 'photos');
-        foreach ($photos as $photo) {
-            app(WorkorderPhotoStorageService::class)->store($workorder, $photo, $category);
+        $uploadKey = empty($data['upload_id']) ? null : hash('sha256', 'workorder|'.$request->user()->id.'|'.$data['upload_id']);
+        abort_if($uploadKey !== null && count($data['photos']) !== 1, 422, 'A retry must contain one photo.');
+        $processor = app(MobileLandscapePhotoProcessor::class);
+        $originals = $request->file('photos', []);
+        $photos = $processor->prepareMany($originals, 'photos');
+        foreach ($photos as $index => $photo) {
+            try {
+                app(WorkorderPhotoStorageService::class)->store($workorder, $photo, $category, [], $uploadKey);
+            } finally {
+                $processor->discardTemporaryFile($originals[$index], $photo);
+            }
         }
 
         $workorder->load('media');

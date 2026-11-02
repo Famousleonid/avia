@@ -66,6 +66,9 @@ $registerMobileClientRoutes = function (string $controller) {
         Route::post('/draft-units', [$controller, 'storeDraftUnit'])->name('draft-units.store');
 
         Route::middleware('mobile.log-card.role')->group(function () use ($controller) {
+            Route::get('/workorders/{workorderId}/log-card/draft', [$controller, 'logCardDraft'])->name('workorders.log-card.draft.show');
+            Route::put('/workorders/{workorderId}/log-card/draft', [$controller, 'saveLogCardDraft'])->name('workorders.log-card.draft.store');
+            Route::post('/workorders/{workorderId}/log-card/photo', [$controller, 'logCardPhoto'])->name('workorders.log-card.photo.store');
             Route::get('/workorders/{workorderId}/log-card', [$controller, 'logCard'])->name('workorders.log-card.show');
             Route::get('/workorders/{workorderId}/log-card/template', [$controller, 'logCardTemplate'])->name('workorders.log-card.template');
             Route::post('/workorders/{workorderId}/log-card', [$controller, 'storeLogCard'])->name('workorders.log-card.store');

@@ -21,9 +21,12 @@ class WoMeasurementFindingFinalTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    private $admin = null;
+
+    /** One admin per test — a second actingAs with another user gets logged out (AuthenticateSession). */
     private function admin()
     {
-        return $this->createUserWithRole('Admin', ['stamp' => 'FF' . random_int(1, 9999)]);
+        return $this->admin ??= $this->createUserWithRole('Admin', ['stamp' => 'FF' . random_int(1, 9999)]);
     }
 
     /** Inspection-only param (no dims) with a Corroded code + a repair rule triggered by it. */
