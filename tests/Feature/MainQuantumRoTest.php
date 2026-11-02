@@ -244,7 +244,7 @@ class MainQuantumRoTest extends TestCase
         $this->assertStringContainsString('No synchronized RO lines', $response->json('html'));
     }
 
-    public function test_only_managers_and_admins_can_see_the_tab_and_read_ro_data(): void
+    public function test_allowed_roles_can_see_the_tab_and_read_ro_data(): void
     {
         $wo = $this->createWorkorder(['number' => 887323]);
         foreach (['Admin', 'Manager', 'Technician', 'Team Leader', 'Paint'] as $role) {
@@ -253,7 +253,7 @@ class MainQuantumRoTest extends TestCase
                 'auth.version' => (int) $user->auth_version,
                 'password_hash_web' => $user->getAuthPassword(),
             ]);
-            $allowed = in_array($role, ['Admin', 'Manager'], true);
+            $allowed = in_array($role, ['Admin', 'Manager', 'Technician', 'Team Leader'], true);
             $this->getJson(route('mains.quantum-ro-lines', $wo))->assertStatus($allowed ? 200 : 403);
             $page = $this->get(route('mains.show', $wo))->assertOk();
             if ($allowed) {

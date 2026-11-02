@@ -1,103 +1,5 @@
-{{-- TDR tab content: Inspection Unit + Inspection Component tables --}}
+{{-- TDR tab content: inspection actions, part indicators and component table --}}
 
-<div class="d-flex tdr-show-tables-layout">
-    <div class="tdr-show-left-pane">
-        <div class="table-wrapper me-1 p-1">
-            <table id="tdr_inspect_Table" class="table table-sm table-hover align-middle table-bordered dir-table shadow-lg">
-                <colgroup>
-                    <col >
-                    <col style="width: 55px;">
-                </colgroup>
-                <thead>
-                <tr>
-                    <th class="text-primary text-center" colspan="2">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal">{{__('Teardown Inspection')}}</a>
-                    </th>
-                </tr>
-                </thead>
-                <tbody>
-                @if($hasMissingParts && $missingCondition)
-                    <tr>
-                        <td class="text-center fs-8">
-                            <span>
-                                {{ $missingCondition->name }}
-                                <span class="badge bg-primary rounded-pill ms-1 align-middle" style="font-size: 0.78em;">{{ $missingPartsCount ?? 0 }}</span>
-                            </span>
-                        </td>
-                        <td class="text-center img-icon p-0">
-                            <img src="{{ asset('img/missing.gif') }}" alt="missing" class="d-block"
-                                 style="width: 55px;"
-                                 data-bs-toggle="modal" data-bs-target="#missingModal{{$current_wo->number}}">
-                        </td>
-                    </tr>
-                @endif
-                @if($hasOrderedParts ?? false)
-                    <tr>
-                        <td class="text-center">
-                            <span class="position-relative d-inline-block">
-                                ORDERED PARTS
-                                <sup class="badge bg-primary rounded-pill align-super ms-1" style="font-size: 0.78em;">{{ $orderedPartsCount ?? 0 }}</sup>
-                            </span>
-                        </td>
-                        <td class="p-0 text-center img-icon" style="height: 55px; width: 55px; overflow: hidden;">
-                            <img src="{{ asset('img/pay.gif')}}" alt="order" style="height: 55px; width: 55px; object-fit: cover; display: block;" data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
-                        </td>
-                    </tr>
-                @endif
-                @foreach($inspectsUnit as $inspection)
-                    <tr>
-                        <td class="text-center fs-8" >
-                            @php
-                                $conditionName = $inspection->condition->name ?? null;
-                                if (!$conditionName) {
-                                    foreach($conditions as $condition) {
-                                        if ($condition->id == $inspection->condition_id) {
-                                            $conditionName = $condition->name;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                $isNoteCondition = $conditionName && preg_match('/^note\s+\d+$/i', $conditionName);
-                            @endphp
-                            @if(!$isNoteCondition)
-                                @if($inspection->condition)
-                                    {{ empty($inspection->condition->name) ? __('(No name)') : $inspection->condition->name }}
-                                @else
-                                    @foreach($conditions as $condition)
-                                        @if($condition->id == $inspection->condition_id)
-                                            {{ empty($condition->name) ? __('(No name)') : $condition->name }}
-                                            @break
-                                        @endif
-                                    @endforeach
-                                @endif
-                            @endif
-                            @if($inspection->notes)
-                                {{ $isNoteCondition ? $inspection->notes : '(' . $inspection->notes . ')' }}
-                            @endif
-                        </td>
-                        <td class="p-0 text-center img-icon">
-                            <form action="{{ route('workorder-unit-inspections.destroy', $inspection) }}" method="POST">
-                                @csrf
-                                @method('DELETE')
-                                <input type="hidden" name="return_to" value="show">
-                                <button type="button"
-                                        class="btn btn-link btn-sm tdr-unit-trash-btn"
-                                        aria-label="{{ __('Delete') }}"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#useConfirmDelete"
-                                        data-title="{{ __('Delete Confirmation') }}">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="tdr-show-right-pane">
         <form id="tdrInlineCreateForm" class="d-none" method="POST" action="{{ route('tdrs.store') }}" data-no-spinner>
             @csrf
             <input type="hidden" name="inline_create" value="1">
@@ -109,7 +11,12 @@
             <input type="hidden" name="order_component_id" id="tdr_inline_order_component_id_value" value="">
             <input type="hidden" name="order_component_assembly_id" id="tdr_inline_order_component_assembly_id" value="">
         </form>
-        <div class="tdr-show-right-toolbar d-flex align-items-end justify-content-between">
+<div class="tdr-show-right-toolbar d-flex flex-wrap align-items-center">
+
+    <button type="button" class="btn btn-outline-primary btn-sm text-nowrap me-2"
+            data-bs-toggle="modal" data-bs-target="#unitInspectionModal">
+        <i class="fas fa-clipboard-check" aria-hidden="true"></i> {{ __('Teardown Inspection') }}
+    </button>
             <div id="tdrInlineManualPicker" class="tdr-inline-manual-picker d-none">
                 <select name="manual_id" id="tdr_inline_manual_id" class="form-control form-control-sm" form="tdrInlineCreateForm">
                     <option value="">---</option>
@@ -120,47 +27,82 @@
                     @endforeach
                 </select>
             </div>
-            @php
-                $showFcDocButton = auth()->user()?->roleIs('Admin') ?? false;
-            @endphp
-            @if($showFcDocButton)
-                @php
-                    // F&C Doc button color = aggregate data state of the document marks
-                    $fcDocStatus = app(\App\Services\Measurements\ProcessDocumentRenderer::class)
-                        ->fcDocumentStatus(optional($current_wo->unit)->manuals, $current_wo);
-                    $fcDocBtnClass = match ($fcDocStatus) {
-                        'pass'   => 'btn-success',
-                        'fail'   => 'btn-danger',
-                        'nodata' => 'btn-warning',
-                        default  => 'btn-outline-info',
-                    };
-                    $fcDocBtnStyle = $fcDocStatus === 'repair'
-                        ? 'background:#6f42c1;border-color:#6f42c1;color:#fff' : '';
-                    $fcDocTitle = match ($fcDocStatus) {
-                        'pass'   => __('F&C Document — all values in tolerance'),
-                        'repair' => __('F&C Document — defect found, repair needed'),
-                        'fail'   => __('F&C Document — some values out of tolerance'),
-                        'nodata' => __('F&C Document — some values not measured'),
-                        default  => __('F&C Document — filled manual pages with this WO measurements'),
-                    };
-                @endphp
-                <a href="{{ route('workorders.fc-document', $current_wo->id) }}" target="_blank"
-                   class="btn {{ $fcDocBtnClass }} btn-sm {{ count($processGroups ?? []) > 0 ? 'ms-auto me-2' : 'ms-auto' }}"
-                   style="{{ $fcDocBtnStyle }}"
-                   title="{{ $fcDocTitle }}"
-                   data-fc-doc-button>
-                    <i class="bi bi-file-earmark-richtext"></i> {{ __('F&C Doc') }}
-                </a>
-            @endif
-            @if(count($processGroups ?? []) > 0)
-                <button type="button"
-                        class="btn btn-outline-primary btn-sm {{ $showFcDocButton ? '' : 'ms-auto' }}"
-                        data-bs-toggle="modal"
-                        data-bs-target="#tdrGroupProcessModal">
-                    <i class="fas fa-print"></i> {{ __('Group Process') }}
-                </button>
-            @endif
-        </div>
+    @php
+        $showFcDocButton = auth()->user()?->roleIs('Admin') ?? false;
+    @endphp
+    @if($showFcDocButton)
+        @php
+            // F&C Doc button color = aggregate data state of the document marks
+            $fcDocStatus = app(\App\Services\Measurements\ProcessDocumentRenderer::class)
+                ->fcDocumentStatus(optional($current_wo->unit)->manuals, $current_wo);
+            $fcDocBtnClass = match ($fcDocStatus) {
+                'pass'   => 'btn-success',
+                'fail'   => 'btn-danger',
+                'nodata' => 'btn-warning',
+                default  => 'btn-outline-info',
+            };
+            $fcDocBtnStyle = $fcDocStatus === 'repair'
+                ? 'background:#6f42c1;border-color:#6f42c1;color:#fff' : '';
+            $fcDocTitle = match ($fcDocStatus) {
+                'pass'   => __('F&C Document — all values in tolerance'),
+                'repair' => __('F&C Document — defect found, repair needed'),
+                'fail'   => __('F&C Document — some values out of tolerance'),
+                'nodata' => __('F&C Document — some values not measured'),
+                default  => __('F&C Document — filled manual pages with this WO measurements'),
+            };
+        @endphp
+        <a href="{{ route('workorders.fc-document', $current_wo->id) }}" target="_blank"
+           class="btn {{ $fcDocBtnClass }} btn-sm ms-auto me-2"
+           style="{{ $fcDocBtnStyle }}"
+           title="{{ $fcDocTitle }}"
+           data-fc-doc-button>
+            <i class="bi bi-file-earmark-richtext"></i> {{ __('F&C Doc') }}
+        </a>
+    @endif
+    <button type="button" id="tab-extra-parts-processes"
+            class="btn btn-outline-primary btn-sm text-nowrap me-2 {{ $showFcDocButton ? '' : 'ms-auto' }}"
+            data-process-shortcut-target="#content-extra-parts-processes"
+            data-base-text="{{ __('Fix fuckup') }}">
+        {{ __('Fix fuckup') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}
+    </button>
+    @if(count($processGroups ?? []) > 0)
+        <button type="button"
+                class="btn btn-outline-primary btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#tdrGroupProcessModal">
+            <i class="fas fa-print"></i> {{ __('Group Process') }}
+        </button>
+    @endif
+</div>
+
+<div class="d-flex tdr-show-tables-layout">
+    <div id="tdrPartsIndicators" class="tdr-show-left-pane {{ ($hasMissingParts && $missingCondition) || ($hasOrderedParts ?? false) ? '' : 'd-none' }}">
+        @if($hasMissingParts && $missingCondition)
+            <button type="button" class="tdr-parts-indicator" data-bs-toggle="modal"
+                    data-bs-target="#missingModal{{$current_wo->number}}"
+                    title="{{ __('Missing parts') }}: {{ $missingPartsCount ?? 0 }}"
+                    aria-label="{{ __('Missing parts') }}: {{ $missingPartsCount ?? 0 }}">
+                <span class="tdr-parts-indicator-image">
+                    <img src="{{ asset('img/missing.gif') }}" alt="" width="55" height="55">
+                    <span class="badge bg-primary rounded-pill tdr-parts-indicator-count">{{ $missingPartsCount ?? 0 }}</span>
+                </span>
+                <span class="tdr-parts-indicator-label">{{ __('Missing') }}</span>
+            </button>
+        @endif
+        @if($hasOrderedParts ?? false)
+            <button type="button" class="tdr-parts-indicator" data-bs-toggle="modal"
+                    data-bs-target="#orderModal{{$current_wo->number}}"
+                    title="{{ __('Ordered parts') }}: {{ $orderedPartsCount ?? 0 }}"
+                    aria-label="{{ __('Ordered parts') }}: {{ $orderedPartsCount ?? 0 }}">
+                <span class="tdr-parts-indicator-image">
+                    <img src="{{ asset('img/pay.gif') }}" alt="" width="55" height="55">
+                    <span class="badge bg-primary rounded-pill tdr-parts-indicator-count">{{ $orderedPartsCount ?? 0 }}</span>
+                </span>
+                <span class="tdr-parts-indicator-label">{{ __('New') }}</span>
+            </button>
+        @endif
+    </div>
+    <div class="tdr-show-right-pane">
         @php
             // Inspect button: map TDR component → inspection component (Dimensions part),
             // но оставляем только IC с ИЗМЕРИМЫМ параметром — у которого есть orig/wear
@@ -189,7 +131,7 @@
                 $tdrInspectIcByComp = $tdrInspectIcByComp->filter(fn($icId) => $measurableIcIds->has($icId));
             }
         @endphp
-        <div class="table-wrapper p-1 tdr-show-right-table-wrapper">
+        <div class="table-wrapper tdr-show-right-table-wrapper">
             <table id="tdr_process_Table"
                    class="table table-sm table-hover align-middle dir-table small shadow-lg"
                    data-reorder-url="{{ route('tdrs.reorder', ['workorder' => $current_wo->id]) }}">
@@ -198,8 +140,8 @@
                     <col style="width: 12ch;">
                     <col style="width: 19%;">
                     <col style="width: 42px;">
-                    <col style="width: 12%;">
-                    <col style="width: 10ch;">
+                    <col style="width: 124px;">
+                    <col style="width: 14ch;">
                     <col style="width: 14%;">
                     <col style="width: 28%;">
                     <col style="width: 5.5ch;">
@@ -328,8 +270,7 @@
                 @endforeach
                 <tr id="tdrInlineCreateRow" class="tdr-inline-create-row d-none">
                     <td class="tdr-drag-cell"></td>
-                    <td class="text-center text-muted" id="tdr_inline_ipl_display"></td>
-                    <td>
+                    <td colspan="2" class="tdr-inline-component-cell">
                         <div id="tdrInlineComponentPicker" class="tdr-inline-field">
                             <select name="component_id" id="tdr_inline_component_id" class="form-control form-control-sm" form="tdrInlineCreateForm">
                                 <option selected value="">---</option>
@@ -398,10 +339,10 @@
                         <div class="tdr-inline-placeholder text-info">{{ __('Click necessary') }}</div>
                         <div class="tdr-inline-field d-none">
                             <select name="necessaries_id" id="tdr_inline_necessaries_id" class="form-control form-control-sm mb-1" form="tdrInlineCreateForm">
-                                <option selected value="">---</option>
+                                <option selected disabled hidden value=""></option>
                                 @foreach($necessaries as $necessaryItem)
                                     <option value="{{ $necessaryItem->id }}" data-title="{{ $necessaryItem->name }}">
-                                        {{ $necessaryItem->name }}
+                                        {{ $necessaryItem->name }}&nbsp;
                                     </option>
                                 @endforeach
                             </select>
@@ -410,11 +351,6 @@
                     <td class="tdr-inline-cell tdr-inline-cell-disabled" data-tdr-inline-cell data-inline-step="serial">
                         <div class="tdr-inline-placeholder text-info"></div>
                         <div class="tdr-inline-field d-none">
-                            <div id="tdr_inline_order_component_group" class="d-none">
-                                <select id="tdr_inline_order_component_id" class="form-control form-control-sm">
-                                    <option selected value="">---</option>
-                                </select>
-                            </div>
                             <input type="text" name="serial_number" id="tdr_inline_serial_number" class="form-control form-control-sm mb-1" form="tdrInlineCreateForm" placeholder="{{ __('Serial Number') }}">
                             <input type="text" name="assy_serial_number" id="tdr_inline_assy_serial_number" class="form-control form-control-sm d-none" form="tdrInlineCreateForm" placeholder="{{ __('Assy Serial Number') }}">
                         </div>
@@ -423,7 +359,11 @@
                         <div class="tdr-inline-placeholder text-info"></div>
                         <div class="tdr-inline-field d-none">
                             <div id="tdr_inline_order_qty_mount" class="d-none">
-                                <span id="tdr_inline_order_selected_text" class="tdr-inline-order-selected"></span>
+                                <div id="tdr_inline_order_component_group" class="d-none">
+                                    <select id="tdr_inline_order_component_id" class="form-control form-control-sm">
+                                        <option selected value="">---</option>
+                                    </select>
+                                </div>
                                 <span class="tdr-inline-qty-control">
                                     <label for="tdr_inline_qty" class="tdr-inline-qty-label">{{ __('QTY') }}</label>
                                 </span>
@@ -450,6 +390,9 @@
                     <td colspan="8"></td>
                 </tr>
                 </tbody>
+                <tfoot class="tdr-scroll-clearance" aria-hidden="true">
+                    <tr><td colspan="10"></td></tr>
+                </tfoot>
             </table>
         </div>
     </div>

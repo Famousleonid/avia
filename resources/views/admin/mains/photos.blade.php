@@ -21,6 +21,59 @@
 
         .photos-toolbar {
             border-bottom: 1px solid rgba(255, 255, 255, .12);
+            flex-shrink: 0;
+        }
+
+        .photos-preview-size {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--avia-text);
+        }
+
+        .photos-preview-size input {
+            width: 150px;
+            margin: 0;
+        }
+
+        #photoPreviewSize::-webkit-slider-runnable-track {
+            background: #aebdca;
+            border: 1px solid #e1e8ee;
+        }
+
+        #photoPreviewSize::-moz-range-track {
+            background: #aebdca;
+            border: 1px solid #e1e8ee;
+        }
+
+        #photoPreviewSize::-webkit-slider-thumb {
+            background: #18d5ed;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 1px #087d91;
+        }
+
+        #photoPreviewSize::-moz-range-thumb {
+            background: #18d5ed;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 1px #087d91;
+        }
+
+        #photoPreviewSize:focus-visible::-webkit-slider-thumb {
+            box-shadow: 0 0 0 4px rgba(24, 213, 237, .4);
+        }
+
+        #photoPreviewSize:focus-visible::-moz-range-thumb {
+            box-shadow: 0 0 0 4px rgba(24, 213, 237, .4);
+        }
+
+        .photos-preview-size output {
+            width: 48px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #photoPage .group-grid > .photo-item {
+            flex: 0 0 auto;
+            width: min(100%, calc(var(--photo-preview-size, 128px) + 8px));
         }
 
         .photos-download-status {
@@ -171,6 +224,12 @@
                         <i class="bi bi-arrow-left"></i> Back to mains
                     </a>
                     <h5 class="mb-0 text-white">Pictures WO {{ $workorder->number }}</h5>
+                </div>
+
+                <div class="photos-preview-size small">
+                    <label for="photoPreviewSize" class="mb-0">Preview size</label>
+                    <input id="photoPreviewSize" class="form-range" type="range" min="80" max="320" step="8" value="128">
+                    <output id="photoPreviewSizeValue" for="photoPreviewSize">128 px</output>
                 </div>
 
                 <div class="d-flex align-items-center gap-2">

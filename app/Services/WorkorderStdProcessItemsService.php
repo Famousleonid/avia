@@ -249,7 +249,7 @@ class WorkorderStdProcessItemsService
 
         $isSnapshot = $this->snapshotWorkorder === $workorder;
         // An empty result is prepared too. Do not rebuild it for every STD type.
-        if (! $isSnapshot || ! $this->snapshotPrepared) {
+        if (! $includeExcluded && (! $isSnapshot || ! $this->snapshotPrepared)) {
             $hasRows = $this->hasRowsForWorkorder((int) $workorder->id);
             $scopeQuantities = $hasRows
                 ? app(WorkorderPartScopeResolver::class)->componentQuantities($workorder)

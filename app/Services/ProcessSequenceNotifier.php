@@ -21,6 +21,10 @@ class ProcessSequenceNotifier
         if (! $nextProcess) {
             return;
         }
+        if (! app(WorkorderStdApplicability::class)->appliesTo($nextProcess)
+            || ! app(WorkorderStdApplicability::class)->appliesTo($completedProcess)) {
+            return;
+        }
 
         $workorder = $this->workorderFor($nextProcess);
         if (! $workorder || $workorder->done_at || ! $workorder->approve_at) {

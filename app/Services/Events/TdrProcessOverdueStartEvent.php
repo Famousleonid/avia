@@ -212,6 +212,9 @@ class TdrProcessOverdueStartEvent implements EventDefinition
 
     public function shouldRun($subject): bool
     {
+        if (! app(\App\Services\WorkorderStdApplicability::class)->appliesTo($subject)) {
+            return false;
+        }
         if ($subject->tdr?->workorder?->done_at !== null) {
             return false;
         }

@@ -560,21 +560,6 @@
     </div>
 </div>
 
-{{-- Edit Extra Process Modal (iframe) --}}
-<div class="modal fade" id="editExtraProcessModal" tabindex="-1" aria-labelledby="editExtraProcessModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" style="max-width: 880px; width: 95%; height: 80vh;">
-        <div class="modal-content bg-gradient" style="height: 80vh;">
-            <div class="modal-header">
-                <h6 class="modal-title text-info" id="editExtraProcessModalLabel">{{ __('Edit Extra Component') }}</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
-                <iframe id="editExtraProcessIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
-            </div>
-        </div>
-    </div>
-</div>
-
 {{-- Edit Bushing Modal --}}
 <div class="modal fade" id="editBushingModal" tabindex="-1" aria-labelledby="editBushingModalLabel" aria-hidden="true">
     <div class="modal-dialog" style="max-width: 90vw; width: 90vw; height: 90vh;">
@@ -633,36 +618,6 @@
     @include('admin.transfers.change-sn-modal')
 @endif
 
-{{-- Add Extra Part Modal (iframe) - create new extra part --}}
-<div class="modal fade" id="addExtraPartModal" tabindex="-1" aria-labelledby="addExtraPartModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 900px; width: 95%; height: 85vh;">
-        <div class="modal-content bg-gradient" style="height: 85vh;">
-            <div class="modal-header">
-                <h6 class="modal-title text-info" id="addExtraPartModalLabel">{{ __('Add Extra Part') }}</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0 overflow-hidden" style="height: calc(85vh - 60px);">
-                <iframe id="addExtraPartIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- Add Extra Process Modal (iframe) --}}
-<div class="modal fade" id="addExtraProcessModal" tabindex="-1" aria-labelledby="addExtraProcessModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 880px; width: 95%; height: 80vh;">
-        <div class="modal-content bg-gradient" style="height: 80vh;">
-            <div class="modal-header">
-                <h6 class="modal-title text-info" id="addExtraProcessModalLabel">{{ __('Add Extra Process') }}</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
-                <iframe id="addExtraProcessIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
-            </div>
-        </div>
-    </div>
-</div>
-
 {{-- Component Inspection Edit Modal (content loaded via AJAX) --}}
 <div class="modal fade" id="editTdrModal" tabindex="-1" aria-labelledby="editTdrModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -678,3 +633,18 @@
     </div>
 </div>
 @endunless
+
+<div class="modal fade" id="savedExtraFormsModal" tabindex="-1" aria-labelledby="savedExtraFormsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="width:95vw;max-width:1400px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="savedExtraFormsTitle">{{ __('Saved separate process forms') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-2" id="extraPartsProcessesTabBody">
+                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="extraGroupFormsHost"></div>

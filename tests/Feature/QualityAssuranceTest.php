@@ -1594,6 +1594,8 @@ class QualityAssuranceTest extends TestCase
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'QA-MISSING-DATES',
             'name' => 'QA Missing Dates Component',
+            'cad_list' => true,
+            'units_assy' => 1,
             'ipl_num' => '1-1',
             'eff_code' => 'ALL',
         ]);

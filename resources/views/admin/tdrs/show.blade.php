@@ -208,13 +208,6 @@
                                 {{ __('Part Processes') }}
                             </button>
                         </li>
-                        {{-- Temporary Extra Processes tab (shown when user clicks Processes in Extra Part Processes table) --}}
-                        <li class="nav-item d-none" role="presentation" id="tab-extra-processes-li">
-                            <button class="nav-link {{ $initialTdrTab === 'tab-extra-processes' ? 'active' : '' }}" id="tab-extra-processes" data-bs-toggle="tab"
-                                    data-bs-target="#content-extra-processes" type="button" role="tab">
-                                {{ __('Extra Processes') }}
-                            </button>
-                        </li>
                         @if($showLogCardTab ?? false)
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link {{ $initialTdrTab === 'tab-log-card' ? 'active' : '' }}" id="tab-log-card" data-bs-toggle="tab"
@@ -284,16 +277,6 @@
                         <button type="button" id="ms-final-report-btn" class="btn btn-outline-secondary btn-sm" style="font-size:11px"
                                 title="Final dimensional report — bore / bushing OD finals and resulting fit">
                             <i class="bi bi-clipboard-data"></i> Final Report
-                        </button>
-                    </div>
-                    <div id="partProcessesShortcutActions" class="d-none d-flex gap-2 align-items-center ms-auto"
-                         style="margin-right: 50px;">
-                        <button type="button"
-                                class="btn btn-outline-primary btn-sm"
-                                id="tab-extra-parts-processes"
-                                data-process-shortcut-target="#content-extra-parts-processes"
-                                data-base-text="{{ __('Fix fuckup') }}">
-                            {{ __('Fix fuckup') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}
                         </button>
                     </div>
                     @if($showLogCardTab ?? false)
@@ -379,8 +362,6 @@
                                 </div>
                                 <div id="partProcessesHeaderActions">
                                     <div data-process-header-toolbar></div>
-                                    <button type="button" class="btn btn-outline-primary btn-sm text-nowrap"
-                                            onclick="document.getElementById('tab-extra-parts-processes')?.click()">{{ __('Fix fuckup') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}</button>
                                 </div>
                             </div>
                             <div class="card-body p-2" id="componentProcessesTabBody">
@@ -389,21 +370,11 @@
                             </div>
                         </div>
                     </div>
-                    <div class="tab-pane fade {{ $initialTdrTab === 'tab-extra-processes' ? 'show active' : '' }}" id="content-extra-processes" role="tabpanel">
-                        <div class="card bg-gradient h-100">
-                            <div class="card-body p-2 overflow-auto" id="extraProcessesTabBody"
-                                 style="height: calc(100vh - 280px); min-height: 400px;">
-                                <div
-                                    class="text-center py-5 text-muted">{{ __('Click Processes in Extra Part Processes table to load.') }}</div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="tab-pane fade {{ $initialTdrTab === 'tab-extra-parts-processes' ? 'show active' : '' }}" id="content-extra-parts-processes" role="tabpanel">
                         <div class="card bg-gradient h-100">
-                            <div class="card-body p-2 overflow-auto" id="extraPartsProcessesTabBody"
+                            <div class="card-body p-2 overflow-auto"
                                  style="height: calc(100vh - 280px); min-height: 400px;">
-                                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
+                                <iframe id="extraPartQuickFrame" title="Quick process form" data-src="{{ route('extra_process.create', $current_wo->id) }}?modal=1&amp;quick=1" class="w-100 border-0 d-block" style="height: 440px;"></iframe>
                             </div>
                         </div>
                     </div>

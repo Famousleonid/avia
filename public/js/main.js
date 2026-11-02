@@ -10,9 +10,12 @@
 
 (function () {
     const SHOW_DELAY_MS = 500;
+    const RING_DELAY_MS = 2000;
 
     let pendingSpinner = 0;
     let showTimer = null;
+    let ringTimer = null;
+    let visible = false;
     const operations = new Set();
 
     function getSpinnerEl() {
@@ -29,19 +32,29 @@
 
     function showNow() {
         const el = getSpinnerEl();
-        if (!el) return;
-        el.classList.remove('spinner-border');
+        if (!el || visible) return;
+        visible = true;
+        el.classList.remove('spinner-border', 'app-busy-ring');
         el.classList.add('app-busy-dots');
         if (!el.querySelector('.app-busy-dot')) {
             el.innerHTML = '<span class="app-busy-dot"></span><span class="app-busy-dot"></span><span class="app-busy-dot"></span><span class="visually-hidden">Loading...</span>';
         }
         el.classList.remove('d-none');
+        ringTimer = setTimeout(() => {
+            ringTimer = null;
+            if (!visible) return;
+            el.classList.replace('app-busy-dots', 'app-busy-ring');
+            el.innerHTML = '<span class="spinner-border text-warning" aria-hidden="true"></span><span class="visually-hidden">Loading...</span>';
+        }, RING_DELAY_MS);
     }
 
     function hideNow() {
         const el = getSpinnerEl();
         if (!el) return;
         if ([...operations].some(op => op.visible)) return;
+        clearTimeout(ringTimer);
+        ringTimer = null;
+        visible = false;
         el.classList.add('d-none');
     }
 

@@ -57,17 +57,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     var extraPartsProcessesUrl = window.TdrshowConfig1.value161;
     var extraPartsBody = document.getElementById('extraPartsProcessesTabBody');
-    var extraProcessesTabBody = document.getElementById('extraProcessesTabBody');
-    var tabExtraProcessesLi = document.getElementById('tab-extra-processes-li');
-    var tabExtraProcessesBtn = document.getElementById('tab-extra-processes');
-    var extraProcessesProcessesUrl = ("" + String(window.TdrshowConfig1.value11) + "");
-    var editExtraProcessUrl = ("" + String(window.TdrshowConfig1.value12) + "");
-    var addExtraProcessUrl = ("" + String(window.TdrshowConfig1.value13) + "");
-    var editExtraProcessProcessUrl = ("" + String(window.TdrshowConfig1.value14) + "");
-    var addExtraPartCreateUrl = ("" + String(window.TdrshowConfig1.value15) + "");
     var tabExtraPartsProcessesBtn = document.getElementById('tab-extra-parts-processes');
     var extraGroupFormsHeaderBtn = document.getElementById('extraGroupFormsHeaderBtn');
-    var extraPartsTabActions = document.getElementById('extraPartsTabActions');
     var logCardTabBody = document.getElementById('logCardTabBody');
     var logCardPartialUrl = ("" + String(window.TdrshowConfig1.value16) + "");
     var transfersTabBody = document.getElementById('transfersTabBody');
@@ -202,12 +193,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function loadExtraPartProcesses() {
         if (!extraPartsBody) return;
+        var quickFrame = document.getElementById('extraPartQuickFrame');
+        if (quickFrame && !quickFrame.getAttribute('src')) {
+            quickFrame.src = quickFrame.dataset.src;
+            quickFrame.addEventListener('load', function() {
+                var card = quickFrame.contentDocument.querySelector('.container > .card');
+                if (!card) return;
+                function resizeQuickForm() {
+                    var dropdownSpace = quickFrame.contentDocument.querySelector('.select2-dropdown') ? 360 : 0;
+                    quickFrame.style.height = Math.ceil(card.getBoundingClientRect().bottom + quickFrame.contentWindow.scrollY + 16 + dropdownSpace) + 'px';
+                }
+                new ResizeObserver(resizeQuickForm).observe(card);
+                quickFrame.contentWindow.jQuery(quickFrame.contentDocument).on('select2:open.quickHeight select2:close.quickHeight', function() {
+                    window.setTimeout(function() {
+                        resizeQuickForm();
+                        quickFrame.contentWindow.jQuery(quickFrame.contentWindow).trigger('resize');
+                    }, 0);
+                });
+                resizeQuickForm();
+            });
+        }
         extraPartsBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value32) + "</div>");
         fetch(extraPartsProcessesUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
             .then(function(r) { return r.text(); })
             .then(function(html) {
                 extraPartsBody.innerHTML = html;
-                initExtraPartGroupForms(extraPartsBody);
+                var groupModal = extraPartsBody.querySelector('#extraGroupFormsModal');
+                var groupHost = document.getElementById('extraGroupFormsHost');
+                if (groupHost) {
+                    groupHost.replaceChildren();
+                    if (groupModal) groupHost.appendChild(groupModal);
+                    initExtraPartGroupForms(groupHost);
+                }
                 updateExtraPartsTabAsterisk();
                 updateExtraGroupFormsButtonVisibility();
             })
@@ -303,8 +320,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function syncProcessShortcutButtonState(targetSelector) {
-        if (!partProcessesShortcutActions) return;
-        partProcessesShortcutActions.querySelectorAll('[data-process-shortcut-target]').forEach(function(btn) {
+        [tabExtraPartsProcessesBtn].filter(Boolean).forEach(function(btn) {
             var isActive = targetSelector && btn.dataset.processShortcutTarget === targetSelector;
             btn.classList.toggle('active', !!isActive);
             btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
@@ -346,7 +362,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (transfersTabActions) transfersTabActions.classList.add('d-none');
 
         if (targetSelector.indexOf('content-extra-parts-processes') !== -1) {
-            if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
             if (extraPartsBody && !extraPartsBody.dataset.loaded) {
                 extraPartsBody.dataset.loaded = '1';
                 loadExtraPartProcesses();
@@ -359,8 +374,8 @@ document.addEventListener('DOMContentLoaded', function() {
         activateDetachedTabPane(targetSelector);
     }
 
-    if (partProcessesShortcutActions) {
-        partProcessesShortcutActions.addEventListener('click', function(e) {
+    if (tabExtraPartsProcessesBtn) {
+        tabExtraPartsProcessesBtn.addEventListener('click', function(e) {
             var btn = e.target.closest('[data-process-shortcut-target]');
             if (!btn) return;
             e.preventDefault();
@@ -796,139 +811,20 @@ document.addEventListener('DOMContentLoaded', function() {
         groupFormButtons.forEach(function(b){ var pid = b.getAttribute('data-process-name-id'); if (pid) { updateLinkUrl(pid); updateQuantityBadge(pid); } });
     }
 
-    function loadExtraProcesses(workorderId, componentId) {
-        if (!extraProcessesTabBody) return;
-        extraProcessesTabBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value50) + "</div>");
-        var url = extraProcessesProcessesUrl.replace('__WO__', workorderId).replace('__COMP__', componentId);
-        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
-            .then(function(r) { return r.text(); })
-            .then(function(html) {
-                extraProcessesTabBody.innerHTML = html;
-                extraProcessesTabBody.dataset.workorderId = workorderId;
-                extraProcessesTabBody.dataset.componentId = componentId;
-                bindExtraProcessesHandlers(extraProcessesTabBody);
-            })
-            .catch(function() {
-                extraProcessesTabBody.innerHTML = ("<div class=\"alert alert-danger\">" + String(window.TdrshowConfig1.value51) + "</div>");
-            });
+    function openInlineExtraEditor(extraProcessId, processIndex, processNameId) {
+        var iframe = document.getElementById('extraPartQuickFrame');
+        if (!iframe || !extraProcessId) return;
+        var url = new URL(iframe.dataset.src, window.location.origin);
+        url.searchParams.set('edit_id', extraProcessId);
+        if (processIndex !== undefined) url.searchParams.set('process_index', processIndex);
+        if (processNameId !== undefined) url.searchParams.set('process_name_id', processNameId);
+        var savedModal = document.getElementById('savedExtraFormsModal');
+        bootstrap.Modal.getInstance(savedModal)?.hide();
+        iframe.src = url.toString();
+        document.getElementById('tab-extra-parts-processes')?.click();
+        iframe.scrollIntoView({block: 'start', behavior: 'smooth'});
     }
 
-    function bindExtraProcessesHandlers(container) {
-        if (!container) return;
-        container.querySelectorAll('.form-link[data-extra-process-id][data-process-name-id]').forEach(function(link) {
-            link.addEventListener('click', function() {
-                var extraProcessId = link.getAttribute('data-extra-process-id');
-                var processNameId = link.getAttribute('data-process-name-id');
-                var vendorSelect = container.querySelector('select.vendor-select[data-extra-process-id="' + extraProcessId + '"][data-process-name-id="' + processNameId + '"]');
-                var href = link.getAttribute('href');
-                if (!href) return;
-                var url = new URL(href, window.location.origin);
-                if (vendorSelect && vendorSelect.value) {
-                    url.searchParams.set('vendor_id', vendorSelect.value);
-                } else {
-                    url.searchParams.delete('vendor_id');
-                }
-                link.setAttribute('href', url.pathname + url.search + url.hash);
-            });
-        });
-        container.querySelectorAll('.load-edit-extra-process-process').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var extraProcessId = btn.dataset.extraProcessId;
-                var processIndex = btn.dataset.processIndex;
-                var processNameId = btn.dataset.processNameId;
-                var workorderId = btn.dataset.workorderId;
-                var componentId = btn.dataset.componentId;
-                if (!extraProcessId) return;
-                var url = editExtraProcessProcessUrl.replace('__ID__', extraProcessId);
-                if (processIndex !== undefined) url += '?process_index=' + processIndex + '&modal=1';
-                else if (processNameId !== undefined) url += '?process_name_id=' + processNameId + '&modal=1';
-                else url += '?modal=1';
-                var editModal = document.getElementById('editTdrProcessModal');
-                var iframe = document.getElementById('editTdrProcessIframe');
-                if (!editModal || !iframe) return;
-                iframe.src = url;
-                var inst = bootstrap.Modal.getOrCreateInstance(editModal);
-                inst.show();
-                editModal.addEventListener('shown.bs.modal', function setZ() { editModal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
-            });
-        });
-        container.querySelectorAll('.open-add-extra-process-modal').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (btn.dataset.workorderId && btn.dataset.componentId) openAddExtraProcessModal(btn.dataset.workorderId, btn.dataset.componentId);
-            });
-        });
-        container.querySelectorAll('.delete-process-form').forEach(function(form) {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                var fd = new FormData(form);
-                fetch(form.action, { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '', 'Accept': 'application/json' }, body: fd })
-                    .then(function(r) { return r.json().catch(function() { return {}; }); })
-                    .then(function(data) {
-                        if (data.success) {
-                            var woId = container.dataset.workorderId || window.currentWorkorderId;
-                            var compId = container.dataset.componentId;
-                            if (woId && compId) loadExtraProcesses(woId, compId);
-                            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
-                        } else {
-                            window.tdrShowNotify(data.message || ("" + String(window.TdrshowConfig1.value52) + ""), 'error');
-                        }
-                    })
-                    .catch(function() { window.tdrShowNotify(("" + String(window.TdrshowConfig1.value53) + ""), 'error'); });
-            });
-        });
-        var addVendorBtn = container.querySelector('#saveVendorButtonExtra');
-        var addVendorForm = container.querySelector('#addVendorFormExtra');
-        if (addVendorBtn && addVendorForm && ProcessesConfig.storeVendorUrl) {
-            addVendorBtn.onclick = function() {
-                var nameInput = addVendorForm.querySelector('input[name="name"]');
-                if (!nameInput || !nameInput.value.trim()) return;
-                fetch(ProcessesConfig.storeVendorUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '', 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nameInput.value.trim() }) })
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (data.id) {
-                            var m = bootstrap.Modal.getInstance(container.querySelector('#addVendorModalExtra'));
-                            if (m) m.hide();
-                            nameInput.value = '';
-                            var woId = container.dataset.workorderId; var compId = container.dataset.componentId;
-                            if (woId && compId) loadExtraProcesses(woId, compId);
-                        }
-                    });
-            };
-        }
-    }
-
-    function openEditExtraProcessModal(extraProcessId) {
-        var iframe = document.getElementById('editExtraProcessIframe');
-        var modal = document.getElementById('editExtraProcessModal');
-        if (iframe && modal && extraProcessId) {
-            iframe.src = editExtraProcessUrl.replace('__ID__', extraProcessId) + '?modal=1';
-            var inst = bootstrap.Modal.getOrCreateInstance(modal);
-            inst.show();
-            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
-        }
-    }
-
-    function openAddExtraProcessModal(workorderId, componentId) {
-        var iframe = document.getElementById('addExtraProcessIframe');
-        var modal = document.getElementById('addExtraProcessModal');
-        if (iframe && modal && workorderId && componentId) {
-            iframe.src = addExtraProcessUrl.replace('__WO__', workorderId).replace('__COMP__', componentId) + '?modal=1';
-            var inst = bootstrap.Modal.getOrCreateInstance(modal);
-            inst.show();
-            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
-        }
-    }
-    function openAddExtraPartModal(workorderId) {
-        var iframe = document.getElementById('addExtraPartIframe');
-        var modal = document.getElementById('addExtraPartModal');
-        if (iframe && modal && workorderId) {
-            iframe.src = addExtraPartCreateUrl.replace('__ID__', workorderId) + '?modal=1';
-            var inst = bootstrap.Modal.getOrCreateInstance(modal);
-            inst.show();
-            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
-        }
-    }
     function initTravelerGroupHandlers(container) {
         var target = container || body;
         if (!target) return;
@@ -1171,14 +1067,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
         function collectFigCounts() {
             var counts = new Map();
+            var travelerFigures = new Map();
             table.querySelectorAll('tbody tr[data-id] .process-description-cell').forEach(function(cell) {
+                var group = Number(cell.closest('tr').dataset.figTravelerGroup || 0);
+                if (group > 0 && !travelerFigures.has(group)) travelerFigures.set(group, new Set());
                 var text = (cell.textContent || '').replace(/\s+/g, ' ').trim();
                 var figPattern = /\bfig(?:ure)?\.?\s*(?:no\.?\s*)?([0-9][0-9A-Za-z.-]*(?:\s*[,/&]\s*[0-9][0-9A-Za-z.-]*)*)/gi;
                 var match;
                 while ((match = figPattern.exec(text)) !== null) {
                     (match[1].match(/[0-9][0-9A-Za-z.-]*/g) || []).forEach(function(rawReference) {
                         var reference = rawReference.replace(/[.,;:]+$/, '');
-                        if (reference) counts.set(reference, (counts.get(reference) || 0) + 1);
+                        if (!reference) return;
+                        if (group > 0) {
+                            var seen = travelerFigures.get(group);
+                            var key = reference.toUpperCase();
+                            if (seen.has(key)) return;
+                            seen.add(key);
+                        }
+                        counts.set(reference, (counts.get(reference) || 0) + 1);
                     });
                 }
             });
@@ -1205,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var label = document.createElement('span');
                 label.textContent = 'Fig. ' + entry[0];
                 var amount = document.createElement('strong');
-                amount.textContent = entry[1] + ' pcs';
+                amount.textContent = entry[1] + ' pcs x2';
                 row.appendChild(label);
                 row.appendChild(amount);
                 summaryList.appendChild(row);
@@ -1778,17 +1684,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 }
                             });
                         });
-                        if (processes.length === 1) {
-                            var onlyInput = processOptions.querySelector('input[type="radio"]');
-                            if (onlyInput) {
-                                onlyInput.checked = true;
-                                selectedProcessId = onlyInput.value;
-                            }
-                        }
+                        // Even one specification needs an explicit choice: its change
+                        // handler collapses the wide picker and focuses Description.
                         processOptions.classList.remove('d-none');
                         scrollInlineProcessRowIntoView();
                     } else {
-                        selectedProcessId = processes.length === 1 ? String(processes[0].id) : '';
+                        selectedProcessId = '';
                     }
                     if (processText) {
                         processText.classList.add('d-none');
@@ -2912,39 +2813,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (extraPartsBody) {
         extraPartsBody.addEventListener('click', function(e) {
-            var editBtn = e.target.closest('.open-edit-extra-process-modal');
+            var editBtn = e.target.closest('.edit-extra-inline');
             if (editBtn && editBtn.dataset.extraProcessId) {
                 e.preventDefault();
-                openEditExtraProcessModal(editBtn.dataset.extraProcessId);
+                openInlineExtraEditor(editBtn.dataset.extraProcessId);
                 return;
             }
-            var addBtn = e.target.closest('.open-add-extra-process-modal');
-            if (addBtn && addBtn.dataset.workorderId && addBtn.dataset.componentId) {
-                e.preventDefault();
-                openAddExtraProcessModal(addBtn.dataset.workorderId, addBtn.dataset.componentId);
-                return;
-            }
-            var addExtraPartBtn = e.target.closest('.open-add-extra-part-modal-btn');
-            if (addExtraPartBtn) {
-                e.preventDefault();
-                var woId = addExtraPartBtn.dataset.workorderId || window.currentWorkorderId;
-                if (woId) openAddExtraPartModal(woId);
-                return;
-            }
-            var procBtn = e.target.closest('.open-extra-processes-tab');
-            if (procBtn && procBtn.dataset.workorderId && procBtn.dataset.componentId) {
-                e.preventDefault();
-                if (tabExtraProcessesLi) tabExtraProcessesLi.classList.remove('d-none');
-                loadExtraProcesses(procBtn.dataset.workorderId, procBtn.dataset.componentId);
-                if (tabExtraProcessesBtn) { var tab = new bootstrap.Tab(tabExtraProcessesBtn); tab.show(); }
-            }
-        });
-    }
-    var openAddExtraPartModalBtn = document.getElementById('openAddExtraPartModalBtn');
-    if (openAddExtraPartModalBtn) {
-        openAddExtraPartModalBtn.addEventListener('click', function() {
-            var woId = this.dataset.workorderId || window.currentWorkorderId;
-            if (woId) openAddExtraPartModal(woId);
         });
     }
 
@@ -2965,7 +2839,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (target && targetName.indexOf('content-part-processes') !== -1) {
             syncPartProcessesShortcutActions();
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
@@ -2975,7 +2848,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (target && targetName.indexOf('content-extra-parts-processes') !== -1) {
             syncProcessShortcutButtonState('#content-extra-parts-processes');
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
@@ -2989,7 +2861,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (target && String(target).indexOf('content-log-card') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.remove('d-none');
@@ -3000,7 +2871,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (target && String(target).indexOf('content-bushing') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.remove('d-none');
@@ -3010,7 +2880,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (target && String(target).indexOf('content-rm-reports') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
@@ -3021,7 +2890,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (target && String(target).indexOf('content-transfers') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.remove('d-none');
@@ -3029,17 +2897,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 transfersTabBody.dataset.loaded = '1';
                 loadTransfersPartial();
             }
-        } else if (target && String(target).indexOf('content-extra-processes') !== -1) {
-            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
-            if (logCardTabActions) logCardTabActions.classList.add('d-none');
-            if (bushingTabActions) bushingTabActions.classList.add('d-none');
-            if (transfersTabActions) transfersTabActions.classList.add('d-none');
         } else {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
@@ -3049,10 +2909,7 @@ document.addEventListener('DOMContentLoaded', function() {
             syncPartProcessesShortcutActions();
             if (body) body.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value140) + "</div>");
         }
-        if (target && String(target).indexOf('content-extra-processes') === -1) {
-            if (tabExtraProcessesLi) tabExtraProcessesLi.classList.add('d-none');
-            if (extraProcessesTabBody) extraProcessesTabBody.innerHTML = ("<div class=\"text-center py-5 text-muted\">" + String(window.TdrshowConfig1.value141) + "</div>");
-        }
+
     });
 
     // The server renders the saved tab; initialise only that tab's deferred content.
@@ -3192,6 +3049,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.addEventListener('message', function(e) {
+        if (e.origin === window.location.origin && e.source === document.getElementById('extraPartQuickFrame')?.contentWindow && e.data?.type === 'openSavedExtraForms') {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('savedExtraFormsModal')).show();
+            return;
+        }
+        if (e.origin === window.location.origin && e.source === document.getElementById('extraPartQuickFrame')?.contentWindow && e.data?.type === 'quickExtraPartSaved') {
+            loadExtraPartProcesses();
+            return;
+        }
         if (e.data && e.data.type === 'createProcessSuccess' && e.data.tdrId) {
             loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
             window.tdrShowNotify(e.data.message || ("" + String(window.TdrshowConfig1.value150) + ""), 'success', 2500);
@@ -3205,54 +3070,6 @@ document.addEventListener('DOMContentLoaded', function() {
             loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
             window.tdrShowNotify(e.data.message || ("" + String(window.TdrshowConfig1.value151) + ""), 'success', 2500);
         } else if (e.data && e.data.type === 'editProcessCancel') {
-            var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('editTdrProcessIframe');
-            if (ifr) ifr.src = 'about:blank';
-        } else if (e.data && e.data.type === 'editExtraProcessSuccess') {
-            var m = bootstrap.Modal.getInstance(document.getElementById('editExtraProcessModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('editExtraProcessIframe');
-            if (ifr) ifr.src = 'about:blank';
-            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
-        } else if (e.data && e.data.type === 'editExtraProcessCancel') {
-            var m = bootstrap.Modal.getInstance(document.getElementById('editExtraProcessModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('editExtraProcessIframe');
-            if (ifr) ifr.src = 'about:blank';
-        } else if (e.data && e.data.type === 'createExtraProcessSuccess') {
-            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraProcessModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('addExtraProcessIframe');
-            if (ifr) ifr.src = 'about:blank';
-            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
-            var woId = e.data.workorderId; var compId = e.data.componentId;
-            if (extraProcessesTabBody && woId && compId) loadExtraProcesses(woId, compId);
-        } else if (e.data && e.data.type === 'createExtraProcessCancel') {
-            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraProcessModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('addExtraProcessIframe');
-            if (ifr) ifr.src = 'about:blank';
-        } else if (e.data && e.data.type === 'addExtraPartSuccess') {
-            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraPartModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('addExtraPartIframe');
-            if (ifr) ifr.src = 'about:blank';
-            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
-        } else if (e.data && e.data.type === 'addExtraPartCancel') {
-            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraPartModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('addExtraPartIframe');
-            if (ifr) ifr.src = 'about:blank';
-        } else if (e.data && e.data.type === 'editExtraProcessProcessSuccess') {
-            var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('editTdrProcessIframe');
-            if (ifr) ifr.src = 'about:blank';
-            var woId = e.data.workorderId; var compId = e.data.componentId;
-            if (extraProcessesTabBody && woId && compId) loadExtraProcesses(woId, compId);
-            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
-        } else if (e.data && e.data.type === 'editExtraProcessProcessCancel') {
             var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
             if (m) m.hide();
             var ifr = document.getElementById('editTdrProcessIframe');
@@ -3308,14 +3125,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var ifr = document.getElementById('editTdrProcessIframe');
         if (ifr) ifr.src = 'about:blank';
     });
-    document.getElementById('editExtraProcessModal')?.addEventListener('hidden.bs.modal', function() {
-        var ifr = document.getElementById('editExtraProcessIframe');
-        if (ifr) ifr.src = 'about:blank';
-    });
-    document.getElementById('addExtraProcessModal')?.addEventListener('hidden.bs.modal', function() {
-        var ifr = document.getElementById('addExtraProcessIframe');
-        if (ifr) ifr.src = 'about:blank';
-    });
+
     document.getElementById('editBushingModal')?.addEventListener('hidden.bs.modal', function() {
         var bodyEl = document.getElementById('editBushingModalBody');
         if (bodyEl) bodyEl.innerHTML = '';

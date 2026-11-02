@@ -114,7 +114,7 @@ class MainController extends Controller
 
     public function quantumRoLines(Workorder $workorder, \App\Services\QuantumRoMatrix $matrixBuilder)
     {
-        abort_unless(auth()->user()?->roleIs(['Admin', 'Manager']), 403);
+        abort_unless(auth()->user()?->roleIs(['Admin', 'Manager', 'Technician', 'Team Leader']), 403);
 
         // Keep every source detail, including unresolved/dismissed lines. Applying
         // a line to a local process is independent of its presence in the buffer.
@@ -375,6 +375,7 @@ class MainController extends Controller
         $user = Auth::user();
         $user_wo = $current_workorder->user_id;
         $manual_id = $current_workorder->unit->manual_id ?? null;
+        $bushingGuide = \App\Models\ManualBushingGuide::forManual($manual_id);
 
         $trainings = null;
         if ($manual_id) {
@@ -682,6 +683,7 @@ class MainController extends Controller
             'trainings',
             'user_wo',
             'manual_id',
+            'bushingGuide',
             'user',
             'generalMains',
             'mainsByTask',

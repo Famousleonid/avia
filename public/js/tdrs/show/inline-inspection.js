@@ -10,6 +10,7 @@ function initTdrInlineCreate() {
     row.dataset.inlineCreateInitialized = '1';
 
     const $ = window.$ || null;
+    let activeInlineSelect = null;
     const defaultManualId = window.TdrinspectionConfig1.value2;
     const logCardSerialsByComponent = window.TdrinspectionConfig1.value37;
     const missingConditionId = window.TdrinspectionConfig1.value38;
@@ -33,7 +34,6 @@ function initTdrInlineCreate() {
     const orderQtyMount = document.getElementById('tdr_inline_order_qty_mount');
     const orderQtyControl = orderQtyMount?.querySelector('.tdr-inline-qty-control') || null;
     const orderQtyLabel = orderQtyMount?.querySelector('.tdr-inline-qty-label') || null;
-    const orderSelectedText = document.getElementById('tdr_inline_order_selected_text');
     const serialInput = document.getElementById('tdr_inline_serial_number');
     const assySerialInput = document.getElementById('tdr_inline_assy_serial_number');
     const useTdrInput = document.getElementById('tdr_inline_use_tdr');
@@ -96,13 +96,14 @@ function initTdrInlineCreate() {
     }
 
     function renderComponentSelectionText(option) {
-        const selectedOption = option || componentSelect?.options[componentSelect.selectedIndex] || null;
+        const selectedOption = option?.tagName === 'OPTION' ? option : componentSelect?.options[componentSelect.selectedIndex] || null;
         const partNumber = selectedOption && selectedOption.value ? partNumberFromOption(selectedOption) : '';
         const rendered = document.querySelector('#tdrInlineComponentPicker .select2-selection__rendered');
         if (rendered) {
-            rendered.dataset.partNumber = partNumber;
+            const selectionLabel = [selectedOption?.dataset?.ipl, partNumber, selectedOption?.dataset?.title].filter(Boolean).join('\u00a0\u00a0');
+            rendered.dataset.partNumber = partNumber ? selectionLabel : '';
             if (partNumber) {
-                rendered.title = partNumber;
+                rendered.title = selectedOption.text.trim();
             } else {
                 rendered.removeAttribute('title');
             }
@@ -119,12 +120,6 @@ function initTdrInlineCreate() {
         if (!orderComponentSelect) return;
         const option = orderComponentSelect.options[orderComponentSelect.selectedIndex];
         const text = (option?.text || '').toString().trim();
-        const longestText = Array.from(orderComponentSelect.options)
-            .map(function(item) { return (item.text || '').trim(); })
-            .reduce(function(longest, current) {
-                return current.length > longest.length ? current : longest;
-            }, text);
-        const width = longestText ? Math.min(Math.max(longestText.length + 3, 32), 72) + 'ch' : '36ch';
         orderComponentSelect.style.removeProperty('width');
         const container = document.querySelector('#tdr_inline_order_component_group .select2-container');
         if (container) {
@@ -205,18 +200,6 @@ function initTdrInlineCreate() {
         if (orderComponentAssemblyInput) orderComponentAssemblyInput.value = option?.dataset?.assemblyId || '';
     }
 
-    function updateOrderSelectionPreview() {
-        if (!orderSelectedText || !orderComponentSelect) return;
-        const option = orderComponentSelect.options[orderComponentSelect.selectedIndex];
-        const select2Data = $ && $.fn.select2 && $(orderComponentSelect).hasClass('select2-hidden-accessible')
-            ? ($(orderComponentSelect).select2('data') || [])[0]
-            : null;
-        const text = option && option.value ? ((option.text || select2Data?.text || '').trim()) : '';
-        orderSelectedText.textContent = text;
-        orderSelectedText.title = text;
-        row.classList.toggle('tdr-inline-order-has-selection', !!text);
-    }
-
     function populateOrderComponentChoices(option) {
         if (!orderComponentSelect) return;
         const selectedOption = option || selectedComponentOption();
@@ -250,6 +233,9 @@ function initTdrInlineCreate() {
                 part_number: componentOption?.dataset?.partNumber || '',
                 name: componentName
             }), 'component:' + componentId);
+            orderOption.dataset.ipl = componentOption.dataset.ipl || '';
+            orderOption.dataset.partNumber = componentOption.dataset.partNumber || '';
+            orderOption.dataset.title = componentName;
             orderOption.dataset.componentId = componentId;
             orderOption.dataset.assemblyId = '';
             orderOption.dataset.np = componentOption?.dataset?.np || '0';
@@ -265,6 +251,9 @@ function initTdrInlineCreate() {
                 });
                 if (!label) return;
                 const assemblyOption = new Option(label, 'assembly:' + (assembly.id || ''));
+                assemblyOption.dataset.ipl = assembly.assy_ipl_num || '';
+                assemblyOption.dataset.partNumber = assembly.assy_part_number || '';
+                assemblyOption.dataset.title = componentName + ' (assy)';
                 assemblyOption.dataset.componentId = componentId;
                 assemblyOption.dataset.assemblyId = assembly.id || '';
                 assemblyOption.dataset.isAssy = '1';
@@ -300,7 +289,6 @@ function initTdrInlineCreate() {
             $(orderComponentSelect).trigger('change.select2');
         }
         setOrderComponentChoiceFromSelection();
-        updateOrderSelectionPreview();
         updateOrderComponentWidth();
     }
 
@@ -378,6 +366,28 @@ function initTdrInlineCreate() {
         cell.querySelector('.tdr-inline-field')?.classList.add('d-none');
     }
 
+    function positionComponentDropdown() {
+        const activeSelect = [componentSelect, orderComponentSelect].find(function(select) {
+            return $(select).data('select2')?.isOpen();
+        });
+        if (!activeSelect) return;
+        const container = $(activeSelect).data('select2')?.$dropdown?.find('.select2-dropdown').parent()[0];
+        if (!container) return;
+        const bounds = container.getBoundingClientRect();
+        const left = Math.max(8, Math.min(bounds.left, window.innerWidth - bounds.width - 8));
+        container.style.left = (left + window.scrollX) + 'px';
+    }
+
+    function renderInlinePartOption(data) {
+        if (!data.id || !data.element) return data.text;
+        const option = data.element;
+        return $('<span>').addClass('tdr-part-option-columns')
+            .attr('title', option.dataset.title || '')
+            .append($('<span>').text(option.dataset.ipl || '—'))
+            .append($('<span>').text(partNumberFromOption(option)))
+            .append($('<span>').text(option.dataset.title || '—'));
+    }
+
     function initInlineSelects() {
         if (!$ || !$.fn.select2) return false;
         const dropdownParent = $(document.body);
@@ -394,19 +404,23 @@ function initTdrInlineCreate() {
                 dropdownParent: dropdownParent,
                 width: '100%'
             }, options || {}));
+            if (select === componentSelect || select === orderComponentSelect) {
+                const position = () => requestAnimationFrame(positionComponentDropdown);
+                const instance = $select.data('select2');
+                instance.$dropdown.find('.select2-dropdown').addClass('tdr-inline-part-dropdown')
+                    .parent().addClass('tdr-inline-part-dropdown-host');
+                instance.on('results:all', position);
+                instance.on('results:append', position);
+                window.addEventListener('resize', position);
+                window.addEventListener('scroll', position, true);
+            }
         }
 
-        [
-            manualSelect,
-            orderComponentSelect
-        ].forEach(function(select) {
-            initSelect(select);
-        });
+        initSelect(manualSelect);
+        initSelect(orderComponentSelect, { templateResult: renderInlinePartOption });
 
         initSelect(componentSelect, {
-            templateResult: function(data) {
-                return componentOptionText(data.element);
-            },
+            templateResult: renderInlinePartOption,
             templateSelection: function(data) {
                 if (!data.id) return data.text;
                 return partNumberFromOption(data.element) || data.text;
@@ -526,11 +540,7 @@ function initTdrInlineCreate() {
         orderComponentGroup?.classList.add('d-none');
         orderQtyMount?.classList.add('d-none');
         orderQtyLabel?.classList.add('d-none');
-        if (orderSelectedText) {
-            orderSelectedText.textContent = '';
-            orderSelectedText.removeAttribute('title');
-        }
-        row.classList.remove('tdr-inline-order-has-selection');
+        setOrderCellSpan(false);
         moveQtyInputToOrderGroup(false);
         assySerialInput?.classList.add('d-none');
         row.querySelectorAll('.tdr-inline-field').forEach(function(field) { field.classList.add('d-none'); });
@@ -567,6 +577,12 @@ function initTdrInlineCreate() {
             || !!closest('.select2-container--open, .select2-dropdown, .modal');
     }
 
+    function setOrderCellSpan(showOrderPicker) {
+        inlineCell('serial')?.classList.toggle('d-none', showOrderPicker);
+        const descriptionCell = inlineCell('description');
+        if (descriptionCell) descriptionCell.colSpan = showOrderPicker ? 2 : 1;
+    }
+
     function updateFieldVisibility() {
         const codeName = selectedTitle(codeSelect).toLowerCase();
         const necessaryName = selectedTitle(necessarySelect).toLowerCase();
@@ -579,11 +595,12 @@ function initTdrInlineCreate() {
         const showNecessary = hasComponent && codeName && !isMissing && !isManufacture;
         const hasNecessary = showNecessary && necessaryName;
         const showOrderPicker = hasComponent && (isMissing || isOrderNew);
+        setOrderCellSpan(showOrderPicker);
         const showDescriptionInput = hasComponent && !showOrderPicker && (isManufacture || hasNecessary);
         const isRepair = necessaryName === 'repair';
         row.classList.toggle('tdr-inline-repair-row', isRepair && hasComponent);
         const repairQtyLabel = document.getElementById('tdr_inline_repair_qty_label');
-        repairQtyLabel?.classList.toggle('d-none', !isRepair || !hasComponent);
+        repairQtyLabel?.classList.toggle('d-none', !(isRepair || isManufacture) || !hasComponent);
         if (repairQtyLabel && isRepair) repairQtyLabel.title = 'Maximum: ' + Math.max(1, parseInt(componentOption?.dataset.unitsAssy, 10) || 1);
         const showQty = hasComponent && (isRepair || (isManufacture && !showOrderPicker) || showOrderPicker);
         if (qtyInput) {
@@ -616,7 +633,7 @@ function initTdrInlineCreate() {
         orderQtyMount?.classList.toggle('d-none', !showOrderPicker);
         orderQtyLabel?.classList.toggle('d-none', !showOrderPicker);
         moveQtyInputToOrderGroup(showOrderPicker);
-        if (isRepair && hasComponent && qtyInput) {
+        if ((isRepair || isManufacture) && hasComponent && qtyInput) {
             const qtyField = document.getElementById('tdr_inline_repair_qty_field');
             qtyField?.classList.remove('d-none');
             qtyField?.appendChild(qtyInput);
@@ -633,7 +650,6 @@ function initTdrInlineCreate() {
             setSelectValue(orderComponentSelect, '');
             if (orderComponentIdInput) orderComponentIdInput.value = '';
             if (orderComponentAssemblyInput) orderComponentAssemblyInput.value = '';
-            updateOrderSelectionPreview();
         }
         if (!showOrderPicker && !showDescriptionInput) {
             setInlineCellVisible('description', false);
@@ -725,8 +741,11 @@ function initTdrInlineCreate() {
             })
             .then(function(html) {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
-                const freshInspectRows = Array.from(doc.querySelectorAll('#tdr_inspect_Table tbody tr'));
-                const currentInspectBody = document.querySelector('#tdr_inspect_Table tbody');
+                if (!doc.getElementById('tdrPartsIndicators') || !doc.querySelector('#tdr_process_Table tbody')) {
+                    throw new Error('The TDR list response is incomplete.');
+                }
+                const freshIndicators = doc.getElementById('tdrPartsIndicators');
+                const currentIndicators = document.getElementById('tdrPartsIndicators');
                 const freshRows = Array.from(doc.querySelectorAll('#tdr_process_Table tbody tr'))
                     .filter(function(tableRow) {
                         return tableRow.id !== 'tdrInlineCreateRow' && tableRow.id !== 'tdrInlineAddRow';
@@ -749,11 +768,8 @@ function initTdrInlineCreate() {
                     window.syncTdrPrlPaperGroupFromDocument(doc);
                 }
 
-                if (currentInspectBody) {
-                    currentInspectBody.replaceChildren();
-                    freshInspectRows.forEach(function(tableRow) {
-                        currentInspectBody.appendChild(document.importNode(tableRow, true));
-                    });
+                if (freshIndicators && currentIndicators) {
+                    currentIndicators.replaceWith(document.importNode(freshIndicators, true));
                 }
 
                 if (!currentBody || !currentInlineRow) return;
@@ -770,6 +786,38 @@ function initTdrInlineCreate() {
             });
     }
 
+    function keepInlineRowVisible() {
+        if (row.classList.contains('d-none')) return;
+        const scroller = row.closest('.tdr-show-right-table-wrapper');
+        if (!scroller) return;
+
+        const viewport = scroller.getBoundingClientRect();
+        const bounds = row.getBoundingClientRect();
+        const headerHeight = row.closest('table')?.tHead?.getBoundingClientRect().height || 0;
+        const visibleTop = Math.max(0, viewport.top + scroller.clientTop + headerHeight) + 8;
+        let visibleBottom = Math.min(window.innerHeight, viewport.top + scroller.clientTop + scroller.clientHeight) - 8;
+        const assistant = document.querySelector('#aiAssistantWidget .ai-widget-toggle');
+        if (assistant && assistant.getClientRects().length) {
+            const overlay = assistant.getBoundingClientRect();
+            if (overlay.left < bounds.right && overlay.right > bounds.left && overlay.bottom > visibleTop) {
+                visibleBottom = Math.min(visibleBottom, overlay.top - 8);
+            }
+        }
+
+        // Only reveal the clipped portion inside this scroller; never move the page or scroll horizontally.
+        if (bounds.height > visibleBottom - visibleTop) {
+            scroller.scrollTop += bounds.top - visibleTop;
+        } else if (bounds.bottom > visibleBottom) {
+            scroller.scrollTop += bounds.bottom - visibleBottom;
+        } else if (bounds.top < visibleTop) {
+            scroller.scrollTop += bounds.top - visibleTop;
+        }
+    }
+
+    window.addEventListener('resize', function() {
+        requestAnimationFrame(keepInlineRowVisible);
+    });
+
     addBtn.addEventListener('click', function() {
         row.classList.remove('d-none');
         form.classList.remove('d-none');
@@ -780,7 +828,7 @@ function initTdrInlineCreate() {
         }
         resetInlineRow();
         initInlineSelects();
-        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        requestAnimationFrame(keepInlineRowVisible);
     });
 
     document.addEventListener('click', function(event) {
@@ -820,12 +868,10 @@ function initTdrInlineCreate() {
     if ($ && $.fn.select2 && orderComponentSelect) {
         $(orderComponentSelect).on('select2:select', function() {
             setOrderComponentChoiceFromSelection();
-            updateOrderSelectionPreview();
             updateOrderComponentWidth();
         });
         $(orderComponentSelect).on('select2:clear', function() {
             setOrderComponentChoiceFromSelection();
-            updateOrderSelectionPreview();
             updateOrderComponentWidth();
         });
     }
@@ -834,12 +880,32 @@ function initTdrInlineCreate() {
         $(manualSelect)
             .add(componentSelect)
             .add(orderComponentSelect)
+            .on('select2:opening', function() {
+                const nextSelect = this;
+                [manualSelect, componentSelect, orderComponentSelect].forEach(function(select) {
+                    if (select !== nextSelect && $(select).data('select2')?.isOpen()) {
+                        $(select).select2('close');
+                    }
+                });
+            })
             .on('select2:open', function() {
+                activeInlineSelect = this;
                 document.body.classList.add('tdr-inline-select2-dropdown-open');
                 document.body.classList.toggle('tdr-inline-component-select2-open', this === componentSelect);
                 document.body.classList.toggle('tdr-inline-order-select2-open', this === orderComponentSelect);
-                const searchContainer = document.querySelector('.select2-container--open .select2-search--dropdown');
-                const searchField = document.querySelector('.select2-container--open .select2-search__field');
+                const instance = $(this).data('select2');
+                if (this === componentSelect || this === orderComponentSelect) {
+                    const dropdown = instance?.$dropdown;
+                    if (dropdown && !dropdown.find('.tdr-part-option-heading').length) {
+                        $('<div>').addClass('tdr-part-option-columns tdr-part-option-heading')
+                            .attr('aria-hidden', 'true')
+                            .append($('<span>').text('IPL'), $('<span>').text('P/N'), $('<span>').text('Part name'))
+                            .insertBefore(dropdown.find('.select2-results'));
+                    }
+                    requestAnimationFrame(positionComponentDropdown);
+                }
+                const searchContainer = instance?.$dropdown?.find('.select2-search--dropdown')[0];
+                const searchField = instance?.$dropdown?.find('.select2-search__field')[0];
                 searchContainer?.classList.remove('select2-search--hide');
                 if (searchContainer) searchContainer.style.display = 'block';
                 if (searchField) {
@@ -848,6 +914,8 @@ function initTdrInlineCreate() {
                 }
             })
             .on('select2:close', function() {
+                if (activeInlineSelect !== this) return;
+                activeInlineSelect = null;
                 document.body.classList.remove('tdr-inline-select2-dropdown-open');
                 document.body.classList.remove('tdr-inline-component-select2-open');
                 document.body.classList.remove('tdr-inline-order-select2-open');
@@ -864,7 +932,6 @@ function initTdrInlineCreate() {
     necessarySelect?.addEventListener('change', updateFieldVisibility);
     orderComponentSelect?.addEventListener('change', function() {
         setOrderComponentChoiceFromSelection();
-        updateOrderSelectionPreview();
         updateOrderComponentWidth();
     });
     serialInput?.addEventListener('input', updatePlaceholders);
@@ -991,6 +1058,11 @@ function initTdrInlineCreate() {
     });
 
     form.addEventListener('submit', function(event) {
+        const submitBtn = form.querySelector('button[type="submit"]') || document.querySelector('button[form="tdrInlineCreateForm"][type="submit"]');
+        if (submitBtn?.disabled) {
+            event.preventDefault();
+            return;
+        }
         const codeName = selectedTitle(codeSelect).toLowerCase();
         const necessaryName = selectedTitle(necessarySelect).toLowerCase();
 
@@ -1046,14 +1118,25 @@ function initTdrInlineCreate() {
 
         event.preventDefault();
 
-        const submitBtn = form.querySelector('button[type="submit"]') || document.querySelector('button[form="tdrInlineCreateForm"][type="submit"]');
         const originalText = submitBtn ? submitBtn.innerHTML : '';
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.innerHTML = ("" + String(window.TdrinspectionConfig1.value32) + "");
+            submitBtn.setAttribute('aria-busy', 'true');
+            const dots = document.createElement('span');
+            dots.className = 'tdr-inline-saving-dots';
+            dots.setAttribute('role', 'status');
+            dots.setAttribute('aria-label', 'Saving');
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('span');
+                dot.className = 'app-busy-dot';
+                dot.setAttribute('aria-hidden', 'true');
+                dots.appendChild(dot);
+            }
+            submitBtn.replaceChildren(dots);
         }
 
         fetch(form.action, {
+            spinner: false,
             method: 'POST',
             body: new FormData(form),
             headers: {
@@ -1083,13 +1166,9 @@ function initTdrInlineCreate() {
                 (window.tdrShowNotify || function(m) { console.error(m); })(error.message || ("" + String(window.TdrinspectionConfig1.value36) + ""), 'error');
             })
             .finally(function() {
-                if (typeof window.safeHideSpinner === 'function') {
-                    window.safeHideSpinner();
-                } else if (typeof window.hideLoadingSpinner === 'function') {
-                    window.hideLoadingSpinner();
-                }
                 if (submitBtn) {
                     submitBtn.disabled = false;
+                    submitBtn.removeAttribute('aria-busy');
                     submitBtn.innerHTML = originalText;
                 }
             });

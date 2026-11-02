@@ -1,0 +1,55 @@
+.bushing-guide { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; min-width: 0; overflow: hidden; }
+.guide-toolbar { padding: 12px; overflow-x: auto; border-bottom: 1px solid #455b6c; flex-shrink: 0; }
+.guide-heading { display: flex; align-items: baseline; gap: 16px; width: max-content; white-space: nowrap; }
+.guide-heading h1 { font-size: 18px; margin: 0; }
+.guide-heading small { color: #adb5bd; }
+.guide-paper { display: flex; flex: 1 1 0; min-width: 0; min-height: 0; overflow: hidden; background: #fff; }
+.guide-actions { display: flex; flex-direction: column; align-items: stretch; align-self: flex-start; order: 2; gap: 6px; width: 140px; max-width: 40%; margin: 12px; flex-shrink: 0; }
+.guide-actions [data-guide-print] { margin-top: 10px; }
+.guide-actions .btn-outline-info { --bs-btn-color: #08758a; --bs-btn-border-color: #08758a; --bs-btn-hover-bg: #08758a; --bs-btn-hover-border-color: #08758a; --bs-btn-hover-color: #fff; }
+.guide-tabs { padding: 10px 12px 0; gap: 3px; border-bottom: 1px solid #c5cdd3; flex-shrink: 0; }
+.guide-tabs .nav-link { color: #546570; background: #e2e6ea; border-color: #c5cdd3; padding: 9px 20px; border-radius: 6px 6px 0 0; }
+.guide-tabs .nav-link:hover { color: #08758a; border-color: #9baeb9; }
+.guide-tabs .nav-link.active { color: #08758a; background: #fff; border-color: #c5cdd3 #c5cdd3 #fff; }
+.guide-tabs .nav-link:focus-visible { outline: 2px solid #49bed0; outline-offset: -3px; }
+.guide-scroll { overflow: auto; flex: 1 1 0; min-height: 0; min-width: 0; padding: 12px; background: #fff; }
+.guide-sheet { display: none; background: white; color: #111; width: max-content; min-width: 100%; }
+.guide-sheet.is-active { display: block; }
+.guide-table { border-collapse: collapse; table-layout: fixed; width: var(--guide-table-width); font-family: Arial, sans-serif; }
+.guide-bushing-table { width: max(var(--guide-table-width), 1100px); }
+.guide-table td { padding: 6px 8px; vertical-align: middle; height: 32px; }
+/* The workbook's merged I:K cells store the outer border on covered K cells.
+   Close the data grid without boxing the unbordered headings and footnotes. */
+.guide-bushing-table .guide-grid-row > td:last-child { border-right: 1px solid #333; }
+.guide-table textarea { display: block; width: 100%; min-width: 0; box-sizing: border-box; min-height: 22px; resize: none; overflow: hidden; padding: 2px; border: 1px solid transparent; background: transparent; color: inherit; font: inherit; text-align: inherit; line-height: 1.2; border-radius: 0; }
+.guide-table textarea:focus { outline: 2px solid #17a2b8; background: #edfaff; }
+.guide-table textarea.is-dirty { box-shadow: inset 0 -2px #d49419; }
+.guide-cell-text { white-space: pre-wrap; overflow-wrap: anywhere; display: block; min-height: 1em; }
+.guide-items-table textarea, .guide-items-table .guide-cell-text { white-space: pre; overflow-wrap: normal; }
+.guide-print-heading, .guide-print-value { display: none; }
+.guide-table .guide-repeated-heading { display: none; }
+@media print {
+    @page { size: Letter landscape; margin: 8mm; background: white; }
+    :root { color-scheme: light !important; }
+    html[data-bs-theme], html[data-bs-theme] body,
+    html[data-bs-theme] body .container-fluid, html[data-bs-theme] body .page-layout,
+    html[data-bs-theme] body .content, html[data-bs-theme] body .content-inner {
+        background: white !important; border: 0 !important; box-shadow: none !important;
+    }
+    html[data-bs-theme] body.has-user-project-background .content { background: white !important; }
+    html, body, body > .container-fluid, .page-layout, .content, .content-inner,
+    .bushing-guide, .guide-paper, .guide-scroll { display: block !important; height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; width: auto !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+    #sidebarColumn, .no-print, body > footer, .footer, #spinner-load, .content-inner > :not(.bushing-guide), .guide-table textarea { display: none !important; }
+    .guide-sheet { width: 100%; min-width: 0; }
+    .guide-sheet.is-active { display: block; }
+    .guide-table { width: 100%; }
+    .guide-table td { height: auto; padding: 3px 4px; font-size: 8pt !important; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .guide-table tr { break-inside: avoid; }
+    .guide-table thead { display: table-header-group; }
+    .guide-print-heading { display: table-row; }
+    .guide-print-heading th { padding: 0 0 3mm; border: 0; color: #111; text-align: left; font-weight: normal; }
+    .guide-print-value { display: block; }
+    .guide-print-title-line { display: flex; align-items: baseline; gap: 14px; white-space: nowrap; }
+    .guide-print-heading h2 { font-size: 13pt; margin: 0; }
+    .guide-print-heading p { font-size: 9pt; margin: 0; }
+}

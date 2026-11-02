@@ -288,6 +288,9 @@ class TdrInlinePartWorkflowTest extends TestCase
             'name' => 'Rendered Photo Part',
         ]);
         $component->replacePrimaryImage(UploadedFile::fake()->image('rendered.jpg', 40, 40));
+        // Resolve Missing by name, instead of allowing the legacy ID 7 fallback
+        // to collide with this test's dynamically allocated Repairable code.
+        Code::query()->firstOrCreate(['name' => 'Missing'], ['code' => 'M']);
         $repairCode = Code::query()->firstOrCreate(['name' => 'Repairable'], ['code' => 'R']);
         $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
         $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);

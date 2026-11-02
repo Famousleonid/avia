@@ -118,6 +118,9 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
         if ((bool) ($subject->ignore_row ?? false)) {
             return false;
         }
+        if (! app(\App\Services\WorkorderStdApplicability::class)->appliesTo($subject)) {
+            return false;
+        }
 
         if (! empty($subject->date_start)) {
             return false;

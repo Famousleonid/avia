@@ -282,8 +282,8 @@ class TdrsTest extends TestCase
         $this->assertSame(2, (int) $showResponse->viewData('prlPartsCount'));
         $showResponse->assertSee('id="tdr-prl-paper-group"', false);
         $showResponse->assertSee(route('tdrs.prlForm', ['id' => $workorder->id]), false);
-        $showResponse->assertSee('window.refreshTdrPrlPaperButtons = function()', false);
-        $showResponse->assertSee('window.syncTdrPrlPaperGroupFromDocument(doc);', false);
+        $this->assertStringContainsString('window.refreshTdrPrlPaperButtons = function()', $this->tdrScript($showResponse, 'page-actions.js'));
+        $this->assertStringContainsString('window.syncTdrPrlPaperGroupFromDocument(doc);', $this->tdrScript($showResponse, 'inline-inspection.js'));
 
         $prlResponse = $this->actingAs($admin)->get(route('tdrs.prlForm', ['id' => $workorder->id]));
 
@@ -734,8 +734,12 @@ class TdrsTest extends TestCase
     public function test_update_part_field_updates_po_num(): void
     {
         $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $component = Component::create(['manual_id' => $workorder->unit->manual_id, 'part_number' => 'PO-PART', 'ipl_num' => '1-10', 'name' => 'Ordered part']);
         $tdr = Tdr::query()->create([
-            'workorder_id' => $this->createWorkorder(['user_id' => $admin->id])->id,
+            'component_id' => $component->id, 'order_component_id' => $component->id,
+            'necessaries_id' => Necessary::firstOrCreate(['name' => 'Order New'])->id,
+            'workorder_id' => $workorder->id,
             'serial_number' => 'SN-1',
             'qty' => 1,
         ]);
@@ -1044,7 +1048,8 @@ class TdrsTest extends TestCase
 
         $content = $showResponse->getContent();
         $inlineSelect = $this->htmlBetween($content, 'id="tdr_inline_component_id"', '</select>');
-        $modalSelect = $this->htmlBetween($content, 'id="i_component_id"', '</select>');
+        $inspection = $this->get(route('tdrs.inspection.component', $workorder->id))->assertOk();
+        $modalSelect = $this->htmlBetween($inspection->getContent(), 'id="i_component_id"', '</select>');
 
         foreach ([$inlineSelect, $modalSelect] as $selectHtml) {
             $previousPosition = -1;
@@ -1161,9 +1166,9 @@ class TdrsTest extends TestCase
         $draft = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
 
         $draft->assertOk();
-        $draft->assertSee('lc-include-toggle-all', false);
-        $draft->assertDontSee('type="radio"', false);
-        $draft->assertSee('name="lc_include[1-10]"', false);
+        $draft->assertDontSee('lc-include-toggle-all', false);
+        $draft->assertSee('type="radio"', false);
+        $draft->assertSee('name="lc_include[part_choices_'.$component->id.']"', false);
         $draft->assertSee('name="lc_include[2-10]"', false);
         $draft->assertSee('value="'.$component->id.'"', false);
         $draft->assertSee('value="'.$componentTwo->id.'"', false);
@@ -1181,7 +1186,7 @@ class TdrsTest extends TestCase
         $show->assertOk();
         $show->assertSee('Create Log Card', false);
         $show->assertSee('Select at least one component for Log Card.', false);
-        $show->assertSee('if (!saved) syncLogCardToolbarFromPartial();', false);
+        $this->assertStringContainsString('if (!saved) syncLogCardToolbarFromPartial();', $this->tdrScript($show, 'tabs.js'));
         $show->assertDontSee('Отметьте хотя бы один компонент для Log Card.', false);
 
         LogCard::query()->create([
@@ -1205,14 +1210,14 @@ class TdrsTest extends TestCase
         $savedShow->assertOk();
         $savedShow->assertSee('Update Log Card', false);
         $savedShow->assertSee('Opening...', false);
-        $savedShow->assertSee('loadLogCardPartial({ edit: true })', false);
+        $this->assertStringContainsString('loadLogCardPartial({ edit: true })', $this->tdrScript($savedShow, 'tabs.js'));
         $savedShow->assertSee('window.confirmDialog({', false);
         $savedShow->assertSee('Continue editing', false);
         $savedShow->assertDontSee('Reset Log Card', false);
         $savedShow->assertDontSee('function logCardTabReset', false);
     }
 
-    public function test_log_card_combines_manual_assy_group_into_one_radio_choice_row(): void
+    public function test_log_card_groups_part_variants_without_combining_independent_assy_members(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
@@ -1268,15 +1273,20 @@ class TdrsTest extends TestCase
 
         $partial->assertOk();
         $html = $partial->getContent();
-        $this->assertSame(1, substr_count($html, 'class="lc-assy-group-row"'));
-        $this->assertSame(2, substr_count($html, 'name="lc_selected_component[assy_group_'.$group->id.']"'));
+        $this->assertSame(2, substr_count($html, 'class="lc-assy-group-row"'));
+        $choices = collect($partial->viewData('assyChoiceGroups'));
+        $family = $choices->first(fn ($row) => collect($row['choices'])->contains('component_id', $base->id));
+        $this->assertEqualsCanonicalizing([$base->id, $assy->id], collect($family['choices'])->pluck('component_id')->all());
+        $memberRow = $choices->first(fn ($row) => collect($row['choices'])->contains('component_id', $member->id));
+        $this->assertSame([$member->id], collect($memberRow['choices'])->pluck('component_id')->all());
+        $this->assertSame(2, substr_count($html, 'name="lc_selected_component['.$family['group_key'].']"'));
         $partial->assertSee('role="radiogroup"', false);
         $partial->assertSee('data-manual-part-group-option-id="'.$option->id.'"', false);
         $partial->assertSee('47170-103');
         $partial->assertSee('BUSH-47170');
         $partial->assertSee('47170-3');
         $this->assertSame(1, substr_count($html, '>47170-103</strong>'));
-        $this->assertFalse(collect($partial->viewData('assyChoiceGroups'))->flatMap(fn ($group) => $group['choices'])->contains('component_id', $member->id));
+        $this->assertFalse(collect($family['choices'])->contains('component_id', $member->id));
         $this->assertSame(1, substr_count($html, '>47170-3</strong>'));
 
         $this->actingAs($admin)->postJson(route('log_card.store'), [
@@ -1288,7 +1298,7 @@ class TdrsTest extends TestCase
                     'manual_part_group_choice' => 'component',
                 ],
                 [
-                    'component_id' => (string) $member->id,
+                    'component_id' => (string) $assy->id,
                     'manual_part_group_id' => (string) $group->id,
                     'manual_part_group_choice' => 'component',
                 ],
@@ -1328,14 +1338,14 @@ class TdrsTest extends TestCase
         $edit->assertSee('data-assy-part-number="47170-3"', false);
     }
 
-    public function test_kit_flagged_missing_and_order_new_parts_can_be_saved_unless_overhaul(): void
+    public function test_kit_defects_are_saved_and_only_uncovered_quantity_is_ordered_for_overhaul(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
         $unit = $this->createUnit(['manual_id' => $manual->id]);
         $component = Component::create([
             'manual_id' => $manual->id, 'ipl_num' => '5-95', 'part_number' => 'AE37524-033',
-            'name' => 'Missing kit flagged part', 'kit' => true, 'np' => false,
+            'name' => 'Missing kit flagged part', 'kit' => true, 'np' => false, 'units_assy' => 1,
         ]);
         $missing = Code::firstOrCreate(['name' => 'Missing'], ['code' => 'M']);
         $damaged = Code::firstOrCreate(['name' => 'Damaged'], ['code' => 'DMG']);
@@ -1344,29 +1354,39 @@ class TdrsTest extends TestCase
 
         foreach (['Test & inspect', 'Repair', '60M', '96M', 'Overhaul'] as $instruction) {
             foreach ([$missing, $damaged] as $code) {
-                $workorder = $this->createWorkorder([
-                    'user_id' => $admin->id, 'unit_id' => $unit->id,
-                    'instruction_id' => $this->createInstruction(['name' => $instruction])->id,
-                ]);
-                $picker = $this->actingAs($admin)->getJson(route('api.get-components-by-manual', [
-                    'manual_id' => $manual->id, 'workorder_id' => $workorder->id, 'exclude_kits' => 1,
-                ]))->assertOk();
-                $this->assertSame($instruction !== 'Overhaul', collect($picker->json('components'))->contains('id', $component->id));
-                $response = $this->postJson(route('tdrs.store'), [
-                    'workorder_id' => $workorder->id, 'component_id' => $component->id,
-                    'order_component_id' => $component->id, 'serial_number' => 'NSN',
-                    'assy_serial_number' => ' ', 'codes_id' => $code->id,
-                    'necessaries_id' => $orderNew->id, 'qty' => 1, 'description' => 'WO107979 regression',
-                ]);
-                if ($instruction === 'Overhaul') {
-                    $response->assertUnprocessable()->assertJsonValidationErrors('order_component_id');
-                    $this->assertDatabaseMissing('tdrs', ['workorder_id' => $workorder->id, 'order_component_id' => $component->id]);
-                } else {
-                    $response->assertSuccessful();
-                    $this->assertDatabaseHas('tdrs', [
-                        'workorder_id' => $workorder->id, 'order_component_id' => $component->id, 'codes_id' => $code->id,
+                foreach ([1, 3] as $quantity) {
+                    $workorder = $this->createWorkorder([
+                        'user_id' => $admin->id, 'unit_id' => $unit->id,
+                        'instruction_id' => $this->createInstruction(['name' => $instruction])->id,
                     ]);
-                    $this->get(route('tdrs.prlForm', $workorder))->assertOk()->assertSee('AE37524-033');
+                    $picker = $this->actingAs($admin)->getJson(route('api.get-components-by-manual', [
+                        'manual_id' => $manual->id, 'workorder_id' => $workorder->id, 'exclude_kits' => 1,
+                    ]))->assertOk();
+                    $this->assertSame($instruction !== 'Overhaul', collect($picker->json('components'))->contains('id', $component->id));
+                    $response = $this->postJson(route('tdrs.store'), [
+                        'workorder_id' => $workorder->id, 'component_id' => $component->id,
+                        'order_component_id' => $component->id, 'serial_number' => 'NSN',
+                        'assy_serial_number' => ' ', 'codes_id' => $code->id,
+                        'necessaries_id' => $orderNew->id, 'qty' => $quantity, 'description' => 'WO107979 regression',
+                    ]);
+                    // The picker may hide KIT supply, but an inspected defect must remain in TDR.
+                    $response->assertOk()->assertJsonPath('success', true);
+                    $stored = ['workorder_id' => $workorder->id, 'component_id' => $component->id,
+                        'order_component_id' => $component->id, 'codes_id' => $code->id, 'qty' => $quantity];
+                    $this->assertDatabaseHas('tdrs', $stored);
+                    $expectedPrlQty = $instruction === 'Overhaul' ? $quantity - 1 : $quantity;
+                    $rows = app(\App\Http\Controllers\Admin\TdrPrintFormController::class)->prlRows($workorder);
+                    $this->assertSame($expectedPrlQty, (int) $rows->sum('qty'));
+                    $print = $this->get(route('tdrs.prlForm', $workorder))->assertOk();
+                    if ($expectedPrlQty === 0) {
+                        $this->assertCount(0, $rows);
+                        $print->assertDontSee('AE37524-033');
+                    } else {
+                        $this->assertCount(1, $rows);
+                        $print->assertSee('AE37524-033');
+                    }
+                    // Calculating/printing the order must not reduce the original defect quantity.
+                    $this->assertDatabaseHas('tdrs', $stored);
                 }
             }
         }
@@ -1507,14 +1527,15 @@ class TdrsTest extends TestCase
         $savedResponse = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
 
         $savedResponse->assertOk();
+        // Draft catalogue is sorted; saved rows preserve the user's stored order and row indices.
         $savedResponse->assertSeeInOrder([
-            '40000-1 <span class="lc-ipl text-secondary">(1A-200)</span> First Part Number Component',
-            '45000-1 <span class="lc-ipl text-secondary">(1A-500)</span> Multi Unit Component',
-            'Unit 1 of 2',
+            '50000-1 <span class="lc-ipl text-secondary">(1A-100)</span> Last Part Number Component',
             '45000-1 <span class="lc-ipl text-secondary">(1A-500)</span> Multi Unit Component',
             'Unit 2 of 2',
             '47202-1 <span class="lc-ipl text-secondary">(1A-1000)</span> Harness Assembly, Steering',
-            '50000-1 <span class="lc-ipl text-secondary">(1A-100)</span> Last Part Number Component',
+            '45000-1 <span class="lc-ipl text-secondary">(1A-500)</span> Multi Unit Component',
+            'Unit 1 of 2',
+            '40000-1 <span class="lc-ipl text-secondary">(1A-200)</span> First Part Number Component',
         ], false);
         $savedResponse->assertSee('text-muted text-nowrap ms-2', false);
         $savedResponse->assertDontSee('<br><small class="text-muted">Unit', false);
@@ -1533,28 +1554,25 @@ class TdrsTest extends TestCase
 
         $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
         $showResponse->assertOk();
-        $showResponse->assertSee('if (row.dataset.unitIndex) item.unit_index = row.dataset.unitIndex;', false);
-        $showResponse->assertSee('var row = Object.assign({}, originalRow, {', false);
-        $showResponse->assertSee('var manualRow = Object.assign({}, originalManualRow, {', false);
-        $showResponse->assertSee('function logCardWaitForInlineSaves()', false);
-        $showResponse->assertSee('logCardInlineSaveTimer = null;', false);
+        $this->assertStringContainsString('if (row.dataset.unitIndex) item.unit_index = row.dataset.unitIndex;', $this->tdrScript($showResponse, 'tabs.js'));
+        $this->assertStringContainsString('var row = Object.assign({}, originalRow, {', $this->tdrScript($showResponse, 'tabs.js'));
+        $this->assertStringContainsString('var manualRow = Object.assign({}, originalManualRow, {', $this->tdrScript($showResponse, 'tabs.js'));
+        $this->assertStringContainsString('function logCardWaitForInlineSaves()', $this->tdrScript($showResponse, 'tabs.js'));
+        $this->assertStringContainsString('logCardInlineSaveTimer = null;', $this->tdrScript($showResponse, 'tabs.js'));
     }
 
     public function test_tdr_show_persists_measurements_tab_id(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
-
-        $response = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
-
-        $response->assertOk();
-        $this->assertMatchesRegularExpression(
-            '~var PERSISTENT_TAB_IDS = \[[\s\S]*\'tab-measurements\'[\s\S]*\];~',
-            $response->getContent()
-        );
-        $response->assertSee('function showRestoredTabBeforeReveal(tabButton)', false);
-        $response->assertSee("tabButton.addEventListener('shown.bs.tab', done, { once: true });", false);
-        $response->assertSee('await showRestoredTabBeforeReveal(savedTabBtn);', false);
+        $this->actingAs($admin)->postJson(route('user-ui-settings.store'), [
+            'scope' => 'tdrs.show', 'key' => 'activeTab:'.$workorder->id, 'value' => 'tab-measurements',
+        ])->assertOk();
+        $response = $this->get(route('tdrs.show', $workorder->id))->assertOk();
+        $response->assertViewHas('initialTdrTab', 'tab-measurements');
+        $this->assertMatchesRegularExpression('/class="nav-link active"[^>]*id="tab-measurements"/', $response->getContent());
+        $response->assertSee('class="tab-pane fade show active" id="content-measurements"', false);
+        $this->assertStringContainsString("'tab-measurements'", $this->tdrScript($response, 'tabs.js'));
     }
 
     public function test_log_card_can_load_components_only_from_a_used_additional_manual(): void
@@ -2666,6 +2684,7 @@ class TdrsTest extends TestCase
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'BUSH-PN-100',
             'name' => 'Bushing First',
+            'units_assy' => 3,
             'ipl_num' => '1-100',
             'bush_ipl_num' => '1-100',
             'is_bush' => true,
@@ -2674,6 +2693,7 @@ class TdrsTest extends TestCase
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'BUSH-PN-110',
             'name' => 'Bushing Second',
+            'units_assy' => 3,
             'ipl_num' => '1-110',
             'bush_ipl_num' => '1-100',
             'is_bush' => true,
@@ -2743,31 +2763,16 @@ class TdrsTest extends TestCase
         $bushingResponse->assertSee('PARTS REPLACEMENT LIST');
         $bushingResponse->assertDontSee('BUSHING PARTS REPLACEMENT LIST');
         $bushingResponse->assertSee('const PRINT_SETTINGS_PROFILE = "prl";', false);
-        $bushingResponse->assertSee('BUSH-PN-100');
-        $bushingResponse->assertSee('BUSH-PN-110');
-        $bushingResponse->assertDontSee('KIT-BUSH-PN-80');
-        $this->assertSame(1, substr_count($bushingResponse->getContent(), 'data-prl-bushing-group="1-100"'));
-        $this->assertMatchesRegularExpression(
-            '/data-prl-bushing-group="1-100".*?<div class="col-1 prl-col-qty[^>]*>.*?data-prl-option-qty="2"[^>]*>2<\/span>.*?data-prl-option-qty="1"[^>]*>1<\/span>/s',
-            $bushingResponse->getContent()
-        );
-        $this->assertSame(0, substr_count($bushingResponse->getContent(), 'data-prl-crossed-out="1"'));
-        $bushingResponse->assertSee('<h6>K</h6>', false);
-
-        $bushResponse = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
-        $bushResponse->assertOk();
-        $bushResponse->assertSee('PARTS REPLACEMENT LIST');
-        $bushResponse->assertSee('const PRINT_SETTINGS_PROFILE = "prl";', false);
-        $bushResponse->assertSee('BUSH-PN-100');
-        $bushResponse->assertSee('BUSH-PN-110');
-        $bushResponse->assertDontSee('KIT-BUSH-PN-80');
-        $this->assertSame(0, substr_count($bushResponse->getContent(), 'data-prl-crossed-out="1"'));
-        $bushResponse->assertSee('<h6>K</h6>', false);
+        $bushingResponse->assertDontSee('BUSH-PN-100')->assertDontSee('BUSH-PN-110');
+        $this->assertCount(0, $bushingResponse->viewData('ordersParts'));
+        $bushResponse = $this->get(route('tdrs.bushPrlForm', $workorder))->assertOk();
+        $this->assertCount(0, $bushResponse->viewData('ordersParts'));
 
         $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
         $kitResponse->assertOk();
         $kitResponse->assertDontSee('system-print-qr');
-        $kitResponse->assertSee('PARTS REPLACEMENT LIST - KIT');
+        $kitResponse->assertSee('PARTS REPLACEMENT LIST');
+        $kitResponse->assertViewHas('printSettingsProfile', 'kit');
         $kitResponse->assertSee('const PRINT_SETTINGS_PROFILE = "kit";', false);
         $kitResponse->assertDontSee('KIT PARTS REPLACEMENT LIST');
         $kitResponse->assertDontSee('2<br />' . "\n" . '2', false);
@@ -2788,7 +2793,6 @@ class TdrsTest extends TestCase
                     'KIT-PN-50B',
                 ];
         });
-        $kitResponse->assertDontSee('<h6>3</h6>', false);
         $kitResponse->assertSee('KIT-PN-60');
         $kitResponse->assertSee('KIT-BUSH-PN-80');
         $kitResponse->assertViewHas('ordersParts', function ($rows): bool {
@@ -2796,10 +2800,17 @@ class TdrsTest extends TestCase
                 fn (array $row): bool => ($row['component']['part_number'] ?? null) === 'KIT-BUSH-PN-80'
             );
 
-            return $kitBushing !== null && empty($kitBushing['prl_crossed_out']);
+            // No bushing variant was selected for this family yet.
+            return $kitBushing !== null && ! empty($kitBushing['prl_crossed_out']);
         });
-        $kitResponse->assertDontSee('EXTRA PARTS');
-        $kitResponse->assertDontSee('KIT-E-PN-70');
+        $kitResponse->assertSee('EXTRA PARTS');
+        $kitResponse->assertSee('BUSH-PN-100')->assertSee('BUSH-PN-110');
+        $extra = collect($kitResponse->viewData('ordersParts'))->firstWhere('prl_bushing_group', '1-100');
+        $this->assertNotNull($extra);
+        $this->assertSame(3, (int) $extra['qty']);
+        $this->assertSame([2, 1], collect($extra['prl_part_numbers'])->pluck('qty')->all());
+        $this->assertSame(1, substr_count($kitResponse->getContent(), 'data-prl-bushing-group="1-100"'));
+        $kitResponse->assertSee('KIT-E-PN-70');
         $kitResponse->assertSee('<h6>KIT</h6>', false);
 
         $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
@@ -2823,7 +2834,7 @@ class TdrsTest extends TestCase
             route('tdrs.stressStd', ['workorder_id' => $workorder->id]),
             route('tdrs.paintStd', ['workorder_id' => $workorder->id]),
         ], false);
-        $this->assertSame(1, (int) $showResponse->viewData('bushingPrlCount'));
+        $this->assertSame(0, (int) $showResponse->viewData('bushingPrlCount'));
         $bushingResponse->assertSee('`prlForm_print_settings:${PRINT_SETTINGS_PROFILE}`', false);
         $bushingResponse->assertSee('prl-print-paginator.js', false);
         $bushingResponse->assertSee("PRINT_SETTINGS_LAYOUT_VERSION = 'prl-family-height-v3'", false);
@@ -2945,15 +2956,16 @@ class TdrsTest extends TestCase
                     && empty($selectedBushingGroup['prl_crossed_out'])
                     && ! empty($selectedOptions->get('KIT-BUSH-SHARED-PN')['crossed_out'])
                     && empty($selectedOptions->get('KIT-BUSH-OVERSIZE-SELECTED')['crossed_out'])
-                    && empty($unselectedBushingGroup['prl_crossed_out']);
+                    && ! empty($unselectedBushingGroup['prl_crossed_out']);
             })
             ->assertSee('KIT-PRL-CROSSED')
             ->assertSee('KIT-BUSH-SHARED-PN')
             ->assertSee('KIT-BUSH-OVERSIZE-SELECTED')
             ->assertSee('KIT-NOT-CROSSED');
 
-        $this->assertSame(0, substr_count($response->getContent(), 'data-prl-crossed-out="1"'));
-        $this->assertSame(1, substr_count($response->getContent(), 'data-prl-part-number-crossed-out="1"'));
+        // An unselected bushing family remains visible and crossed out until a variant is chosen.
+        $this->assertSame(1, substr_count($response->getContent(), 'data-prl-crossed-out="1"'));
+        $this->assertSame(2, substr_count($response->getContent(), 'data-prl-part-number-crossed-out="1"'));
     }
 
     public function test_kit_position_can_be_manually_crossed_out_and_restored_per_component(): void
@@ -3113,7 +3125,7 @@ class TdrsTest extends TestCase
         ]);
     }
 
-    public function test_bushing_prl_prints_all_bushings_crossed_out_when_none_are_ordered(): void
+    public function test_kit_bushing_section_prints_all_bushings_crossed_out_when_none_are_ordered(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
@@ -3137,7 +3149,8 @@ class TdrsTest extends TestCase
             'is_bush' => true,
         ]);
 
-        $response = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
+        $this->actingAs($admin)->get(route('tdrs.prlForm', $workorder))->assertOk()->assertViewHas('ordersParts', fn ($rows) => count($rows) === 0);
+        $response = $this->get(route('tdrs.kitForm', ['id' => $workorder->id]));
 
         $response->assertOk();
         $response->assertSee('BUSH-NONE-100');
@@ -3149,12 +3162,14 @@ class TdrsTest extends TestCase
         $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
 
         $showResponse->assertOk();
-        $showResponse->assertSee(route('tdrs.prlForm', ['id' => $workorder->id]), false);
+        $showResponse->assertDontSee(route('tdrs.prlForm', ['id' => $workorder->id]), false);
+        $showResponse->assertDontSee(route('tdrs.kitForm', ['id' => $workorder->id]), false);
+        $showResponse->assertViewHas('kitPrlCount', 0);
         $showResponse->assertDontSee(route('tdrs.bushPrlForm', ['id' => $workorder->id]), false);
-        $showResponse->assertSee('>1</span>', false);
+        $showResponse->assertViewHas('bushingPrlCount', 0);
     }
 
-    public function test_bushing_prl_crosses_out_selected_do_not_order_bushing(): void
+    public function test_kit_bushing_section_crosses_out_selected_do_not_order_bushing(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
@@ -3193,7 +3208,8 @@ class TdrsTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
+        $this->actingAs($admin)->get(route('tdrs.prlForm', $workorder))->assertOk()->assertViewHas('ordersParts', fn ($rows) => count($rows) === 0);
+        $response = $this->get(route('tdrs.kitForm', ['id' => $workorder->id]));
 
         $response->assertOk();
         $response->assertSee('BUSH-ORDERED');
@@ -3249,19 +3265,19 @@ class TdrsTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
-        $content = $response->getContent();
-
-        $response->assertOk();
-        $response->assertDontSee('BUSH-IN-KIT');
-        $this->assertMatchesRegularExpression(
-            '/data-prl-component-id="'.$outsideKit->id.'"(?![^>]*data-prl-part-number-crossed-out)[^>]*>BUSH-OUTSIDE-KIT/s',
-            $content
-        );
-        $response->assertDontSee('Included in KIT');
+        $response = $this->actingAs($admin)->get(route('tdrs.prlForm', $workorder))->assertOk();
+        $this->assertCount(0, $response->viewData('ordersParts'));
+        $rows = app(\App\Http\Controllers\Admin\TdrPrintFormController::class)->prlRows($workorder);
+        $options = $rows->flatMap(fn ($row) => $row['prl_part_numbers'] ?? []);
+        $this->assertSame([$outsideKit->id], $options->pluck('component_id')->all());
+        $this->assertSame(1, (int) $rows->sum('qty'));
+        $kit = $this->get(route('tdrs.kitForm', $workorder))->assertOk();
+        $kit->assertSee('BUSH-IN-KIT')->assertSee('BUSH-OUTSIDE-KIT');
+        $this->assertSame(1, substr_count($kit->getContent(), '>BUSH-IN-KIT</span>'));
+        $this->assertSame(1, substr_count($kit->getContent(), '>BUSH-OUTSIDE-KIT</span>'));
     }
 
-    public function test_bushing_prl_groups_initial_and_oversize_part_numbers_in_one_cell(): void
+    public function test_kit_bushing_section_groups_initial_and_oversize_part_numbers_in_one_cell(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id, 'instruction_id' => $this->createOverhaulInstruction()->id]);
@@ -3301,7 +3317,8 @@ class TdrsTest extends TestCase
             'sort_order' => 1,
         ]);
 
-        $response = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
+        $this->actingAs($admin)->get(route('tdrs.prlForm', $workorder))->assertOk()->assertViewHas('ordersParts', fn ($rows) => count($rows) === 0);
+        $response = $this->get(route('tdrs.kitForm', ['id' => $workorder->id]));
         $content = $response->getContent();
 
         $response->assertOk();
@@ -3647,7 +3664,7 @@ class TdrsTest extends TestCase
             'ipl_num' => '9-550',
         ]);
         $processName = ProcessName::query()->create([
-            'name' => 'Machining Header QR ' . uniqid(),
+            'name' => 'Machining',
             'process_sheet_name' => 'MACHINING',
             'form_number' => '018',
             'print_form' => true,
@@ -3687,7 +3704,7 @@ class TdrsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('MACHINING PROCESS SHEET');
-        $response->assertSee('Admin User (lib: 295)');
+        $response->assertSee($admin->selection_name.' (lib: 295)');
         $response->assertSee('process-sheet-title-row--machining', false);
         $response->assertSee('const hostSelector = ".process-sheet-title-row--machining";', false);
         $response->assertSee('display: grid !important;', false);
@@ -3713,6 +3730,12 @@ class TdrsTest extends TestCase
             ->assertOk()
             ->assertSee('Missing required FIG')
             ->assertSee('print-mark-warning', false);
+    }
+
+    private function tdrScript($response, string $file): string
+    {
+        $response->assertSee(asset('js/tdrs/show/'.$file), false);
+        return file_get_contents(public_path('js/tdrs/show/'.$file));
     }
 
     private function htmlBetween(string $html, string $startNeedle, string $endNeedle): string

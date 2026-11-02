@@ -262,6 +262,7 @@ class ProcessSequenceGuard
             ->filter(fn (TdrProcess $process): bool => optional($process->processName)->show_in_process_picker !== false
                 && ! $this->isTdrProcessSequenceExempt($process)
                 && ! (bool) ($process->ignore_row ?? false))
+            ->filter(fn (TdrProcess $process): bool => app(WorkorderStdApplicability::class)->appliesTo($process))
             ->groupBy(function (TdrProcess $process): string {
                 if ($process->in_traveler) {
                     return 'traveler_'.(int) ($process->traveler_group ?: 1);
@@ -309,6 +310,7 @@ class ProcessSequenceGuard
             ->where('workorder_id', $workorderId)
             ->get()
             ->filter(fn (WorkorderStdProcess $process): bool => ! (bool) ($process->ignore_row ?? false))
+            ->filter(fn (WorkorderStdProcess $process): bool => app(WorkorderStdApplicability::class)->appliesTo($process))
             ->map(function (WorkorderStdProcess $process): array {
                 return [
                     'type' => 'std',

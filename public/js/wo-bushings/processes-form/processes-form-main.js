@@ -87,14 +87,6 @@ function initWoBushingsProcessesForm() {
             });
         }
 
-        // Обработка пустых строк на основе высоты ячеек процесса
-        // Переиспользуем EmptyRowProcessor из extra-processes
-        if (typeof EmptyRowProcessor !== 'undefined') {
-            const processResult = EmptyRowProcessor.processEmptyRows();
-            if (processResult && processResult.totalExtraLines > 0) {
-                console.log('Обработка пустых строк завершена:', processResult);
-            }
-        }
     }, 200);
 }
 

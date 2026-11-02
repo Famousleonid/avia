@@ -169,6 +169,9 @@ class QualityAssuranceService
                 if ($process->ignore_row) {
                     continue;
                 }
+                if (! app(\App\Services\WorkorderStdApplicability::class)->appliesTo($process)) {
+                    continue;
+                }
 
                 $counts['total']++;
 

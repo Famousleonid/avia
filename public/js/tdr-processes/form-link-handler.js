@@ -40,7 +40,7 @@ class FormLinkHandler {
 
         // Сначала ищем вендор в той же строке таблицы / блоке процессов (TDR show, модалки), иначе — по всему document
         const row = link.closest('tr');
-        const localRoot = row || link.closest('.processes-modal-body') || link.closest('.extra-processes-modal-body') || document;
+        const localRoot = row || link.closest('.processes-modal-body') || document;
 
         let vendorSelect = null;
 

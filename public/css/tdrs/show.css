@@ -16,16 +16,6 @@
             font-size: 0.75rem;
         }
 
-        #tdr_inspect_Table thead {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        #tdr_inspect_Table thead th {
-            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
-        }
-
         #tdr__Table thead th {
             background-color: #030334 !important;
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
@@ -339,7 +329,7 @@
         }
 
         /* Edit Part Process and related modals (iframe) - ensure on top */
-        #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal {
+        #editTdrProcessModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal {
             z-index: 1080 !important;
         }
 
@@ -347,15 +337,13 @@
             z-index: 1090 !important;
         }
 
-        #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop {
+        #editTdrProcessModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop {
             z-index: 1075 !important;
         }
 
         /* Part / Extra processes (AJAX block) — заметнее подсветка строки при наведении */
         .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
-        .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th,
-        .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
-        .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
+        .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
             --bs-table-hover-color: var(--dir-text);
             --bs-table-hover-bg: var(--dir-row-hover);
             background-color: var(--dir-row-hover) !important;
@@ -363,9 +351,7 @@
         }
 
         html[data-bs-theme="dark"] .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
-        html[data-bs-theme="dark"] .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th,
-        html[data-bs-theme="dark"] .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
-        html[data-bs-theme="dark"] .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
+        html[data-bs-theme="dark"] .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
             --bs-table-hover-bg: var(--dir-row-hover);
             background-color: var(--dir-row-hover) !important;
             color: var(--dir-text) !important;
@@ -581,7 +567,7 @@
                     }
                 
 
-    #tdr_process_Table .tdr-inline-repair-row > td {
+    #tdr_process_Table .tdr-inline-create-row > td {
         padding-top: 14px;
         align-content: start;
     }
@@ -628,12 +614,32 @@
         --tdr-action-train-canvas-size: 42px;
         table-layout: fixed;
         width: 100%;
+        min-width: 900px;
+        /* Cell borders provide the frame without a pre-sticky 1px offset. */
+        border: 0;
+        margin-bottom: 0;
+    }
+
+    /* Keep assistant-button clearance inside the sticky header's table boundary. */
+    #tdr_process_Table .tdr-scroll-clearance td {
+        height: 80px;
+        padding: 0;
+        border: 0 !important;
+        box-shadow: none;
+        pointer-events: none;
     }
 
     #tdr_process_Table th,
     #tdr_process_Table td {
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    #tdr_process_Table .tdr-repair-qty {
+        color: var(--bs-secondary-color, #9aa0a6);
+        font-size: 10px;
+        line-height: 1.3;
+        text-transform: lowercase;
     }
 
     #tdr_process_Table col.tdr-action-col {
@@ -683,15 +689,20 @@
         white-space: nowrap;
     }
 
-    #tdr_inspect_Table thead th,
-    #tdr_process_Table thead th {
-        height: 32px;
-        padding-top: .25rem;
-        padding-bottom: .25rem;
-        vertical-align: middle;
+    #tdr_process_Table thead {
+        /* Override the directory theme's static thead: one solid sticky band. */
+        position: sticky !important;
+        top: 0;
+        z-index: 13;
+        background: var(--dir-thead-bg);
     }
 
     #tdr_process_Table thead th {
+        position: static;
+        z-index: auto;
+        box-shadow: none;
+        height: 32px;
+        vertical-align: middle;
         font-size: 14px;
         font-weight: 400;
         line-height: 1.1;
@@ -699,97 +710,139 @@
         white-space: nowrap;
     }
 
+    /* Carry the available height through the card to the TDR scroll area. */
+    .tdr-show-card:has(#content-tdr.active) {
+        flex: 1 1 0;
+        min-height: 0;
+    }
+
+    .tdr-show-card:has(#content-tdr.active) > .card-header,
+    .tdr-show-card:has(#content-tdr.active) #tdrShowTabsHeader {
+        flex-shrink: 0;
+    }
+
+    .tdr-show-card:has(#content-tdr.active) > .card-body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    #tdrShowTabContent:has(#content-tdr.active) {
+        flex: 1 1 0;
+        min-height: 0;
+    }
+
+    #content-tdr.active {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+
     .tdr-show-tables-layout {
-        height: 75vh;
+        flex: 1 1 auto;
+        min-height: 0;
         width: 100%;
         overflow: visible;
-        gap: 1ch;
+        gap: 0;
         justify-content: flex-start;
     }
 
     .tdr-show-left-pane {
-        flex: 0 0 300px;
-        width: 300px;
-        min-width: 240px;
-        max-height: 70vh;
-        overflow-y: auto;
-
-    }
-
-    #tdr_inspect_Table {
-        table-layout: fixed;
-        width: 100%;
-    }
-
-    #tdr_inspect_Table tbody td:first-child {
-        font-size: .725rem;
-        line-height: 1.15;
-    }
-
-    #tdr_inspect_Table tbody tr,
-    #tdr_inspect_Table tbody td {
-        height: 55px;
-    }
-
-    #tdr_inspect_Table tbody td {
-        vertical-align: middle;
-    }
-
-    #tdr_inspect_Table .tdr-unit-trash-btn {
-        --bs-btn-color: var(--bs-danger);
-        --bs-btn-bg: transparent;
-        --bs-btn-border-color: transparent;
-        --bs-btn-hover-color: #ff4d5f;
-        --bs-btn-hover-bg: transparent;
-        --bs-btn-hover-border-color: transparent;
-        --bs-btn-active-color: #ff4d5f;
-        --bs-btn-active-bg: transparent;
-        --bs-btn-active-border-color: transparent;
-        border: 0 !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        padding: 0;
-        line-height: 1;
-    }
-
-    #tdr_inspect_Table .tdr-unit-trash-btn:hover,
-    #tdr_inspect_Table .tdr-unit-trash-btn:focus {
-        background: transparent !important;
-        box-shadow: none !important;
-    }
-
-    #tdr_inspect_Table .tdr-unit-trash-btn .bi-trash3 {
-        color: var(--bs-danger);
-        font-size: .82rem;
-    }
-
-    .tdr-show-right-pane {
-        flex: 1 1 auto;
+        flex: 0 0 75px;
+        width: 75px;
         min-width: 0;
-        max-width: 100%;
-        position: relative;
-    }
-
-    .tdr-show-right-table-wrapper {
-        max-height: calc(96dvh - 150px);
-        min-width: 0;
-        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        /* The right pane adds 4px: 8px here gives the same 12px on both sides. */
+        padding: 10px 8px 0 12px;
+        min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
     }
 
-    .tdr-show-right-toolbar {
-        position: absolute;
-        top: -32px;
-        left: 0;
-        right: 0;
-        min-height: 28px;
-        z-index: 20;
-        pointer-events: none;
+    .tdr-parts-indicator {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        width: 55px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--bs-body-color);
+        cursor: pointer;
     }
 
-    .tdr-show-right-toolbar > * {
-        pointer-events: auto;
+    .tdr-parts-indicator:hover,
+    .tdr-parts-indicator:focus-visible {
+        outline: 2px solid var(--bs-primary);
+        outline-offset: 2px;
+    }
+
+    .tdr-parts-indicator-image {
+        position: relative;
+        display: block;
+        width: 55px;
+        height: 55px;
+    }
+
+    .tdr-parts-indicator-image img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+
+    .tdr-parts-indicator-count {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        max-width: 55px;
+        padding: 3px 5px;
+        font-size: 11px;
+        line-height: 1;
+    }
+
+    .tdr-parts-indicator-label {
+        font-size: 11px;
+        line-height: 1.2;
+    }
+
+    .tdr-show-right-pane {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+        max-width: 100%;
+        position: relative;
+        /* Keep outer spacing outside the scrollport and its sticky header. */
+        padding: 4px;
+    }
+
+    .tdr-show-right-table-wrapper {
+        flex: 1 1 0;
+        min-height: 0;
+        min-width: 0;
+        width: 100%;
+        overflow-y: auto;
+        overflow-x: auto;
+        padding: 0;
+        scroll-padding-bottom: 80px;
+    }
+
+    .tdr-show-right-toolbar {
+        flex-shrink: 0;
+        min-height: 28px;
+        min-width: 0;
+        gap: 4px;
+        margin-bottom: 4px;
     }
 
     #tdrInlineAddBtn {
@@ -803,6 +856,11 @@
         width: 52px;
     }
 
+    #tdrInlineCreateRow,
+    #tdrInlineAddRow {
+        scroll-margin-bottom: 8px;
+    }
+
     #tdrInlineAddRow > td {
         border-top: 0;
         padding-bottom: .15rem;
@@ -810,9 +868,52 @@
         vertical-align: middle;
     }
 
+    /* The mobile widget host spans the screen; only its visible controls should intercept clicks. */
+    body:has(#content-tdr.active) #aiAssistantWidget {
+        pointer-events: none;
+    }
+
+    body:has(#content-tdr.active) #aiAssistantWidget .ai-widget-toggle,
+    body:has(#content-tdr.active) #aiAssistantWidget .ai-widget-box {
+        pointer-events: auto;
+    }
+
     .tdr-inline-manual-picker {
         width: min(320px, 36vw);
         min-width: 240px;
+    }
+
+    /* Keep the toolbar geometry stable when inline entry reveals the picker. */
+    #tdrInlineManualPicker {
+        height: 31px;
+    }
+
+    #tdrInlineManualPicker.d-none {
+        display: block !important;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    #tdrInlineManualPicker .select2-container {
+        width: 100% !important;
+        vertical-align: top;
+    }
+
+    #tdrInlineManualPicker .select2-selection,
+    #tdr_inline_manual_id {
+        height: 31px !important;
+        min-height: 31px !important;
+        font-size: 14px;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    #tdrInlineManualPicker .select2-selection__rendered {
+        line-height: 29px !important;
+    }
+
+    #tdrInlineManualPicker .select2-selection__arrow {
+        height: 29px !important;
     }
 
     #tdrInlineManualPicker .select2-selection,
@@ -894,8 +995,14 @@
     #tdr_process_Table .tdr-action-cell .tdr-inline-save-btn {
         border-color: var(--bs-info);
         color: var(--bs-info);
-        font-size: 10px;
+        font-size: 14px;
         font-weight: 500;
+        aspect-ratio: auto;
+        flex: 0 0 58px;
+        width: 58px;
+        min-width: 58px;
+        max-width: 58px;
+        padding: 0 8px;
     }
 
     #tdr_process_Table .tdr-action-cell form {
@@ -994,14 +1101,31 @@
         line-height: 1.25 !important;
     }
 
-    body.tdr-inline-component-select2-open .select2-container--open {
-        width: min(460px, 90vw) !important;
-        min-width: min(460px, 90vw) !important;
+    .select2-container.tdr-inline-part-dropdown-host {
+        width: min(760px, calc(100vw - 16px)) !important;
+        min-width: min(760px, calc(100vw - 16px)) !important;
     }
 
-    body.tdr-inline-component-select2-open .select2-container--open .select2-dropdown {
+    .tdr-inline-part-dropdown-host .tdr-inline-part-dropdown {
         width: 100% !important;
-        min-width: min(460px, 90vw) !important;
+        min-width: min(760px, calc(100vw - 16px)) !important;
+    }
+
+    .tdr-part-option-columns {
+        display: grid;
+        grid-template-columns: 76px 160px minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        text-align: left;
+    }
+    .tdr-part-option-columns > span { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+    .tdr-part-option-heading {
+        padding: 6px;
+        border-bottom: 1px solid var(--bs-border-color);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--bs-info);
     }
 
     #tdrInlineCreateRow .tdr-inline-field .select2-selection {
@@ -1066,33 +1190,6 @@
         width: 100% !important;
     }
 
-    #tdrInlineCreateRow.tdr-inline-order-has-selection #tdr_inline_order_component_group .select2-selection__rendered {
-        color: transparent !important;
-        position: relative;
-    }
-
-    #tdrInlineCreateRow.tdr-inline-order-has-selection #tdr_inline_order_component_group .select2-selection__rendered::after {
-        color: var(--bs-info);
-        content: "Select";
-        left: 0;
-        line-height: 1.2;
-        position: absolute;
-        right: 0;
-        text-align: center;
-        top: 50%;
-        transform: translateY(-50%);
-    }
-
-    body.tdr-inline-order-select2-open .select2-container--open {
-        min-width: min(560px, 90vw) !important;
-        width: min(560px, 90vw) !important;
-    }
-
-    body.tdr-inline-order-select2-open .select2-container--open .select2-dropdown {
-        min-width: min(560px, 90vw) !important;
-        width: 100% !important;
-    }
-
     #tdr_inline_order_qty_mount {
         align-items: center;
         display: flex;
@@ -1107,22 +1204,38 @@
         white-space: normal;
     }
 
-    #tdr_inline_order_qty_mount .tdr-inline-order-selected {
-        border: 1px dotted var(--bs-info);
-        border-radius: .35rem;
-        color: var(--bs-body-color);
-        flex: 1 1 auto;
-        font-size: 13px;
-        font-weight: 600;
-        line-height: 1.15;
+    #tdr_inline_order_qty_mount > #tdr_inline_order_component_group {
+        flex: 1 1 0;
         min-width: 0;
-        min-height: 32px;
-        padding: .35rem .45rem;
+    }
+
+    #tdrInlineCreateRow #tdr_inline_order_component_group .select2-selection {
         display: flex;
         align-items: center;
-        justify-content: center;
+        position: relative;
+        padding: 0 !important;
+    }
+
+    #tdrInlineCreateRow #tdr_inline_order_component_group .select2-selection__rendered {
+        display: block !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 100%;
+        height: auto;
+        line-height: 20px !important;
+        padding: 0 24px !important;
         text-align: center;
-        white-space: normal;
+    }
+
+    #tdrInlineCreateRow #tdr_inline_order_component_group .select2-selection__clear {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        margin: 0;
+        line-height: 20px;
+        height: 20px;
     }
 
     #tdr_inline_order_qty_mount .tdr-inline-qty-control {
@@ -1149,6 +1262,20 @@
         min-height: 32px;
         min-width: 74px;
         padding: .34rem .72rem;
+    }
+
+    .tdr-inline-saving-dots {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        min-height: 12px;
+        vertical-align: middle;
+    }
+    .tdr-inline-saving-dots .app-busy-dot {
+        width: 4px;
+        height: 4px;
+        background: currentColor;
     }
 
     #tdr_inline_serial_number,

@@ -399,7 +399,7 @@
 
                     @if($isEc)
                         @php $processVisualRowNumber++; @endphp
-                        <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
+                        <tr data-id="{{ $tdrProcessRow->id }}" data-fig-traveler-group="{{ $inTr ? (int) ($tdrProcessRow->traveler_group ?: 1) : 0 }}" class="{{ trim($trClass) }}">
                             <td class="process-row-number-cell">{{ $processVisualRowNumber }}</td>
                             <td class="text-center">{{ $processName }}</td>
                             <td class="ps-2">
@@ -455,7 +455,7 @@
                         </tr>
                     @elseif($isNdtWithPlus)
                         @php $processVisualRowNumber++; @endphp
-                        <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
+                        <tr data-id="{{ $tdrProcessRow->id }}" data-fig-traveler-group="{{ $inTr ? (int) ($tdrProcessRow->traveler_group ?: 1) : 0 }}" class="{{ trim($trClass) }}">
                             <td class="process-row-number-cell">{{ $processVisualRowNumber }}</td>
                             <td class="text-center">{{ implode(' / ', $combinedProcessNames) }}</td>
                             <td class="ps-2">
@@ -506,7 +506,7 @@
                         @if(is_array($processData) && !empty($processData))
                             @foreach($processData as $process)
                                 @php $processVisualRowNumber++; @endphp
-                                <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
+                                <tr data-id="{{ $tdrProcessRow->id }}" data-fig-traveler-group="{{ $inTr ? (int) ($tdrProcessRow->traveler_group ?: 1) : 0 }}" class="{{ trim($trClass) }}">
                                     <td class="process-row-number-cell">{{ $processVisualRowNumber }}</td>
                                     <td class="text-center">{{ $processName }}</td>
                                     <td class="ps-2">
@@ -548,7 +548,7 @@
                             @endforeach
                         @else
                             @php $processVisualRowNumber++; @endphp
-                            <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
+                            <tr data-id="{{ $tdrProcessRow->id }}" data-fig-traveler-group="{{ $inTr ? (int) ($tdrProcessRow->traveler_group ?: 1) : 0 }}" class="{{ trim($trClass) }}">
                                 <td class="process-row-number-cell">{{ $processVisualRowNumber }}</td>
                                 <td class="text-center">{{ $processName }}</td>
                                 <td class="ps-2 text-muted">—</td>

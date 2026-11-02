@@ -1550,11 +1550,12 @@
                         ${stdRows.map(row => {
                             const startMissing = !row.date_start || row.date_start === '-';
                             const finishMissing = !row.date_finish || row.date_finish === '-';
-                            const finishClass = row.ignored ? 'text-secondary' : (finishMissing ? 'text-danger' : 'text-success');
-                            const startClass = row.ignored ? 'text-secondary' : (startMissing ? 'text-warning' : 'text-success');
-                            const startText = startMissing ? 'Missing' : row.date_start;
-                            const finishText = finishMissing ? 'Missing' : row.date_finish;
-                            const label = `${row.short_label || row.label || row.type}${row.ignored ? '/Ignored' : ''}`;
+                            const excluded = row.required === false;
+                            const finishClass = excluded ? 'text-secondary' : (finishMissing ? 'text-danger' : 'text-success');
+                            const startClass = excluded ? 'text-secondary' : (startMissing ? 'text-warning' : 'text-success');
+                            const startText = startMissing ? (excluded ? 'N/A' : 'Missing') : row.date_start;
+                            const finishText = finishMissing ? (excluded ? 'N/A' : 'Missing') : row.date_finish;
+                            const label = `${row.short_label || row.label || row.type}${excluded ? ' / ' + row.not_applicable_reason : ''}`;
 
                             return `
                             <div class="qa-submitted-std-name ${row.ignored ? 'text-secondary' : ''}">${escapeHtml(label)}</div>

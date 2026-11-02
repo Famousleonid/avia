@@ -1,6 +1,6 @@
 {{--
     Форма процессов Extra Process. Использует shared layout.
-    Переменные передаются из ExtraProcessController::processesForm().
+    Переменные передаются из ExtraProcessController::showForm()/showGroupForms().
     Данные: table_data (extra_processes формат), ndt_processes, ndt1_name_id..ndt8_name_id (NDT),
     process_components (Stress/Other), process_name, current_wo, selectedVendor, manuals.
 --}}

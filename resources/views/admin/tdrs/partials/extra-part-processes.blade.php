@@ -1,7 +1,7 @@
 <style>
-    .extra-parts-table-shell { max-width: 1080px; margin-left: auto; margin-right: auto; }
+    .extra-parts-table-shell { max-width: 100%; margin-left: auto; margin-right: auto; }
     .extra-parts-table-actions { display: flex; justify-content: flex-start; margin-bottom: 0.35rem; }
-    .extra-parts-table-wrapper { height: calc(100vh - 330px); overflow-y: auto; overflow-x: hidden; }
+    .extra-parts-table-wrapper { height: auto; overflow-y: visible; overflow-x: auto; }
     .extra-parts-table-wrapper .table th, .extra-parts-table-wrapper .table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 80px; max-width: 500px; }
     .extra-parts-table-wrapper .table thead th { position: sticky; top: -1px; z-index: 10; background: inherit; }
     .extra-part-processes .vendor-select { transition: all 0.3s ease; }
@@ -17,11 +17,6 @@
 
 <div class="extra-part-processes" data-has-records="{{ (isset($extra_components) && count($extra_components) > 0) ? '1' : '0' }}" data-extra-process-count="{{ isset($extra_components) ? count($extra_components) : 0 }}">
     <div class="extra-parts-table-shell">
-        <div class="extra-parts-table-actions">
-            <button type="button" class="btn btn-outline-success btn-sm open-add-extra-part-modal-btn" data-workorder-id="{{ $current_wo->id }}">
-                <i class="fas fa-plus"></i> {{ __('Add Extra Part') }}
-            </button>
-        </div>
         <div class="table-wrapper extra-parts-table-wrapper">
             <table class="table table-hover align-middle table-bordered bg-gradient dir-table">
                 <thead>
@@ -35,16 +30,18 @@
                 </thead>
                 <tbody>
                 @forelse($extra_components as $extra_component)
+                    @php $printLinks = []; @endphp
                     <tr>
                         <td class="text-center align-content-center">{{ $extra_component->component ? $extra_component->component->ipl_num : 'N/A' }}</td>
-                        <td class="text-center align-content-center">{{ $extra_component->component ? $extra_component->component->name : 'N/A' }}</td>
-                        <td class="text-center align-content-center">{{ $extra_component->component ? $extra_component->qty : 'N/A' }}</td>
+                        <td class="text-center align-content-center">{{ $extra_component->component ? $extra_component->component->name : 'N/A' }}<br><small>{{ $extra_component->component?->part_number }} · S/N: {{ $extra_component->serial_num ?: '—' }}</small></td>
+                        <td class="text-center align-content-center">{{ $extra_component->qty }}</td>
                         <td class="ps-2">
                             @if($extra_component->processes)
                                 @if(is_array($extra_component->processes) && array_keys($extra_component->processes) !== range(0, count($extra_component->processes) - 1))
                                     @foreach($extra_component->processes as $processNameId => $processId)
                                         @php $processName = \App\Models\ProcessName::find($processNameId); $process = \App\Models\Process::find($processId); @endphp
                                         @if($processName && $process)
+                                            @php if (\App\Models\ProcessName::canPrintProcessForm($processName)) $printLinks[route('extra_processes.show_form', ['id' => $extra_component->id, 'processNameId' => $processName->id])] = $processName->name; @endphp
                                             <div class="mb-1"><strong>{{ $processName->name }}:</strong>
                                                 <span class="me-1 @if(strlen($process->process) > 40) process-text-long @endif">{{ $process->process }}</span></div>
                                         @endif
@@ -73,8 +70,9 @@
                                             }
                                         @endphp
                                         @if($processName && $process)
+                                            @php if (\App\Models\ProcessName::canPrintProcessForm($processName)) $printLinks[route('extra_processes.show_form', ['id' => $extra_component->id, 'processNameId' => $processName->id, 'vendor_id' => $processItem['vendor_id'] ?? null])] = $processName->name; @endphp
                                             <div class="mb-2"><strong>@if($isCombinedNdt){{ implode(' / ', $combinedProcessNames) }}@else{{ $processName->name }}@endif:</strong>
-                                                <span class="ms-2 @if(strlen($process->process) > 40) process-text-long @endif">@if($isCombinedNdt){{ implode(' / ', $combinedProcessDescriptions) }}@else{{ $process->process }}@endif</span></div>
+                                                <span class="ms-2 @if(strlen($process->process) > 40) process-text-long @endif">@if($isCombinedNdt){{ implode(' / ', $combinedProcessDescriptions) }}@else{{ $process->process }}@endif</span>@if(!empty($processItem['description']))<div style="white-space: pre-wrap">{{ $processItem['description'] }}</div>@endif</div>
                                         @endif
                                     @endforeach
                                 @endif
@@ -82,12 +80,13 @@
                                 <span class="text-muted">{{ __('No processes defined') }}</span>
                             @endif
                         </td>
-                        <td class="text-center align-content-center">
+                        <td class="text-center align-middle">
                             @if($extra_component->component)
-                                <div class="d-flex gap-1 justify-content-center flex-wrap">
-                                    <button type="button" class="btn btn-outline-warning btn-sm open-edit-extra-process-modal" data-extra-process-id="{{ $extra_component->id }}" title="{{ __('Edit Component') }}">{{ __('Edit') }}</button>
-                                    <button type="button" class="btn btn-outline-success btn-sm open-add-extra-process-modal" data-workorder-id="{{ $current_wo->id }}" data-component-id="{{ $extra_component->component->id }}" title="{{ __('Add Processes') }}">{{ __('Add') }}</button>
-                                    <button type="button" class="btn btn-outline-primary btn-sm open-extra-processes-tab" data-workorder-id="{{ $current_wo->id }}" data-component-id="{{ $extra_component->component->id }}" title="{{ __('All Processes for this Components') }}">{{ __('Processes') }}</button>
+                                <div class="d-flex gap-2 justify-content-center align-items-center flex-wrap">
+                                    @foreach($printLinks as $printUrl => $printName)
+                                        <a class="btn btn-sm btn-outline-info" target="_blank" href="{{ $printUrl }}" title="{{ $printName }}">{{ count($printLinks) > 1 ? 'Print '.$printName : 'Print' }}</a>
+                                    @endforeach
+                                    <button type="button" class="btn btn-outline-warning btn-sm edit-extra-inline" data-extra-process-id="{{ $extra_component->id }}">{{ __('Edit') }}</button>
                                 </div>
                             @else
                                 <span class="text-muted">{{ __('Component not found') }} (ID: {{ $extra_component->component_id }})</span>

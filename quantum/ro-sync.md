@@ -23,7 +23,7 @@ The current client reloads RO on each activation (only concurrent loads are
 deduplicated). This is a secondary cost after the initial Main HTML and UI-state
 restore, not an Oracle request during page opening.
 
-Only Admin and Manager roles can see this tab or call its data endpoint; other
+Admin, Manager, Technician and Team Leader roles can see this tab or call its data endpoint (Technician and Team Leader access added 30/Oct/2026); other
 authenticated roles receive HTTP 403. A saved RO tab selection is ignored when
 the user's current role no longer permits it.
 

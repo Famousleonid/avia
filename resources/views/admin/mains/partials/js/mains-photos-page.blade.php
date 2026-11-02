@@ -7,6 +7,26 @@
         const scrollerEl = document.querySelector('.photo-page-body');
         const workorderId = pageEl?.dataset.workorderId || window.currentWorkorderId;
         const workorderNumber = pageEl?.dataset.workorderNumber || workorderId;
+        const previewSlider = document.getElementById('photoPreviewSize');
+        const previewSizeValue = document.getElementById('photoPreviewSizeValue');
+        let previewSizeChanged = false;
+        const applyPreviewSize = value => {
+            const parsed = Number(value);
+            const size = Number.isFinite(parsed) ? Math.max(80, Math.min(320, Math.round(parsed / 8) * 8)) : 128;
+            previewSlider.value = String(size);
+            previewSizeValue.value = `${size} px`;
+            pageEl.style.setProperty('--photo-preview-size', `${size}px`);
+        };
+        previewSlider.addEventListener('input', () => {
+            previewSizeChanged = true;
+            applyPreviewSize(previewSlider.value);
+        });
+        previewSlider.addEventListener('change', () => {
+            window.UserUiSettings?.set('mains.photos', 'preview_size', Number(previewSlider.value));
+        });
+        window.UserUiSettings?.get('mains.photos', 'preview_size', 128).then(size => {
+            if (!previewSizeChanged) applyPreviewSize(size);
+        });
 
         const urls = {
             list: @json(route('workorders.photos', ['id' => '__WO_ID__'])),
@@ -256,7 +276,7 @@
                     } else {
                         items.forEach(media => {
                             html += `
-                            <div class="col-4 col-md-2 col-lg-1 photo-item"
+                            <div class="photo-item"
                                  draggable="true"
                                  data-media-id="${escapeAttr(media.id)}"
                                  data-group="${safeGroup}">

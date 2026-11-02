@@ -10,11 +10,12 @@
     left: 50%;
     text-align: center;
 }
-#spinner-load.app-busy-dots {
+#spinner-load.app-busy-dots,
+#spinner-load.app-busy-ring {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     z-index: 12000; display: flex; gap: 7px; width: auto; height: auto;
-    padding: 18px 22px; border: 1px solid #637d8b; border-radius: 12px;
-    background: #1c2c3eef; box-shadow: 0 5px 24px #0005;
+    padding: 0; border: 0; border-radius: 0;
+    background: transparent; box-shadow: none;
     animation: none; pointer-events: none;
 }
 .app-busy-dot { width: 9px; height: 9px; border-radius: 50%; background: #49d5ed; animation: app-busy-bounce .9s ease-in-out infinite; }

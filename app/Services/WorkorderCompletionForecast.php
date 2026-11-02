@@ -62,6 +62,7 @@ class WorkorderCompletionForecast
     {
         // STD lists travel as one list, not once per member/quantity.
         return $rows->filter(fn ($row) => !$row->ignore_row && in_array($row->std_type, ['ndt', 'cad'], true))
+            ->filter(fn ($row) => app(WorkorderStdApplicability::class)->appliesTo($row))
             ->sortBy(fn ($row) => $row->std_type === 'ndt' ? 0 : 1)
             ->map(fn ($row) => ['name' => strtoupper($row->std_type).' STD', 'days' => $this->days($row->processName), 'finish' => $row->date_finish])->values();
     }

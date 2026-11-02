@@ -425,6 +425,14 @@
                                                 </a>
                                                 @endrole
                                                 @endunless
+                                                @if($bushingGuide ?? null)
+                                                <a href="{{ route('bushing-guide.show', $current_workorder) }}"
+                                                   class="btn btn-outline-success dir-top-square-btn ms-2"
+                                                   data-main-action="bushing-guide" title="ERJ 190/195 Buching"
+                                                   aria-label="ERJ 190/195 Buching" data-tippy-content="ERJ 190/195 Buching">
+                                                    <i class="bi bi-file-earmark-excel" aria-hidden="true"></i>
+                                                </a>
+                                                @endif
                                             </div>
 
                                             <span class="dir-top-desc ms-5 text-white font-bold " style="font-size: 1.3rem"
@@ -523,7 +531,7 @@
                         <button type="button" class="main-tab-btn" data-main-tab="std" role="tab">STD Processes</button>
                         <button type="button" class="main-tab-btn" data-main-tab="parts" role="tab">Parts / Processes</button>
                         <button type="button" class="main-tab-btn" data-main-tab="bushings" role="tab">Bushing / Processes</button>
-                        @if(auth()->user()?->roleIs(['Admin', 'Manager']))
+                        @if(auth()->user()?->roleIs(['Admin', 'Manager', 'Technician', 'Team Leader']))
                             <button type="button" class="main-tab-btn" data-main-tab="ro" role="tab" aria-controls="main-ro-panel">RO</button>
                         @endif
                     </div>
@@ -1473,7 +1481,7 @@
                     </div>
 
                     </div>
-                    @if(auth()->user()?->roleIs(['Admin', 'Manager']))
+                    @if(auth()->user()?->roleIs(['Admin', 'Manager', 'Technician', 'Team Leader']))
                     <section id="main-ro-panel" class="main-ro-panel border border-info" role="tabpanel" aria-label="Quantum RO"
                              data-ro-url="{{ route('mains.quantum-ro-lines', $current_workorder) }}">
                         <div class="main-ro-content" data-ro-content aria-live="polite"></div>
@@ -1688,7 +1696,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             (function initMainTabs() {
                 const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
-                @if(auth()->user()?->roleIs(['Admin', 'Manager']))
+                @if(auth()->user()?->roleIs(['Admin', 'Manager', 'Technician', 'Team Leader']))
                     allowedTabs.push('ro');
                 @endif
                 const shell = document.querySelector('[data-main-tabs]');

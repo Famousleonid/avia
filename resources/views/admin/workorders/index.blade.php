@@ -191,12 +191,17 @@
             font-weight: normal;
         }
         .col-instruction {
-            width: 140px;
+            width: 110px;
         }
         .col-PO {
-            width: 90px;
+            width: var(--wo-po-width, 110px);
             font-size: 0.8rem;
             font-weight: normal;
+        }
+        #show-workorder .col-PO,
+        #show-workorder .td-customer_po {
+            padding-left: 10px;
+            padding-right: 10px;
         }
         .col-stages {
             width: 92px;
@@ -712,6 +717,20 @@
         document.addEventListener('DOMContentLoaded', function () {
             const tableWrapper = document.getElementById('printArea');
             const tbody = document.getElementById('workordersTbody');
+            const woTable = document.getElementById('show-workorder');
+            const poMeasure = document.createElement('canvas').getContext('2d');
+            const fitCustomerPo = () => {
+                let width = 0;
+                woTable.querySelectorAll('.col-PO, .td-customer_po').forEach(cell => {
+                    const style = getComputedStyle(cell);
+                    poMeasure.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+                    width = Math.max(width, poMeasure.measureText(cell.textContent.trim()).width
+                        + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + 2);
+                });
+                woTable.style.setProperty('--wo-po-width', `${Math.ceil(width)}px`);
+            };
+            fitCustomerPo();
+            document.fonts.ready.then(fitCustomerPo);
             const loadStatus = document.getElementById('workordersLoadStatus');
             const visibleCounter = document.getElementById('woVisible');
             const totalCounter = document.getElementById('woTotal');
@@ -1257,6 +1276,7 @@
                     state.overallTotal = Number(data.overall_total || 0);
 
                     initializeTooltips(tbody);
+                    fitCustomerPo();
                     updateCounters();
 
                     if (state.hasMore) {

@@ -37,11 +37,6 @@ window.TdrshowConfig1 = {
     value8: @json(e(route("processes.getProcesses"))),
     value9: @json(e(route("tdr-processes.editForm", ["id" => "__ID__"]))),
     value10: @json(e(route("tdr-processes.update-order"))),
-    value11: @json(e(route("extra_processes.processesPartial", ["workorderId" => "__WO__", "componentId" => "__COMP__"]))),
-    value12: @json(e(route("extra_processes.edit_component", ["id" => "__ID__"]))),
-    value13: @json(e(route("extra_processes.create_processes", ["workorderId" => "__WO__", "componentId" => "__COMP__"]))),
-    value14: @json(e(route("extra_processes.edit", ["extra_process" => "__ID__"]))),
-    value15: @json(e(route("extra_process.create", ["id" => "__ID__"]))),
     value16: @json(e(route("log_card.partial", ["workorder_id" => $current_wo->id]))),
     value17: @json(e(route("wo_bushings.partial", ["workorder_id" => $current_wo->id]))),
     value18: @json(e(route("rm_reports.partial", ["workorder_id" => $current_wo->id]))),
@@ -228,11 +223,6 @@ window.TdrshowConfig3 = {
     value8: @json(e(__("An error occurred while deleting."))),
     value9: @json(e(__("Delete"))),
     value10: @json(e(__("An error occurred while deleting."))),
-    value11: @json(e(__("Delete"))),
-    value12: @json(e(__("Saving..."))),
-    value13: @json(e(route("conditions.store"))),
-    value14: @json(e(__("An error occurred while saving."))),
-    value15: @json(e(__("Save Condition"))),
     value16: @json(e(__("An error occurred while saving."))),
     value17: @json(e(__("Save Condition")))
 };

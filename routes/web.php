@@ -322,6 +322,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/mains/resolve-workorder-number', [MainController::class, 'resolveWorkorderNumber'])->name('mains.resolve-workorder-number');
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
     Route::get('/mains/{workorder}/photos', [MainController::class, 'photos'])->name('mains.photos');
+    Route::get('/mains/{workorder}/bushing-guide', [\App\Http\Controllers\Admin\ManualBushingGuideController::class, 'show'])->name('bushing-guide.show');
+    Route::put('/mains/{workorder}/bushing-guide', [\App\Http\Controllers\Admin\ManualBushingGuideController::class, 'update'])->name('bushing-guide.update');
+    Route::get('/mains/{workorder}/bushing-guide/history', [\App\Http\Controllers\Admin\ManualBushingGuideController::class, 'history'])->name('bushing-guide.history');
     Route::get('/mains/{workorder}/parts', [MainController::class, 'parts'])->name('mains.parts');
     Route::get('/mains/{workorder}/quantum-ro-lines', [MainController::class, 'quantumRoLines'])->name('mains.quantum-ro-lines');
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/repair-order', [MainController::class, 'updateWoBushingProcessGroupRepairOrder'])->name('mains.wo_bushing_group.repair_order');
@@ -697,22 +700,12 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/tdr-processes/{tdrProcess}/repair-order', [MainController::class, 'updateRepairOrder'])->name('tdrprocesses.updateRepairOrder');
     Route::patch('/tdr-processes/{tdrProcess}/ignore-row', [MainController::class, 'updateIgnoreRow'])->name('tdrprocesses.updateIgnoreRow');
 
-    // TODO(tdr-refactor): Normalize extra_processes route names and remove compatibility routes once all blade/js callers are updated.
     Route::get('/extra_processes/create/{id}', [ExtraProcessController::class, 'create'])->name('extra_process.create');
-    Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
-    Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
-    Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'processes'])->name('extra_processes.processes');
-    Route::get('/extra_processes/processes-partial/{workorderId}/{componentId}', [ExtraProcessController::class, 'processesPartial'])->name('extra_processes.processesPartial');
-    Route::post('/extra_processes/update-order', [ExtraProcessController::class, 'updateOrder'])->name('extra_processes.update-order');
-    Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
     Route::get('/extra_processes/partial/{workorder_id}', [ExtraProcessController::class, 'extraProcessesPartial'])->name('extra_processes.partial');
-    Route::get('/extra_processes/{extra_process}/edit', [ExtraProcessController::class, 'edit'])->name('extra_processes.edit');
-    Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
     Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
     Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
-    Route::get('/extra_processes/{id}/edit_component', [ExtraProcessController::class, 'editComponent'])->name('extra_processes.edit_component');
-    Route::put('/extra_processes/{id}/update_component', [ExtraProcessController::class, 'updateComponent'])->name('extra_processes.update_component');
-    Route::resource('/extra_processes', ExtraProcessController::class)->except(['create', 'show', 'edit']);
+    Route::post('/extra_processes', [ExtraProcessController::class, 'store'])->name('extra_processes.store');
+    Route::put('/extra_processes/{extra_process}', [ExtraProcessController::class, 'update'])->name('extra_processes.update');
 
     Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('vendors.show');
@@ -758,7 +751,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         ->name('quality.documents.download');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
-    Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');
 
     Route::get('tdr-processes/processesForm/{id}', [TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');
     Route::get('tdr-processes/travelForm/{id}', [TdrProcessController::class, 'travelForm'])->name('tdr-processes.travelForm');

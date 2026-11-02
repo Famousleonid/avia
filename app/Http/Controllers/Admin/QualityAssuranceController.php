@@ -1227,7 +1227,7 @@ class QualityAssuranceController extends Controller
             [
                 'label' => 'STD processes complete',
                 'ok' => ! $requiresStdProcesses || $stdProcessRows->whereIn('type', ['ndt', 'cad'])
-                    ->reject(fn (array $row) => (bool) ($row['ignored'] ?? false))
+                    ->reject(fn (array $row) => ! ($row['required'] ?? true))
                     ->every(fn (array $row) => (bool) ($row['complete'] ?? false)),
                 'target' => 'qaStdProcessBlock',
             ],
@@ -1414,15 +1414,18 @@ class QualityAssuranceController extends Controller
         return collect([
             'ndt' => 'STD Process NDT',
             'cad' => 'STD Process CAD',
-        ])->map(function (string $label, string $type) use ($rows) {
+        ])->map(function (string $label, string $type) use ($rows, $workorder) {
             /** @var WorkorderStdProcess|null $row */
             $row = $rows->get($type);
+            $reason = app(\App\Services\WorkorderStdApplicability::class)->exclusionReason($workorder, $type, $row);
 
             return [
                 'type' => $type,
                 'label' => $label,
                 'short_label' => strtoupper($type),
                 'ignored' => (bool) ($row?->ignore_row ?? false),
+                'required' => $reason === null,
+                'not_applicable_reason' => $reason,
                 'date_start' => $this->formatQaDate($row?->date_start),
                 'date_finish' => $this->formatQaDate($row?->date_finish),
                 'complete' => $row !== null && ! $row->ignore_row && $row->date_finish !== null,
