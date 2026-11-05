@@ -985,7 +985,7 @@ class WoMeasurementController extends Controller
         if ($codesId) {
             $code = Code::find($codesId);
             if ($code) {
-                $conditionId = Condition::where('name', $code->name)->first()?->id;
+                $conditionId = Condition::active()->where('name', $code->name)->first()?->id;
             }
         }
 
@@ -1492,7 +1492,7 @@ class WoMeasurementController extends Controller
                 'serial_number'      => $tdr->serial_number ?? 'NSN',
                 'description'        => $s['name'],
                 'codes_id'           => $s['codes_id'],
-                'conditions_id'      => $code ? Condition::where('name', $code->name)->first()?->id : $tdr->conditions_id,
+                'conditions_id'      => $code ? Condition::active()->where('name', $code->name)->first()?->id : $tdr->conditions_id,
                 'necessaries_id'     => Necessary::firstOrCreate(['name' => 'Order New'])->id,
                 'qty'                => (int) ($tdr->qty ?: 1),
                 'use_tdr'            => true,

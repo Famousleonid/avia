@@ -53,6 +53,36 @@ class BushingRouteBatchesTest extends TestCase
         $this->assertSame(2, (int) $target['model']->route_number);
     }
 
+    public function test_clearing_machining_sent_date_unlocks_route_unless_another_operation_has_history(): void
+    {
+        $wo = $this->createWorkorder();
+        $bushing = WoBushing::create(['workorder_id' => $wo->id]);
+        $m = $this->process('Machining (AT)');
+        $n = $this->process('NDT-1');
+        $first = $this->line($bushing, [$m, $n]);
+        $second = $this->line($bushing, [$m, $n]);
+        $service = app(BushingRouteBatches::class);
+        $service->rebuild($bushing);
+        $lines = fn () => $bushing->lines()->with(['processes.process.process_name', 'processes.batch.process.process_name'])->get();
+        $batch = $first->processes()->where('process_id', $m->id)->first()->batch;
+        $batch->update(['repair_order' => 'AT', 'date_start' => '2026-11-03']);
+        $this->assertCount(2, $service->protectedLineIds($lines()));
+        $batch->update(['date_start' => null]);
+        $this->assertSame([], $service->protectedLineIds($lines()));
+        $this->assertSame('AT', $batch->fresh()->repair_order);
+        $ndt = $first->processes()->where('process_id', $n->id)->first()->batch;
+        $ndt->update(['repair_order' => 'RO-123']);
+        $this->assertCount(2, $service->protectedLineIds($lines()));
+        $ndt->update(['repair_order' => null, 'date_finish' => '2026-11-03']);
+        $this->assertCount(2, $service->protectedLineIds($lines()));
+        $ndt->update(['date_finish' => null]);
+        $row = $first->processes()->where('process_id', $m->id)->first();
+        $row->update(['repair_order' => 'AT', 'date_start' => '2026-11-03']);
+        $this->assertCount(2, $service->protectedLineIds($lines()));
+        $row->update(['date_start' => null]);
+        $this->assertSame([], $service->protectedLineIds($lines()));
+    }
+
     public function test_ro_rows_and_connected_groups_survive_rebuild_and_list_save(): void
     {
         $wo = $this->createWorkorder(); $bushing = WoBushing::create(['workorder_id' => $wo->id]);

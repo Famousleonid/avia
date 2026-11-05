@@ -1,3 +1,4 @@
+<script src="{{ asset('js/bushing-attachments.js') }}?v={{ filemtime(public_path('js/bushing-attachments.js')) }}"></script>
 <script>
     window.currentWorkorderId = {{ $current_wo->id }};
     window.tdrShowUrl = '{{ route("tdrs.show", ["id" => $current_wo->id]) }}';
@@ -218,11 +219,16 @@ window.TdrshowConfig3 = {
     value3: @json(e(__("An error occurred while saving."))),
     value4: @json(e(__("Save"))),
     value5: @json(e(__("Save"))),
-    value6: @json(e(__("Are you sure you want to delete condition"))),
-    value7: @json(e(__("Deleting..."))),
-    value8: @json(e(__("An error occurred while deleting."))),
-    value9: @json(e(__("Delete"))),
-    value10: @json(e(__("An error occurred while deleting."))),
+    value6: @json(e(__("Existing inspections will keep their text. Archive condition"))),
+    value7: @json(e(__("Archiving..."))),
+    value8: @json(e(__("An error occurred while archiving."))),
+    value9: @json(e(__("Archive"))),
+    value10: @json(e(__("An error occurred while archiving."))),
+    value11: @json(e(__("Archive"))),
+    value12: @json(e(__("Saving..."))),
+    value13: @json(route('conditions.store')),
+    value14: @json(e(__("An error occurred while saving."))),
+    value15: @json(e(__("Save Condition"))),
     value16: @json(e(__("An error occurred while saving."))),
     value17: @json(e(__("Save Condition")))
 };

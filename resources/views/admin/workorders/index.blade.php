@@ -29,52 +29,6 @@
             opacity: 1;
         }
 
-        .wo-table-loading {
-            flex: 1 1 auto;
-            min-height: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-        }
-
-        .table-wrapper.ready + .wo-table-loading {
-            display: none;
-        }
-
-        .wo-loading-dots {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-        }
-
-        .wo-loading-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            background: rgba(173, 181, 189, .95);
-            animation: woLoadingDotWave 1s infinite ease-in-out;
-        }
-
-        .wo-loading-dot:nth-child(2) {
-            animation-delay: .12s;
-        }
-
-        .wo-loading-dot:nth-child(3) {
-            animation-delay: .24s;
-        }
-
-        @keyframes woLoadingDotWave {
-            0%, 80%, 100% {
-                transform: translateY(0);
-                opacity: .45;
-            }
-            40% {
-                transform: translateY(-5px);
-                opacity: 1;
-            }
-        }
-
         #show-workorder {
             table-layout: fixed;
             width: 100%;
@@ -476,14 +430,7 @@
 
 @section('content')
 
-    <script>
-        (function () {
-            try {
-                var el = document.getElementById('spinner-load');
-                if (el) el.classList.remove('d-none');
-            } catch (e) {}
-        })();
-    </script>
+
 
     <div class="card shadow workorders-card">
 
@@ -690,13 +637,6 @@
                     No workorders found.
                 @endif
             </div>
-        </div>
-        <div class="wo-table-loading" aria-label="Loading workorders">
-            <span class="wo-loading-dots">
-                <span class="wo-loading-dot"></span>
-                <span class="wo-loading-dot"></span>
-                <span class="wo-loading-dot"></span>
-            </span>
         </div>
     </div>
 

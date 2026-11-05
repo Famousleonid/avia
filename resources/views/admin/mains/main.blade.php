@@ -1,6 +1,7 @@
 @extends('admin.master')
 
 @section('style')
+    <link rel="stylesheet" href="{{ asset('css/manual-drawings.css') }}?v={{ filemtime(public_path('css/manual-drawings.css')) }}">
 
     <script>
         (() => {
@@ -365,7 +366,7 @@
                                                 <span class="badge bg-warning text-dark me-5">Not approved</span>
                                             @endif
 
-                                            <div class="d-flex align-items-center gap-2 ms-3">
+                                            <div class="d-flex flex-wrap align-items-center gap-2 ms-3">
                                                 @unless($isDraftMain)
                                                 <a href="{{ route('tdrs.show', ['id' => $current_workorder->id]) }}"
                                                    class="btn btn-outline-success dir-top-square-btn"
@@ -432,6 +433,14 @@
                                                    aria-label="ERJ 190/195 Buching" data-tippy-content="ERJ 190/195 Buching">
                                                     <i class="bi bi-file-earmark-excel" aria-hidden="true"></i>
                                                 </a>
+                                                @endif
+                                                @if($manual_id)
+                                                <button type="button" class="btn btn-outline-info dir-top-square-btn position-relative ms-2"
+                                                        data-main-action="manual-drawings" data-bs-toggle="modal" data-bs-target="#manualDrawingsModal"
+                                                        title="{{ __('Manual drawings') }}" aria-label="{{ __('Manual drawings') }}">
+                                                    <i class="bi bi-files" aria-hidden="true"></i>
+                                                    <span id="manualDrawingsCountBadge" class="dir-top-count-badge bg-info {{ $manualDrawingCount ? '' : 'd-none' }}" aria-live="polite">{{ $manualDrawingCount ?: '' }}</span>
+                                                </button>
                                                 @endif
                                             </div>
 
@@ -1541,12 +1550,16 @@
     @include('components.delete')
 
     @include('admin.mains.partials.modals')
+    @if($manual_id)
+        @include('admin.mains.partials.manual-drawings')
+    @endif
     @include('admin.tdrs.partials.show-modals', ['pdfLibraryOnly' => true])
     @endunless
 
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/manual-drawings.js') }}?v={{ filemtime(public_path('js/manual-drawings.js')) }}"></script>
 
     <script>
         window.aiCurrentWorkorder = {

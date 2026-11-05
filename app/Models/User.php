@@ -88,6 +88,11 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return $this->isAdmin() && $this->roleIs('Admin');
     }
 
+    public function canManageGroupMessages(): bool
+    {
+        return $this->isSystemAdmin() || $this->roleIs('Manager');
+    }
+
     public function canManageLockedManualProcesses(): bool
     {
         return $this->isSystemAdmin() || $this->hasExplicitFeatureAccess('manuals.locked_processes');

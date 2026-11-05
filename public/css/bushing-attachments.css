@@ -1,0 +1,19 @@
+.bushing-documents { position: relative; vertical-align: middle; text-align: center; }
+.bushing-document-row { display: flex; justify-content: center; align-items: center; gap: 4px; min-width: 0; width: 100%; }
+.bushing-document-links { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.bushing-document-links:empty { display: none; }
+.bushing-documents .bushing-document-drop,
+.bushing-documents .bushing-document-preview {
+    display: inline-flex; justify-content: center; align-items: center;
+    flex: 0 0 28px; width: 28px; height: 28px; min-height: 28px;
+    padding: 0 !important; margin: 0; line-height: 1; box-sizing: border-box;
+}
+.bushing-documents .bushing-document-preview img { width: 22px; height: 22px; object-fit: contain; }
+.bushing-documents .bushing-document-row i { font-size: 18px !important; line-height: 1; }
+.bushing-drop-hint { display: none; }
+.bushing-documents.is-drag-over .bushing-document-row { opacity: .15; }
+.bushing-documents.is-drag-over .bushing-drop-hint {
+    display: flex; position: absolute; inset: 0; align-items: center; justify-content: center;
+    color: #fff; background: #126779; border: 2px dashed #35e3ff;
+    font-size: 11px; font-weight: 700; pointer-events: none; z-index: 1;
+}

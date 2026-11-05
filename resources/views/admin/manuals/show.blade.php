@@ -393,20 +393,10 @@
         @media (prefers-reduced-motion: reduce) {
             #nav-sb .manual-sb-table tbody td { transition: none; }
         }
-        #nav-processes .table th:nth-child(1),
-        #nav-processes .table td:nth-child(1) { width: 7%; }
+        /* Fit utility columns to their controls; give specification the remaining space. */
         #nav-processes .table th:nth-child(2),
-        #nav-processes .table td:nth-child(2) { width: 22%; }
-        #nav-processes .table th:nth-child(3),
-        #nav-processes .table td:nth-child(3) { width: auto; }
-        #nav-processes .table th:nth-child(4),
-        #nav-processes .table td:nth-child(4) { width: 28%; }
-        #nav-processes .table th:nth-child(5),
-        #nav-processes .table td:nth-child(5) {
-            width: 82px;
-            min-width: 82px;
-            max-width: 82px;
-        }
+        #nav-processes .table td:nth-child(2) { width: 1%; white-space: nowrap; }
+        #nav-processes .manual-process-comment-head { width: 23.8%; }
 
         .card shadow {
             max-width: 1200px;
@@ -477,8 +467,8 @@
         }
         #nav-processes .process-table-container .table {
             width: 100%;
-            min-width: 0;
-            table-layout: fixed;
+            min-width: 900px;
+            table-layout: auto;
         }
 
         #nav-processes .process-table-container .table thead th {
@@ -492,6 +482,21 @@
             display: block;
             overflow: hidden;
         }
+        #nav-processes .manual-process-sort {
+            width: 100%;
+            border: 0;
+            padding: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            text-align: inherit;
+            cursor: pointer;
+        }
+        #nav-processes .manual-process-sort:focus-visible {
+            outline: 2px solid var(--bs-info);
+            outline-offset: 2px;
+        }
+        #nav-processes [data-sort-indicator] { display: inline-block; width: 1em; }
 
         #nav-processes table:not(.dir-table) thead th {
             position: sticky;
@@ -500,9 +505,6 @@
             font-size: 12px;
             color: grey;
 
-        }
-        @media (max-width: 767px) {
-            #nav-processes .process-table-container .table { min-width: 900px; }
         }
         #nav-processes .manual-process-child-row[hidden] { display: none !important; }
         #nav-processes .process-table-container { overflow-anchor: none; }
@@ -516,6 +518,14 @@
             cursor: pointer;
         }
         .manual-process-group-toggle:focus-visible { outline: 2px solid var(--bs-info); outline-offset: 2px; }
+        .manual-process-group-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: max-content;
+        }
+        .manual-process-group-content > [data-add-group-process] { flex: 0 0 auto; }
         .manual-process-group-row td {
             background: rgba(13, 110, 253, 0.08);
             font-weight: 600;
@@ -536,7 +546,7 @@
         .manual-process-lock-cell {
             text-align: center;
             white-space: nowrap;
-            width: clamp(52px, 5vw, 70px);
+            width: 1%;
             min-width: 0;
         }
         .manual-process-lock-button {
@@ -544,6 +554,7 @@
         }
         .manual-process-state-icon {
             display: inline-flex;
+            flex-shrink: 0;
             align-items: center;
             justify-content: center;
             width: 16px;
@@ -581,7 +592,7 @@
             min-height: 16px;
         }
         .manual-process-actions {
-            width: clamp(64px, 6vw, 82px);
+            width: 1%;
             min-width: 0;
             max-width: none;
             white-space: nowrap;
@@ -592,6 +603,7 @@
             align-items: center;
             gap: 0;
             min-height: 18px;
+            max-width: 100%;
         }
         .manual-process-specification-text {
             white-space: pre-wrap;
@@ -606,7 +618,9 @@
         .manual-process-comment-head {
             text-align: left !important;
         }
-        .manual-process-requirement-cell { width: clamp(58px, 6vw, 78px); min-width: 0; text-align: center; }
+        .manual-process-requirement-cell { width: 1%; min-width: 0; text-align: center; }
+        #nav-processes .table .manual-process-requirement-cell { padding-left: 6px; padding-right: 6px; }
+        #nav-processes .table .manual-process-requirement-cell .manual-process-table-header { white-space: nowrap; }
         .manual-process-requirement-cell .form-check-input { cursor: pointer; }
         .manual-process-lock-button.btn-sm {
             padding: 2px 8px;
@@ -1323,10 +1337,10 @@
                             <tr>
                                 <th class="text-center bg-gradient manual-process-lock-cell" scope="col"><span class="manual-process-table-header">Lock</span></th>
                                 <th class="text-center bg-gradient" scope="col"><span class="manual-process-table-header">Process Name</span></th>
-                                <th class="text-center bg-gradient" scope="col"><span class="manual-process-table-header">Process / Specification</span></th>
-                                <th class="text-center bg-gradient manual-process-comment-head" scope="col"><span class="manual-process-table-header">Comment</span></th>
-                                <th class="text-center bg-gradient manual-process-requirement-cell" scope="col"><span class="manual-process-table-header">Required FIG</span></th>
-                                <th class="text-center bg-gradient manual-process-requirement-cell" scope="col"><span class="manual-process-table-header">Required ZONE</span></th>
+                                <th class="text-center bg-gradient" scope="col" aria-sort="ascending"><button type="button" class="manual-process-table-header manual-process-sort" data-process-sort="process">Process / Specification <span data-sort-indicator aria-hidden="true">↑</span></button></th>
+                                <th class="text-center bg-gradient manual-process-comment-head" scope="col" aria-sort="none"><button type="button" class="manual-process-table-header manual-process-sort" data-process-sort="comment">Comment <span data-sort-indicator aria-hidden="true">↕</span></button></th>
+                                <th class="text-center bg-gradient manual-process-requirement-cell" scope="col" title="Required FIG" aria-label="Required FIG"><span class="manual-process-table-header">FIG</span></th>
+                                <th class="text-center bg-gradient manual-process-requirement-cell" scope="col" title="Required ZONE" aria-label="Required ZONE"><span class="manual-process-table-header">ZONE</span></th>
                                 <th class="text-center bg-gradient manual-process-actions" scope="col"><span class="manual-process-table-header">Action</span></th>
                             </tr>
                             </thead>
@@ -1354,6 +1368,7 @@
                                         @endif
                                     </td>
                                     <td class="align-content-center text-start">
+                                        <div class="manual-process-group-content">
                                         <span class="manual-process-inline-text">
                                             <span class="manual-process-state-icon is-locked {{ $groupLock ? '' : 'invisible' }}"
                                                   data-manual-process-lock-icon
@@ -1368,7 +1383,7 @@
                                             </button>
                                         </span>
                                         @if($processName)
-                                            <button type="button" class="btn btn-outline-primary btn-sm float-end ms-2"
+                                            <button type="button" class="btn btn-outline-primary btn-sm"
                                                     data-add-group-process
                                                     data-create-url="{{ route('processes.create', ['manual_id' => $cmm->id, 'modal' => 1, 'process_name_id' => $processName->id]) }}"
                                                     title="{{ __('Add process') }}: {{ $processName->name }}"
@@ -1377,6 +1392,7 @@
                                                 <i class="bi bi-plus-lg" aria-hidden="true"></i>
                                             </button>
                                         @endif
+                                        </div>
                                     </td>
                                     <td class="align-content-center text-start">
                                         &nbsp;

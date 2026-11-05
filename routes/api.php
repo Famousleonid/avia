@@ -123,6 +123,7 @@ Route::prefix('android')->name('api.android.')
     });
 
 Route::prefix('quantum')->name('api.quantum.')->group(function () {
+    Route::post('/unit-history', [\App\Http\Controllers\Api\QuantumUnitHistorySyncController::class, 'store'])->name('unit-history.store');
     Route::get('/ro-sync/state', [QuantumRoSyncController::class, 'state'])->name('ro-sync.state');
     Route::post('/ro-sync', [QuantumRoSyncController::class, 'store'])->name('ro-sync.store');
 });

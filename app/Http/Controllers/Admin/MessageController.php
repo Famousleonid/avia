@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class MessageController extends Controller
 {
@@ -37,26 +38,40 @@ class MessageController extends Controller
      */
     public function send(Request $request): JsonResponse
     {
+        if (!empty($request->input('group_ids')) || $request->boolean('on_screen')) {
+            abort_unless($request->user()->canManageGroupMessages(), 403);
+        }
         $data = $request->validate([
-            'user_ids'     => ['required', 'array', 'min:1'],
+            'user_ids'     => ['required_without:group_ids', 'array'],
             'user_ids.*'   => ['integer', 'exists:users,id'],
+            'group_ids'    => ['required_without:user_ids', 'array'],
+            'group_ids.*'  => ['integer', 'exists:message_groups,id'],
+            'on_screen'    => ['sometimes', 'boolean'],
+            'screen_kind'  => ['sometimes', 'string', 'in:alert,info,message'],
             'message'      => ['required', 'string', 'max:1000'],
         ]);
 
         $fromUser = auth()->user();
 
         // нельзя отправить самому себе
-        if (in_array($fromUser->id, $data['user_ids'], true)) {
+        $directIds = array_map('intval', $data['user_ids'] ?? []);
+        if (in_array((int) $fromUser->id, $directIds, true)) {
             return response()->json([
                 'ok' => false,
                 'message' => 'You cannot send message to yourself'
             ], 422);
         }
 
+        // Snapshot membership at send time; overlapping groups produce one recipient.
+        $groupIds = empty($data['group_ids']) ? collect() : DB::table('message_group_user')
+            ->whereIn('message_group_id', $data['group_ids'])->pluck('user_id');
+        $recipientIds = collect($directIds)->merge($groupIds)->map(fn ($id) => (int) $id)
+            ->reject(fn ($id) => $id === (int) $fromUser->id)->unique()->values();
+
         // грузим получателей вместе с prefs
         $recipients = User::query()
             ->withoutReviewAccounts()
-            ->whereIn('id', $data['user_ids'])
+            ->whereIn('id', $recipientIds)
             ->get(['id', 'name', 'selection_name_order', 'notification_prefs']);
 
         $sent = [];
@@ -67,18 +82,33 @@ class MessageController extends Controller
             $mutedUsers = $prefs['muted_users'] ?? [];
 
             // если получатель забанил отправителя — не шлём
-            if (in_array($fromUser->id, $mutedUsers, true)) {
+            if (in_array((int) $fromUser->id, array_map('intval', $mutedUsers), true)) {
                 $blocked[] = ['id' => $user->id, 'name' => $user->selection_name];
                 continue;
             }
 
-            $user->notify(new NewMessageNotification(
-                fromUserId: $fromUser->id,
-                fromName: $fromUser->selection_name,
-                text: $data['message']
-            ));
+            if (empty($data['on_screen'])) {
+                $user->notify(new NewMessageNotification(
+                    fromUserId: $fromUser->id,
+                    fromName: $fromUser->selection_name,
+                    text: $data['message']
+                ));
+            }
 
             $sent[] = ['id' => $user->id, 'name' => $user->selection_name];
+        }
+
+        if (!empty($data['on_screen']) && count($sent)) {
+            DB::transaction(function () use ($fromUser, $data, $sent) {
+                $id = DB::table('screen_messages')->insertGetId([
+                    'sender_id' => $fromUser->id, 'sender_name' => $fromUser->selection_name,
+                    'message' => $data['message'], 'created_at' => now(), 'updated_at' => now(),
+                    'kind' => $data['screen_kind'] ?? 'info',
+                ]);
+                DB::table('screen_message_recipients')->insert(array_map(fn ($user) => [
+                    'screen_message_id' => $id, 'user_id' => $user['id'],
+                ], $sent));
+            });
         }
 
         // если НЕ отправилось никому — можно вернуть 403/422, но лучше 200 с ok=true/false по твоему вкусу

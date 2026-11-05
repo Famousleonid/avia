@@ -69,7 +69,11 @@ class WoMeasurementFindingFinalTest extends TestCase
         $this->assertSame('FAIL', $init['result']);
 
         // final re-inspection, no code → defect eliminated → PASS
-        $fin = $this->actingAs($this->admin())
+        $finalInspector = $this->admin();
+        $fin = $this->actingAs($finalInspector)->withSession([
+            'auth.version' => (int) $finalInspector->auth_version,
+            'password_hash_web' => $finalInspector->getAuthPassword(),
+        ])
             ->postJson(route('workorders.measurements.store', $wo->id), [
                 'manual_parameter_id' => $param->id,
                 'stage'               => 'final',

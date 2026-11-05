@@ -23,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
+        $this->app->scoped(\App\Services\BushingDocumentFamily::class);
         $this->app->singleton('valuestore', function () {
             return \Spatie\Valuestore\Valuestore::make(storage_path('app/private/setting.json'));
         });

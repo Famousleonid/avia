@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class TdrUnitInspectionController extends Controller
 {
@@ -27,7 +28,7 @@ class TdrUnitInspectionController extends Controller
             ->unique()
             ->toArray();
 
-        $unit_conditions = Condition::query()
+        $unit_conditions = Condition::active()
             ->where('unit', true)
             ->whereNotIn('id', $existingConditionIds)
             ->get();
@@ -39,84 +40,103 @@ class TdrUnitInspectionController extends Controller
     {
         $request->validate([
             'workorder_id' => 'required|exists:workorders,id',
-            'conditions' => 'required|array',
+            'conditions' => 'present|array',
+            'conditions.*' => 'array',
+            'conditions.*.selected' => 'sometimes|boolean',
+            'conditions.*.notes' => 'nullable|string|max:1000',
         ]);
 
         $workorderId = (int) $request->input('workorder_id');
         $conditions = $request->input('conditions', []);
 
         try {
-            $existingInspections = WorkorderUnitInspection::query()
-                ->where('workorder_id', $workorderId)
-                ->get()
-                ->keyBy('condition_id');
+            return DB::transaction(function () use ($workorderId, $conditions) {
+                Workorder::whereKey($workorderId)->lockForUpdate()->firstOrFail();
+                $existingInspections = WorkorderUnitInspection::query()
+                    ->where('workorder_id', $workorderId)
+                    ->get()
+                    ->keyBy('condition_id');
 
-            $processedConditionIds = [];
-
-            foreach ($conditions as $conditionId => $conditionData) {
-                $conditionId = (int) $conditionId;
-                if (! isset($conditionData['selected']) || ! $conditionData['selected']) {
-                    continue;
+                // Validate the entire selection before changing any rows. An already selected
+                // archived version may keep its notes, but cannot be added to another WO.
+                $availableIds = Condition::availableForInspection($workorderId)
+                    ->orderBy('id')->lockForUpdate()->pluck('id');
+                foreach ($conditions as $conditionId => $conditionData) {
+                    if (!empty($conditionData['selected']) && !$availableIds->contains((int) $conditionId)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => __('This condition is archived or unavailable. Reload and select its current version.'),
+                        ], 422);
+                    }
                 }
 
-                $processedConditionIds[] = $conditionId;
-                $notes = $conditionData['notes'] ?? '';
-                // TODO(tdr-refactor): Remove the tdr_id alias after old modal payloads are no longer supported.
-                $inspectionId = $conditionData['inspection_id'] ?? $conditionData['tdr_id'] ?? null;
+                $processedConditionIds = [];
 
-                $condition = Condition::query()->find($conditionId);
-                if (! $condition) {
-                    Log::warning("Condition with ID {$conditionId} not found");
-                    continue;
-                }
+                foreach ($conditions as $conditionId => $conditionData) {
+                    $conditionId = (int) $conditionId;
+                    if (! isset($conditionData['selected']) || ! $conditionData['selected']) {
+                        continue;
+                    }
 
-                if ($inspectionId && $existingInspections->has($conditionId)) {
-                    $inspection = $existingInspections->get($conditionId);
-                    if ((int) $inspection->id === (int) $inspectionId) {
+                    $processedConditionIds[] = $conditionId;
+                    $notes = $conditionData['notes'] ?? '';
+                    // TODO(tdr-refactor): Remove the tdr_id alias after old modal payloads are no longer supported.
+                    $inspectionId = $conditionData['inspection_id'] ?? $conditionData['tdr_id'] ?? null;
+
+                    $condition = Condition::query()->find($conditionId);
+                    if (! $condition) {
+                        Log::warning("Condition with ID {$conditionId} not found");
+                        continue;
+                    }
+
+                    if ($inspectionId && $existingInspections->has($conditionId)) {
+                        $inspection = $existingInspections->get($conditionId);
+                        if ((int) $inspection->id === (int) $inspectionId) {
+                            $inspection->notes = $notes;
+                            $inspection->save();
+                            continue;
+                        }
+                    }
+
+                    if ($existingInspections->has($conditionId)) {
+                        $inspection = $existingInspections->get($conditionId);
                         $inspection->notes = $notes;
                         $inspection->save();
                         continue;
                     }
+
+                    WorkorderUnitInspection::query()->create([
+                        'workorder_id' => $workorderId,
+                        'condition_id' => $conditionId,
+                        'notes' => $notes,
+                        'qty' => 1,
+                        'serial_number' => 'NSN',
+                        'assy_serial_number' => ' ',
+                        'use_tdr' => true,
+                        'use_process_forms' => false,
+                    ]);
                 }
 
-                if ($existingInspections->has($conditionId)) {
-                    $inspection = $existingInspections->get($conditionId);
-                    $inspection->notes = $notes;
-                    $inspection->save();
-                    continue;
+                foreach ($existingInspections as $conditionId => $inspection) {
+                    if (in_array((int) $conditionId, $processedConditionIds, true)) {
+                        continue;
+                    }
+
+                    $missingCondition = Condition::query()
+                        ->where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
+                        ->where('id', $conditionId)
+                        ->exists();
+
+                    if (! $missingCondition) {
+                        $inspection->delete();
+                    }
                 }
 
-                WorkorderUnitInspection::query()->create([
-                    'workorder_id' => $workorderId,
-                    'condition_id' => $conditionId,
-                    'notes' => $notes,
-                    'qty' => 1,
-                    'serial_number' => 'NSN',
-                    'assy_serial_number' => ' ',
-                    'use_tdr' => true,
-                    'use_process_forms' => false,
+                return response()->json([
+                    'success' => true,
+                    'message' => __('Unit inspections saved successfully.'),
                 ]);
-            }
-
-            foreach ($existingInspections as $conditionId => $inspection) {
-                if (in_array((int) $conditionId, $processedConditionIds, true)) {
-                    continue;
-                }
-
-                $missingCondition = Condition::query()
-                    ->where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
-                    ->where('id', $conditionId)
-                    ->exists();
-
-                if (! $missingCondition) {
-                    $inspection->delete();
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => __('Unit inspections saved successfully.'),
-            ]);
+            });
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

@@ -9,6 +9,7 @@ Before new Quantum work, read this folder first. After a finding is confirmed on
 | File | Contents |
 |---|---|
 | `connection-and-safety.md` | Oracle connection, environment variables, read-only rules |
+| `bridge-operations.md` | Проверенный SSH-доступ к мостику, отдельная WO history задача 06:30, взаимодействие с Codex мостика и ограничения разрешений |
 | `tables-and-fields.md` | Confirmed Quantum tables and fields |
 | `relationships.md` | Confirmed links between RO, WO, BOM, PARTS_MASTER |
 | `ro-sync.md` | RO bridge, staging, qty/date/process mapping |

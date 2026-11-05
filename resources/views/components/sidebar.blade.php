@@ -1,4 +1,5 @@
 <style>
+    body:has(#sendMsgModal.show) #aiAssistantWidget { visibility: hidden; }
     .sidebar-main {
         width: 240px;
         transition: width 0.5s ease;
@@ -328,6 +329,32 @@
         flex:1 1 auto; min-height:0;
         overflow:auto; padding-right:6px;
     }
+    #sendMsgModal .msg-right { overflow-y: auto; }
+    #sendMsgModal #msgGroupsList { flex: 0 0 auto; max-height: 180px; overflow-y: auto; }
+    #sendMsgModal #msgUsersList { flex: 1 0 150px; }
+    #sendMsgModal #msgGroupEditor { min-height: 0; height: 100%; flex-direction: column; gap: 12px; }
+    #sendMsgModal #msgGroupEditor:not([hidden]) { display: flex; }
+    #sendMsgModal #msgGroupMembers { min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
+    #sendMsgModal .msg-group-row { display: flex; align-items: center; gap: 6px; }
+    #sendMsgModal .msg-group-row label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    #sendMsgModal #msgScreenKinds { border: 0; padding: 0; margin-top: 14px; }
+    #sendMsgModal #msgScreenKinds legend { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    #sendMsgModal .msg-kind-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    #sendMsgModal .msg-kind-card {
+        --kind-color: #ffd65a; --kind-background: #493e15;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        min-width: 0; min-height: 86px; padding: 10px 4px;
+        border: 2px solid var(--kind-color); border-radius: 8px;
+        color: var(--kind-color); background: transparent;
+        font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    #sendMsgModal .msg-kind-card--alert { --kind-color: #ff7180; --kind-background: #571e29; }
+    #sendMsgModal .msg-kind-card--message { --kind-color: #53d69c; --kind-background: #154332; }
+    #sendMsgModal .msg-kind-card:has(input:checked) { background: var(--kind-background); color: #fff; }
+    #sendMsgModal .msg-kind-card:has(input:focus-visible) { outline: 2px solid currentColor; outline-offset: 3px; }
+    #sendMsgModal .msg-kind-card input { accent-color: var(--kind-color); width: 16px; height: 16px; flex-shrink: 0; margin: 0; }
+    #sendMsgModal .msg-kind-help { margin-top: 6px; font-size: 12px; opacity: .8; }
+    #sendMsgModal #msgUserSearch { min-width: 0; flex: 1 1 auto; }
     #sendMsgModal .user-row{
         display:flex; align-items:center; gap:10px;
         padding:6px 8px; border-radius:8px;
@@ -396,21 +423,26 @@
     @media (max-width: 992px){
         #sendMsgModal .modal-dialog{
             max-width: 96vw;
-            height: auto;
+            height: calc(100dvh - 1.5rem);
             margin-top: .75rem;
             margin-bottom: .75rem;
         }
-        #sendMsgModal .msg-layout{ flex-direction:column; min-height:auto; }
+        #sendMsgModal .modal-body { overflow-y: auto; }
+        #sendMsgModal .msg-layout{ flex-direction:column; min-height:auto; flex: 0 0 auto; }
         #sendMsgModal .msg-right{
             width:100%; flex:0 0 auto;
             border-left:0; border-top:1px solid rgba(255,255,255,.12);
             padding-left:0; padding-top:12px;
         }
         #sendMsgModal .users-scroll{ max-height: 260px; }
+        #sendMsgModal #msgGroupMembers { grid-template-columns: 1fr; }
     }
 </style>
 
-<div class="modal fade" id="sendMsgModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="sendMsgModal" tabindex="-1" aria-hidden="true"
+     data-groups-url="{{ route('admin.messages.groups.index') }}" data-user-id="{{ auth()->id() }}"
+     data-can-group-messages="{{ auth()->user()->canManageGroupMessages() ? '1' : '0' }}"
+     data-preview-sender="{{ auth()->user()->selection_name }}" data-preview-date="{{ format_project_date(now()) }}">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content bg-dark text-light border-secondary">
 
@@ -449,6 +481,25 @@
                             </div>
                         </div>
 
+                        @if(auth()->user()->canManageGroupMessages())
+                        <input type="checkbox" id="msgOnScreen" hidden>
+                        <fieldset id="msgScreenKinds">
+                            <legend>Show on screen</legend>
+                            <div class="msg-kind-options">
+                                <label class="msg-kind-card msg-kind-card--alert" for="msgKindAlert">
+                                    <input type="checkbox" name="screen_kind" id="msgKindAlert" value="alert" autocomplete="off">Alert
+                                </label>
+                                <label class="msg-kind-card" for="msgKindInfo">
+                                    <input type="checkbox" name="screen_kind" id="msgKindInfo" value="info" autocomplete="off">Info
+                                </label>
+                                <label class="msg-kind-card msg-kind-card--message" for="msgKindMessage">
+                                    <input type="checkbox" name="screen_kind" id="msgKindMessage" value="message" autocomplete="off">Message
+                                </label>
+                            </div>
+                            <div class="msg-kind-help">Select one type. No selection: personal notification.</div>
+                        </fieldset>
+                        @endif
+
                         <div id="msgErr" class="text-danger small d-none mt-2"></div>
                         <div id="msgWarn" class="text-warning small d-none mt-2"></div>
                         <div id="msgOk" class="text-success small d-none mt-2">Sent ✅</div>
@@ -456,8 +507,15 @@
 
                     {{-- RIGHT --}}
                     <div class="msg-right">
+                        @if(auth()->user()->canManageGroupMessages())
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <div class="text-secondary small">To (one / many / all)</div>
+                            <span class="text-secondary small">Recipient groups</span>
+                            <button type="button" class="btn btn-outline-info btn-sm d-none" id="msgGroupNew">New group</button>
+                        </div>
+                        <div id="msgGroupsList" class="mb-3"><span class="text-secondary small">Loading…</span></div>
+                        @endif
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <input id="msgUserSearch" type="search" class="form-control form-control-sm" placeholder="Search names…" aria-label="Search recipients by name" autocomplete="off">
 
                             <div class="btn-group btn-group-sm" role="group">
                                 <button type="button" class="btn btn-outline-secondary" id="msgPickAll">All</button>
@@ -471,10 +529,27 @@
                     </div>
 
                 </div>
+                @if(auth()->user()->canManageGroupMessages())
+                <div id="msgGroupEditor" hidden>
+                    <h6 id="msgGroupEditorTitle">New recipient group</h6>
+                    <label>Group name<input id="msgGroupName" class="form-control" maxlength="100" autocomplete="off"></label>
+                    <input id="msgGroupSearch" class="form-control" type="search" placeholder="Find a user…" aria-label="Find a group member">
+                    <div id="msgGroupMembers"></div>
+                    <div id="msgGroupError" class="text-danger" role="alert" hidden></div>
+                    <div class="d-flex flex-wrap gap-2 mt-auto">
+                        <button type="button" id="msgGroupSave" class="btn btn-info">Save group</button>
+                        <button type="button" id="msgGroupCancel" class="btn btn-outline-secondary">Back to message</button>
+                        <button type="button" id="msgGroupDelete" class="btn btn-outline-danger ms-auto" hidden>Delete group</button>
+                    </div>
+                </div>
+                @endif
             </div>
 
             <div class="modal-footer border-secondary">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                @if(auth()->user()->canManageGroupMessages())
+                    <button type="button" class="btn btn-outline-info btn-sm" id="btnPreviewMsg"><i class="bi bi-eye me-1"></i> Preview</button>
+                @endif
                 <button type="button" class="btn btn-info btn-sm" id="btnSendMsg">
                     <i class="bi bi-send me-1"></i> Send
                 </button>
@@ -484,6 +559,7 @@
     </div>
 </div>
 
+<script src="{{ asset('js/messages/groups.js') }}?v={{ filemtime(public_path('js/messages/groups.js')) }}"></script>
 <script>
     (function () {
         if (window.__sendMsgModalBound) return;
@@ -504,6 +580,7 @@
         const btnAll  = document.getElementById('msgPickAll');
         const btnNone = document.getElementById('msgPickNone');
         const btnSend = document.getElementById('btnSendMsg');
+        const btnPreview = document.getElementById('btnPreviewMsg');
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         let sentResetTimer = null;
@@ -562,8 +639,33 @@
 
         function updateLen(){ lenEl.textContent = String(taEl.value.length); }
 
+        const userSearch = document.getElementById('msgUserSearch');
+        const screenOption = document.getElementById('msgOnScreen');
+        const screenKinds = document.getElementById('msgScreenKinds');
+        screenKinds?.addEventListener('change', event => {
+            if (!event.target.matches('input[name="screen_kind"]')) return;
+            if (event.target.checked) {
+                screenKinds.querySelectorAll('input').forEach(input => { input.checked = input === event.target; });
+            }
+            screenOption.checked = !!screenKinds.querySelector('input:checked');
+        });
+        function filterUsers() {
+            const tokens = userSearch.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+            let visible = 0;
+            listEl.querySelectorAll('.user-row').forEach(row => {
+                const name = row.textContent.toLocaleLowerCase();
+                const matches = tokens.every(token => name.includes(token));
+                row.classList.toggle('d-none', !matches);
+                if (matches) visible++;
+            });
+            const empty = listEl.querySelector('[data-no-matching-users]');
+            if (empty) empty.classList.toggle('d-none', visible > 0);
+            btnAll.textContent = tokens.length ? 'Select shown' : 'All';
+        }
+        userSearch.addEventListener('input', filterUsers);
+
         function updateSelectedCount(){
-            const n = listEl.querySelectorAll('input[type="checkbox"]:checked').length;
+            const n = window.MessageGroups.recipientCount(getSelectedIds());
             selEl.textContent = String(n);
         }
 
@@ -591,13 +693,14 @@
   </div>
 </label>
             `;
-            }).join('');
+            }).join('') + '<div class="p-2 text-secondary small d-none" data-no-matching-users>No matching users</div>';
 
             listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                 cb.addEventListener('change', updateSelectedCount);
             });
 
             updateSelectedCount();
+            filterUsers();
         }
 
         async function loadUsers(){
@@ -619,12 +722,13 @@
         }
 
         btnAll?.addEventListener('click', () => {
-            listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+            listEl.querySelectorAll('.user-row:not(.d-none) input[type="checkbox"]').forEach(cb => cb.checked = true);
             updateSelectedCount();
         });
 
         btnNone?.addEventListener('click', () => {
             listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            window.MessageGroups.clear();
             updateSelectedCount();
         });
 
@@ -636,22 +740,49 @@
         modalEl?.addEventListener('shown.bs.modal', async () => {
             clearMsg();
             taEl.value = '';
+            window.MessageGroups.clear();
+            userSearch.value = '';
+            btnAll.textContent = 'All';
             updateLen();
             listEl.innerHTML = `<div class="p-2 text-muted small">Loading…</div>`;
-            await loadUsers();
+            if (screenOption) screenOption.checked = false;
+            screenKinds?.querySelectorAll('input').forEach(input => { input.checked = false; });
+            btnSend.disabled = true;
+            try {
+                await Promise.all([loadUsers(), window.MessageGroups.load()]);
+                updateSelectedCount();
+            } catch (_) { showErr('Could not load recipients. Close and try again.'); }
+            finally { btnSend.disabled = false; }
+        });
+        modalEl.addEventListener('message-recipients-changed', updateSelectedCount);
+
+        btnPreview?.addEventListener('click', () => {
+            if (btnSend.disabled) return;
+            clearMsg();
+            const kind = screenKinds?.querySelector('input:checked')?.value;
+            if (!kind) return showErr('Select Alert, Info or Message to preview.');
+            const message = taEl.value.trim();
+            if (!message) return showErr('Message is empty');
+            if (!window.ScreenMessages?.preview({ kind, text: message,
+                from_name: modalEl.dataset.previewSender, date: modalEl.dataset.previewDate })) {
+                showErr('Preview is unavailable. Please try again.');
+            }
         });
 
         btnSend?.addEventListener('click', async () => {
+            if (btnSend.disabled) return;
             clearMsg();
 
             const userIds = getSelectedIds();
+            const groupIds = window.MessageGroups.selectedIds();
             const message = (taEl.value || '').trim();
 
-            if (userIds.length === 0) return showErr('Select at least one user');
+            if (window.MessageGroups.recipientCount(userIds) === 0) return showErr('Select at least one user or group');
             if (!message) return showErr('Message is empty');
 
             btnSend.disabled = true;
             btnSend.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Sending';
+            if (btnPreview) btnPreview.disabled = true;
             msgLeft?.classList.remove('is-error', 'is-sent');
             msgLeft?.classList.add('is-sending');
 
@@ -663,7 +794,9 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': csrf
                     },
-                    body: JSON.stringify({ user_ids: userIds, message }),
+                    body: JSON.stringify({ user_ids: userIds, group_ids: groupIds, message,
+                        on_screen: screenOption?.checked || false,
+                        screen_kind: modalEl.querySelector('input[name="screen_kind"]:checked')?.value || 'info' }),
                     spinner: false
                 });
 
@@ -701,6 +834,7 @@
                 showErr('Network error');
             } finally {
                 btnSend.disabled = false;
+                if (btnPreview) btnPreview.disabled = false;
                 if (!msgLeft?.classList.contains('is-sent')) {
                     btnSend.innerHTML = '<i class="bi bi-send me-1"></i> Send';
                     msgLeft?.classList.remove('is-sending');

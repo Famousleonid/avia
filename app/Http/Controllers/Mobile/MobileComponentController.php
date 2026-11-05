@@ -24,7 +24,7 @@ class MobileComponentController extends Controller
     {
         $workorder->load(['unit', 'media', 'tdrs.codes',  'tdrs.component.media',]);
         $manualId = optional($workorder->unit)->manual_id;
-        $component_conditions = Condition::where('unit', false)->get();
+        $component_conditions = Condition::active()->where('unit', false)->get();
         $codes = Code::all();
         $necessaries = Necessary::all();
         $manuals=Manual::all();

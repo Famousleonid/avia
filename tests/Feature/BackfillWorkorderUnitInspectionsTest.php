@@ -117,7 +117,7 @@ class BackfillWorkorderUnitInspectionsTest extends TestCase
         ]);
     }
 
-    public function test_delete_legacy_unit_inspection_tdrs_soft_deletes_after_new_row_exists(): void
+    public function test_delete_legacy_unit_inspection_tdrs_preserves_backfilled_inspection(): void
     {
         $workorder = $this->createWorkorder();
         $condition = Condition::query()->create([
@@ -147,7 +147,6 @@ class BackfillWorkorderUnitInspectionsTest extends TestCase
 
         $this->assertDatabaseHas('tdrs', [
             'id' => $source->id,
-            'deleted_at' => null,
         ]);
 
         $this->artisan('unit-inspections:backfill-workorder-inspections', [
@@ -160,11 +159,11 @@ class BackfillWorkorderUnitInspectionsTest extends TestCase
             '--write' => true,
         ])->assertSuccessful();
 
-        $this->assertSoftDeleted('tdrs', ['id' => $source->id]);
+        $this->assertDatabaseMissing('tdrs', ['id' => $source->id]);
         $this->assertDatabaseHas('workorder_unit_inspections', [
             'workorder_id' => $workorder->id,
             'condition_id' => $condition->id,
-            'source_tdr_id' => $source->id,
+            'source_tdr_id' => null,
             'notes' => 'legacy note',
         ]);
     }

@@ -207,6 +207,7 @@
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 <script src="{{ asset('js/password-policy.js') }}?v={{ filemtime(public_path('js/password-policy.js')) }}"></script>
 @include('components.temporary-password-reminder')
+@include('components.screen-messages')
 
 <script>
     (function () {

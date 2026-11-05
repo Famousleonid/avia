@@ -1,5 +1,91 @@
 # Quantum WO And Manager Findings
 
+## Unit History tab (04/Nov/2026)
+
+Description extension (04/Nov/2026): unit description comes from
+`WO_OPERATION.PNM_AUTO_KEY -> PARTS_MASTER.DESCRIPTION`, the same part-master
+row as the unit P/N. Export field `description` is optional on ingestion for
+old snapshots; missing/empty descriptions display a dash. Deploy `/app` and
+`/resources` before uploading the new snapshot: the old validator drops the
+unrecognised field. Bridge exporter updated and SHA256 verified; after user
+deployment, upload succeeded 04/Nov/2026 10:40 Toronto (8,184 WOs). Production
+UI verified `55000-3` / W107176 / `MLG LH`. The existing daily task uses this
+updated exporter without schedule changes. Confirmed SELECT examples: `55000-3` =
+`MLG LH`, `190-70745-403` = `NLG Shock Strut`, `190-70745-605` =
+`NLG Shock Strut Assy.`.
+
+`/wo-status/unit-history`, beside Efficiency, uses a private complete Quantum
+snapshot, not the local AVIA WO list. Admin/Manager access matches WO Status.
+Root WO rows only; closed rows retained. Search matches the entered P/N prefix
+(case-insensitive, trimmed): `55000` includes all its variants; `55000-3`
+includes `55000-3`, `55000-3A`, `55000-3-1`, `55000-30`, but not `55000-1/2/4`.
+Never strip the entered suffix to expand a full P/N back to siblings.
+Input suggestions come from the same JSON root WO rows, independently of date
+filters: unique groups and full P/Ns, with distinct Description values merged
+per suggestion. Native datalist labels distinguish Group and P/N; free-text
+prefixes remain valid and selecting a suggestion does not submit the form.
+Filter datalist options by P/N startsWith on input/focus: native browser matching
+otherwise includes substrings and labels. Keep the complete option list in memory
+so changing or clearing the prefix restores the matching choices.
+Suggested groups still remove the final dash and suffix. Blank dates mean full history.
+The monthly table was removed at user request. Rolling twelve-month totals
+use the same P/N prefix, ignore the optional date filter and are labelled. Mean gap
+uses distinct WO opening dates, not unit count or repair completion dates.
+
+Oracle read-only validation found 8,184 distinct WO numbers on 04/Nov/2026,
+all with PNM_AUTO_KEY and ENTRY_DATE, no WOO_PARENT. Quantity is the recorded
+WO_OPERATION.KIT_QTY (8,171 rows qty1, 12 qty2, one qty3), not COUNT(WO).
+It is not proof of physical arrivals: some multi-quantity rows have repeated
+serials across distinct stock IDs, mixed main-component P/Ns, or a mismatch
+against VIEW_SPB_WO_MAINCOMPONENT. These get a visible quantity-review flag;
+totals are labelled as recorded Quantum units. The main-component view combines
+stock reservations, completed stock and RO reservations; do not blindly sum
+its rows as unique physical arrivals. S/N display is deduplicated, quantities
+are not silently rewritten. Group190-70745:36 WO/36 recorded units,
+7 units in rolling12months at this check, first08/Aug/2022,last26/Oct/2026.
+
+Data source: WO_OPERATION -> PARTS_MASTER via PNM_AUTO_KEY; customer BILL_NAME;
+dates ENTRY_DATE/CLOSE_DATE; raw status WO_DISP. Raw WIP can coexist with a
+close date, so do not infer open/closed solely from WO_DISP.
+
+### Delivery and refresh
+
+App folders to copy to production: `/app`, `/routes`, `/resources`.
+No migration is required. Do not copy a developer's whole storage directory.
+Copy `/WO` to the existing Quantum bridge. The standalone exporter uses
+existing ORACLE_USER/ORACLE_PASS/ORACLE_DSN and AVIA_SYNC_API_TOKEN environment.
+Set AVIA_UNIT_HISTORY_API_URL to https://aviatechnik.ca/api/quantum/unit-history;
+alternatively it derives that endpoint from existing AVIA_SYNC_API_URL ending
+in /ro-sync. HTTPS certificate verification stays enabled; no default token.
+For the existing Windows bridge, use `WO/run_unit_history.ps1`: it loads
+`C:\avia\RO\.env.sync_quantum`, resolves PHP_PATH and Oracle DLL/TNS paths,
+checks oci8/curl, and logs to `WO/unit_history_sync.log`. `-CheckOnly` performs
+local settings/module checks without Oracle query/upload.
+One-command installation: run `WO/install_unit_history_task.ps1` from elevated
+Windows PowerShell. It registers only the fixed task sync_quantum_unit_history,
+daily06:30 in the bridge computer time zone, under SYSTEM (no interactive login
+or Windows password needed). It starts the first upload under that same account
+and waits for Task Scheduler success; failures are reported, with the task left
+installed. Retry3x at15minutes, StartWhenAvailable, IgnoreNew, ten-minute limit.
+An existing task with a different description or a running history task is not
+overwritten. The original sync_quantum and its environment file are never changed.
+The installer accepts -EnvFile for a nonstandard existing configuration and
+-WhatIf for a no-action check. Syntax and WhatIf were tested locally; actual
+registration/upload on the bridge remains a user-executed deployment step.
+The raw `php -d extension=php_oci8_19.dll WO/unit_history_export.php --send`
+command works only when the caller has already loaded the bridge environment.
+This task was not installed or executed against production.
+Do not run the exporter from the public web application: Oracle stays on the
+bridge. Until a first sync the page says no history loaded; after two days
+without refresh it warns of stale data.
+
+Local initial population used `--output=storage/app/codex/quantum-unit-history.json`
+and `php artisan quantum-units:import storage/app/codex/quantum-unit-history.json`.
+Private file storage/app/quantum/unit-history.json is Git-ignored. Authenticated
+API ingestion validates identities/count/schema/timestamps, rejects older
+snapshots and atomically replaces the file under a lock; failed updates retain
+the previous snapshot. A query is read-only; it does not import or alter AVIA WOs.
+
 ## Application Integration Status
 
 As of 15/Jul/2026, Marketing Sales Report does not read invoice data from Quantum.

@@ -1,13 +1,15 @@
 @extends(request()->query('fragment') ? 'admin.fragment' : (request()->query('modal') ? 'admin.master-embed' : 'admin.master'))
 
 @section('content')
+    <link rel="stylesheet" href="{{ asset('css/bushing-attachments.css') }}?v={{ filemtime(public_path('css/bushing-attachments.css')) }}">
+    <script src="{{ asset('js/bushing-attachments.js') }}?v={{ filemtime(public_path('js/bushing-attachments.js')) }}"></script>
     <style>
         .bushing-edit-shell { max-width: 100%; }
         .bushing-edit-card { background: var(--bs-body-bg); border: 1px solid rgba(125, 140, 155, .35); }
         .bushing-edit-table-wrap { width: 100%; max-height: calc(88vh - 170px); overflow-y: auto; overflow-x: auto; }
         .bushing-itemized-table {
             --bushing-col-bushing-width: 280px;
-            --bushing-fixed-cols-width: calc(var(--bushing-col-bushing-width) + 370px);
+            --bushing-fixed-cols-width: calc(var(--bushing-col-bushing-width) + 446px);
             --bushing-process-col-width: calc((100% - var(--bushing-fixed-cols-width)) / 6.7);
             --bushing-ndt-col-width: var(--bushing-process-col-width);
             --bushing-line-height: 28px;
@@ -33,7 +35,9 @@
             padding-left: .25rem !important;
             padding-right: .25rem !important;
         }
-        .bushing-itemized-table col.bushing-col-process:last-child { width: calc(var(--bushing-process-col-width) * .7); }
+        .bushing-itemized-table col.bushing-col-process:nth-last-child(2) { width: calc(var(--bushing-process-col-width) * .7); }
+        .bushing-itemized-table col.bushing-col-files { width: 76px; }
+        .bushing-line-list > .bushing-documents { justify-content: center; width: 100%; }
         .bushing-line-list { display: flex; flex-direction: column; gap: .45rem; }
         .bushing-line-list > div { height: var(--bushing-line-height); min-height: var(--bushing-line-height); flex: 0 0 var(--bushing-line-height); display: flex; align-items: center; }
         .bushing-part-cell { min-width: 0; white-space: normal; line-height: 1.25; }
@@ -169,6 +173,7 @@
                                 <col class="bushing-col-process">
                                 <col class="bushing-col-process">
                                 <col class="bushing-col-process">
+                                <col class="bushing-col-files">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -185,6 +190,7 @@
                                     <th class="text-info text-center">{{ __('CAD') }}</th>
                                     <th class="text-info text-center">{{ __('Anodizing') }}</th>
                                     <th class="text-info text-center">{{ __('Xylan') }}</th>
+                                    <th class="text-info text-center">Files</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -204,7 +210,7 @@
                                             <td>{{ $historyLine->component?->ipl_num }} — {{ $historyLine->component?->part_number }}</td>
                                             <td colspan="3">{{ __('History — locked') }}</td>
                                             <td class="text-center">{{ $historyLine->qty }}</td>
-                                            <td colspan="8">
+                                            <td colspan="9">
                                                 @foreach($historyLine->processes as $historyProcess)
                                                     <span class="d-inline-block me-3">{{ $historyProcess->process?->process_name?->name }}
                                                         {{ $historyProcess->batch?->repair_order ?: $historyProcess->repair_order }}</span>
@@ -391,6 +397,9 @@
                                                 </div>
                                             </td>
                                         @endforeach
+                                        <td>
+                                            @include('admin.wo_bushings.partials.attachments', ['component' => $bushingGroup->first(), 'embeddedAttachment' => true])
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>

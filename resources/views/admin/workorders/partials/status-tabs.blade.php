@@ -5,4 +5,7 @@
     @can('feature.wo_status.efficiency')
         <a class="nav-link {{ request()->routeIs('workorders.status.efficiency') ? 'active' : '' }}" href="{{ route('workorders.status.efficiency') }}" @if(request()->routeIs('workorders.status.efficiency')) aria-current="page" @endif>Efficiency</a>
     @endcan
+    @if(auth()->user()?->roleIs(['Admin', 'Manager']))
+        <a class="nav-link {{ request()->routeIs('workorders.status.unit-history') ? 'active' : '' }}" href="{{ route('workorders.status.unit-history') }}" @if(request()->routeIs('workorders.status.unit-history')) aria-current="page" @endif>Unit History</a>
+    @endif
 </nav>

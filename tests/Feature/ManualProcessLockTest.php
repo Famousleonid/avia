@@ -249,6 +249,44 @@ class ManualProcessLockTest extends TestCase
         ]);
     }
 
+    public function test_all_roles_can_create_specifications_without_manual_access_but_cannot_bypass_locks(): void
+    {
+        $manual = $this->createManual();
+        [$processName, $manualProcess] = $this->createManualProcessFixture($manual->id);
+
+        foreach (['Technician', 'Team Leader', 'Manager', 'Shipping', 'Paint', 'Admin'] as $role) {
+            $user = $this->createUserWithRole($role);
+            $this->actingAs($user)->withSession(['auth.version' => (int) $user->auth_version,
+                'password_hash_web' => $user->getAuthPassword()])->getJson(route('processes.getProcesses', [
+                'manualId' => $manual->id, 'processNameId' => $processName->id,
+            ]))->assertOk()->assertJsonPath('canCreateProcess', true);
+
+            $this->postJson(route('processes.store'), [
+                'manual_id' => $manual->id, 'process_names_id' => $processName->id,
+                'process' => 'New specification '.$role,
+            ])->assertOk()->assertJsonPath('success', true);
+        }
+
+        $user = $this->createUserWithRole('Technician');
+        $this->actingAs($user)->withSession(['auth.version' => (int) $user->auth_version,
+            'password_hash_web' => $user->getAuthPassword()])->putJson(route('manual_processes.update', $manualProcess), [
+            'process' => 'Not authorized to edit',
+        ])->assertForbidden();
+
+        ManualProcessNameLock::create([
+            'manual_id' => $manual->id, 'process_name_id' => $processName->id,
+            'locked_by_user_id' => $user->id, 'locked_at' => now(),
+        ]);
+        $this->getJson(route('processes.getProcesses', [
+            'manualId' => $manual->id, 'processNameId' => $processName->id,
+        ]))->assertOk()->assertJsonPath('canCreateProcess', false);
+        $this->postJson(route('processes.store'), [
+            'manual_id' => $manual->id, 'process_names_id' => $processName->id,
+            'process' => 'Forbidden locked specification',
+        ])->assertForbidden();
+        $this->assertDatabaseMissing('processes', ['process' => 'Forbidden locked specification']);
+    }
+
     public function test_permitted_regular_user_can_browse_process_catalog_and_create_new_process_for_unlocked_group(): void
     {
         $user = $this->createUserWithRole('Technician');
@@ -335,7 +373,7 @@ class ManualProcessLockTest extends TestCase
         ]);
     }
 
-    public function test_authenticated_user_without_manual_access_cannot_create_new_process_definition_when_group_is_unlocked(): void
+    public function test_authenticated_user_without_manual_access_can_create_new_process_definition_when_group_is_unlocked(): void
     {
         $user = $this->createUserWithRole('Technician');
         $manual = $this->createManual();
@@ -349,15 +387,15 @@ class ManualProcessLockTest extends TestCase
         ]);
 
         $response->assertRedirect(route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
-        $response->assertSessionHas('error', 'You do not have access to this manual.');
+        $response->assertSessionHasNoErrors();
 
-        $this->assertDatabaseMissing('processes', [
+        $this->assertDatabaseHas('processes', [
             'process_names_id' => $processName->id,
             'process' => 'Unlocked subprocess without manual permission',
         ]);
     }
 
-    public function test_manual_access_is_required_for_json_creation_and_picker_even_for_a_lock_manager(): void
+    public function test_lock_manager_can_create_without_separate_manual_access(): void
     {
         $manual = $this->createManual();
         $other = $this->createManual();
@@ -370,13 +408,13 @@ class ManualProcessLockTest extends TestCase
             $this->actingAs($user)->withSession(['auth.version' => (int) $user->auth_version,
                 'password_hash_web' => $user->getAuthPassword()])->getJson(route('processes.getProcesses', [
                 'manualId' => $manual->id, 'processNameId' => $name->id,
-            ]))->assertOk()->assertJsonPath('canCreateProcess', false);
+            ]))->assertOk()->assertJsonPath('canCreateProcess', true);
             $this->postJson(route('processes.store'), [
                 'manual_id' => $manual->id, 'process_names_id' => $name->id,
-                'process' => 'Forbidden new specification '.$role,
-            ])->assertForbidden()->assertJsonPath('reason', 'manual_access_denied');
-            $this->assertSame($count, ManualProcess::count());
-            $this->assertDatabaseMissing('processes', ['process' => 'Forbidden new specification '.$role]);
+                'process' => 'Allowed new specification '.$role,
+            ])->assertOk()->assertJsonPath('success', true);
+            $this->assertSame($count + 1, ManualProcess::count());
+            $this->assertDatabaseHas('processes', ['process' => 'Allowed new specification '.$role]);
         }
     }
 

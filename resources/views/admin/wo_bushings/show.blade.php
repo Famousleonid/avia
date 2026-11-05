@@ -1,6 +1,7 @@
 @extends('admin.master')
 
 @section('content')
+    <script src="{{ asset('js/bushing-attachments.js') }}?v={{ filemtime(public_path('js/bushing-attachments.js')) }}"></script>
     <style>
         .table-wrapper {
             height: calc(100vh - 180px);

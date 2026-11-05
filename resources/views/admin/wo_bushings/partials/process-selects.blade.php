@@ -30,8 +30,11 @@
                 if (!table.getBoundingClientRect().width) return;
                 var columns = Array.from(table.querySelectorAll('col'));
                 var fixedWidth = columns.slice(0, 6).reduce(function(sum, col) { return sum + col.getBoundingClientRect().width; }, 0);
-                var processWidth = Math.max(0, (table.clientWidth - 2 - fixedWidth) / 6.7);
-                columns.slice(6).forEach(function(col, index) {
+                var filesColumn = table.querySelector('col.bushing-col-files');
+                if (filesColumn) { filesColumn.style.width = '76px'; fixedWidth += 76; }
+                var availableWidth = Math.max(table.parentElement.clientWidth, parseFloat(getComputedStyle(table).minWidth) || 0);
+                var processWidth = Math.max(0, (availableWidth - 2 - fixedWidth) / 6.7);
+                columns.slice(6).filter(col => col !== filesColumn).forEach(function(col, index) {
                     col.style.width = (processWidth * (index === 6 ? .7 : 1)) + 'px';
                 });
             };

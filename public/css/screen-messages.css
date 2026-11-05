@@ -1,0 +1,45 @@
+#screenMessageDialog {
+    --screen-accent: #ffd65a;
+    --screen-accent-text: #152c3b;
+    --screen-background: #07394d;
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(880px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 32px);
+    padding: 0;
+    border: 3px solid var(--screen-accent);
+    border-radius: 18px;
+    background: var(--screen-background);
+    color: #fff;
+    box-shadow: 0 20px 90px #0009;
+    overflow: hidden;
+}
+#screenMessageDialog[data-kind="alert"] {
+    --screen-accent: #dc3545;
+    --screen-accent-text: #fff;
+    --screen-background: #4a1520;
+}
+#screenMessageDialog[data-kind="message"] {
+    --screen-accent: #198754;
+    --screen-accent-text: #fff;
+    --screen-background: #103c2d;
+}
+#screenMessageDialog[open] { display: flex; flex-direction: column; }
+#screenMessageDialog::backdrop { background: #07111fcc; }
+.screen-message-heading { display: flex; gap: 18px; align-items: center; padding: 22px 26px; background: var(--screen-accent); color: var(--screen-accent-text); flex: 0 0 auto; }
+.screen-message-heading > span { display: grid; place-items: center; width: 48px; height: 48px; border: 3px solid currentColor; border-radius: 50%; font: bold 32px/1 sans-serif; flex-shrink: 0; }
+#screenMessageTitle { margin: 0 0 6px; font-size: clamp(22px, 4vw, 30px); font-weight: 700; }
+#screenMessageSender { font-size: 15px; overflow-wrap: anywhere; }
+#screenMessageText { padding: 28px; font-size: clamp(20px, 3vw, 30px); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; min-height: 0; }
+.screen-message-footer { padding: 16px 26px 22px; flex: 0 0 auto; text-align: right; }
+#screenMessageDismiss { background: var(--screen-accent); color: var(--screen-accent-text); border: 0; border-radius: 8px; padding: 12px 18px; font-size: 17px; font-weight: 700; max-width: 100%; }
+#screenMessageDismiss:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+#screenMessageDismiss:disabled { opacity: .65; }
+#screenMessageError { color: #ffdbdb; margin-bottom: 12px; text-align: left; }
+@media (max-width: 480px), (max-height: 500px) {
+    .screen-message-heading { padding: 12px 16px; gap: 12px; }
+    #screenMessageText { padding: 16px; }
+    .screen-message-footer { padding: 10px 16px 16px; }
+}

@@ -11,9 +11,9 @@ class DeleteLegacyUnitInspectionTdrs extends Command
     // TODO(tdr-refactor): Remove this cleanup helper after legacy unit inspection TDR rows are no longer present in any deployed database.
     protected $signature = 'unit-inspections:delete-legacy-tdrs
         {--workorder= : Single workorder ID}
-        {--write : Soft-delete legacy TDR rows. Default is dry-run}';
+        {--write : Delete legacy TDR rows after backfill. Default is dry-run}';
 
-    protected $description = 'Soft-delete legacy unit inspection TDR rows after workorder_unit_inspections backfill.';
+    protected $description = 'Delete legacy unit inspection TDR rows after workorder_unit_inspections backfill.';
 
     public function handle(): int
     {
@@ -78,7 +78,7 @@ class DeleteLegacyUnitInspectionTdrs extends Command
         );
 
         if (! $write) {
-            $this->warn('Dry run only. Run with --write to soft-delete legacy unit inspection TDR rows.');
+            $this->warn('Dry run only. Run with --write to delete legacy unit inspection TDR rows after backfill.');
         }
 
         return self::SUCCESS;

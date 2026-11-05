@@ -54,6 +54,9 @@ class SearchActivityLogsTool
         $componentIds = $filters['part_number'] !== ''
             ? $this->componentIdsForPartNumber($filters['part_number'], $filters['exact_part_number'])
             : collect();
+        if ($filters['area'] === 'bushing_documents') {
+            $componentIds = $this->bushingFamilyIds($componentIds);
+        }
         $tdrIdsForPart = $componentIds->isEmpty()
             ? collect()
             : Tdr::query()
@@ -71,6 +74,12 @@ class SearchActivityLogsTool
         $workorderSubjectIds = $workorder
             ? $this->subjectIdsForWorkorder((int) $workorder->id)
             : [];
+        if ($workorder && in_array($filters['area'], ['bushings', 'bushing_documents'], true)) {
+            $workorderSubjectIds[Component::class] = \App\Models\WoBushingLine::where('workorder_id', $workorder->id)->pluck('component_id')->unique();
+            if ($filters['area'] === 'bushing_documents') {
+                $workorderSubjectIds[Component::class] = $this->bushingFamilyIds($workorderSubjectIds[Component::class]);
+            }
+        }
         $manualSubjectIds = $manual
             ? $this->subjectIdsForManual((int) $manual->id)
             : [];
@@ -221,8 +230,8 @@ class SearchActivityLogsTool
                     ],
                     'area' => [
                         'type' => 'string',
-                        'enum' => ['all', 'parts', 'bushings', 'workorders', 'components', 'processes', 'manuals', 'users', 'trainings'],
-                        'description' => 'Human audit area. Use parts for TDR/parts plus bushing and component references.',
+                        'enum' => ['all', 'parts', 'bushings', 'bushing_documents', 'workorders', 'components', 'processes', 'manuals', 'users', 'trainings'],
+                        'description' => 'Use bushing_documents for who uploaded/replaced Bushing Processes Files images/PDFs, with P/N and optionally WO/manual, without event filter (legacy uploads have no event). Files are shared across WOs. Use parts for general TDR/parts history.',
                     ],
                     'text' => [
                         'type' => 'string',
@@ -259,7 +268,7 @@ class SearchActivityLogsTool
         }
 
         $area = strtolower(trim((string) ($args['area'] ?? 'all')));
-        if (! in_array($area, ['all', 'parts', 'bushings', 'workorders', 'components', 'processes', 'manuals', 'users', 'trainings'], true)) {
+        if (! in_array($area, ['all', 'parts', 'bushings', 'bushing_documents', 'workorders', 'components', 'processes', 'manuals', 'users', 'trainings'], true)) {
             $area = 'all';
         }
 
@@ -404,6 +413,12 @@ class SearchActivityLogsTool
             ->values();
     }
 
+    private function bushingFamilyIds(Collection $ids): Collection
+    {
+        $family = app(\App\Services\BushingDocumentFamily::class);
+        return $ids->merge(Component::whereIn('id', $ids)->get()->flatMap(fn ($part) => $family->members($part)->pluck('id')))->unique();
+    }
+
     private function actorIds(string $actor): Collection
     {
         if ($actor === '') {
@@ -462,7 +477,9 @@ class SearchActivityLogsTool
             match ($area) {
                 'parts' => $query->whereIn('log_name', ['tdr', 'component', 'component_assembly'])
                     ->orWhere('properties', 'like', '%wo_bushings%'),
-                'bushings' => $query->where('properties', 'like', '%wo_bushings%'),
+                'bushings' => $query->where('properties', 'like', '%wo_bushings%')
+                    ->orWhere('description', 'like', 'Bushing document %'),
+                'bushing_documents' => $query->where('log_name', 'component')->whereIn('description', ['Bushing document added', 'Bushing document replaced']),
                 'workorders' => $query->where('log_name', 'workorder'),
                 'components' => $query->whereIn('log_name', ['component', 'component_assembly']),
                 'processes' => $query->whereIn('log_name', ['tdr_process', 'workorder_std_process', 'process']),
@@ -657,6 +674,7 @@ class SearchActivityLogsTool
             ->values();
 
         $componentIds = collect($this->valuesForKeys($properties, ['component_id', 'order_component_id']))
+            ->when($activity->subject_type === Component::class, fn (Collection $ids) => $ids->push($activity->subject_id))
             ->when($tdr, fn (Collection $ids) => $ids->push($tdr->component_id)->push($tdr->order_component_id))
             ->filter(fn ($id): bool => is_numeric($id) && (int) $id > 0)
             ->map(fn ($id): int => (int) $id)
@@ -714,6 +732,12 @@ class SearchActivityLogsTool
             'manual_numbers' => $manualNumbers->all(),
             'part_numbers' => $partNumbers->all(),
             'changed_fields' => $changedFields,
+            'attachment' => in_array($activity->description, ['Bushing document added', 'Bushing document replaced'], true) ? [
+                'scope' => 'Shared part document across all workorders; this is upload/replacement history, not part creation.',
+                'action' => $activity->description === 'Bushing document added' ? 'uploaded' : 'replaced',
+                'previous_files' => collect($properties['old'] ?? [])->pluck('file')->filter()->values()->all(),
+                'file' => data_get($properties, 'attributes.file', data_get($properties, 'file')),
+            ] : null,
             'open_url' => $firstWorkorder ? route('mains.show', $firstWorkorder->id) : null,
             'manual_url' => $firstManual ? route('manuals.show', $firstManual->id) : null,
         ];

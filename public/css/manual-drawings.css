@@ -1,0 +1,29 @@
+#manualDrawingsModal .modal-dialog { width:calc(100% - 16px); max-width:1200px; margin:8px auto; min-height:calc(100% - 16px); }
+#manualDrawingsModal .modal-content { height:min(850px, calc(100dvh - 16px)); min-height:0; overflow:hidden; }
+#manualDrawingsModal .modal-header { flex-shrink:0; }
+#manualDrawingsTitle { min-width:0; overflow-wrap:anywhere; }
+#manualDrawingsModal .modal-body { display:grid; grid-template-columns:minmax(220px, 300px) minmax(0, 1fr); gap:16px; min-height:0; overflow:hidden; }
+.manual-drawings-library { display:flex; flex-direction:column; min-height:0; min-width:0; gap:10px; }
+.manual-drawings-drop { display:flex; flex-direction:column; align-items:center; text-align:center; padding:12px; border:2px dashed var(--bs-info); border-radius:6px; cursor:pointer; flex-shrink:0; }
+.manual-drawings-drop small { color:var(--bs-secondary-color, #99aabb); }
+.manual-drawings-drop.is-drag-over { background:rgba(13,202,240,.18); }
+.manual-drawings-drop[aria-disabled="true"] { opacity:.6; cursor:wait; }
+.manual-drawings-list { overflow:auto; min-height:0; flex:1; display:flex; flex-direction:column; gap:6px; }
+.manual-drawing-item { width:100%; text-align:left; white-space:normal; overflow-wrap:anywhere; }
+.manual-drawing-item small { display:block; opacity:.75; }
+.manual-drawings-preview { display:flex; flex-direction:column; min-width:0; min-height:0; border:1px solid var(--bs-border-color, #496073); border-radius:6px; overflow:hidden; }
+.manual-drawings-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px; flex-shrink:0; }
+.manual-drawing-rename-form { padding:0 8px 8px; display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
+.manual-drawing-rename-form input { min-width:0; width:100%; }
+.manual-drawing-name { min-width:0; flex:1; overflow-wrap:anywhere; max-height:4.5em; overflow:auto; }
+#manualDrawingsModal .manual-drawing-print { flex-shrink:0; background:var(--bs-info, #0dcaf0); }
+.manual-drawings-preview iframe { border:0; width:100%; min-height:0; flex:1; background:white; }
+.manual-drawing-empty { margin:auto; padding:20px; text-align:center; }
+body:has(#manualDrawingsModal.show) #aiAssistantWidget { visibility:hidden; }
+@media(max-width:700px) {
+    .manual-drawing-name { flex-basis:100%; }
+    #manualDrawingsModal .modal-body { grid-template-columns:minmax(0, 1fr); grid-template-rows:minmax(160px, 38%) minmax(0, 1fr); gap:10px; padding:10px; }
+    .manual-drawings-drop { padding:6px; }
+    .manual-drawings-drop .bi { display:none; }
+    .manual-drawings-library { gap:5px; }
+}

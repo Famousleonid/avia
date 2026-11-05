@@ -1568,7 +1568,7 @@ class MobileApiController extends Controller
                 : [],
             'codes' => Code::query()->orderBy('name')->get(['id', 'name'])->values(),
             'necessaries' => Necessary::query()->orderBy('name')->get(['id', 'name'])->values(),
-            'conditions' => Condition::query()->where('unit', false)->orderBy('name')->get(['id', 'name'])->values(),
+            'conditions' => Condition::active()->where('unit', false)->orderBy('name')->get(['id', 'name'])->values(),
             'can_create_tdr' => $this->canWriteTdrs($workorder, request()->user()),
             'can_update_tdr' => $this->canWriteTdrs($workorder, request()->user()),
             'can_delete_tdr' => false,

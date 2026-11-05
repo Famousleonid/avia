@@ -591,7 +591,7 @@ class TdrController extends Controller
         ));
 
         // Условия для Component - без фильтрации
-        $component_conditions = Condition::where('unit', false)->get();
+        $component_conditions = Condition::active()->where('unit', false)->get();
 
         // Получаем коды и necessaries
         $codes = Code::all();
@@ -665,7 +665,7 @@ class TdrController extends Controller
             'component_id' => 'nullable|exists:components,id',
             'serial_number' => 'nullable|string|max:255',
             'assy_serial_number' => 'nullable|string|max:255',
-            'conditions_id' => 'nullable|exists:conditions,id',
+            'conditions_id' => ['nullable', \Illuminate\Validation\Rule::exists('conditions', 'id')->whereNull('archived_at')],
             'necessaries_id' => 'nullable|exists:necessaries,id',
             'codes_id' => 'nullable|exists:codes,id',
             'qty' => 'nullable|integer|min:1',
@@ -753,7 +753,7 @@ class TdrController extends Controller
                     ->withErrors(['component_id' => __('Component ID is required when code is Manufacture')]);
             }
 
-            $manufactureCondition = Condition::where('name', 'Manufacture')->where('unit', false)->first();
+            $manufactureCondition = Condition::active()->where('name', 'Manufacture')->where('unit', false)->first();
             if (!$manufactureCondition) {
                 return redirect()->back()
                     ->withInput()
@@ -956,7 +956,7 @@ class TdrController extends Controller
         if (! $isMissingPayload && ! $isManufacture && $validatedCodesId !== null) {
             $selectedCode = Code::find($validatedCodesId);
             $matchedCondition = $selectedCode
-                ? Condition::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $selectedCode->name))])->first()
+                ? Condition::active()->whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $selectedCode->name))])->first()
                 : null;
             $validated['conditions_id'] = $matchedCondition?->id;
         }
@@ -1945,8 +1945,8 @@ class TdrController extends Controller
         $dimensionFigures = \App\Models\ManualDimensionFigure::where('manual_id', $manual_id)
             ->orderBy('sort_order')->get(['id', 'title', 'figure_type']);
         $necessaries = Necessary::all();
-        $unit_conditions = Condition::where('unit', true)->get();
-        $component_conditions = Condition::where('unit', false)->get();
+        $unit_conditions = Condition::availableForInspection($current_wo->id)->get();
+        $component_conditions = Condition::active()->where('unit', false)->get();
         $codes = Code::all();
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)

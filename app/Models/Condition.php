@@ -17,6 +17,22 @@ class Condition extends Model
         'name','unit',
     ];
 
+    protected $casts = ['archived_at' => 'datetime'];
+
+    // History relations deliberately include archived versions. Only pickers filter them.
+    public function scopeActive($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function scopeAvailableForInspection($query, $workorderId)
+    {
+        return $query->where('unit', true)->where(function ($query) use ($workorderId) {
+            $query->active()->orWhereIn('id', WorkorderUnitInspection::query()
+                ->where('workorder_id', $workorderId)->select('condition_id'));
+        });
+    }
+
     public function tdr()
     {
         return $this->hasMany(Tdr::class, 'conditions_id');

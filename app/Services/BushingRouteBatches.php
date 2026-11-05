@@ -12,6 +12,13 @@ class BushingRouteBatches
 {
     public function hasHistory($row): bool
     {
+        $column = $row->process_column_key ?: WoBushingProcessColumnKey::fromProcess($row->process);
+        // Clearing Machining's sent date explicitly returns it to editable state.
+        // Other operations still protect the complete connected route below.
+        if ($column === 'machining') {
+            return (bool) $row->date_start;
+        }
+
         return trim((string) $row->repair_order) !== '' || $row->date_start || $row->date_finish
             || ($row->machining_work_steps_count ?? $row->machiningWorkSteps()->count()) > 0;
     }

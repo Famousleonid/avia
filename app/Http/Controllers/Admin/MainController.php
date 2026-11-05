@@ -376,6 +376,8 @@ class MainController extends Controller
         $user_wo = $current_workorder->user_id;
         $manual_id = $current_workorder->unit->manual_id ?? null;
         $bushingGuide = \App\Models\ManualBushingGuide::forManual($manual_id);
+        $manualDrawingCount = $current_workorder->unit?->manual?->media()
+            ->where('collection_name', ManualDrawingController::COLLECTION)->count() ?? 0;
 
         $trainings = null;
         if ($manual_id) {
@@ -684,6 +686,7 @@ class MainController extends Controller
             'user_wo',
             'manual_id',
             'bushingGuide',
+            'manualDrawingCount',
             'user',
             'generalMains',
             'mainsByTask',

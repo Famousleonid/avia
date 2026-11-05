@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.edit-condition-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 const conditionId = this.getAttribute('data-condition-id');
-                const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
+                const row = this.closest('tr');
                 if (row) {
                     this.closest('.btn-group').classList.add('d-none');
                     row.querySelector('.save-cancel-group').classList.remove('d-none');
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 const conditionId = this.getAttribute('data-condition-id');
-                const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
+                const row = this.closest('tr');
                 if (row) {
                     const input = row.querySelector('.condition-name-edit');
                     input.value = input.getAttribute('data-original-name');
@@ -31,12 +31,12 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.save-condition-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 const conditionId = this.getAttribute('data-condition-id');
-                const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
+                const row = this.closest('tr');
                 const input = row?.querySelector('.condition-name-edit');
                 const newName = input?.value.trim() || '';
                 this.disabled = true;
                 this.innerHTML = ("<i class=\"fas fa-spinner fa-spin\"></i> " + String(window.TdrshowConfig3.value1) + "");
-                fetch(`/admin/conditions/${conditionId}`, {
+                fetch(this.dataset.url, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
                     body: JSON.stringify({ name: newName, unit: 1 })
@@ -71,13 +71,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 const conditionId = this.getAttribute('data-condition-id');
                 const conditionName = this.getAttribute('data-condition-name');
                 const button = this;
-                window.tdrShowConfirm(`${window.TdrshowConfig3.value6} "${conditionName}"?`).then(function(confirmed) {
+                if (typeof window.confirmDialog !== 'function') {
+                    window.tdrShowNotify('Confirmation is unavailable. Reload the page.', 'error');
+                    return;
+                }
+                window.confirmDialog({
+                    title: 'Archive condition',
+                    message: `${window.TdrshowConfig3.value6} "${conditionName}"?`,
+                    okText: 'Archive',
+                    cancelText: 'Cancel'
+                }).then(function(confirmed) {
                     if (!confirmed) return;
                     button.disabled = true;
                     button.innerHTML = ("<i class=\"fas fa-spinner fa-spin\"></i> " + String(window.TdrshowConfig3.value7) + "");
-                    const workorderId = document.querySelector('#unitInspectionForm input[name="workorder_id"]')?.value || document.querySelector('#addConditionFormFromManage input[name="workorder_id"]')?.value || window.currentWorkorderId;
-                    const deleteUrl = workorderId ? `/admin/conditions/${conditionId}?workorder_id=${workorderId}` : `/admin/conditions/${conditionId}`;
-                    fetch(deleteUrl, {
+                    fetch(button.dataset.url, {
                         method: 'DELETE',
                         headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
                     })
@@ -96,7 +103,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (!data) return;
                         if (data.success) {
                             const redirectUrl = data.redirect || window.tdrShowUrl;
-                            delete manageConditionModal.dataset.returnToModal;
+                            const manageModal = document.getElementById('manageConditionModal');
+                            if (manageModal) delete manageModal.dataset.returnToModal;
                             window.top.location.href = redirectUrl;
                         } else {
                             window.tdrShowNotify(data.message || ("" + String(window.TdrshowConfig3.value8) + ""), 'error');
@@ -128,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                 .then(response => response.headers.get('content-type')?.includes('application/json') ? response.json() : {})
                 .then(data => {
-                    if (data.success !== false) {
+                    if (data.success === true) {
                         const addModal = bootstrap.Modal.getInstance(document.getElementById('addConditionModalFromManage'));
                         if (addModal) addModal.hide();
                         const tabTdr = document.getElementById('tab-tdr');

@@ -254,9 +254,18 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
 
 // ----------------------Auth route ------------------------------------------------------------------------
 
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/manuals/{manual}/drawings', [\App\Http\Controllers\Admin\ManualDrawingController::class, 'index'])->name('manuals.drawings.index');
+    Route::post('/manuals/{manual}/drawings', [\App\Http\Controllers\Admin\ManualDrawingController::class, 'store'])->name('manuals.drawings.store');
+    Route::get('/manuals/{manual}/drawings/{media}', [\App\Http\Controllers\Admin\ManualDrawingController::class, 'show'])->name('manuals.drawings.show');
+    Route::patch('/manuals/{manual}/drawings/{media}', [\App\Http\Controllers\Admin\ManualDrawingController::class, 'update'])->name('manuals.drawings.update');
+    Route::delete('/manuals/{manual}/drawings/{media}', [\App\Http\Controllers\Admin\ManualDrawingController::class, 'destroy'])->name('manuals.drawings.destroy');
+});
+
 Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/wo-status', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'index'])->name('workorders.status');
     Route::get('/wo-status/efficiency', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'efficiency'])->middleware('can:feature.wo_status.efficiency')->name('workorders.status.efficiency');
+    Route::get('/wo-status/unit-history', [\App\Http\Controllers\Admin\QuantumUnitHistoryController::class, 'index'])->name('workorders.status.unit-history');
     Route::patch('/wo-status/{workorder}/completion-date', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'updateCompletionDate'])->name('workorders.status.completion-date');
 
     Route::get('/cabinet', [CabinetController::class, 'index'])->name('cabinet.index');
@@ -610,6 +619,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/components/download-csv-template', [ComponentController::class, 'downloadCsvTemplate'])->name('components.download-csv-template');
 
     // Components editing from inspection
+    Route::post('/components/{component}/bushing-documents', [\App\Http\Controllers\Admin\BushingAttachmentController::class, 'store'])->name('components.bushing-documents.store');
+    Route::get('/components/{component}/bushing-documents/{media}', [\App\Http\Controllers\Admin\BushingAttachmentController::class, 'show'])->name('components.bushing-documents.show');
     Route::get('/components/{component}/json', [ComponentController::class, 'showJson'])->name('components.showJson');
     Route::patch('/components/{component}/flags', [ComponentController::class, 'updateFlags'])->name('components.updateFlags');
     Route::patch('/manuals/{manual}/part-flag-locks', [\App\Http\Controllers\Admin\ManualPartFlagLockController::class, 'update'])->name('manuals.part-flag-locks.update');
@@ -853,10 +864,19 @@ Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(funct
 
 
 
+Route::middleware(['auth', 'verified'])->prefix('messages/screen')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Admin\ScreenMessageController::class, 'index'])->name('messages.screen.index');
+    Route::post('/{message}/dismiss', [\App\Http\Controllers\Admin\ScreenMessageController::class, 'dismiss'])->whereNumber('message')->name('messages.screen.dismiss');
+});
+
 Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin/messages')->group(function () {
 
     Route::get('/users', [\App\Http\Controllers\Admin\MessageController::class, 'users'])->name('admin.messages.users');
     Route::post('/send', [\App\Http\Controllers\Admin\MessageController::class, 'send'])->name('admin.messages.send');
+    Route::get('/groups', [\App\Http\Controllers\Admin\MessageGroupController::class, 'index'])->name('admin.messages.groups.index');
+    Route::post('/groups', [\App\Http\Controllers\Admin\MessageGroupController::class, 'store'])->name('admin.messages.groups.store');
+    Route::put('/groups/{messageGroup}', [\App\Http\Controllers\Admin\MessageGroupController::class, 'update'])->name('admin.messages.groups.update');
+    Route::delete('/groups/{messageGroup}', [\App\Http\Controllers\Admin\MessageGroupController::class, 'destroy'])->name('admin.messages.groups.destroy');
 
 
 });

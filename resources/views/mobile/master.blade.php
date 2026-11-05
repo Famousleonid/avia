@@ -129,6 +129,7 @@
 <script src="{{ asset('js/mobile-landscape-photo.js') }}?v={{ filemtime(public_path('js/mobile-landscape-photo.js')) }}"></script>
 <script src="{{ asset('js/password-policy.js') }}?v={{ filemtime(public_path('js/password-policy.js')) }}"></script>
 @include('components.temporary-password-reminder')
+@include('components.screen-messages')
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {

@@ -415,6 +415,9 @@
                                             <td class="align-middle">
                                                 <label for="condition_{{ $unit_condition->id }}" style="cursor: pointer; margin: 0;">
                                                     {{ empty($unit_condition->name) ? __('(No name)') : $unit_condition->name }}
+                                                    @if($unit_condition->archived_at)
+                                                        <small class="text-muted">({{ __('Archived — existing inspection') }})</small>
+                                                    @endif
                                                 </label>
                                             </td>
                                             <td class="align-middle">
@@ -451,6 +454,7 @@
                     <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#addConditionModalFromManage"><i class="fas fa-plus"></i> {{ __('Add Condition') }}</button>
                     @endadmin
                 </div>
+                <p class="small text-muted">{{ __('Edit creates a new version for future selections. Archive removes a condition from new selections. Existing inspections keep their original text.') }}</p>
                 <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
                     <table class="table table-hover table-bordered dir-table">
                         <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
@@ -460,7 +464,7 @@
                         </tr>
                         </thead>
                         <tbody id="manageConditionsTableBody">
-                        @foreach($unit_conditions as $unit_condition)
+                        @foreach($unit_conditions->whereNull('archived_at') as $unit_condition)
                             <tr data-condition-id="{{ $unit_condition->id }}">
                                 <td class="align-middle">
                                     <span class="condition-name-display">{{ empty($unit_condition->name) ? __('(No name)') : $unit_condition->name }}</span>
@@ -468,13 +472,15 @@
                                 </td>
                                 <td class="text-center align-middle">
                                     <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-outline-warning btn-sm edit-condition-btn" data-condition-id="{{ $unit_condition->id }}" data-condition-name="{{ $unit_condition->name }}"><i class="fas fa-edit"></i> {{ __('Edit') }}</button>
                                         @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
-                                            <button type="button" class="btn btn-outline-danger btn-sm delete-condition-btn" data-condition-id="{{ $unit_condition->id }}" data-condition-name="{{ $unit_condition->name }}"><i class="fas fa-trash"></i> {{ __('Delete') }}</button>
+                                            <button type="button" class="btn btn-outline-warning btn-sm edit-condition-btn" data-condition-id="{{ $unit_condition->id }}" data-condition-name="{{ $unit_condition->name }}"><i class="fas fa-edit"></i> {{ __('Edit') }}</button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm delete-condition-btn" data-url="{{ route('conditions.destroy', ['condition' => $unit_condition->id, 'workorder_id' => $current_wo->id]) }}" data-condition-id="{{ $unit_condition->id }}" data-condition-name="{{ $unit_condition->name }}"><i class="fas fa-archive"></i> {{ __('Archive') }}</button>
+                                        @else
+                                            <span class="small text-muted">{{ __('System condition') }}</span>
                                         @endif
                                     </div>
                                     <div class="btn-group d-none save-cancel-group" role="group">
-                                        <button type="button" class="btn btn-outline-success btn-sm save-condition-btn" data-condition-id="{{ $unit_condition->id }}"><i class="fas fa-check"></i> {{ __('Save') }}</button>
+                                        <button type="button" class="btn btn-outline-success btn-sm save-condition-btn" data-url="{{ route('conditions.update', $unit_condition->id) }}" data-condition-id="{{ $unit_condition->id }}"><i class="fas fa-check"></i> {{ __('Save') }}</button>
                                         <button type="button" class="btn btn-outline-secondary btn-sm cancel-edit-btn" data-condition-id="{{ $unit_condition->id }}"><i class="fas fa-times"></i> {{ __('Cancel') }}</button>
                                     </div>
                                 </td>
@@ -562,7 +568,7 @@
 
 {{-- Edit Bushing Modal --}}
 <div class="modal fade" id="editBushingModal" tabindex="-1" aria-labelledby="editBushingModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 90vw; width: 90vw; height: 90vh;">
+    <div class="modal-dialog" style="max-width: calc(100vw - 16px); width: 99vw; height: 90vh;">
         <div class="modal-content bg-gradient" style="height: 90vh;">
             <div class="modal-header">
                 <h6 class="modal-title text-info" id="editBushingModalLabel">{{ __('Update Bushings List') }}</h6>

@@ -19,6 +19,40 @@ class AiActivityLogSearchToolTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_bushing_document_history_includes_legacy_uploads_and_replacements_for_shared_part(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $uploader = $this->createUserWithRole('Technician', ['name' => 'First uploader']);
+        $editor = $this->createUserWithRole('Team Leader', ['name' => 'File editor']);
+        $wo = $this->createWorkorder();
+        $part = $this->createComponentForWorkorder($wo, 'BUSH-DOC-1', '1-65');
+        $bushing = \App\Models\WoBushing::create(['workorder_id' => $wo->id]);
+        \App\Models\WoBushingLine::create(['wo_bushing_id' => $bushing->id, 'workorder_id' => $wo->id,
+            'component_id' => $part->id, 'qty' => 1, 'qty_remaining' => 1, 'selection_active' => true]);
+        activity('component')->performedOn($part)->causedBy($uploader)
+            ->withProperties(['media_id' => 10, 'file' => 'original.png'])->log('Bushing document added');
+        activity('component')->performedOn($part)->causedBy($editor)
+            ->withProperties(['old' => [['media_id' => 10, 'file' => 'original.png']],
+                'attributes' => ['media_id' => 11, 'file' => 'new.pdf']])->log('Bushing document replaced');
+        $other = $this->createComponentForWorkorder($wo, 'BUSH-DOC-2', '1-70');
+        activity('component')->performedOn($other)->causedBy($editor)
+            ->withProperties(['file' => 'unrelated.png'])->log('Bushing document added');
+
+        $result = app(SearchActivityLogsTool::class)->run($admin, ['area' => 'bushing_documents', 'workorder_id' => $wo->id]);
+        $this->assertSame(2, $result['count']);
+        $this->assertSame('File editor', $result['matches'][0]['actor']);
+        $this->assertSame(['original.png'], $result['matches'][0]['attachment']['previous_files']);
+        $this->assertSame('new.pdf', $result['matches'][0]['attachment']['file']);
+        $this->assertSame('First uploader', $result['matches'][1]['actor']);
+        $this->assertSame('uploaded', $result['matches'][1]['attachment']['action']);
+        $this->assertSame('original.png', $result['matches'][1]['attachment']['file']);
+        $this->assertNotEmpty($result['matches'][1]['occurred_at']);
+        $this->assertSame(['BUSH-DOC-1'], $result['matches'][1]['part_numbers']);
+        $byPart = app(SearchActivityLogsTool::class)->run($admin, ['area' => 'bushings', 'part_number' => 'BUSH-DOC-1']);
+        $this->assertSame(2, $byPart['count']);
+        $this->assertFalse(app(SearchActivityLogsTool::class)->run($uploader, ['area' => 'bushing_documents'])['ok']);
+    }
+
     public function test_system_admin_can_combine_workorder_part_actor_event_and_date_filters(): void
     {
         $systemAdmin = $this->createUserWithRole('Admin');
@@ -269,6 +303,7 @@ class AiActivityLogSearchToolTest extends TestCase
         $result = app(SearchActivityLogsTool::class)->run($systemAdmin, [
             'part_number' => 'PN-THOROUGH-100',
             'exact_part_number' => true,
+            'event' => 'updated',
             'limit' => 20,
         ]);
 

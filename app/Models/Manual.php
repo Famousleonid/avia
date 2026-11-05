@@ -221,8 +221,12 @@ class Manual extends Model implements HasMedia
             ->withTimestamps();
     }
 
-    public function registerAllMediaConversions(): void
+    public function registerAllMediaConversions(?\Spatie\MediaLibrary\MediaCollections\Models\Media $media = null): void
     {
+        // Drawings are served as originals; they do not need thumbnail conversion or a PDF rasterizer.
+        if ($media?->collection_name === 'manual_drawings') {
+            return;
+        }
         $this->addMediaConversion('thumb')
             ->width(100)
             ->height(100)

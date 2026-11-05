@@ -5,9 +5,48 @@
         if (!pane) return;
         const scope = 'manuals.show';
         const key = 'processGroupsOpen:' + pane.dataset.manualId;
+        const sortKey = 'processSort:' + pane.dataset.manualId;
         const container = pane.querySelector('.process-table-container');
         let open = new Set();
         let saveQueue = Promise.resolve();
+        let sortColumn = 'process';
+        let sortDirection = 1;
+        let sortChanged = false;
+        let sortSaveQueue = Promise.resolve();
+        // Compare the complete text from its first character; numbers are text too.
+        const collator = new Intl.Collator('en', { sensitivity: 'base', numeric: false, ignorePunctuation: false });
+        function sortText(value) {
+            // Imported line breaks / padding must not outrank the next letter or digit.
+            // Keep the original display and punctuation; normalize only the comparison key.
+            return value.normalize('NFC').replace(/[\u200B\uFEFF]/g, '')
+                .replace(/\s+/g, ' ').replace(/\s*([:;,])\s*/g, '$1').trim();
+        }
+        function sortRows() {
+            const top = container.scrollTop;
+            const left = container.scrollLeft;
+            const selector = sortColumn === 'comment' ? '.manual-process-comment' : '.manual-process-specification-text';
+            pane.querySelectorAll('.manual-process-group-row').forEach(group => {
+                const children = rows(group.dataset.processNameId).map(row => {
+                    const text = sortText(row.querySelector(selector)?.textContent || '');
+                    return { row, text: sortColumn === 'comment' && text === '-' ? '' : text };
+                });
+                children.sort((a, b) => {
+                    // Empty comments remain at the bottom in either direction.
+                    if (!a.text !== !b.text) return a.text ? -1 : 1;
+                    return sortDirection * collator.compare(a.text, b.text)
+                        || Number(a.row.dataset.manualProcessId) - Number(b.row.dataset.manualProcessId);
+                });
+                let previous = group;
+                children.forEach(({ row }) => { previous.after(row); previous = row; });
+            });
+            pane.querySelectorAll('[data-process-sort]').forEach(button => {
+                const active = button.dataset.processSort === sortColumn;
+                button.closest('th').setAttribute('aria-sort', active ? (sortDirection === 1 ? 'ascending' : 'descending') : 'none');
+                button.querySelector('[data-sort-indicator]').textContent = active ? (sortDirection === 1 ? '↑' : '↓') : '↕';
+            });
+            container.scrollTop = top;
+            container.scrollLeft = left;
+        }
         function notify(message, type) { window.showNotification?.(message, type); }
         function persist() {
             const value = [...open];
@@ -30,10 +69,31 @@
                 children.forEach(row => { row.hidden = !expanded; });
             });
         }
+        sortRows();
+        pane.addEventListener('click', event => {
+            const button = event.target.closest('[data-process-sort]');
+            if (!button) return;
+            sortDirection = sortColumn === button.dataset.processSort ? -sortDirection : 1;
+            sortColumn = button.dataset.processSort;
+            sortChanged = true;
+            sortRows();
+            const value = { column: sortColumn, direction: sortDirection };
+            sortSaveQueue = sortSaveQueue.then(() => window.UserUiSettings.set(scope, sortKey, value, { keepalive: true }))
+                .catch(() => notify('Could not save process sorting.', 'error'));
+        });
+        const loadSort = window.UserUiSettings.get(scope, sortKey, null).then(saved => {
+            // A slow settings response must not replace a choice already made on this page.
+            if (!sortChanged && saved && ['process', 'comment'].includes(saved.column) && [1, -1].includes(saved.direction)) {
+                sortColumn = saved.column;
+                sortDirection = saved.direction;
+                sortRows();
+            }
+        }).catch(() => notify('Could not load process sorting.', 'error'));
         try {
             const saved = await window.UserUiSettings.get(scope, key, []);
             open = new Set(Array.isArray(saved) ? saved.map(String) : []);
         } catch (_) { notify('Could not load open process groups.', 'error'); }
+        await loadSort;
         render();
         pane.addEventListener('click', event => {
             const toggle = event.target.closest('[data-process-group-toggle]');
@@ -44,7 +104,8 @@
             render();
             persist();
         });
-        document.addEventListener('manual-processes-refreshed', render);
+        document.addEventListener('manual-processes-refreshed', () => { sortRows(); render(); });
+        document.addEventListener('manual-process-version-saved', sortRows);
         pane.addEventListener('submit', async event => {
             const form = event.target.closest('[data-manual-process-archive-form]');
             if (!form) return;

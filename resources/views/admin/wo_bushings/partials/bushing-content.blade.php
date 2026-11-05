@@ -84,6 +84,7 @@
             }
         }
     @endphp
+    <link rel="stylesheet" href="{{ asset('css/bushing-attachments.css') }}?v={{ filemtime(public_path('css/bushing-attachments.css')) }}">
     <style>
         .bushing-view-table {
             table-layout: fixed;
@@ -275,6 +276,7 @@
                     <col style="width: {{ $bushingTableColumnWidths['cad'] }};">
                     <col style="width: {{ $bushingTableColumnWidths['anodizing'] }};">
                     <col style="width: {{ $bushingTableColumnWidths['xylan'] }};">
+                    <col style="width: 128px;">
                 </colgroup>
                 <thead class="wo-bush-thead" style="background: #031e3a;">
                     <tr class="header-row">
@@ -287,6 +289,7 @@
                         <th class="text-primary text-center">{{ __('CAD') }}</th>
                         <th class="text-primary text-center">{{ __('Anodizing') }}</th>
                         <th class="text-primary text-center">{{ __('Xylan') }}</th>
+                        <th rowspan="2" class="text-primary text-center align-middle">Files</th>
                     </tr>
                     <tr class="bushing-process-subhead">
                         @php
@@ -505,12 +508,13 @@
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
                                     'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
+                                @include('admin.wo_bushings.partials.attachments', ['component' => $component])
                             </tr>
                         @endforeach
                     @endforeach
                     @if($savedBushingsGrouped->isEmpty())
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-3">
+                            <td colspan="10" class="text-center text-muted py-3">
                                 {{ __('No bushing processes selected.') }}
                             </td>
                         </tr>
