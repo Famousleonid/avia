@@ -46,7 +46,7 @@ class WorkorderStatus
         foreach ($bushings->groupBy(fn ($p) => $p->wo_bushing_line_id.':'.($p->batch->route_number ?? 'legacy-'.$p->batch_id)) as $route) {
             $route = $route->sortBy(fn ($p) => $p->process?->process_name ? $this->bushingOrder($p->process->process_name) : 999999);
             $firstRoute = $route->first();
-            $forecastRoutes->put('Bushing #'.$firstRoute->wo_bushing_line_id.' / ('.$firstRoute->line->component?->ipl_num.') '.$firstRoute->line->component?->part_number.' / B'.($firstRoute->batch->route_number ?? $firstRoute->batch_id), $this->forecast->bushingOperations($route));
+            $forecastRoutes->put('Bushing #'.$firstRoute->wo_bushing_line_id.' / ('.$firstRoute->line->component?->ipl_num.') '.$firstRoute->line->component?->part_number.' / '.($firstRoute->batch->route_label ?: 'B'.($firstRoute->batch->route_number ?? $firstRoute->batch_id)), $this->forecast->bushingOperations($route));
         }
         $bushings = $bushings->filter(fn ($p) => $this->included($p->process?->process_name));
         // The route number identifies a portion across its process-specific batches.
@@ -58,7 +58,7 @@ class WorkorderStatus
             $first = $group->first();
             $c = $first->line->component;
             $pendingProcesses->push(['ipl' => $c?->ipl_num, 'pn' => $c?->part_number, 'name' => $c?->name,
-                'qty' => $group->max('qty'), 'kind' => 'Bushing'.($first->batch->route_number ? ' · B'.$first->batch->route_number : ''),
+                'qty' => $group->max('qty'), 'kind' => 'Bushing'.($first->batch->route_number ? ' · '.($first->batch->route_label ?: 'B'.$first->batch->route_number) : ''),
                 'done' => $group->count() - $pending->count(), 'total' => $group->count(),
                 'pending' => $pending->map(fn ($p) => ['name' => $p->process->process_name->name, 'days' => max(0, (int) $p->process->process_name->std_days),
                     'sent' => (bool) $p->batch->date_start, 'ro' => $p->batch->repair_order,

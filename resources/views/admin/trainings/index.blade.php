@@ -227,6 +227,11 @@
                             {{ __('Total training hours') }}:
                             <span id="trainingTotalHours" class="text-info">{{ number_format($totalHoursAll, $totalHoursAll == floor($totalHoursAll) ? 0 : 1, '.', ' ') }}</span>
                         </span>
+                        <button type="button" class="btn btn-outline-info btn-sm training-week-calendar-btn"
+                                data-user-id="{{ $selectedUserId }}" title="{{ __('Training week calendar') }}"
+                                aria-label="{{ __('Training week calendar') }}">
+                            <i class="bi bi-calendar3" aria-hidden="true"></i>
+                        </button>
                     </div>
                 <div class="d-flex justify-content-between flex-wrap align-items-center gap-2">
                     <div class="flex-grow-1">
@@ -346,8 +351,11 @@
                         <th data-priority="3" data-visible="true" class="text-center align-middle">
                             {{ __('First Training Date') }}
                         </th>
-                        <th data-priority="4" data-visible="true" class="text-center align-middle">
+                        <th data-priority="4" data-visible="true" id="sortLastTrainingDate"
+                            class="text-center align-middle sortable-th" tabindex="0" role="button"
+                            style="cursor: pointer; user-select: none;" title="{{ __('Sort by Last Training Date') }}">
                             {{ __('Last Training Date') }}
+                            <i class="bi bi-arrow-down-up text-muted small ms-1"></i>
                         </th>
                         <th data-priority="5" data-visible="true" class="text-center align-middle">
                             {{ __('Total Hours') }}
@@ -374,6 +382,7 @@
                                 : str_contains(mb_strtolower($searchText), mb_strtolower(trim($trainingSearch)));
                         @endphp
                         <tr data-manual-id="{{ $trainingList['manuals_id'] }}" data-is-due="{{ $trainingList['is_due_for_update'] ? '1' : '0' }}"
+                            data-last-training-date="{{ $trainingList['last_training_112'] ? Carbon::parse($trainingList['last_training_112']->date_training)->format('Y-m-d') : '' }}"
                             data-search-text="{{ $searchText }}" @if(!$searchMatch) style="display: none;" @endif
                             data-is-active="{{ $trainingList['last_training_112'] && $trainingList['days_since_last_training_112'] <= (int) config('trainings.matrix_red_after_days', 350) ? '1' : '0' }}">
                             <td class="text-center">
@@ -907,8 +916,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Сортировка по Component PN
+            // Sort by PN or the actual date, never the formatted date text.
             const sortTh = document.getElementById('sortComponentPn');
+            const dateSortTh = document.getElementById('sortLastTrainingDate');
             const table = document.getElementById('trainingsTable');
 
             if (sortTh && table) {
@@ -916,12 +926,20 @@
                 let saveSort = Promise.resolve();
 
                 function applySort(direction) {
-                    const sortOrder = direction === 'asc' ? 1 : -1;
+                    const byDate = direction.startsWith('date_');
+                    const ascending = direction === 'asc' || direction === 'date_asc';
+                    const sortOrder = ascending ? 1 : -1;
                     const tbody = table.querySelector('tbody');
                     const rows = Array.from(tbody.querySelectorAll('tr'));
                     const componentPnIndex = 1;
 
                     rows.sort(function (a, b) {
+                        if (byDate) {
+                            const aDate = a.dataset.lastTrainingDate || '';
+                            const bDate = b.dataset.lastTrainingDate || '';
+                            if (!aDate || !bDate) return aDate ? -1 : bDate ? 1 : 0;
+                            return sortOrder * aDate.localeCompare(bDate);
+                        }
                         const aVal = (a.cells[componentPnIndex]?.textContent || '').trim();
                         const bVal = (b.cells[componentPnIndex]?.textContent || '').trim();
                         const cmp = aVal.localeCompare(bVal, 'en', { numeric: false, sensitivity: 'base' });
@@ -933,11 +951,12 @@
                         tbody.appendChild(row);
                     });
 
-                    const icon = sortTh.querySelector('i');
-                    if (icon) {
-                        icon.className = (direction === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down') + ' text-muted small ms-1';
-                    }
-                    sortTh.setAttribute('aria-sort', direction === 'asc' ? 'ascending' : 'descending');
+                    [sortTh, dateSortTh].filter(Boolean).forEach(function (header) {
+                        const active = header === (byDate ? dateSortTh : sortTh);
+                        const icon = header.querySelector('i');
+                        if (icon) icon.className = 'bi ' + (active ? (ascending ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up') + ' text-muted small ms-1';
+                        header.setAttribute('aria-sort', active ? (ascending ? 'ascending' : 'descending') : 'none');
+                    });
                 }
                 if (currentSort) applySort(currentSort);
                 sortTh.addEventListener('click', function () {
@@ -945,6 +964,19 @@
                     applySort(direction);
                     saveSort = saveSort.then(() => window.UserUiSettings.set('trainings', 'sort', direction, {keepalive: true}));
                 });
+                if (dateSortTh) {
+                    dateSortTh.addEventListener('click', function () {
+                        const direction = currentSort === 'date_asc' ? 'date_desc' : 'date_asc';
+                        applySort(direction);
+                        saveSort = saveSort.then(() => window.UserUiSettings.set('trainings', 'sort', direction, {keepalive: true}));
+                    });
+                    dateSortTh.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            dateSortTh.click();
+                        }
+                    });
+                }
             }
 
             // Сворачивание секции SCA-курсов (состояние переживает перезагрузку)

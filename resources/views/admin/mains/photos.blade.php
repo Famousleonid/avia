@@ -158,6 +158,7 @@
 
         .photo-thumbnail {
             width: 100%;
+            height: auto;
             aspect-ratio: 1 / 1;
             object-fit: cover;
         }
@@ -228,7 +229,7 @@
 
                 <div class="photos-preview-size small">
                     <label for="photoPreviewSize" class="mb-0">Preview size</label>
-                    <input id="photoPreviewSize" class="form-range" type="range" min="80" max="320" step="8" value="128">
+                    <input id="photoPreviewSize" class="form-range" type="range" min="0" max="4" step="1" value="1" aria-valuetext="128 px">
                     <output id="photoPreviewSizeValue" for="photoPreviewSize">128 px</output>
                 </div>
 

@@ -191,6 +191,7 @@ window.TdrshowConfig1InitTransfers = function () {
 @include('admin.transfers._unit-on-po-edit-script')
 };
 </script>
+<script src="{{ asset('js/quantum-traveler-rebind.js') }}?v={{ filemtime(public_path('js/quantum-traveler-rebind.js')) }}"></script>
 <script src="{{ asset('js/tdrs/show/tabs.js') }}?v={{ filemtime(public_path('js/tdrs/show/tabs.js')) }}"></script>
 <script src="{{ asset('js/tdrs/show/workorder-form-handler.js') }}"></script>
 <script src="{{ asset('js/tdrs/show/pdf-badge-handler.js') }}"></script>

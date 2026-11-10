@@ -20,6 +20,12 @@
     phoneCamera.textContent = 'Use phone camera';
     phoneCamera.hidden = true;
     capture.parentElement.insertBefore(phoneCamera, capture);
+    const zoomButton = document.createElement('button');
+    zoomButton.id = 'pilotCameraZoom';
+    zoomButton.type = 'button';
+    zoomButton.className = 'btn btn-outline-light';
+    zoomButton.hidden = true;
+    capture.parentElement.insertBefore(zoomButton, capture);
     const phoneInput = document.createElement('input');
     phoneInput.type = 'file';
     phoneInput.accept = 'image/*';
@@ -31,7 +37,7 @@
     // Create the overlay here so updating /public also supports older Blade HTML.
     const categoryLabel = document.createElement('p');
     categoryLabel.id = 'pilotCameraCategory';
-    dialog.appendChild(categoryLabel);
+    stage.appendChild(categoryLabel);
     const accessHelp = document.getElementById('pilotCameraAccessHelp');
     const allow = document.getElementById('pilotCameraAllow');
     const regular = document.getElementById('pilotCameraRegular');
@@ -64,11 +70,136 @@
     let confirming = false;
     let videoFrameCallback = null;
     let videoSize = '';
-    let rotationRecoveryTimer = null;
-    let landscapeRestarted = false;
     let viewportLandscape = window.matchMedia('(orientation: landscape)').matches;
-    const ROTATE_MESSAGE = 'Turn your phone horizontally';
-    const FRAME_ROTATE_MESSAGE = 'Adjusting camera for landscape…';
+    const MAX_ZOOM = 4;
+    let zoom = null;
+    let pinch = null;
+
+    function updateZoomLabel() {
+        zoomButton.textContent = `${(zoom?.applied || 1).toFixed(1)}×`;
+        zoomButton.title = `${zoom?.hardware ? 'Camera zoom' : 'Digital zoom (reduced detail)'}. Pinch to zoom; tap to reset.`;
+        zoomButton.setAttribute('aria-label', `${zoomButton.textContent} zoom. Reset zoom`);
+        zoomButton.hidden = state !== 'live' || !zoom;
+    }
+
+    function configureZoom(track) {
+        zoom = { track, hardware: false, base: 1, max: MAX_ZOOM, step: 0, requested: 1, applied: 1, digital: 1, busy: false };
+        try {
+            const range = track.getCapabilities?.().zoom;
+            const current = Number(track.getSettings?.().zoom);
+            if (range && Number.isFinite(range.min) && Number.isFinite(range.max) && range.min > 0
+                && Number.isFinite(current) && current >= range.min && current < range.max && track.applyConstraints) {
+                zoom.hardware = true;
+                zoom.base = current;
+                zoom.min = range.min;
+                zoom.step = Number(range.step) || 0;
+                zoom.max = Math.min(MAX_ZOOM, range.max / current);
+            }
+        } catch (_) { /* Optional capabilities must never prevent camera use. */ }
+        fitLiveVideo();
+        updateZoomLabel();
+    }
+
+    async function applyCameraZoom(active) {
+        if (active.busy) return;
+        active.busy = true;
+        refreshCapture();
+        try {
+            while (zoom === active && Math.abs(active.requested - active.applied) > .001) {
+                const desired = active.requested;
+                const constraints = { ...(active.track.getConstraints?.() || {}) };
+                delete constraints.zoom;
+                const advanced = (constraints.advanced || []).map(item => {
+                    const copy = { ...item }; delete copy.zoom; return copy;
+                });
+                await active.track.applyConstraints({ ...constraints, advanced: [...advanced, { zoom: desired * active.base }] });
+                if (zoom !== active) return;
+                const actual = Number(active.track.getSettings?.().zoom) / active.base;
+                if (!Number.isFinite(actual) || Math.abs(actual - desired) > Math.max(.02, active.step / active.base)) {
+                    throw new Error('Zoom was not applied');
+                }
+                active.applied = actual;
+                // A device may quantize the requested value to its supported step.
+                if (active.requested === desired) active.requested = actual;
+                updateZoomLabel();
+            }
+        } catch (_) {
+            if (zoom !== active) return;
+            let actual = NaN;
+            try { actual = Number(active.track.getSettings?.().zoom) / active.base; } catch (_) { /* Keep the last confirmed zoom. */ }
+            if (Math.abs(actual - 1) < .001) {
+                // A browser may advertise zoom but ignore/reject the constraint.
+                active.hardware = false;
+                active.max = MAX_ZOOM;
+                active.digital = active.applied = active.requested;
+                fitLiveVideo();
+            } else {
+                if (Number.isFinite(actual) && actual >= 1) active.applied = actual;
+                active.requested = active.applied;
+                window.showNotification?.('Camera zoom could not change. The current zoom has been kept.', 'warning');
+                const notification = document.querySelector('.notify-status');
+                if (notification) dialog.appendChild(notification);
+            }
+        } finally {
+            if (zoom === active) {
+                active.busy = false;
+                stableAfter = Math.max(stableAfter, performance.now() + 250);
+                updateZoomLabel();
+                refreshCapture();
+                window.clearTimeout(refreshTimer);
+                refreshTimer = window.setTimeout(refreshCapture, 300);
+            }
+        }
+    }
+
+    function setZoom(value) {
+        if (!zoom || state !== 'live') return;
+        let next = Math.max(1, Math.min(zoom.max, value));
+        if (zoom.hardware && zoom.step > 0) {
+            next = Math.max(1, Math.min(zoom.max,
+                (zoom.min + Math.round((next * zoom.base - zoom.min) / zoom.step) * zoom.step) / zoom.base));
+        }
+        zoom.requested = next;
+        if (zoom.hardware) void applyCameraZoom(zoom);
+        else {
+            zoom.digital = zoom.applied = next;
+            fitLiveVideo();
+            updateZoomLabel();
+        }
+    }
+
+    function pinchDistance(touches) {
+        return Math.hypot(touches[1].clientX - touches[0].clientX, touches[1].clientY - touches[0].clientY);
+    }
+    stage.addEventListener('touchstart', event => {
+        if (state !== 'live' || !zoom || event.touches.length !== 2) { pinch = null; return; }
+        event.preventDefault();
+        pinch = { distance: pinchDistance(event.touches), zoom: zoom.requested,
+            ids: Array.from(event.touches, touch => touch.identifier).join(':') };
+        refreshCapture();
+    }, { passive: false });
+    stage.addEventListener('touchmove', event => {
+        if (!pinch || state !== 'live' || event.touches.length !== 2) return;
+        event.preventDefault();
+        if (pinch.ids !== Array.from(event.touches, touch => touch.identifier).join(':')) { pinch = null; return; }
+        if (pinch.distance > 0) setZoom(pinch.zoom * pinchDistance(event.touches) / pinch.distance);
+    }, { passive: false });
+    ['touchend', 'touchcancel'].forEach(name => stage.addEventListener(name, () => {
+        pinch = null;
+        refreshCapture();
+    }));
+    zoomButton.addEventListener('click', () => setZoom(1));
+
+    // Crop in the source's upright coordinate system; never rotate pixels to
+    // manufacture landscape dimensions. Both the viewfinder and JPEG use this.
+    function landscapeCrop(width, height, digital = 1) {
+        const baseHeight = Math.min(height, width * 3 / 4);
+        const units = Math.floor(baseHeight / 3);
+        const cropHeight = baseHeight / digital;
+        const cropWidth = cropHeight * 4 / 3;
+        return { x: (width - cropWidth) / 2, y: (height - cropHeight) / 2,
+            width: cropWidth, height: cropHeight, outputWidth: units * 4, outputHeight: units * 3 };
+    }
 
     function fitLiveVideo() {
         if (!dialog.open || !video.videoWidth || !video.videoHeight) return;
@@ -77,8 +208,9 @@
         videoSize = `${video.videoWidth}:${video.videoHeight}`;
         // Size the element itself to cover its clipping parent. This avoids a
         // second object-fit scaling step in the native video layer on rotation.
-        // Capture still uses the complete, original videoWidth/videoHeight.
-        const scale = Math.max(bounds.width / video.videoWidth, bounds.height / video.videoHeight);
+        // Digital zoom uses the same centred crop here and in the saved JPEG.
+        const crop = landscapeCrop(video.videoWidth, video.videoHeight, zoom?.digital || 1);
+        const scale = bounds.width / crop.width;
         const width = `${video.videoWidth * scale}px`;
         const height = `${video.videoHeight * scale}px`;
         if (video.style.width === width && video.style.height === height) return;
@@ -105,11 +237,12 @@
     function setStatus(message = '') {
         status.textContent = message;
         status.hidden = !message;
-        status.classList.toggle('is-orientation-warning', message === ROTATE_MESSAGE);
     }
 
     function setState(next, message) {
         state = next;
+        if (next !== 'live') pinch = null;
+        updateZoomLabel();
         dialog.dataset.state = next;
         dialog.dataset.permissionDenied = 'false';
         accessHelp.hidden = true;
@@ -137,8 +270,9 @@
 
     function stopCamera() {
         cameraRequest++;
-        window.clearTimeout(rotationRecoveryTimer);
-        rotationRecoveryTimer = null;
+        zoom = null;
+        pinch = null;
+        updateZoomLabel();
         if (videoFrameCallback !== null) {
             cancelAnimationFrame(videoFrameCallback);
             videoFrameCallback = null;
@@ -171,69 +305,41 @@
     }
 
     function captureBlocker() {
-        if (!window.matchMedia('(orientation: landscape)').matches) {
-            return ROTATE_MESSAGE;
-        }
         if (document.hidden || !stream || !stream.getVideoTracks().some(track => track.readyState === 'live' && !track.muted)) {
             return 'Camera is not ready. Wait or close and reopen it.';
         }
         if (video.paused || video.ended) return 'Camera preview paused. Tap Start preview.';
-        if (performance.now() < stableAfter || video.readyState < 2 || !video.videoWidth) {
+        if (pinch || zoom?.busy) return 'Hold still while the camera adjusts…';
+        if (performance.now() < stableAfter || video.readyState < 2 || video.videoWidth < 4 || video.videoHeight < 3) {
             return 'Hold still while the camera adjusts…';
-        }
-        if (video.videoWidth <= video.videoHeight) {
-            return landscapeRestarted
-                ? 'Use phone camera to take a landscape photo.'
-                : FRAME_ROTATE_MESSAGE;
         }
         return '';
     }
 
     function refreshCapture() {
         if (state === 'native') {
-            capture.disabled = !window.matchMedia('(orientation: landscape)').matches;
-            dialog.dataset.blocked = String(capture.disabled);
-            setStatus(capture.disabled ? ROTATE_MESSAGE : 'Tap the camera button to take a photo.');
+            capture.disabled = false;
+            dialog.dataset.blocked = 'false';
+            setStatus('Tap the camera button to take a photo.');
             return;
         }
         if (state !== 'live') return;
+        updateZoomLabel();
         const reason = captureBlocker();
         capture.disabled = !!reason;
         dialog.dataset.blocked = String(!!reason);
         setStatus(reason);
-        const needsRestart = landscapeRestarted && video.videoWidth > 0
-            && video.videoWidth <= video.videoHeight
-            && window.matchMedia('(orientation: landscape)').matches;
-        resume.hidden = !needsRestart;
-        phoneCamera.hidden = !needsRestart;
-        // Two recovery actions fit short landscape screens; an unusable shutter
-        // would otherwise push the top action into the close button.
-        capture.hidden = needsRestart;
-        if (needsRestart) resume.textContent = 'Restart camera';
-        if (reason === FRAME_ROTATE_MESSAGE && rotationRecoveryTimer === null) {
-            const request = cameraRequest;
-            // Let ordinary camera rotation settle first. Some Android browsers
-            // retain the portrait stream until it is acquired again in landscape.
-            rotationRecoveryTimer = window.setTimeout(() => {
-                rotationRecoveryTimer = null;
-                if (request !== cameraRequest || state !== 'live' || document.hidden) return;
-                if (captureBlocker() !== FRAME_ROTATE_MESSAGE) { refreshCapture(); return; }
-                landscapeRestarted = true;
-                startCamera(false, true);
-            }, 1000);
-        } else if (reason !== FRAME_ROTATE_MESSAGE) {
-            window.clearTimeout(rotationRecoveryTimer);
-            rotationRecoveryTimer = null;
-        }
+        resume.hidden = true;
+        phoneCamera.hidden = true;
+        capture.hidden = false;
     }
 
     function orientationChanged() {
         const landscape = window.matchMedia('(orientation: landscape)').matches;
         // Video resize/playing and browser-toolbar resizes are not new turns.
-        // Limit automatic recovery to one attempt per actual orientation change.
         if (landscape !== viewportLandscape) {
+            pinch = null;
             viewportLandscape = landscape;
-            landscapeRestarted = false;
         }
         fitLiveVideo();
         orientationVersion++;
@@ -270,6 +376,8 @@
             // another permission request or replacing an already allowed stream.
             await video.play();
             if (request !== cameraRequest) return;
+            const track = stream?.getVideoTracks()[0];
+            if (track && zoom?.track !== track) configureZoom(track);
             stableAfter = performance.now() + 500;
             setState('live');
             refreshTimer = window.setTimeout(refreshCapture, 550);
@@ -284,8 +392,7 @@
         }
     }
 
-    async function startCamera(permissionRetry = false, orientationRecovery = false) {
-        if (!orientationRecovery) landscapeRestarted = false;
+    async function startCamera(permissionRetry = false) {
         stopCamera();
         accessResult.hidden = true;
         accessResult.textContent = '';
@@ -294,27 +401,10 @@
             return;
         }
         const request = cameraRequest;
-        setState('opening', orientationRecovery ? FRAME_ROTATE_MESSAGE : 'Allow camera access when your phone asks.');
+        setState('opening', 'Allow camera access when your phone asks.');
         try {
             const constraints = { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } };
-            if (orientationRecovery) {
-                constraints.aspectRatio = { ideal: 4 / 3 };
-                // Ask for an uncropped camera mode, instead of reacquiring the
-                // same browser crop/scale mode that may remain stuck in portrait.
-                if (navigator.mediaDevices.getSupportedConstraints?.().resizeMode) {
-                    constraints.resizeMode = { exact: 'none' };
-                }
-            }
-            let acquired;
-            try {
-                acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: constraints });
-            } catch (error) {
-                if (!orientationRecovery || error.name !== 'OverconstrainedError') throw error;
-                if (request !== cameraRequest || state === 'closed' || document.hidden) return;
-                // Optional camera-mode negotiation must not exclude a browser
-                // that can only provide its default mode. Never retry a denial.
-                acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' } } });
-            }
+            const acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: constraints });
             if (request !== cameraRequest || state === 'closed' || document.hidden) {
                 acquired.getTracks().forEach(track => track.stop());
                 return;
@@ -394,16 +484,19 @@
         const current = session;
         const orientation = orientationVersion;
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        const crop = landscapeCrop(video.videoWidth, video.videoHeight, zoom?.digital || 1);
+        canvas.width = crop.outputWidth;
+        canvas.height = crop.outputHeight;
         setState('capturing', 'Preparing photo…');
         try {
-            canvas.getContext('2d').drawImage(video, 0, 0);
+            canvas.getContext('2d').drawImage(video,
+                crop.x, crop.y, crop.width, crop.height,
+                0, 0, canvas.width, canvas.height);
             const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.94));
             if (current !== session) return;
             if (!blob) throw new Error('The camera could not prepare this photo. Try again.');
-            // Reject a capture racing a rotation; never crop or rotate a portrait frame to bypass the rule.
-            if (orientation !== orientationVersion || !window.matchMedia('(orientation: landscape)').matches || canvas.width <= canvas.height) {
+            // A turn during encoding invalidates the old framing, in either direction.
+            if (orientation !== orientationVersion || canvas.width <= canvas.height) {
                 returnToCamera();
                 return;
             }
@@ -462,10 +555,6 @@
     close.addEventListener('click', requestClose);
     function openPhoneCamera() {
         if (frame || confirming || ['closed', 'saving', 'capturing', 'review'].includes(state)) return;
-        if (!window.matchMedia('(orientation: landscape)').matches) {
-            setStatus(ROTATE_MESSAGE);
-            return;
-        }
         phoneMode = true;
         stopCamera(); // Release the camera before the system camera needs it.
         setState('native');
@@ -484,15 +573,33 @@
         frameUrl = URL.createObjectURL(selected);
         preview.src = frameUrl;
         setState('review', 'Checking photo… Photo not saved.');
+        const canvas = document.createElement('canvas');
         try {
-            if (typeof window.MobileLandscapePhoto?.validateFiles !== 'function') throw new Error('Photo validation is unavailable.');
-            const valid = await window.MobileLandscapePhoto.validateFiles([selected]);
+            // Only the Test camera fallback is cropped. HTML image decoding
+            // respects EXIF orientation before we choose the upright crop.
+            const image = new Image();
+            image.src = frameUrl;
+            await image.decode();
             if (current !== session || frame !== selected) return;
-            frameValid = valid;
-            setState('review', valid ? 'Photo not saved.' : 'Photo not saved. Take a new photo horizontally.');
+            const crop = landscapeCrop(image.naturalWidth, image.naturalHeight);
+            canvas.width = crop.outputWidth;
+            canvas.height = crop.outputHeight;
+            canvas.getContext('2d').drawImage(image, crop.x, crop.y, crop.width, crop.height,
+                0, 0, canvas.width, canvas.height);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.94));
+            if (current !== session || frame !== selected) return;
+            if (!blob || !canvas.height || canvas.width <= canvas.height) throw new Error('Invalid photo');
+            releaseFrame();
+            frame = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+            frameUrl = URL.createObjectURL(frame);
+            preview.src = frameUrl;
+            frameValid = true;
+            setState('review', 'Photo not saved.');
         } catch (error) {
             if (current !== session || frame !== selected) return;
             setState('review', 'Photo not saved. This image could not be checked. Retake it as a JPEG photo.');
+        } finally {
+            canvas.width = canvas.height = 0;
         }
     });
     dialog.addEventListener('cancel', event => {
@@ -505,8 +612,6 @@
     resume.addEventListener('click', () => {
         if (state === 'playback' && stream?.getVideoTracks().some(track => track.readyState === 'live')) startPreview();
         else if (['paused', 'error', 'playback'].includes(state)) startCamera();
-        else if (state === 'live' && landscapeRestarted && video.videoWidth <= video.videoHeight
-            && window.matchMedia('(orientation: landscape)').matches) startCamera(false, true);
     });
     allow.addEventListener('click', () => {
         // A user gesture retries the browser request; a remembered Deny still

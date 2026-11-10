@@ -70,7 +70,26 @@
                     event.stopPropagation();
                     badge.hidden = true;
                     select.hidden = false;
-                    select.focus();
+                    select.focus({ preventScroll: true });
+                    // Open while the badge click still provides user activation.
+                    try {
+                        if (typeof select.showPicker === 'function') {
+                            select.showPicker();
+                        } else {
+                            select.size = select.options.length;
+                            select.style.height = 'auto';
+                        }
+                    } catch (error) {
+                        select.size = select.options.length;
+                        select.style.height = 'auto';
+                    }
+                });
+                select.addEventListener('keydown', event => {
+                    if (event.key === 'Escape') {
+                        event.stopPropagation();
+                        sync(checkbox);
+                        badge.focus({ preventScroll: true });
+                    }
                 });
                 select.addEventListener('click', event => event.stopPropagation());
                 select.addEventListener('change', () => sync(checkbox));
@@ -80,6 +99,8 @@
             }
             const select = control.querySelector('select');
             const badge = control.querySelector('button');
+            select.size = 0;
+            select.style.height = '';
             if (checkbox.checked && !select.value) {
                 const worn = window.BushingReplacementCodes.codes.find(code => code.code === 'K');
                 if (worn) select.value = String(worn.id);

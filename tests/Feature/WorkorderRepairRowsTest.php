@@ -11,6 +11,50 @@ class WorkorderRepairRowsTest extends TestCase
 {
     use BuildsDomainData, DatabaseTransactions;
 
+    public function test_first_open_freezes_tdr_rows_even_without_saving_and_empty_snapshot_stays_empty(): void
+    {
+        $this->actingAs($this->createUserWithRole('Admin'));
+        $wo = $this->createWorkorder();
+        $part = $this->createComponent($wo->unit->manual, ['name' => 'Snapshot piston', 'ipl_num' => '3-425']);
+        $repair = Necessary::firstOrCreate(['name' => 'Repair']);
+        $data = ['workorder_id' => $wo->id, 'component_id' => $part->id,
+            'necessaries_id' => $repair->id, 'qty' => 1, 'use_tdr' => true];
+        $tdr = Tdr::create($data);
+        $this->get(route('rm_reports.partial', $wo))->assertOk();
+        $this->assertCount(1, json_decode($wo->fresh()->rm_report, true)['tdr_snapshot']);
+        $tdr->delete();
+        $part->update(['name' => 'Changed in manual']);
+        Tdr::create($data);
+        $this->get(route('rm_reports.partial', $wo))->assertOk();
+        $rows = app(WorkorderRepairRows::class)->rows($wo->fresh(), collect())->all();
+        $this->assertCount(1, $rows);
+        $this->assertSame('Snapshot piston', $rows[0]['part_description']);
+        $this->assertSame('tdr:'.$tdr->id, $rows[0]['key']);
+        $rows[0]['description'] = 'Independent repair';
+        $payload = ['workorder_id' => $wo->id, 'selected_records' => '[]', 'editor_rows' => $rows];
+        $this->putJson(route('rm_reports.update', $wo), $payload)->assertOk();
+        $this->get(route('rm_reports.rmRecordForm', $wo))->assertOk()->assertSee('Independent repair');
+        $payload['editor_rows'][0]['deleted'] = true;
+        $this->putJson(route('rm_reports.update', $wo), $payload)->assertOk();
+        $this->get(route('rm_reports.rmRecordForm', $wo))->assertOk()->assertDontSee('Snapshot piston');
+        $empty = $this->createWorkorder();
+        $this->get(route('rm_reports.partial', $empty))->assertOk();
+        Tdr::create(array_replace($data, ['workorder_id' => $empty->id]));
+        $this->assertCount(0, app(WorkorderRepairRows::class)->rows($empty->fresh(), collect()));
+    }
+
+    public function test_legacy_saved_tdr_rows_survive_missing_source_and_keep_notes(): void
+    {
+        $wo = $this->createWorkorder();
+        $row = ['key' => 'tdr:99999999', 'ipl' => '1-65', 'part_description' => 'Legacy saved part',
+            'mod_repair' => 'Repair', 'description' => 'Saved repair', 'ident_method' => '',
+            'ident_number' => '', 'deleted' => false];
+        $wo->update(['rm_report' => json_encode(['editor_rows' => [$row], 'technical_notes' => ['Keep note']])]);
+        app(WorkorderRepairRows::class)->initialize($wo);
+        $this->assertEquals($row, app(WorkorderRepairRows::class)->rows($wo, collect())->first());
+        $this->assertSame(['Keep note'], json_decode($wo->fresh()->rm_report, true)['technical_notes']);
+    }
+
     public function test_technical_notes_allow_256_characters_but_reject_257(): void
     {
         $admin = $this->createUserWithRole('Admin');

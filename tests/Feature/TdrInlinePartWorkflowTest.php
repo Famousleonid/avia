@@ -111,7 +111,7 @@ class TdrInlinePartWorkflowTest extends TestCase
         ]);
         $code = Code::query()->firstOrCreate(['name' => 'Corroded'], ['code' => 'COR']);
         $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
-        LogCard::query()->create([
+        $logCard = LogCard::query()->create([
             'workorder_id' => $workorder->id,
             'component_data' => json_encode([
                 ['component_id' => $component->id, 'serial_number' => 'LC-SN-102'],
@@ -121,6 +121,17 @@ class TdrInlinePartWorkflowTest extends TestCase
         $show = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
         $show->assertOk();
         $show->assertSee('"'.$component->id.'":"LC-SN-102"', false);
+
+        // The page stays open while Log Card is edited: return the current map
+        // on every successful save, including clearing a previously saved S/N.
+        foreach (['UPDATED-SN', '', 'LC-SN-102'] as $serial) {
+            $response = $this->patchJson(route('log_card.inline_field.update', $logCard), [
+                'row' => 0,
+                'field' => 'serial_number',
+                'value' => $serial,
+            ])->assertOk();
+            $this->assertEquals($serial === '' ? [] : [$component->id => $serial], $response->json('serials_by_component'));
+        }
 
         $this->actingAs($admin)
             ->postJson(route('tdrs.store'), [

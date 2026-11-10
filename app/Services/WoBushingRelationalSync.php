@@ -14,14 +14,22 @@ class WoBushingRelationalSync
 {
     public function editState(WoBushing $bushing): array
     {
-        $lines = $bushing->lines()->with(['component', 'processes.process.process_name',
+        $lines = $bushing->lines()->with(['component' => fn ($q) => $q->withTrashed()->with('manual'), 'processes.process.process_name',
             'processes' => fn ($q) => $q->withCount('machiningWorkSteps'),
             'processes.batch' => fn ($q) => $q->withCount('machiningWorkSteps')])->orderBy('id')->get();
-        $protected = app(BushingRouteBatches::class)->protectedLineIds($lines);
+        $workorder = $bushing->workorder()->with('unit')->firstOrFail();
+        $manualId = (int) $workorder->unit?->manual_id;
+        // Catalogue changes do not revoke assignments made under the old CMM.
+        // Keep them read-only until an explicit, reviewed migration is made.
+        $retained = $lines->filter(fn ($line) => !$line->component
+            || (int) $line->component->manual_id !== $manualId)->pluck('id')->all();
+        $protected = array_values(array_unique(array_merge(
+            app(BushingRouteBatches::class)->protectedLineIds($lines), $retained
+        )));
         $snapshot = $lines->map(fn ($line) => [$line->getAttributes(),
             $line->processes->sortBy('id')->map(fn ($p) => [$p->getAttributes(), $p->batch?->getAttributes()])->values()->all()])->all();
-        return ['lines' => $lines, 'protected' => $protected,
-            'token' => hash('sha256', serialize($snapshot))];
+        return ['lines' => $lines, 'protected' => $protected, 'retained' => $retained,
+            'token' => hash('sha256', serialize([$workorder->unit_id, $manualId, $snapshot]))];
     }
 
     /** @return list<string> */
@@ -145,10 +153,13 @@ class WoBushingRelationalSync
                 ->whereNotIn('component_id', $existingLines->pluck('component_id'))
                 ->with(['processes.process.process_name', 'processes.batch'])->get());
             $routeBatches = app(BushingRouteBatches::class);
-            $protectedIds = $routeBatches->protectedLineIds($existingLines);
+            $protectedIds = array_values(array_unique(array_merge(
+                $routeBatches->protectedLineIds($existingLines), $state['retained']
+            )));
+            $retainedComponents = $existingLines->whereIn('id', $state['retained'])->pluck('component_id')->all();
             $protectedComponents = $existingLines->whereIn('id', $protectedIds)->pluck('component_id')->all();
             if ($validateQuantities) {
-                $validateQuantities($existingLines->whereIn('id', $protectedIds));
+                $validateQuantities($existingLines->whereIn('id', $protectedIds)->whereNotIn('id', $state['retained']));
             }
             foreach ($existingLines as $oldLine) {
                 if (in_array($oldLine->id, $protectedIds)) continue;
@@ -183,6 +194,9 @@ class WoBushingRelationalSync
                 }
                 foreach ($this->normalizeGroupRows($groupData) as $rowData) {
                     $componentId = (int) $rowData['component_id'];
+                    if (in_array($componentId, $retainedComponents, true)) {
+                        continue;
+                    }
                     if ($draftToken === null && in_array($componentId, $protectedComponents)) {
                         $sortOrder++;
                         continue;
@@ -198,6 +212,7 @@ class WoBushingRelationalSync
                             : $existingLines->whereNotIn('id', $protectedIds)->firstWhere('component_id', $componentId)?->codes_id,
                         'qty' => $qty,
                         'qty_remaining' => $qty,
+                        'manual_route_number' => $existingLines->firstWhere('component_id', $componentId)?->manual_route_number,
                         'do_not_order' => (bool) $rowData['do_not_order'],
                         'group_key' => is_string($groupKey) ? $groupKey : (string) $groupKey,
                         'sort_order' => $sortOrder++,
@@ -271,7 +286,7 @@ class WoBushingRelationalSync
                     }
                 }
             }
-            $routeBatches->rebuild($woBushing);
+            $routeBatches->rebuild($woBushing, $state['retained']);
             $selection = app(WorkorderBushingSelection::class);
             $workorder = $woBushing->workorder;
             foreach ($selection->families($workorder) as $key => $family) {

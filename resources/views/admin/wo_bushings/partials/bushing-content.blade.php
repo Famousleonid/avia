@@ -17,6 +17,12 @@
 @endphp
 @if($woBushing && ($linesExist ?? !empty($bushData)))
     @php
+        // The saved view follows assignments, not the current CMM's picker.
+        $savedComponents = \App\Models\Component::withTrashed()->with('manual')
+            ->whereIn('id', collect($bushData)->pluck('bushing'))->get()->keyBy('id');
+        $savedProcessIds = collect($bushData)->flatMap(fn ($item) => collect($item['processes'] ?? [])->flatten())
+            ->filter()->unique();
+        $savedProcesses = \App\Models\Process::with('process_name')->whereIn('id', $savedProcessIds)->get()->keyBy('id');
         $machiningProcessName = \App\Models\ProcessName::whereIdentityNames(\App\Models\ProcessName::BUSHING_MACHINING_NAMES)->orderBy('id')->first();
         $stressReliefProcessName = null;
         $assignedNdtProcessIds = collect($bushData ?? [])
@@ -264,6 +270,12 @@
         }
     </style>
     <div class="w-100 bushing-table-outer">
+        <div class="d-flex justify-content-end mb-1">
+            <button type="button" class="btn btn-sm btn-outline-info js-bushing-split"
+                    data-url="{{ route('wo_bushings.batches.split', $woBushing) }}"
+                    title="Select bushings from one batch, then split them into a separate shipment">Split batch</button>
+        </div>
+        <script src="{{ asset('js/wo-bushings/split-batch.js') }}?v={{ filemtime(public_path('js/wo-bushings/split-batch.js')) }}"></script>
         <div class="table-wrapper table-scroll-container w-100 bushing-table-wrapper">
             <table class="table-sm table-hover align-middle table-bordered bg-gradient dir-table bushing-view-table w-100">
                 <colgroup>
@@ -354,7 +366,7 @@
                                     continue;
                                 }
 
-                                $component = $bushings->flatten()->firstWhere('id', $bushItem['bushing']);
+                                $component = $savedComponents->get($bushItem['bushing']);
                                 if($component) {
                                     $groupKey = $bushItem['group_key'] ?? null;
                                     if ($groupKey === null || $groupKey === '') {
@@ -420,22 +432,30 @@
                                 $lineId = (int) ($savedBushing['line_id'] ?? 0);
                                 $data = $savedBushing['data'];
                                 $assignments = $lineId > 0 ? ($processAssignments[$lineId] ?? []) : [];
-                                $machiningProcess = $machiningProcesses->firstWhere('id', $data['machining'] ?? null);
-                                $stressReliefProcess = $stressReliefProcesses->firstWhere('id', $data['stress_relief'] ?? null);
+                                $machiningProcess = $savedProcesses->get($data['machining'] ?? null);
+                                $stressReliefProcess = $savedProcesses->get($data['stress_relief'] ?? null);
                                 $ndtIds = isset($data['ndt']) ? (array)$data['ndt'] : [];
                                 $ndtNames = [];
+                                $ndtDetails = [];
                                 foreach ($ndtIds as $ndtId) {
-                                    $ndtProc = $ndtProcesses->firstWhere('id', $ndtId);
-                                    if ($ndtProc) { $ndtNames[] = $ndtProc->process_name->name; }
+                                    $ndtProc = $savedProcesses->get($ndtId);
+                                    if ($ndtProc) {
+                                        $ndtNames[] = $ndtProc->process_name->name;
+                                        $ndtDetails[] = $ndtProc->process_name->name.': '.$ndtProc->process;
+                                    }
                                 }
-                                $passivationProcess = $passivationProcesses->firstWhere('id', $data['passivation'] ?? null);
-                                $cadProcess = $cadProcesses->firstWhere('id', $data['cad'] ?? null);
-                                $anodizingProcess = $anodizingProcesses->firstWhere('id', $data['anodizing'] ?? null);
-                                $xylanProcess = $xylanProcesses->firstWhere('id', $data['xylan'] ?? null);
+                                $passivationProcess = $savedProcesses->get($data['passivation'] ?? null);
+                                $cadProcess = $savedProcesses->get($data['cad'] ?? null);
+                                $anodizingProcess = $savedProcesses->get($data['anodizing'] ?? null);
+                                $xylanProcess = $savedProcesses->get($data['xylan'] ?? null);
                             @endphp
                             <tr>
                                 <td class="bushing-col"><span class="bushing-ipl">{{ $component->ipl_num }}</span> —
-                                    <span class="text-muted bushing-part-number">{{ $component->part_number }}</span></td>
+                                    <span class="text-muted bushing-part-number">{{ $component->part_number }}</span>
+                                    @if((int) $component->manual_id !== (int) $current_wo->unit->manual_id)
+                                        <div class="small text-warning">{{ __('Saved under') }} {{ $component->manual?->number }}</div>
+                                    @endif
+                                </td>
                                 <td class="text-center bushing-col-qty">{{ $data['qty'] ?? '-' }}</td>
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -463,7 +483,7 @@
                                     'process' => null,
                                     'ndtNames' => $ndtNames,
                                     'assignment' => $assignments['ndt'] ?? null,
-                                    'detailTitle' => count($ndtNames) ? implode(' / ', $ndtNames) : '',
+                                    'detailTitle' => implode(' / ', $ndtDetails),
                                     'batchLabel' => $batchLabelsByProcess['ndt'][(int) (($assignments['ndt']['batch_id'] ?? 0))] ?? 'B',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
                                     'retLabelsByProcess' => $retLabelsByProcess,

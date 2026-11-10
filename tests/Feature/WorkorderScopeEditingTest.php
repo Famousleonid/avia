@@ -284,6 +284,76 @@ class WorkorderScopeEditingTest extends TestCase
         $this->assertSame($root->id, (int) $workorder->scope_component_id);
     }
 
+    public function test_failed_unit_change_keeps_submitted_unit_manual_and_part_identity_in_edit_form(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $oldManual = $this->createManual(['number' => 'QA-15RM']);
+        $newManual = $this->createManual(['number' => 'QA-14RM']);
+        $oldUnit = $this->createUnit(['manual_id' => $oldManual->id, 'part_number' => 'SHARED-PN']);
+        $newUnit = $this->createUnit(['manual_id' => $newManual->id, 'part_number' => 'SHARED-PN']);
+        $oldPart = $this->createComponent($oldManual);
+        $instruction = $this->createInstruction(['name' => 'Repair '.uniqid()]);
+        $customer = $this->createCustomer();
+        $workorder = $this->createWorkorder([
+            'unit_id' => $oldUnit->id, 'customer_id' => $customer->id,
+            'instruction_id' => $instruction->id, 'user_id' => $admin->id,
+        ]);
+
+        // Reproduce a stale Parts choice from the previous manual.
+        $this->actingAs($admin)->from(route('workorders.edit', $workorder))
+            ->put(route('workorders.update', $workorder), $this->updatePayload(
+                $workorder, $newUnit, $customer->id, $instruction->id, $admin->id,
+                ['scope_type' => 'part_assembly', 'scope_target_id' => 'component:'.$oldPart->id]
+            ))->assertSessionHasErrors('scope_target_id');
+
+        $response = $this->get(route('workorders.edit', $workorder))->assertOk();
+        $document = new \DOMDocument();
+        @$document->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($document);
+        $option = $xpath->query('//select[@id="unit_id"]/option[@selected]')->item(0);
+        $this->assertSame((string) $newUnit->id, $option->getAttribute('value'));
+        $this->assertSame((string) $newManual->id, $option->getAttribute('data-manual-id'));
+        $this->assertSame('SHARED-PN', $option->getAttribute('data-part-number'));
+        $this->assertStringContainsString('QA-14RM', $option->textContent);
+        $this->assertStringNotContainsString('QA-15RM', $option->textContent);
+        $this->assertSame(1, $xpath->query('//select[@id="unit_id"]/option[@value="'.$newUnit->id.'"]')->length);
+        $this->assertSame($oldUnit->id, (int) $workorder->fresh()->unit_id);
+    }
+
+    public function test_switching_units_with_same_part_number_saves_the_selected_manual_and_its_assy(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $oldManual = $this->createManual();
+        $newManual = $this->createManual();
+        $oldUnit = $this->createUnit(['manual_id' => $oldManual->id, 'part_number' => 'SHARED-PN']);
+        $root = $this->createComponent($newManual, ['part_number' => 'SHARED-PN']);
+        $newUnit = $this->createUnit([
+            'manual_id' => $newManual->id, 'part_number' => 'SHARED-PN',
+            'default_scope_type' => Unit::SCOPE_COMPONENT, 'default_scope_component_id' => $root->id,
+        ]);
+        $assy = $this->createAssyGroup($newManual->id, $root->id, 'SHARED-PN')->options->first();
+        $instruction = $this->createInstruction(['name' => 'Repair '.uniqid()]);
+        $customer = $this->createCustomer();
+        $workorder = $this->createWorkorder([
+            'unit_id' => $oldUnit->id, 'customer_id' => $customer->id,
+            'instruction_id' => $instruction->id, 'user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)->put(route('workorders.update', $workorder), $this->updatePayload(
+            $workorder, $newUnit, $customer->id, $instruction->id, $admin->id,
+            ['scope_type' => 'part_assembly', 'scope_target_id' => 'part_group_option:'.$assy->id]
+        ))->assertSessionHasNoErrors()->assertRedirect(route('workorders.index'));
+
+        $workorder->refresh();
+        $this->assertSame($newUnit->id, (int) $workorder->unit_id);
+        $this->assertSame($newManual->id, (int) $workorder->unit->manual_id);
+        $this->assertSame(Unit::SCOPE_PART_GROUP_OPTION, $workorder->scope_type);
+        $this->assertSame($assy->id, (int) $workorder->scope_part_group_option_id);
+        $this->assertNull($workorder->scope_component_id);
+        $this->assertSame($oldManual->id, (int) $oldUnit->fresh()->manual_id);
+        $this->assertSame(Unit::SCOPE_COMPONENT, $newUnit->fresh()->default_scope_type);
+    }
+
     private function createAssyGroup(int $manualId, int $rootComponentId, string $partNumber): ManualPartGroup
     {
         $group = ManualPartGroup::query()->create([

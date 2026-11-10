@@ -108,6 +108,16 @@ class MediaController extends Controller
         if (!$media->mime_type || !str_starts_with($media->mime_type, 'image/')) {
             return $this->fallbackImageResponse();
         }
+        if (request()->has('size')) {
+            $size = (int) request()->query('size');
+            abort_unless(in_array($size, [80, 128, 192, 256, 320, 384, 512, 640, 768, 960], true), 422);
+            $originalPath = $media->getPath();
+            if (!$originalPath || !is_file($originalPath)) {
+                return $this->fallbackImageResponse();
+            }
+
+            return $this->cachedFileResponse($this->generatedThumbPath($media, $originalPath, $size) ?: $originalPath);
+        }
         // путь к thumb
         $thumbPath = $media->getPath('thumb');
 
@@ -160,7 +170,7 @@ class MediaController extends Controller
         return $response;
     }
 
-    private function generatedThumbPath(Media $media, string $originalPath): ?string
+    private function generatedThumbPath(Media $media, string $originalPath, ?int $previewSize = null): ?string
     {
         if (!function_exists('imagecreatetruecolor')) {
             return null;
@@ -168,7 +178,8 @@ class MediaController extends Controller
 
         $sourceMtime = file_exists($originalPath) ? (int) filemtime($originalPath) : 0;
         $targetDir = storage_path('app/generated-thumbnails');
-        $targetPath = $targetDir . DIRECTORY_SEPARATOR . 'media_' . (int) $media->id . '_' . $sourceMtime . '.jpg';
+        $variant = $previewSize ? '_square_v1_' . $previewSize : '';
+        $targetPath = $targetDir . DIRECTORY_SEPARATOR . 'media_' . (int) $media->id . '_' . $sourceMtime . $variant . '.jpg';
 
         if (file_exists($targetPath)) {
             return $targetPath;
@@ -181,6 +192,15 @@ class MediaController extends Controller
         $info = @getimagesize($originalPath);
         if (!$info || empty($info[0]) || empty($info[1]) || empty($info['mime'])) {
             return null;
+        }
+
+        // Older camera originals may still carry orientation. Let the browser
+        // render those originals rather than stripping EXIF and rotating them wrong.
+        if ($previewSize && $info['mime'] === 'image/jpeg' && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($originalPath);
+            if (is_array($exif) && (int) ($exif['Orientation'] ?? 1) > 1) {
+                return null;
+            }
         }
 
         $source = match ($info['mime']) {
@@ -206,6 +226,11 @@ class MediaController extends Controller
         $scale = min($maxSide / $width, $maxSide / $height, 1);
         $thumbWidth = max(1, (int) round($width * $scale));
         $thumbHeight = max(1, (int) round($height * $scale));
+        if ($previewSize) {
+            // The gallery uses square object-fit:cover tiles. A long-side-only
+            // resize would still stretch the short side on portrait photos.
+            $thumbWidth = $thumbHeight = min($previewSize, $width, $height);
+        }
 
         $thumb = imagecreatetruecolor($thumbWidth, $thumbHeight);
         if (!$thumb) {
@@ -214,9 +239,18 @@ class MediaController extends Controller
             return null;
         }
 
-        imagecopyresampled($thumb, $source, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
+        imagefill($thumb, 0, 0, imagecolorallocate($thumb, 255, 255, 255));
+        $cropSide = min($width, $height);
+        imagecopyresampled($thumb, $source, 0, 0,
+            $previewSize ? (int) floor(($width - $cropSide) / 2) : 0,
+            $previewSize ? (int) floor(($height - $cropSide) / 2) : 0,
+            $thumbWidth, $thumbHeight,
+            $previewSize ? $cropSide : $width, $previewSize ? $cropSide : $height);
         imageinterlace($thumb, true);
-        $saved = imagejpeg($thumb, $targetPath, 75);
+        $temporaryPath = tempnam($targetDir, 'preview_');
+        $saved = $temporaryPath !== false && imagejpeg($thumb, $temporaryPath, $previewSize ? 90 : 75);
+        if ($saved) $saved = rename($temporaryPath, $targetPath);
+        if ($temporaryPath && file_exists($temporaryPath)) @unlink($temporaryPath);
 
         imagedestroy($thumb);
         imagedestroy($source);

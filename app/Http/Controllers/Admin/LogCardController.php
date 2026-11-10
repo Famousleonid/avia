@@ -185,6 +185,7 @@ class LogCardController extends Controller
         }
 
         $tabMeta = [
+            'serials_by_component' => $log_card?->serialsByComponent() ?? [],
             'workorder_id' => (int) $current_wo->id,
             'log_card_id' => $log_card ? (int) $log_card->id : null,
             'has_saved_log_card' => (bool) ($log_card && ! empty($componentData)),
@@ -927,7 +928,7 @@ class LogCardController extends Controller
         $logCard->logActivityEvent('created', [], $summary);
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Log Card created successfully!', 'log_card_id' => $logCard->id]);
+            return response()->json(['success' => true, 'message' => 'Log Card created successfully!', 'log_card_id' => $logCard->id, 'serials_by_component' => $logCard->serialsByComponent()]);
         }
 
         return redirect()->route('tdrs.show', ['id' => $workorder_id])
@@ -1129,7 +1130,7 @@ class LogCardController extends Controller
         });
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Log Card updated successfully!']);
+            return response()->json(['success' => true, 'message' => 'Log Card updated successfully!', 'serials_by_component' => $log_card->serialsByComponent()]);
         }
 
         return redirect()->route('tdrs.show', ['id' => $log_card->workorder_id])
@@ -1191,6 +1192,7 @@ class LogCardController extends Controller
             'success' => true,
             'field' => $data['field'],
             'value' => $afterValue,
+            'serials_by_component' => $log_card->fresh()->serialsByComponent(),
         ]);
     }
 

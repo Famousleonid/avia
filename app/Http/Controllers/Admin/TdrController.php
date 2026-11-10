@@ -161,29 +161,7 @@ class TdrController extends Controller
      */
     private function logCardSerialsByComponent(?LogCard $logCard): array
     {
-        $rows = $logCard?->component_data;
-        if (is_string($rows)) {
-            $rows = json_decode($rows, true);
-        }
-
-        if (! is_array($rows)) {
-            return [];
-        }
-
-        $serials = [];
-        foreach ($rows as $row) {
-            if (! is_array($row) || ($row['row_type'] ?? '') === 'manual') {
-                continue;
-            }
-
-            $componentId = (int) ($row['component_id'] ?? 0);
-            $serial = trim((string) ($row['serial_number'] ?? ''));
-            if ($componentId > 0 && $serial !== '' && ! isset($serials[$componentId])) {
-                $serials[$componentId] = $serial;
-            }
-        }
-
-        return $serials;
+        return $logCard?->serialsByComponent() ?? [];
     }
 
     private function inferTdrTypeFromPayload(array $payload, ?Code $manufactureCode = null, ?Necessary $orderNew = null, ?Necessary $repair = null): string
@@ -574,6 +552,7 @@ class TdrController extends Controller
 
         // Компоненты для данного manual
         $componentsQuery = Component::where('manual_id', $manual_id)
+            ->where(fn ($query) => $query->where('is_bush', false)->orWhereNull('is_bush'))
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
             ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
 
@@ -622,6 +601,7 @@ class TdrController extends Controller
 
         $componentsQuery = Component::where('manual_id', $manual_id)
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+            ->where(fn ($query) => $query->where('is_bush', false)->orWhereNull('is_bush'))
             ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
 
         if ($request->boolean('exclude_kits') && (! $workorder || $workorder->isOverhaul())) {
@@ -2171,7 +2151,7 @@ class TdrController extends Controller
             $components = $this->filterComponentsForUnit(
                 Component::query()
                     ->whereIn('manual_id', $current_tdr->workorder->usedManualIds())
-                    ->select('id', 'part_number', 'name', 'ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code')
+                    ->select('id', 'part_number', 'name', 'ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code', 'is_bush')
                     ->get(),
                 $current_tdr->workorder,
                 true
@@ -2887,6 +2867,9 @@ class TdrController extends Controller
 
     private function filterComponentsForUnit($components, Workorder $workorder, bool $forTdrSelection = false)
     {
+        if ($forTdrSelection) {
+            $components = collect($components)->reject(fn (Component $component) => (bool) $component->is_bush);
+        }
         $resolver = app(ManualIplBranchRuleResolver::class);
         $scopeResolver = app(WorkorderPartScopeResolver::class);
         $components = $forTdrSelection

@@ -708,6 +708,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function publishLogCardSerials(data) {
+        if (!data || !data.serials_by_component) return;
+        // Publish only server-confirmed data, never unsaved Log Card inputs.
+        [window.TdrinspectionConfig0?.value11, window.TdrinspectionConfig1?.value37].forEach(function(map) {
+            if (!map) return;
+            Object.keys(map).forEach(function(key) { delete map[key]; });
+            Object.assign(map, data.serials_by_component);
+        });
+        document.dispatchEvent(new CustomEvent('tdr:log-card-serials-updated'));
+    }
+
     function loadLogCardPartial(options) {
         options = options || {};
         if (!logCardTabBody) return Promise.resolve(false);
@@ -720,6 +731,8 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(function(html) {
                 logCardTabBody.innerHTML = html;
+                var serialMeta = document.getElementById('log-card-tab-meta');
+                if (serialMeta) publishLogCardSerials(JSON.parse(serialMeta.textContent));
                 syncLogCardToolbarFromPartial();
                 syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
                 return true;
@@ -943,23 +956,43 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
 
+                async function travelerSaved(data) {
+                    try {
+                        if (data.quantum_rebind_url) {
+                            if (!window.QuantumTravelerRebind) {
+                                window.showNotification('Traveler saved, but Quantum Rebind is unavailable. Review Vendor Tracking → Quantum.', 'error', 10000);
+                            } else {
+                                await window.QuantumTravelerRebind.afterSave(data.quantum_rebind_url);
+                            }
+                        }
+                    } finally {
+                        loadProcessesAndBind(tdrId, target);
+                    }
+                }
+                createBtn.disabled = true;
                 submitTravelerGroup(false)
                     .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
                     .then(function(res) {
                         if (res.ok && res.data.success) {
-                            loadProcessesAndBind(tdrId, target);
+                            return travelerSaved(res.data);
                         } else if (res.data && res.data.requires_confirmation) {
-                            return window.tdrShowConfirm(
-                                res.data.message || ("" + String(window.TdrshowConfig1.value60) + ""),
-                                ("" + String(window.TdrshowConfig1.value61) + ""),
-                                ("" + String(window.TdrshowConfig1.value62) + "")
-                            ).then(function(confirmed) {
+                            if (typeof window.confirmDialog !== 'function') {
+                                window.showNotification('Confirmation dialog is unavailable. Traveler was not created.', 'error', 10000);
+                                return;
+                            }
+                            return window.confirmDialog({
+                                message: res.data.message || String(window.TdrshowConfig1.value60),
+                                title: String(window.TdrshowConfig1.value61),
+                                okText: String(window.TdrshowConfig1.value62),
+                                cancelText: 'Cancel',
+                                danger: true,
+                            }).then(function(confirmed) {
                                 if (!confirmed) return;
                                 return submitTravelerGroup(true)
                                     .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
                                     .then(function(confirmRes) {
                                         if (confirmRes.ok && confirmRes.data.success) {
-                                            loadProcessesAndBind(tdrId, target);
+                                            return travelerSaved(confirmRes.data);
                                         } else {
                                             var confirmMsg = (confirmRes.data && confirmRes.data.message) ? confirmRes.data.message : ("" + String(window.TdrshowConfig1.value63) + "");
                                             window.tdrShowNotify(confirmMsg, 'warning');
@@ -973,6 +1006,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                     .catch(function() {
                         window.tdrShowNotify(("" + String(window.TdrshowConfig1.value65) + ""), 'error');
+                    })
+                    .finally(function() {
+                        createBtn.disabled = false;
                     });
             });
         }
@@ -2523,6 +2559,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(function(res) {
                 if (res.ok && res.data && res.data.success) {
                     if (options.reload) loadLogCardPartial();
+                    publishLogCardSerials(res.data);
                     if (options.notify && typeof window.tdrShowNotify === 'function') {
                         window.tdrShowNotify(res.data.message || ("" + String(window.TdrshowConfig1.value124) + ""), 'success');
                     }
@@ -2572,6 +2609,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(function(res) {
                 if (res.ok && res.data && res.data.success) {
+                    publishLogCardSerials(res.data);
                     return true;
                 }
 

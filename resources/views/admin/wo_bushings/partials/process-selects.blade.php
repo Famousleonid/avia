@@ -9,6 +9,19 @@
     .bushing-process-comment { color: #ffc107; display: block; white-space: pre-line; }
 </style>
 <script>
+    window.syncBushingProcessFlag = function(selected, need) {
+        if (!need) return false;
+        if (!selected.checked) {
+            // Retain the draft separately from the visible, inactive checkbox.
+            if (!need.disabled) need.dataset.deselectedProcesses = need.checked ? '1' : '0';
+            need.checked = false;
+        } else if (need.disabled && need.dataset.deselectedProcesses !== undefined) {
+            need.checked = need.dataset.deselectedProcesses === '1';
+            delete need.dataset.deselectedProcesses;
+        }
+        need.disabled = !selected.checked;
+        return selected.checked && need.checked;
+    };
     window.populateBushingProcessOptions = function(select) {
         if (select.dataset.optionsLoaded) return;
         var pool = select.form?.querySelector('template[data-bushing-options="' + select.dataset.processField + '"]');

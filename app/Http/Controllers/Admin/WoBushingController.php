@@ -1046,6 +1046,7 @@ class WoBushingController extends Controller
         $linesExist = $woBushing->lines->isNotEmpty();
         $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
         $editState = $this->woBushingSync->editState($woBushing);
+        $retainedManualLines = $editState['lines']->whereIn('id', $editState['retained']);
         $historyLines = $editState['lines']->whereIn('id', $editState['protected']);
         $draftToken = $editState['token'];
         $bushData = array_values(array_filter($bushData,
@@ -1055,7 +1056,7 @@ class WoBushingController extends Controller
             ->pluck('process_comment', 'processes_id');
 
         return view('admin.wo_bushings.edit', compact(
-            'historyLines', 'draftToken',
+            'historyLines', 'draftToken', 'retainedManualLines',
             'bushingProcessComments',
             'current_wo',
             'woBushing',
@@ -1695,6 +1696,16 @@ class WoBushingController extends Controller
                 }),
             ]
         ]);
+    }
+
+    public function splitBatch(Request $request, WoBushing $woBushing)
+    {
+        $data = $request->validate([
+            'wo_bushing_process_ids' => ['required', 'array', 'min:1'],
+            'wo_bushing_process_ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $label = app(\App\Services\BushingRouteBatches::class)->split($woBushing, $data['wo_bushing_process_ids']);
+        return response()->json(['success' => true, 'label' => $label]);
     }
 
     public function createBatch(Request $request, WoBushing $woBushing)

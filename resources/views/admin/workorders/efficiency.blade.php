@@ -34,11 +34,11 @@ html[data-bs-theme=light] .efficiency-table td{background:#fff}html[data-bs-them
     @if($partNumber)
         <p class="efficiency-note">Disassembly · Working days, Ontario (after Start through Finish; weekends and public holidays excluded). If either Disassembly date is missing: WO Open date → WO Submitted to inspection, or Post Disassembly inspection if no submission date is available. Incomplete or invalid ranges and skipped steps are excluded from averages.</p>
         @if($workorders->isEmpty())
-            <p>No workorders found.</p>
+            <p>No overhaul workorders found.</p>
         @else
             <div class="efficiency-scroll" tabindex="0" aria-label="Disassembly efficiency">
                 <table class="efficiency-table">
-                    <thead><tr><th class="eff-tech" scope="col">Technician</th><th scope="col">Workorders · working days</th><th class="eff-count" scope="col">Completed</th><th class="eff-average" scope="col">Average, days</th></tr></thead>
+                    <thead><tr><th class="eff-tech" scope="col">Technician</th><th scope="col">Workorders (overhaul) · working days</th><th class="eff-count" scope="col">Completed</th><th class="eff-average" scope="col">Average, days</th></tr></thead>
                     <tbody>@foreach($rows as $row)<tr>
                         <th class="eff-tech" scope="row">{{ $row['name'] }}</th>
                         <td><div class="eff-workorders">

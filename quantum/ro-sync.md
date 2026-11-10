@@ -314,6 +314,64 @@ or date error.
 
 ## Date Mapping
 
+### 10/Nov/2026 R9374 / W107966 and W107916: audited Traveler remap conflicts
+
+Local follow-up implementation (10/Nov/2026, not deployed by Codex): after
+successful Traveler grouping, Admins with Vendor Tracking access receive an
+immediate Rebind review for saved Quantum source rows matching that WO, TDR
+and Traveler number. Grouping queues those rows as pending inside its own
+transaction, before process updates, preserving prior target snapshots. This
+is necessary because an unchanged-source applied row with snapshots is not
+normally selected by the scheduled parser. Rebind now also accepts pending,
+with all existing release/current-target guards and signed-preview checks.
+Applied/dismissed rows are not directly rebound. A read-only suggestion GET
+and a fresh per-line preview run after save; confirmation uses the same shared
+UI as the buffer. Later/errors preserve the saved Traveler and defer the row
+to the normal parser/buffer review. No excluded old members means no Rebind
+prompt; normal queued sync refreshes the same membership. Manual conflicts
+show an internal error with the review reason, never a forced cleanup.
+Validation: 45 focused tests / 475 assertions; local Chrome1500/430 on
+`tdrs/show/455`, using intercepted writes, covers Later, confirm, initial
+cleanup confirmation, stale preview, blocked review, failed lookup and missing
+confirmDialog. Long preview body is capped at60vh with internal scroll and
+visible footer buttons. The existing Quantum Buffer Rebind entry point also
+passed fresh-preview/cancel/parent-modal restoration checks after page setup.
+Wider VendorTracking tests retain two unrelated
+expectation failures (AI toggle visibility and a Bushing date); production was
+not changed.
+
+Read-only production audit at 07:25 America/Toronto confirms both screenshot
+conflicts. Evidence: `quantum/log/audit-r9374-20261110.json`; SELECT-only audit
+script: `storage/app/codex/audit-r9374-20261110.php`. This checks AVIA's received
+Quantum snapshot and complete matching target/Traveler audit, not live Oracle.
+
+- W107916, rod:33664 / staging4055 / TDR2162: initial Traveler created by
+  Fouxman Alexander on 16/Sep/2026 15:28:02 (activity40445); Quantum-managed
+  R9374/Sent17/Sep/2026 recorded on 17/Sep at10:45:02 (40535–40537).
+  Account Yushkevich Viacheslav ungrouped at15:13:41 (40682), clearing
+  date_start/date_start_user_id, then recreated at15:15:18 (40684), replacing
+  Silver plating4035 with Passivation5037. Current members4282/4665/5037.
+- W107966, rod:33666 / staging4059 / TDR2322: initial Traveler created by
+  Fouxman Alexander on 16/Sep/2026 15:26:01 (40444); Quantum-managed values
+  recorded on 17/Sep at11:05:01 (40548–40554). Account Yushkevich Viacheslav
+  ungrouped at15:23:46 (40691) and recreated at15:28:41 (40695), excluding
+  Chrome plating4621 and Silver plating4622, adding Stress Relief5040 and
+  Chrome plating, Thin Dens5041. Current members4619/4620/4623/4639/4649/5040/5041.
+
+All activity times above are America/Toronto. Regrouping cleared repair_order
+on selected members. Excluded old targets retain R9374/vendor4 but have null
+date_start versus saved17/Sep/2026, so the automatic release guard blocks the
+move; the displayed first blocker hides the second blocker4622 on W107966.
+This is a local Traveler membership/date-clear conflict, not evidence of a
+Quantum REF change or an independently edited date field.
+
+Deployed inspectMapping reports Rebind available for both. After the admin
+verifies that the current Traveler composition is intended, Rebind releases
+Quantum-managed fields on those excluded targets and applies R9374/vendor4
+(Airco), Sent17/Sep/2026 and buffered Returned09/Nov/2026 to all current members
+(3 and7 respectively). It does not delete process rows. No Rebind or production
+write was performed during this audit.
+
 ### 07/Oct/2026 R9374 / W107967: Traveler rebuilt without Silver plating
 
 Read-only production and direct Oracle verification confirms rod:33668,

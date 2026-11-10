@@ -378,7 +378,8 @@
             };
             select.addEventListener('change', updateHint); updateHint(); descriptionLabel.append(hint);
             body.append(processLabel, descriptionLabel); row.append(head, body); rows.append(row);
-            expandStep(row, openSteps.has(String(step.id)), false);
+            // Opening a template starts collapsed; only a new unsaved step opens.
+            expandStep(row, !step.id, false);
             if (window.jQuery?.fn?.select2) {
                 const $select = window.jQuery(select);
                 $select.select2({

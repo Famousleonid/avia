@@ -18,8 +18,11 @@ class WorkorderEfficiency
     public function report(?string $partNumber): array
     {
         $calendar = new OntarioWorkingDays();
-        // Only numbers actually used in a workorder header, including retired units.
-        $storedNumbers = Workorder::query()->join('units', 'units.id', '=', 'workorders.unit_id')
+        // Match Workorder::isOverhaul without relying on a database-specific instruction ID.
+        $overhauls = Workorder::query()->whereHas('instruction', fn ($q) =>
+            $q->whereRaw('LOWER(TRIM(name)) = ?', ['overhaul']));
+        // Only numbers used in overhaul headers, including retired units.
+        $storedNumbers = (clone $overhauls)->join('units', 'units.id', '=', 'workorders.unit_id')
             ->whereNotNull('units.part_number')->where('units.part_number', '<>', '')
             ->distinct()->orderBy('units.part_number')->pluck('units.part_number');
         $families = $storedNumbers->groupBy(fn ($number) => $this->partFamily($number));
@@ -30,7 +33,7 @@ class WorkorderEfficiency
             $partNumber = $this->partFamily($partNumber);
         }
         $matchingNumbers = $families->get($partNumber, collect());
-        $workorders = Workorder::with(['user' => fn ($q) => $q->withTrashed()])
+        $workorders = (clone $overhauls)->with(['user' => fn ($q) => $q->withTrashed()])
             ->whereHas('unit', fn ($q) => $q->whereIn('part_number', $matchingNumbers))
             ->when(!$partNumber, fn ($q) => $q->whereRaw('1 = 0'))
             ->orderBy('number')->orderBy('id')->get();

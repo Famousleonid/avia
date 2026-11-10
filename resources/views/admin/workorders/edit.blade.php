@@ -137,11 +137,17 @@
                                             </label>
                                             <select name="unit_id" id="unit_id" class="form-control">
                                                 @php
-                                                    $selectedUnit = $current_wo->unit;
+                                                    $selectedUnitId = (int) old('unit_id', $current_wo->unit_id);
+                                                    $selectedUnit = $selectedUnitId === (int) $current_wo->unit_id
+                                                        ? $current_wo->unit
+                                                        : $units->firstWhere('id', $selectedUnitId);
+                                                    $selectedUnitScopeDisplay = $selectedUnitId === (int) $current_wo->unit_id
+                                                        ? $workorderScopeDisplay
+                                                        : ($selectedUnit?->work_scope_display ?? 'Complete Unit');
                                                     $selectedUnitDeleted = $selectedUnit && method_exists($selectedUnit, 'trashed') && $selectedUnit->trashed();
                                                 @endphp
                                                 @if($selectedUnit)
-                                                    <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $selectedUnit->name) }}" data-part-number="{{ old('part_number', $selectedUnit->part_number) }}" data-manual-id="{{ $selectedUnit->manual_id ?? '' }}" data-verified="{{ $selectedUnit->verified ? 1 : 0 }}" data-scope-label="{{ $workorderScopeDisplay }}">{{ old('part_number', $selectedUnit->part_number) }}@if($selectedUnit->manual) ({{ $selectedUnit->manual->number }})@else (Manual pending)@endif @if($selectedUnitDeleted) - Deleted unit @endif</option>
+                                                    <option selected value="{{ $selectedUnitId }}" data-name="{{ $selectedUnit->name }}" data-part-number="{{ $selectedUnit->part_number }}" data-manual-id="{{ $selectedUnit->manual_id ?? '' }}" data-verified="{{ $selectedUnit->verified ? 1 : 0 }}" data-scope-label="{{ $selectedUnitScopeDisplay }}">{{ $selectedUnit->part_number }}@if($selectedUnit->manual) ({{ $selectedUnit->manual->number }})@else (Manual pending)@endif @if($selectedUnitDeleted) - Deleted unit @endif</option>
                                                 @else
                                                     <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="" data-part-number="" data-manual-id="" data-verified="0">Missing unit #{{ old('unit_id', $current_wo->unit_id) }}</option>
                                                 @endif
@@ -459,6 +465,7 @@
             };
             let workScopeTargets = [];
             let workScopeLoadSequence = 0;
+            let workScopeLoadedUnitId = null;
 
             function normalizedScopeSelection(selection) {
                 const type = String(selection?.type || 'full_unit');
@@ -533,6 +540,7 @@
             async function loadWorkScopeOptions(useUnitDefault, selection = null) {
                 const unitId = String(unitSelect.value || '');
                 const sequence = ++workScopeLoadSequence;
+                workScopeLoadedUnitId = null;
                 workScopeTargetSelect.disabled = true;
                 workScopeLoadState.classList.remove('text-danger');
                 workScopeLoadState.textContent = 'Loading Work Scope options…';
@@ -565,6 +573,7 @@
                         setScopeSelection(selection);
                     }
                     renderWorkScopeTarget();
+                    workScopeLoadedUnitId = unitId;
                     workScopeLoadState.classList.remove('text-danger');
                     workScopeLoadState.textContent = "Changing Work Scope rebuilds this Workorder's STD lists and changes the scoped KIT/PRL.";
                     if (workScopeTypeSelect.value === 'part_assembly'
@@ -588,6 +597,9 @@
             }
 
             function validateWorkScopeSelection() {
+                if (workScopeLoadedUnitId !== String(unitSelect.value || '')) {
+                    return 'Wait for Work Scope options to load for the selected unit. If loading failed, select the unit again.';
+                }
                 const type = workScopeTypeSelect.value;
                 if (type === 'part_assembly' && !workScopeTargetSelect.value) {
                     return 'Select the Part or Assembly received for this Workorder.';
@@ -604,15 +616,19 @@
             if (window.jQuery) {
                 $('#work_scope_target').on('change.workScope', syncScopeSelection);
             }
-            unitSelect.addEventListener('change', function () {
-                void loadWorkScopeOptions(true);
-            });
+            // Select2 emits jQuery change, which does not reach native
+            // addEventListener handlers. Use one handler for both kinds.
+            if (window.jQuery) {
+                $('#unit_id').on('change.workScope', () => void loadWorkScopeOptions(true));
+            } else {
+                unitSelect.addEventListener('change', () => void loadWorkScopeOptions(true));
+            }
 
             unitSelect.onchange = function () {
                 const selectedOption = this.options[this.selectedIndex];
                 const scopeHint = document.getElementById('workScopeHint');
                 if (scopeHint) {
-                    scopeHint.textContent = 'Work scope: ' + (selectedOption.getAttribute('data-scope-label') || 'Complete Unit');
+                    scopeHint.textContent = 'Work scope: ' + (selectedOption?.getAttribute('data-scope-label') || 'Complete Unit');
                 }
             };
 

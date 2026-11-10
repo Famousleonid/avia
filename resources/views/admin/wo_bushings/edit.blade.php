@@ -147,6 +147,8 @@
                 </div>
             @endunless
 
+            @include('admin.wo_bushings.partials.retained-manual-lines')
+
             @if($bushings->flatten()->count() > 0)
                 <div class="card-body {{ $embedded ? 'p-0' : 'p-2' }}">
                     <div class="bushing-process-toolbar d-flex justify-content-end align-items-center px-1 py-1">
@@ -541,7 +543,7 @@
                     var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
                     var doNotOrder = row.querySelector('input[name="' + componentPrefix + '[do_not_order]"][type="checkbox"]');
                     var need = row.querySelector('input[name="' + componentPrefix + '[need_processes]"][type="checkbox"]');
-                    var showProcesses = checkbox.checked && need && need.checked;
+                    var showProcesses = window.syncBushingProcessFlag(checkbox, need);
 
                     if (qty) {
                         qty.disabled = !checkbox.checked;
@@ -550,10 +552,6 @@
                         }
                     }
                     if (doNotOrder) doNotOrder.disabled = !checkbox.checked;
-                    if (need) {
-                        need.disabled = !checkbox.checked;
-                        // Retain process choices while the shared selection is off.
-                    }
 
                     row.querySelectorAll('.bushing-process-line[data-component-id="' + componentId + '"]').forEach(function(line) {
                         line.classList.toggle('is-hidden', !showProcesses);
@@ -636,7 +634,7 @@
                 form.querySelectorAll('.bushing-row').forEach(function(row) {
                     row.querySelectorAll('.component-checkbox').forEach(function(selected) { selected.checked = false; });
                     row.querySelectorAll('.bushing-do-not-order').forEach(function(noOrder) { noOrder.checked = false; });
-                    row.querySelectorAll('.bushing-need-processes').forEach(function(need) { need.checked = false; });
+                    row.querySelectorAll('.bushing-need-processes').forEach(function(need) { need.checked = false; delete need.dataset.deselectedProcesses; });
                     row.querySelectorAll('.bushing-qty-input').forEach(function(qty) { qty.value = qty.getAttribute('data-part-qty') || '1'; });
                     row.querySelectorAll('.bushing-process-control, .bushing-code-select').forEach(function(control) { control.value = ''; });
                     syncRow(row);

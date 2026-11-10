@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="{{ asset('css/main.css') }}?v={{ filemtime(public_path('css/main.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/password-policy.css') }}?v={{ filemtime(public_path('css/password-policy.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/birthday-background.css') }}?v={{ filemtime(public_path('css/birthday-background.css')) }}">
     <link rel="stylesheet" href="{{ asset('assets/vendor/tippy/6.3.7/tippy.css') }}">
     <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}?v={{ filemtime(public_path('css/admin-theme.css')) }}">
 
@@ -105,9 +106,13 @@
             min-height: 0;
         }
 
-        @if(!empty($userProjectBackgroundUrl))
+        @if(!empty($userProjectBackgroundUrl) || !empty($internetBackgroundControls))
         body.has-user-project-background .content {
+            @if(!empty($userProjectBackgroundUrl))
             --user-project-background: url('{{ $userProjectBackgroundUrl }}');
+            @else
+            --user-project-background: none;
+            @endif
             background-color: transparent !important;
             background-image:
                 linear-gradient(rgba(255, 255, 255, .38), rgba(255, 255, 255, .38)),
@@ -134,14 +139,43 @@
 
 
 
+        #internetBackgroundCredit {
+            position: fixed;
+            bottom: 40px;
+            right: 92px;
+            z-index: 1040;
+            max-width: min(360px, calc(100vw - 104px));
+            max-height: 65vh;
+            overflow: auto;
+        }
+        #internetBackgroundCredit[hidden] { display: none !important; }
+        #internetBackgroundCredit [hidden] { display: none !important; }
+        @media (max-width: 768px) {
+            /* The AI widget's mobile wrapper spans the whole bottom edge. */
+            #internetBackgroundCredit { bottom: 88px; right: 12px; max-width: calc(100vw - 24px); }
+        }
+        @media print { #internetBackgroundCredit { display: none !important; } }
     </style>
 
     @yield('style')
 
 </head>
 
-<body class="p-0 m-0 g-0 {{ !empty($userProjectBackgroundUrl) ? 'has-user-project-background' : '' }}">
-@if(!empty($userProjectBackgroundUrl))
+<body class="p-0 m-0 g-0 {{ !empty($userProjectBackgroundUrl) ? 'has-user-project-background' : '' }} {{ !empty($birthdayBackgroundState['active']) ? 'has-birthday-background' : '' }} {{ !empty($birthdayBackgroundState['caption']) ? 'has-birthday-banner' : '' }}">
+@if(!empty($birthdayBackgroundEligible))
+    @if(!empty($birthdayBackgroundState['active']))
+        <style>body.has-birthday-background .content { --birthday-background: url('{{ $birthdayBackgroundState['url'] }}'); }</style>
+    @endif
+    <script id="birthdayBackgroundConfig" type="application/json">@json(['endpoint' => route('admin.project-settings.birthday-background.state'), 'state' => $birthdayBackgroundState])</script>
+@endif
+<script src="{{ asset('js/birthday-background.js') }}?v={{ filemtime(public_path('js/birthday-background.js')) }}" defer></script>
+@if(!empty($internetBackgroundEnabled))
+<div id="internetBackgroundCredit" data-url="{{ route('admin.project-settings.internet-background.show', auth()->user()) }}" @unless(request()->routeIs('cabinet.index')) hidden @endunless>
+    <button type="button" class="btn btn-outline-info btn-sm" data-background-next>New photo</button>
+</div>
+@endif
+<script src="{{ asset('js/user-internet-background.js') }}?v={{ filemtime(public_path('js/user-internet-background.js')) }}" defer></script>
+@if(!empty($userProjectBackgroundUrl) && empty($internetBackgroundEnabled))
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const content = document.querySelector('.content');
@@ -173,6 +207,9 @@
             @include('components.sidebar')
         </div>
         <div class="content col bg-body pt-0">
+            @if(!empty($birthdayBackgroundEligible))
+                <div id="birthdayBackgroundBanner" class="birthday-background-banner" role="status" @if(empty($birthdayBackgroundState['caption'])) hidden @endif>{{ $birthdayBackgroundState['caption'] ?? '' }}</div>
+            @endif
             <div class="content-inner px-0">
                 @include('components.status')
                 @yield('content')

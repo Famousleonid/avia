@@ -5,6 +5,8 @@ namespace App\Support;
 use App\Models\LogCard;
 use App\Models\Workorder;
 use App\Models\Component;
+use App\Models\Unit;
+use App\Services\WorkorderPartScopeResolver;
 use Carbon\Carbon;
 
 final class LogCardDestructionCertificate
@@ -17,15 +19,8 @@ final class LogCardDestructionCertificate
     public static function rowsForWorkorder(Workorder $current_wo): array
     {
         $logCard = self::logCardForWorkorder($current_wo);
-        if (! $logCard || ! $logCard->component_data) {
-            return [];
-        }
-
-        $componentData = self::decodeJsonish($logCard->component_data);
-
-        if (! is_array($componentData)) {
-            return [];
-        }
+        $componentData = self::decodeJsonish($logCard?->component_data);
+        $componentData = is_array($componentData) ? $componentData : [];
 
         $settings = self::settingsFor($logCard);
         $selectedKeys = $settings['selected_keys'] ?? null;
@@ -38,7 +33,7 @@ final class LogCardDestructionCertificate
 
         $rows = [];
         foreach (array_values($componentData) as $index => $item) {
-            if (! is_array($item)) {
+            if (! is_array($item) || ($item['row_type'] ?? '') === 'manual') {
                 continue;
             }
 
@@ -49,16 +44,60 @@ final class LogCardDestructionCertificate
                 ? $components->get((int) $item['component_id'])
                 : null;
 
-            $rows[] = [
+            $row = [
                 'key' => $key,
                 'selected' => is_array($selectedKeys) ? in_array($key, $selectedKeys, true) : false,
                 'description' => (string) ($item['name'] ?? $item['description'] ?? $component?->name ?? ''),
                 'part_number' => self::formatPartNumberCell($item, $component, $hasSerialNumber, $hasAssySerialNumber),
                 'serial_number' => self::formatSerialCell($item, $hasSerialNumber, $hasAssySerialNumber),
             ];
+            if (filled($row['part_number']) || filled($row['serial_number']) || filled($row['description'])) {
+                $rows[] = $row;
+            }
         }
 
-        return $rows;
+        return $rows !== [] ? $rows : self::receivedPartRows($current_wo, $logCard);
+    }
+
+    /** Use the received single part only when no Log Card rows identify parts. */
+    private static function receivedPartRows(Workorder $workorder, ?LogCard $logCard): array
+    {
+        // An existing manual certificate entry belongs to QA; do not duplicate it.
+        if (collect(self::manualRowFor($logCard))->contains(fn ($value) => filled($value))) {
+            return [];
+        }
+
+        $componentId = $workorder->scope_type === Unit::SCOPE_COMPONENT
+            ? (int) $workorder->scope_component_id
+            : 0;
+        if ($workorder->scope_type === null && ! $workorder->modified_scope_part_group_option_id) {
+            $quantities = app(WorkorderPartScopeResolver::class)->componentQuantities($workorder);
+            if (is_array($quantities) && count($quantities) === 1 && (int) reset($quantities) === 1) {
+                $componentId = (int) array_key_first($quantities);
+            }
+        }
+        if (! $componentId) {
+            return [];
+        }
+        $component = Component::withTrashed()->find($componentId);
+        if (! $component || blank($component->part_number)) {
+            return [];
+        }
+
+        $key = 'workorder|'.$workorder->id.'|'.self::rowKey([
+            'component_id' => $component->id,
+            'part_number' => $component->part_number,
+            'serial_number' => $workorder->serial_number,
+        ], 0);
+        $selectedKeys = self::settingsFor($logCard)['selected_keys'] ?? [];
+
+        return [[
+            'key' => $key,
+            'selected' => is_array($selectedKeys) && in_array($key, $selectedKeys, true),
+            'part_number' => (string) $component->part_number,
+            'description' => (string) ($component->name ?? $workorder->description ?? ''),
+            'serial_number' => (string) ($workorder->serial_number ?? ''),
+        ]];
     }
 
     public static function availableFor(Workorder $current_wo): bool

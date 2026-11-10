@@ -1,0 +1,50 @@
+/* A temporary overlay; personal background variables and settings stay intact. */
+body.has-birthday-background .content.col {
+    background-color: transparent !important;
+    background-image: linear-gradient(rgba(255,255,255,.38), rgba(255,255,255,.38)), var(--birthday-background) !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-size: cover !important;
+}
+html[data-bs-theme="dark"] body.has-birthday-background .content.col {
+    background-image: linear-gradient(rgba(10,17,26,.52), rgba(10,17,26,.52)), var(--birthday-background) !important;
+}
+body.has-birthday-background .content-inner,
+body.has-birthday-background .content-inner > .container,
+body.has-birthday-background .content-inner > .container-fluid,
+body.has-birthday-background .content-inner > form > .container,
+body.has-birthday-background .content-inner > form > .container-fluid {
+    background-color: transparent !important;
+}
+/* More specific than personal/internet styles, including when their AJAX finishes later. */
+html body.has-birthday-background .cabinet-aircraft-stage .cabinet-aircraft {
+    width: 16%; left: 3%; right: auto; top: 5%; transform: none;
+}
+body.has-birthday-background #internetBackgroundCredit { display: none !important; }
+body.has-birthday-banner .content { display: flex; flex-direction: column; }
+/* Legacy pages can size cards against 100vh. Keep their bottom reachable
+   within the space left by the caption instead of clipping at .content. */
+body.has-birthday-banner .content-inner { flex: 1 1 0; height: auto; min-height: 0; overflow: auto; }
+.birthday-background-banner {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    width: fit-content;
+    max-width: min(32rem, calc(100% - 24px));
+    margin: 8px 12px;
+    max-height: 18vh;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    padding: 8px 12px;
+    text-align: right;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+    background: rgba(var(--bs-body-bg-rgb), .82);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+}
+.birthday-background-banner[hidden] { display: none !important; }
+@media print {
+    .birthday-background-banner { display: none !important; }
+    html body.has-birthday-background .content.col { background-image: none !important; }
+}

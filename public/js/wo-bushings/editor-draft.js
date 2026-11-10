@@ -36,6 +36,7 @@
         const draft = drafts.get(form);
         if (!draft) return;
         draft.baseline.forEach(([el, v]) => {
+            delete el.dataset.deselectedProcesses;
             if (['checkbox', 'radio'].includes(el.type)) el.checked = v;
             else if (el.multiple) [...el.options].forEach(o => { o.selected = v.includes(o.value); });
             else el.value = v;

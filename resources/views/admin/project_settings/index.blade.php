@@ -137,6 +137,7 @@
         }
         .user-background-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 14px; }
         .user-background-photo { min-width: 0; }
+        .user-background-preview[hidden] { display: none !important; }
 
         .user-background-preview {
             align-items: center;
@@ -252,6 +253,10 @@ document.addEventListener('submit', async event => {
                         <i class="bi bi-image"></i>
                         <span>Fon for user</span>
                     </a>
+                    <a href="{{ route('admin.project-settings.index', ['section' => 'birthday-background']) }}"
+                       class="list-group-item list-group-item-action {{ $activeSection === 'birthday-background' ? 'active' : '' }}">
+                        <i class="bi bi-gift"></i><span>Birthday background</span>
+                    </a>
                 </div>
             </nav>
 
@@ -357,10 +362,12 @@ document.addEventListener('submit', async event => {
                             <button type="submit" class="btn btn-outline-primary">Save Marketing</button>
                         </div>
                     </form>
+                @elseif($activeSection === 'birthday-background')
+                    @include('admin.project_settings.partials.birthday-background')
                 @else
                     <div class="project-settings-panel-header">
                         <h5>Fon for user</h5>
-                        <div class="text-muted small mt-1">Add photos for this user. One photo per day, in the order below; after the last photo the cycle starts again.</div>
+                        <div class="text-muted small mt-1">Rotate uploaded photos daily, or use internet photos by topic with manual or daily changes.</div>
                     </div>
                     <div class="project-settings-panel-body">
                         @if($selectedUser)
@@ -382,6 +389,29 @@ document.addEventListener('submit', async event => {
                                             @endforeach
                                         </select>
                                         <div class="form-text">The background is visible only when this user is signed in.</div>
+                                    </form>
+
+                                    <form method="POST" action="{{ route('admin.project-settings.internet-background.store') }}" class="mb-4">
+                                        @csrf
+                                        <input type="hidden" name="user_id" value="{{ $selectedUser->id }}">
+                                        <label class="form-label fw-semibold" for="backgroundSource">Background source</label>
+                                        <select class="form-select mb-2" id="backgroundSource" name="mode">
+                                            <option value="off" @selected(old('mode', $internetBackground['mode'] ?? 'manual') === 'off')>Off — no background</option>
+                                            <option value="manual" @selected(old('mode', $internetBackground['mode'] ?? 'manual') === 'manual')>Uploaded photos</option>
+                                            <option value="internet" @selected(old('mode', $internetBackground['mode'] ?? 'manual') === 'internet')>Internet photos</option>
+                                        </select>
+                                        <div data-background-internet-fields>
+                                        <label class="form-label" for="backgroundTopic">Photo topic</label>
+                                        <input class="form-control" id="backgroundTopic" name="topic" maxlength="120" value="{{ old('topic', $internetBackground['topic'] ?? '') }}" placeholder="Красноярск, mountains, aviation…">
+                                        @error('topic')<div class="text-danger small">{{ $message }}</div>@enderror
+                                        <label class="form-label mt-2" for="backgroundCadence">Change photo</label>
+                                        <select class="form-select" id="backgroundCadence" name="cadence">
+                                            <option value="button" @selected(old('cadence', $internetBackground['cadence'] ?? 'button') === 'button')>Only with New photo</option>
+                                            <option value="daily" @selected(old('cadence', $internetBackground['cadence'] ?? 'button') === 'daily')>Automatically every day</option>
+                                        </select>
+                                        </div>
+                                        <div class="form-text mb-2">Search Wikimedia Commons by city, landmark or nature. Try short keywords, e.g. Yekaterinburg school 2. Specific buildings may have no suitable landscape photos. Off hides the background without deleting photos. Set the topic and schedule here; New photo is available in the picture view opened with the airplane icon.</div>
+                                        <button class="btn btn-outline-primary" type="submit">Save background source</button>
                                     </form>
 
                                     <form
@@ -431,6 +461,15 @@ document.addEventListener('submit', async event => {
                                 </div>
 
                                 <div class="user-background-preview-wrap">
+                                    @if(($internetBackground['mode'] ?? '') === 'internet')
+                                        <div class="mb-4" data-internet-background-preview="{{ route('admin.project-settings.internet-background.show', $selectedUser) }}">
+                                            <div class="fw-semibold mb-2">Internet photo · {{ $internetBackground['topic'] }}</div>
+                                            <button type="button" class="btn btn-outline-info btn-sm mb-2" data-background-next>New photo</button>
+                                            <div class="small text-muted" data-background-status>Finding a photo…</div>
+                                            <div class="user-background-preview" hidden><img alt="Internet background preview" data-background-image></div>
+                                            <div class="small mt-2" data-background-credit hidden></div>
+                                        </div>
+                                    @endif
                                     <div class="fw-semibold mb-2">Daily rotation · {{ count($userBackgroundImages) }} photos</div>
                                     <div class="user-background-gallery">
                                         @forelse($userBackgroundImages as $image)

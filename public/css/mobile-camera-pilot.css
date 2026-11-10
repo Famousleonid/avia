@@ -42,7 +42,19 @@
     width: 100%;
     height: 100%;
 }
-/* Fill the viewfinder; the saved JPEG still contains the complete video frame. */
+/* Only this viewfinder handles pinch; do not change the native camera or page. */
+.pilot-camera-stage {
+    touch-action: none;
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(100%, calc(100vh * 4 / 3));
+    width: min(100%, calc(100dvh * 4 / 3));
+    height: auto;
+    aspect-ratio: 4 / 3;
+}
+/* This landscape frame is exactly the crop saved, in either phone orientation. */
 .pilot-camera-stage video { object-fit: cover; }
 /* Review every edge of the actual photo before saving. */
 .pilot-camera-stage img { object-fit: contain; background: #000; }
@@ -106,6 +118,7 @@
     box-shadow: 0 2px 12px rgba(0,0,0,.45);
 }
 .pilot-camera-footer .btn-outline-light { background: rgba(0,0,0,.65); }
+#pilotCameraZoom { width: 76px; min-height: 44px; border-radius: 22px; }
 #pilotCameraCapture {
     width: 76px;
     height: 76px;
@@ -140,18 +153,22 @@
 #mobileCameraPilot[data-blocked="true"] #pilotCameraStatus,
 #mobileCameraPilot[data-state="error"] #pilotCameraStatus { color: #ffbaba; }
 
-#mobileCameraPilot #pilotCameraStatus.is-orientation-warning {
-    left: max(12px, env(safe-area-inset-left));
-    right: max(12px, env(safe-area-inset-right));
-    padding: 12px 8px;
-    color: #ff3030;
-    background: rgba(0, 0, 0, .82);
-    font-size: clamp(18px, 5.5vw, 32px);
-    font-weight: 800;
-    line-height: 1.2;
-    letter-spacing: -.02em;
-    text-align: center;
-    white-space: nowrap;
+@media (orientation: portrait) {
+    .pilot-camera-footer {
+        top: auto;
+        bottom: max(24px, env(safe-area-inset-bottom));
+        left: 16px;
+        right: 16px;
+        width: auto;
+        transform: none;
+        flex-direction: row;
+        justify-content: center;
+    }
+    #pilotCameraStatus {
+        right: max(16px, env(safe-area-inset-right));
+        bottom: max(112px, calc(env(safe-area-inset-bottom) + 96px));
+        max-height: calc(100% - 192px);
+    }
 }
 
 #pilotCameraAccessHelp {

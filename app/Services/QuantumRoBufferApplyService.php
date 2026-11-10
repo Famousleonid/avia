@@ -138,6 +138,62 @@ class QuantumRoBufferApplyService
         });
     }
 
+    private function savedTravelerLines(\App\Models\Tdr $tdr, int $group, bool $lock = false): Collection
+    {
+        $tdr->loadMissing('workorder');
+        $processIds = TdrProcess::query()->where('tdrs_id', $tdr->id)->pluck('id')->all();
+        $lines = QuantumRoLine::query()
+            ->whereRaw('UPPER(TRIM(wo_number)) IN (?, ?)', [(string) $tdr->workorder->number, 'W'.$tdr->workorder->number])
+            ->whereIn('apply_status', [self::STATUS_UNRESOLVED, self::STATUS_APPLIED, self::STATUS_PENDING])
+            ->whereNotNull('applied_targets')->orderBy('id')
+            ->when($lock, fn ($q) => $q->lockForUpdate())->get();
+        return $lines->filter(function ($line) use ($group, $processIds) {
+            return $this->travelerGroupFromRef($line->bom_ref) === $group
+                && collect($line->applied_targets)->where('table', 'tdr_processes')->pluck('id')->intersect($processIds)->isNotEmpty();
+        });
+    }
+
+    /** Called inside the grouping transaction, before updating process rows (same lock order as apply). */
+    public function queueTravelerMappingReview(\App\Models\Tdr $tdr, int $group): void
+    {
+        foreach ($this->savedTravelerLines($tdr, $group, true) as $line) {
+            // Keep the last successful snapshots intact, even when the user postpones Rebind.
+            $line->update(['apply_status' => self::STATUS_PENDING,
+                'apply_message' => 'Traveler regrouped; Quantum mapping needs review']);
+        }
+    }
+
+    /** Check a newly saved Traveler without waiting for the scheduled parser or writing anything. */
+    public function travelerRebindSuggestions(\App\Models\Tdr $tdr, int $group): array
+    {
+        $lines = $this->savedTravelerLines($tdr, $group);
+        $suggestions = [];
+        $currentIds = TdrProcess::query()->where('tdrs_id', $tdr->id)->where('in_traveler', true)
+            ->where(function ($q) use ($group) {
+                $q->where('traveler_group', $group);
+                if ($group === 1) $q->orWhereNull('traveler_group');
+            })->pluck('id');
+        foreach ($lines as $line) {
+            $oldIds = collect($line->applied_targets)->where('table', 'tdr_processes')->pluck('id');
+            // Rebind releases excluded members. Same-membership refresh belongs to normal sync.
+            if ($oldIds->diff($currentIds)->isEmpty()) {
+                continue;
+            }
+            $item = ['ro' => $line->ro_number, 'source_uid' => $line->source_uid];
+            try {
+                $preview = $this->travelerRebindPlan($line, false)['preview'];
+                if (collect($preview['apply'])->pluck('id')->diff($currentIds)->isNotEmpty()) {
+                    continue;
+                }
+                $item['url'] = route('vendor-tracking.quantum-lines.rebind', $line);
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                $item['message'] = $e->getMessage();
+            }
+            $suggestions[] = $item;
+        }
+        return $suggestions;
+    }
+
     public function rebindTraveler(int $lineId, string $token, \App\Models\User $actor): void
     {
         abort_unless($actor->roleIs('Admin'), 403);
@@ -170,7 +226,9 @@ class QuantumRoBufferApplyService
 
     private function travelerRebindPlan(QuantumRoLine $line, bool $lock = true): array
     {
-        abort_unless($line->apply_status === self::STATUS_UNRESOLVED
+        // Regrouping queues pending before the scheduled parser detects the conflict.
+        // The full snapshot, membership and value guards below remain mandatory.
+        abort_unless(in_array($line->apply_status, [self::STATUS_UNRESOLVED, self::STATUS_PENDING], true)
             && $this->travelerGroupFromRef($line->bom_ref) !== null
             && ! empty($line->applied_targets), 422, 'This row has no reviewed Traveler mapping to reconcile.');
         $workorder = $this->findWorkorder($line->wo_number);
@@ -593,7 +651,7 @@ class QuantumRoBufferApplyService
         $labels = app(BushingRouteBatches::class)->labels((int) $workorder->id);
         $target = $batches->contains(fn ($batch) => $batch->route_number || $batch->legacy_number)
             ? $batches->first(fn ($batch) => ($labels[$route['process_key']][$batch->id] ?? null) === 'B'.$batchNumber)
-            : $batches->get($batchNumber - 1);
+            : (ctype_digit((string) $batchNumber) ? $batches->get((int) $batchNumber - 1) : null);
 
         if (! $target) {
             return [
@@ -616,15 +674,13 @@ class QuantumRoBufferApplyService
         return WoBushingProcessColumnKey::fromProcess($batch->process);
     }
 
-    private function batchNumberFromRef(?string $ref): ?int
+    private function batchNumberFromRef(?string $ref): ?string
     {
-        if (! preg_match('/^B\s*(\d+)$/i', trim((string) $ref), $matches)) {
+        if (! preg_match('/^B\s*([1-9]\d*(?:\.[1-9]\d*)?)$/i', trim((string) $ref), $matches)) {
             return null;
         }
 
-        $number = (int) $matches[1];
-
-        return $number > 0 ? $number : null;
+        return $matches[1];
     }
 
     private function findTdrTarget(QuantumRoLine $line, Workorder $workorder, Collection $codeMap): array

@@ -19,6 +19,7 @@ class WoBushingLine extends Model
         'group_key',
         'sort_order',
         'selection_active',
+        'manual_route_number',
     ];
 
     protected $casts = [
@@ -28,6 +29,7 @@ class WoBushingLine extends Model
         'do_not_order' => 'boolean',
         'sort_order' => 'integer',
         'selection_active' => 'boolean',
+        'manual_route_number' => 'integer',
     ];
 
     protected static function booted(): void

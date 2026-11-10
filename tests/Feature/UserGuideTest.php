@@ -94,6 +94,9 @@ class UserGuideTest extends TestCase
         $response->assertSee('guide-page__split', false);
         $response->assertSee('grid-template-columns: minmax(0, 3.6fr) minmax(0, 1.4fr);', false);
         $response->assertSee('guide-page__title-row', false);
+        $response->assertSee('guide-workflow', false);
+        $response->assertSee('workflowCheck', false);
+        $response->assertSee('workflowTdr', false);
         $response->assertSee('data-guide-order="22"', false);
         $response->assertSee("const scope = 'user-guide-book'", false);
         $response->assertSee("document.documentElement.dir = 'ltr'", false);
@@ -119,6 +122,156 @@ class UserGuideTest extends TestCase
             ->get(route('admin.user-guide'))
             ->assertOk()
             ->assertSee('Workorders page');
+    }
+
+    public function test_disassembly_images_share_the_navigation_and_reading_order(): void
+    {
+        $this->actingAs($this->createUserWithRole('Technician'))
+            ->get(route('admin.user-guide'))
+            ->assertOk()
+            ->assertSee('pages.forEach((page) => reading.appendChild(page))', false)
+            ->assertDontSee('.guide-page#workorder-tasks { order:', false)
+            ->assertDontSee('order: 26.5', false)
+            ->assertDontSee('order: 27.1', false)
+            ->assertSee('id="workorder-tasks" data-guide-page data-guide-order="27"', false)
+            ->assertSee('id="workorder-disassembly-result" data-guide-page data-guide-order="27.1"', false)
+            ->assertSee('img/user-guide/technician-disassembly.png', false)
+            ->assertSee('img/user-guide/technician-disassembly-2.png', false);
+    }
+
+    public function test_log_card_has_two_static_pages_with_complete_translations(): void
+    {
+        $response = $this->actingAs($this->createUserWithRole('Technician'))
+            ->get(route('admin.user-guide'))->assertOk();
+
+        foreach (['mobile' => '27.2', 'desktop' => '27.3'] as $device => $order) {
+            $response->assertSee('id="log-card-'.$device.'" data-guide-page data-guide-order="'.$order.'"', false);
+            $response->assertSee("'log-card-".$device."': 'log-card'", false);
+        }
+        $response->assertSee('href="#log-card-mobile" role="listitem" data-guide-flow data-guide-stage="log-card"', false);
+        $response->assertSee('Photo + read', false)->assertSee('Received S/N', false);
+        $response->assertSee('the desktop Log Card table has no such recognition button', false);
+        foreach (['mobile-select', 'mobile-photo', 'desktop-select', 'desktop-serials'] as $image) {
+            $path = 'img/user-guide/log-card-'.$image.'.jpg';
+            $response->assertSee($path, false);
+            $this->assertFileExists(public_path($path));
+        }
+
+        $translations = require resource_path('lang/user-guide-log-card.php');
+        foreach (['en', 'ru', 'uk', 'he', 'de', 'kk', 'be'] as $language) {
+            $this->assertSame(array_keys($translations['en']), array_keys($translations[$language]));
+            foreach ($translations[$language] as $text) $this->assertNotSame('', trim($text));
+        }
+    }
+
+    public function test_before_photos_has_real_mobile_steps_and_complete_translations(): void
+    {
+        $response = $this->actingAs($this->createUserWithRole('Technician'))
+            ->get(route('admin.user-guide'))->assertOk();
+
+        foreach ([
+            'workorder-mobile-photos' => '26.5',
+            'workorder-mobile-camera' => '26.53',
+            'workorder-mobile-photo-review' => '26.56',
+            'workorder-resources' => '26.6',
+        ] as $id => $order) {
+            $response->assertSee('id="'.$id.'" data-guide-page data-guide-order="'.$order.'"', false);
+            $response->assertSee('href="#'.$id.'"', false);
+            $response->assertSee("'".$id."': 'photos'", false);
+        }
+        foreach (['mobile-groups', 'mobile-camera', 'mobile-landscape', 'mobile-review', 'desktop-gallery'] as $image) {
+            $path = 'img/user-guide/before-photos-'.$image.'.jpg';
+            $response->assertSee($path, false);
+            $this->assertFileExists(public_path($path));
+            $this->assertGreaterThan(0, getimagesize(public_path($path))[0]);
+        }
+        $response->assertSee('guide-photo-ring--camera', false)
+            ->assertSee('guide-photo-ring--landscape', false)
+            ->assertSee('Save photo', false)
+            ->assertSee('Retake', false)
+            ->assertSee('Photo not saved', false)
+            ->assertDontSee('data-i18n="mobilePhotosCopy"', false);
+
+        $translations = require resource_path('lang/user-guide-before-photos.php');
+        foreach (['en', 'ru', 'uk', 'he', 'de', 'kk', 'be'] as $language) {
+            $this->assertSame(array_keys($translations['en']), array_keys($translations[$language]));
+            foreach ($translations[$language] as $text) $this->assertNotSame('', trim($text));
+        }
+    }
+
+    public function test_tdr_follows_log_card_with_whole_illustrated_pages_in_contents_order(): void
+    {
+        $html = $this->actingAs($this->createUserWithRole('Technician'))
+            ->get(route('admin.user-guide'))->assertOk()->getContent();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+        $xpath = new \DOMXPath($dom);
+        $links = $xpath->query('//a[contains(concat(" ", normalize-space(@class), " "), " toc-link ")]');
+        $order = [];
+        foreach ($links as $link) $order[] = substr($link->getAttribute('href'), 1);
+        $start = array_search('log-card-mobile', $order, true);
+        $this->assertNotFalse($start);
+        $this->assertSame([
+            'log-card-mobile', 'log-card-desktop', 'tdr-parts-processes',
+            'tdr-traveler', 'tdr-process-form', 'workorder-processes',
+            'repair-templates', 'repair-form', 'bushing-selection', 'bushing-processes',
+            'bushing-batches', 'bushing-forms', 'tdr-paper-workorder',
+        ], array_slice($order, $start, 13));
+        $this->assertCount(count($order), array_unique($order));
+        foreach ($order as $id) {
+            $this->assertSame(1, $xpath->query('//article[@id="'.$id.'"]')->length);
+        }
+        foreach ([
+            'tdr-parts-processes' => 4, 'tdr-traveler' => 1,
+            'tdr-process-form' => 1, 'workorder-processes' => 2, 'tdr-paper-workorder' => 1,
+            'repair-templates' => 1, 'repair-form' => 1, 'bushing-selection' => 1,
+            'bushing-processes' => 2, 'bushing-batches' => 1, 'bushing-forms' => 2,
+        ] as $id => $count) {
+            $images = $xpath->query('//article[@id="'.$id.'"]//img');
+            $this->assertSame($count, $images->length, $id.' must retain all illustrations');
+            foreach ($images as $image) {
+                $this->assertFileExists(public_path(ltrim(parse_url($image->getAttribute('src'), PHP_URL_PATH), '/')));
+            }
+        }
+        $this->assertSame(3, $xpath->query('//section[@data-guide-stage-group="tdr"]/a')->length);
+        $this->assertSame(3, $xpath->query('//section[@data-guide-stage-group="repair"]/a')->length);
+        $this->assertSame(4, $xpath->query('//section[@data-guide-stage-group="bushings"]/a')->length);
+        $this->assertStringContainsString("'tdr-process-form': 'tdr'", $html);
+        $this->assertStringContainsString('pageOrder.get(left.id)', $html);
+    }
+
+    public function test_repair_and_bushings_have_illustrations_steps_and_seven_translations(): void
+    {
+        $response = $this->actingAs($this->createUserWithRole('Technician'))
+            ->get(route('admin.user-guide'))->assertOk();
+        $response->assertSee('href="#bushing-selection" role="listitem" data-guide-flow data-guide-stage="bushings"', false);
+        $response->assertSee('...repairBushingGuideTranslations[selected]', false);
+        foreach ([
+            'workorder-processes' => 'repair', 'repair-templates' => 'repair', 'repair-form' => 'repair',
+            'bushing-selection' => 'bushings', 'bushing-processes' => 'bushings',
+            'bushing-batches' => 'bushings', 'bushing-forms' => 'bushings',
+        ] as $id => $stage) {
+            $response->assertSee("'{$id}': '{$stage}'", false);
+        }
+        $translations = require resource_path('lang/user-guide-repair-bushings.php');
+        foreach (['en', 'ru', 'uk', 'he', 'de', 'kk', 'be'] as $language) {
+            $this->assertCount(42, $translations[$language]);
+            $this->assertSame(array_keys($translations['en']), array_keys($translations[$language]));
+            foreach ($translations[$language] as $text) $this->assertNotSame('', trim($text));
+        }
+        foreach (array_keys($translations['en']) as $key) {
+            $response->assertSee('data-i18n="'.$key.'"', false);
+        }
+        foreach (['repair-editor', 'repair-fields', 'repair-templates', 'repair-form',
+            'bushing-selection', 'bushing-processes', 'bushing-save', 'bushing-batches',
+            'bushing-form-selection', 'bushing-form'] as $image) {
+            $path = 'img/user-guide/'.$image.'.png';
+            $response->assertSee($path, false);
+            $this->assertFileExists(public_path($path));
+            $this->assertGreaterThan(0, getimagesize(public_path($path))[0]);
+        }
+        $response->assertSee('Save Bushing Data', false)->assertSee('Included in KIT', false);
+        $response->assertDontSee('data-i18n="workorderProcessesCopy"', false);
     }
 
     public function test_old_interactive_guide_routes_are_removed(): void

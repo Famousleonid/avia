@@ -44,8 +44,7 @@
             padding: 6px 8px;
         }
 
-        /* Замороженные левые колонки: ширина по контенту (+пределы),
-           сдвиг второй колонки вычисляется JS по фактической ширине первой */
+        /* При прокрутке P/N перекрывает описание и закрепляется слева. */
         .training-table th.col-unit,
         .training-table td.col-unit {
             position: sticky !important;
@@ -63,10 +62,10 @@
         .training-table th.col-part,
         .training-table td.col-part {
             position: sticky !important;
-            left: var(--col-part-left, 220px);
+            left: 0;
             min-width: 190px;
             max-width: 420px;
-            z-index: 30;
+            z-index: 40;
             background: var(--avia-surface-raised) !important;
             box-shadow: 4px 0 12px rgba(0, 0, 0, 0.28);
             white-space: normal;
@@ -80,6 +79,8 @@
             background: linear-gradient(180deg, var(--avia-surface-raised) 0%, var(--avia-surface) 100%) !important;
             color: #8fc4f0 !important;
         }
+
+        .training-table thead th.col-part { z-index: 60; }
 
         .training-table th.user-column,
         .training-table td.user-column {
@@ -146,9 +147,12 @@
             cursor: default;
         }
 
-        .row-no-cmm td.col-unit,
-        .row-no-cmm td.col-part {
+        .row-no-cmm td.col-unit {
             opacity: .55;
+        }
+
+        .row-no-cmm td.col-part {
+            color: var(--avia-text-muted);
         }
 
         .badge-no-cmm {
@@ -234,7 +238,9 @@
         }
 
         .training-table.has-active-col th.col-unit,
-        .training-table.has-active-col td.col-unit {
+        .training-table.has-active-col td.col-unit,
+        .training-table.has-active-col th.col-part,
+        .training-table.has-active-col td.col-part {
             left: 36px;
         }
 
@@ -529,19 +535,6 @@
 
     <script>
         (function () {
-            // Сдвиг второй замороженной колонки = фактическая граница первой
-            // (ширины теперь по контенту, фиксированного офсета нет)
-            function syncStickyOffsets() {
-                const table = document.querySelector('.training-table');
-                const unitTh = document.querySelector('.training-table th.col-unit');
-                if (table && unitTh) {
-                    table.style.setProperty('--col-part-left', (unitTh.offsetLeft + unitTh.offsetWidth) + 'px');
-                }
-            }
-            window.addEventListener('load', syncStickyOffsets);
-            window.addEventListener('resize', syncStickyOffsets);
-            syncStickyOffsets();
-
             // Поиск: по строкам (описание + парт-номер/курс) И по колонкам
             // (имя/штамп в шапке). Если запрос совпал с сотрудником — фильтруются
             // колонки; иначе — строки (группы без совпадений скрываются).
@@ -599,7 +592,6 @@
                         setColumnVisibility(userThs.map(() => true));
                         filterRows(q);
                     }
-                    syncStickyOffsets(); // ширины колонок могли измениться
                 });
             }
 

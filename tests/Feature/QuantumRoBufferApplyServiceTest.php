@@ -1438,6 +1438,103 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame('R-REBUILD', $old->fresh()->repair_order);
     }
 
+    public function test_regroup_offers_rebind_before_parser_without_changing_quantum_values(): void
+    {
+        [$line, $old, $kept, $added] = $this->rebuiltTravelerFixture();
+        $line->update(['apply_status' => 'applied']);
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $this->postJson(route('tdr-processes.traveler-ungroup', $kept->tdrs_id), ['traveler_group' => 1])->assertOk();
+        $saved = $this->postJson(route('tdr-processes.traveler-group', $kept->tdrs_id), [
+            'process_ids' => [$kept->id, $added->id],
+        ])->assertOk()->assertJsonPath('success', true);
+        $url = $saved->json('quantum_rebind_url');
+        $this->assertNotEmpty($url);
+        $suggestions = $this->getJson($url)->assertOk()->json('suggestions');
+        $this->assertCount(1, $suggestions);
+        $this->assertSame($line->source_uid, $suggestions[0]['source_uid']);
+        $this->assertSame('pending', $line->fresh()->apply_status);
+        $this->assertSame('R-REBUILD', $old->fresh()->repair_order);
+        $this->assertNull($kept->fresh()->repair_order);
+        $preview = $this->getJson($suggestions[0]['url'])->assertOk()->json();
+        $this->assertNull($kept->fresh()->repair_order);
+        $this->postJson($suggestions[0]['url'], ['token' => $preview['token']])->assertOk();
+        $this->assertNull($old->fresh()->repair_order);
+        $this->assertSame('R-REBUILD', $kept->fresh()->repair_order);
+        $this->assertSame('R-REBUILD', $added->fresh()->repair_order);
+        $this->getJson($url)->assertOk()->assertJsonPath('suggestions', []);
+    }
+
+    public function test_rebind_suggestions_are_scoped_to_part_group_and_active_source(): void
+    {
+        [$line, $old, $kept] = $this->rebuiltTravelerFixture();
+        $this->actingAs($this->createUserWithRole('Admin'));
+        $url = route('tdr-processes.traveler-rebind-suggestions', ['tdrId' => $kept->tdrs_id, 'group' => 1]);
+        $this->getJson($url)->assertOk()->assertJsonCount(1, 'suggestions');
+        $this->getJson(route('tdr-processes.traveler-rebind-suggestions', ['tdrId' => $kept->tdrs_id, 'group' => 2]))
+            ->assertOk()->assertJsonPath('suggestions', []);
+        $other = Tdr::create(['workorder_id' => $kept->tdr->workorder_id, 'component_id' => $kept->tdr->component_id,
+            'serial_number' => 'OTHER-SERIAL', 'qty' => 1]);
+        $this->getJson(route('tdr-processes.traveler-rebind-suggestions', ['tdrId' => $other->id, 'group' => 1]))
+            ->assertOk()->assertJsonPath('suggestions', []);
+        $line->update(['apply_status' => 'dismissed']);
+        $this->getJson($url)->assertOk()->assertJsonPath('suggestions', []);
+        $this->getJson(route('vendor-tracking.quantum-lines.rebind', $line))->assertStatus(422);
+    }
+
+    public function test_rebind_suggestions_report_manual_conflict_and_enforce_access(): void
+    {
+        [$line, $old, $kept] = $this->rebuiltTravelerFixture();
+        $url = route('tdr-processes.traveler-rebind-suggestions', ['tdrId' => $kept->tdrs_id, 'group' => 1]);
+        $this->actingAs($this->createUserWithRole('Manager'))->getJson($url)->assertForbidden();
+        $this->flushSession();
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $old->update(['date_start' => '2026-06-09']);
+        $item = $this->getJson($url)->assertOk()->json('suggestions.0');
+        $this->assertArrayNotHasKey('url', $item);
+        $this->assertStringContainsString('was replaced manually', $item['message']);
+        $this->assertSame('R-REBUILD', $old->fresh()->repair_order);
+        \Illuminate\Support\Facades\Gate::define('feature.vendor_tracking', fn () => false);
+        $this->getJson($url)->assertForbidden();
+    }
+
+    public function test_postponed_rebind_is_picked_up_by_parser_without_losing_snapshots(): void
+    {
+        [$line, $old, $kept, $added] = $this->rebuiltTravelerFixture();
+        $snapshots = $line->applied_targets;
+        $line->update(['apply_status' => 'applied']);
+        $this->actingAs($this->createUserWithRole('Admin'));
+        $this->postJson(route('tdr-processes.traveler-ungroup', $kept->tdrs_id), ['traveler_group' => 1])->assertOk();
+        $this->postJson(route('tdr-processes.traveler-group', $kept->tdrs_id), [
+            'process_ids' => [$kept->id, $added->id],
+        ])->assertOk();
+        $this->assertSame('pending', $line->fresh()->apply_status);
+        $this->assertSame($snapshots, $line->fresh()->applied_targets);
+        app(QuantumRoBufferApplyService::class)->apply(1);
+        $this->assertSame('unresolved', $line->fresh()->apply_status);
+        $this->assertSame($snapshots, $line->fresh()->applied_targets);
+        $this->assertSame('R-REBUILD', $old->fresh()->repair_order);
+        $this->assertNull($kept->fresh()->repair_order);
+    }
+
+    public function test_same_membership_regroup_queues_normal_sync_without_rebind_prompt(): void
+    {
+        [$line, $old, $kept, $added] = $this->rebuiltTravelerFixture();
+        $this->actingAs($this->createUserWithRole('Admin'));
+        $this->postJson(route('tdr-processes.traveler-ungroup', $kept->tdrs_id), ['traveler_group' => 1])->assertOk();
+        // Restore the original membership; no previous targets need releasing.
+        $saved = $this->postJson(route('tdr-processes.traveler-group', $kept->tdrs_id), [
+            'process_ids' => [$old->id, $kept->id], 'clear_conflicting_values' => true,
+        ])->assertOk();
+        $this->getJson($saved->json('quantum_rebind_url'))->assertOk()->assertJsonPath('suggestions', []);
+        $this->assertSame('pending', $line->fresh()->apply_status);
+        app(QuantumRoBufferApplyService::class)->apply(1);
+        $this->assertSame('applied', $line->fresh()->apply_status);
+        $this->assertSame('2026-06-01', $kept->fresh()->date_start->format('Y-m-d'));
+        $this->assertNull($added->fresh()->repair_order);
+    }
+
     private function rebuiltTravelerFixture(): array
     {
         $wo = $this->createWorkorder();

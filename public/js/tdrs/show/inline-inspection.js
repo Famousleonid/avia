@@ -478,11 +478,16 @@ function initTdrInlineCreate() {
             return;
         }
 
-        if (candidate && (!current || current === previousAuto)) {
+        if (!current || (previousAuto && current === previousAuto)) {
             serialInput.value = candidate;
         }
         serialInput.dataset.autoLogCardSerial = candidate;
     }
+
+    document.addEventListener('tdr:log-card-serials-updated', function() {
+        syncRepairSerialFromLogCard();
+        updatePlaceholders();
+    });
 
     function syncDescriptionFromComponent(option) {
         if (!descriptionInput) return;

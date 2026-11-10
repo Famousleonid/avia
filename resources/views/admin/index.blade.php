@@ -17,10 +17,11 @@
             transform: translate(-50%, -50%);
         }
 
-        .cabinet-aircraft-stage--photo .cabinet-aircraft {
+        .cabinet-aircraft-stage--photo .cabinet-aircraft,
+        body.has-user-project-background .cabinet-aircraft-stage .cabinet-aircraft {
             width: 16%;
-            left: auto;
-            right: 3%;
+            left: 3%;
+            right: auto;
             top: 5%;
             transform: none;
         }

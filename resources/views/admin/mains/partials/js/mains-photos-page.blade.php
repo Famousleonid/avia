@@ -9,20 +9,26 @@
         const workorderNumber = pageEl?.dataset.workorderNumber || workorderId;
         const previewSlider = document.getElementById('photoPreviewSize');
         const previewSizeValue = document.getElementById('photoPreviewSizeValue');
+        const previewSteps = [80, 128, 192, 256, 320];
+        const previewResolutions = [80, 128, 192, 256, 320, 384, 512, 640, 768, 960];
+        let previewSize = 128;
         let previewSizeChanged = false;
         const applyPreviewSize = value => {
             const parsed = Number(value);
-            const size = Number.isFinite(parsed) ? Math.max(80, Math.min(320, Math.round(parsed / 8) * 8)) : 128;
-            previewSlider.value = String(size);
+            const size = Number.isFinite(parsed) ? previewSteps.reduce((best, step) => Math.abs(step - parsed) < Math.abs(best - parsed) ? step : best) : 128;
+            previewSize = size;
+            previewSlider.value = String(previewSteps.indexOf(size));
+            previewSlider.setAttribute('aria-valuetext', `${size} px`);
             previewSizeValue.value = `${size} px`;
             pageEl.style.setProperty('--photo-preview-size', `${size}px`);
+            contentEl.querySelectorAll('.photo-thumbnail').forEach(image => { image.sizes = `${size}px`; });
         };
         previewSlider.addEventListener('input', () => {
             previewSizeChanged = true;
-            applyPreviewSize(previewSlider.value);
+            applyPreviewSize(previewSteps[Number(previewSlider.value)]);
         });
         previewSlider.addEventListener('change', () => {
-            window.UserUiSettings?.set('mains.photos', 'preview_size', Number(previewSlider.value));
+            window.UserUiSettings?.set('mains.photos', 'preview_size', previewSize);
         });
         window.UserUiSettings?.get('mains.photos', 'preview_size', 128).then(size => {
             if (!previewSizeChanged) applyPreviewSize(size);
@@ -275,6 +281,12 @@
                         html += '<div class="col-12 text-muted small">No photos</div>';
                     } else {
                         items.forEach(media => {
+                            const previewUrl = size => {
+                                const url = new URL(media.thumb, window.location.href);
+                                url.searchParams.set('size', size);
+                                return url.href;
+                            };
+                            const previewSrcset = previewResolutions.map(size => `${previewUrl(size)} ${size}w`).join(', ');
                             html += `
                             <div class="photo-item"
                                  draggable="true"
@@ -282,7 +294,7 @@
                                  data-group="${safeGroup}">
                                 <div class="position-relative d-inline-block w-100">
                                     <a data-fancybox="${safeGroup}" href="${escapeAttr(media.big)}" data-caption="${safeLabel}">
-                                        <img src="${escapeAttr(media.thumb)}" class="photo-thumbnail border border-primary rounded" alt="${safeLabel}" />
+                                        <img sizes="${previewSize}px" srcset="${escapeAttr(previewSrcset)}" src="${escapeAttr(previewUrl(256))}" loading="lazy" decoding="async" width="${previewSize}" height="${previewSize}" class="photo-thumbnail border border-primary rounded" alt="${safeLabel}" />
                                     </a>
 
                                     <button type="button"

@@ -13,6 +13,21 @@ class TdrManualSelectionTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_tdr_manual_picker_excludes_bushing_flag_but_not_part_names(): void
+    {
+        $this->actingAs($this->createUserWithRole('Admin'));
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+        $bush = $this->createComponent($manual, ['is_bush' => true, 'kit' => false]);
+        $part = $this->createComponent($manual, ['is_bush' => false, 'kit' => false, 'name' => 'BUSHING UNFLAGGED']);
+        foreach ([[], ['workorder_id' => $wo->id]] as $params) {
+            $response = $this->getJson(route('tdrs.get-components-by-manual', array_merge(['manual_id' => $manual->id], $params)))->assertOk();
+            $ids = collect($response->json('components'))->pluck('id')->all();
+            $this->assertNotContains($bush->id, $ids);
+            $this->assertContains($part->id, $ids);
+        }
+    }
+
     public function test_all_roles_can_browse_only_workorder_manuals_while_part_edit_access_stays_scoped(): void
     {
         $permissionOwner = $this->createUserWithRole('Technician');

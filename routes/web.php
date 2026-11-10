@@ -692,6 +692,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/wo_bushings/get-bushings-from-manual', [WoBushingController::class, 'getBushingsFromManual'])->name('wo_bushings.getBushingsFromManual');
     Route::post('/wo_bushings/{woBushing}/batches', [WoBushingController::class, 'createBatch'])->name('wo_bushings.batches.create');
     Route::post('/wo_bushings/{woBushing}/batches/ungroup', [WoBushingController::class, 'ungroupBatch'])->name('wo_bushings.batches.ungroup');
+    Route::post('/wo_bushings/{woBushing}/batches/split', [WoBushingController::class, 'splitBatch'])->name('wo_bushings.batches.split');
 
     Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('processes.create');
     Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
@@ -778,6 +779,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
     Route::post('/tdr-processes/update-order', [TdrProcessController::class, 'updateOrder'])->name('tdr-processes.update-order');
     Route::post('/tdr/{tdrId}/traveler-group', [TdrProcessController::class, 'travelerGroup'])->name('tdr-processes.traveler-group');
+    Route::get('/tdr/{tdrId}/traveler-rebind-suggestions', [TdrProcessController::class, 'travelerRebindSuggestions'])->name('tdr-processes.traveler-rebind-suggestions');
     Route::post('/tdr/{tdrId}/traveler-ungroup', [TdrProcessController::class, 'travelerUngroup'])->name('tdr-processes.traveler-ungroup');
 
     Route::get('wo_bushings/processesForm/{id}/{processNameId}', [WoBushingController::class, 'processesForm'])->name('wo_bushings.processesForm');
@@ -833,6 +835,16 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 });
 
 Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(function () {
+    Route::get('/project-settings/birthday-background/state', [ProjectSettingController::class, 'birthdayBackgroundState'])
+        ->name('admin.project-settings.birthday-background.state');
+    Route::get('/project-settings/birthday-background/image', [ProjectSettingController::class, 'birthdayBackgroundImage'])
+        ->name('admin.project-settings.birthday-background.image');
+    Route::get('/project-settings/internet-background/{user}', [ProjectSettingController::class, 'internetBackground'])
+        ->name('admin.project-settings.internet-background.show');
+    Route::post('/project-settings/internet-background/{user}', [ProjectSettingController::class, 'internetBackground'])
+        ->middleware('throttle:10,1')->name('admin.project-settings.internet-background.refresh');
+    Route::patch('/project-settings/internet-background/{user}', [ProjectSettingController::class, 'internetBackground'])
+        ->middleware('throttle:10,1')->name('admin.project-settings.internet-background.update');
     Route::get('/project-settings/user-background/{user}', [ProjectSettingController::class, 'showUserBackground'])
         ->name('admin.project-settings.user-background.show');
 
@@ -843,7 +855,10 @@ Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(funct
         Route::delete('/access/{access}', [AccessController::class, 'destroy'])->name('admin.access.destroy');
         Route::get('/project-settings', [ProjectSettingController::class, 'index'])->name('admin.project-settings.index');
         Route::post('/project-settings', [ProjectSettingController::class, 'update'])->name('admin.project-settings.update');
+        Route::post('/project-settings/birthday-background', [ProjectSettingController::class, 'saveBirthdayBackground'])
+            ->name('admin.project-settings.birthday-background.store');
         Route::post('/project-settings/user-background', [ProjectSettingController::class, 'storeUserBackground'])->name('admin.project-settings.user-background.store');
+        Route::post('/project-settings/internet-background', [ProjectSettingController::class, 'saveInternetBackground'])->name('admin.project-settings.internet-background.store');
         Route::delete('/project-settings/user-background/{user}', [ProjectSettingController::class, 'destroyUserBackground'])->name('admin.project-settings.user-background.destroy');
         Route::get('/std-process-audit', [StdProcessAuditController::class, 'index'])->name('admin.std-process-audit.index');
     });

@@ -117,6 +117,7 @@ class RmReportController extends Controller
     public function partial($workorder_id)
     {
         $current_wo = Workorder::findOrFail($workorder_id);
+        app(\App\Services\WorkorderRepairRows::class)->initialize($current_wo);
         $manual_id = $current_wo->unit->manual_id;
 
         $rm_reports = RmReport::where('manual_id', $manual_id)->templatesFirst()
@@ -151,6 +152,7 @@ class RmReportController extends Controller
             ]);
         }
 
+        app(\App\Services\WorkorderRepairRows::class)->initialize($current_wo);
         return view('admin.rm_reports.show-page', compact('current_wo', 'rm_reports', 'assyOptions', 'serviceBulletins'));
     }
 public function rmRecordForm(Request $request, $id)
@@ -270,6 +272,9 @@ public function rmRecordForm(Request $request, $id)
         } else {
             $dataToSave['editor_rows'] = $rowService->rows($workorder, $rmRecords)->all();
         }
+        $savedData = json_decode((string) $workorder->rm_report, true) ?: [];
+        $dataToSave['tdr_snapshot'] = $savedData['tdr_snapshot'] ?? collect($dataToSave['editor_rows'])
+            ->filter(fn ($row) => str_starts_with($row['key'], 'tdr:'))->values()->all();
         if ($rmRecords->isNotEmpty()) {
             $dataToSave['rm_records'] = $this->recordSnapshots($rmRecords);
         }
@@ -507,6 +512,8 @@ public function rmRecordForm(Request $request, $id)
         
         // Получаем workorder для проверки существующих данных
         $workorder = Workorder::findOrFail($workorder_id);
+        $existingEditor = json_decode((string) $workorder->rm_report, true) ?: [];
+        $dataToSave = array_intersect_key($existingEditor, array_flip(['tdr_snapshot', 'editor_rows']));
         
         // Добавляем R&M записи, если они выбраны
         if (!empty($selectedRecords)) {

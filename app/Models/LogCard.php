@@ -23,6 +23,33 @@ class LogCard extends Model
         'destruction_certificate_data' => 'array',
     ];
 
+    public function serialsByComponent(): array
+    {
+        $rows = $this->component_data;
+        if (is_string($rows)) {
+            $rows = json_decode($rows, true);
+        }
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        $serials = [];
+        foreach ($rows as $row) {
+            if (! is_array($row) || ($row['row_type'] ?? '') === 'manual') {
+                continue;
+            }
+
+            $componentId = (int) ($row['component_id'] ?? 0);
+            $serial = trim((string) ($row['serial_number'] ?? ''));
+            if ($componentId > 0 && $serial !== '' && ! isset($serials[$componentId])) {
+                $serials[$componentId] = $serial;
+            }
+        }
+
+        return $serials;
+    }
+
     public function workorder(): BelongsTo
     {
         return $this->belongsTo(Workorder::class);

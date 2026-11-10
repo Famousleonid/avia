@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class WoBushingBatch extends Model
 {
     protected $fillable = [
+        'route_label',
+        'manual_partition',
         'route_number',
         'legacy_number',
         'workorder_id',
@@ -23,6 +25,7 @@ class WoBushingBatch extends Model
     ];
 
     protected $casts = [
+        'manual_partition' => 'boolean',
         'date_start' => 'date',
         'date_finish' => 'date',
         'date_promise' => 'date',

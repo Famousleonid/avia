@@ -241,11 +241,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
-                if (candidate && (!current || current === previousAuto)) {
+                if (!current || (previousAuto && current === previousAuto)) {
                     input.value = candidate;
                 }
                 input.dataset.autoLogCardSerial = candidate;
             }
+
+            document.addEventListener('tdr:log-card-serials-updated', syncRepairSerialFromLogCard);
 
             function updateFieldVisibility() {
                 const codeName = ($('#codes_id option:selected').attr('data-title') || '').toString().trim().toLowerCase();

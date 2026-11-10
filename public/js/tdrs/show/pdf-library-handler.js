@@ -15,12 +15,13 @@ const PdfLibraryHandler = {
             return;
         }
 
-        if (typeof showLoadingSpinner === 'function') {
-            showLoadingSpinner();
-        }
-
         try {
-            const response = await fetch(`/workorders/${workorderId}/pdfs`);
+            // The upload UI has its own progress indicator. Reloading this read-only
+            // list must not acquire the global app spinner, otherwise an overlapping
+            // upload/list refresh can leave a stale busy indicator above the modal.
+            const response = await fetch(`/workorders/${workorderId}/pdfs`, {
+                spinner: false,
+            });
             if (!response.ok) {
                 throw new Error('Response not ok');
             }
@@ -53,10 +54,6 @@ const PdfLibraryHandler = {
         } catch (error) {
             console.error('Load PDF error:', error);
             container.innerHTML = '<div class="col-12"><div class="alert alert-danger">Failed to load documents</div></div>';
-        } finally {
-            if (typeof hideLoadingSpinner === 'function') {
-                hideLoadingSpinner();
-            }
         }
     },
 

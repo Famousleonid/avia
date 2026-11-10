@@ -1,3 +1,6 @@
+@php($logCardGuideTranslations = require resource_path('lang/user-guide-log-card.php'))
+@php($beforePhotosGuideTranslations = require resource_path('lang/user-guide-before-photos.php'))
+@php($repairBushingGuideTranslations = require resource_path('lang/user-guide-repair-bushings.php'))
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -22,6 +25,7 @@
             --paper: #102433;
             --canvas: #071722;
             --shadow: 0 18px 55px rgba(0, 0, 0, .32);
+            --guide-topbar-height: 76px;
         }
 
         * { box-sizing: border-box; }
@@ -41,9 +45,9 @@
             position: sticky;
             top: 0;
             z-index: 40;
-            min-height: 66px;
+            min-height: var(--guide-topbar-height);
             display: grid;
-            grid-template-columns: minmax(170px, 1fr) auto minmax(170px, 1fr);
+            grid-template-columns: auto minmax(0, 1fr) auto;
             align-items: center;
             gap: 18px;
             padding: 10px clamp(16px, 3vw, 42px);
@@ -67,6 +71,47 @@
             font-size: clamp(1.05rem, 2vw, 1.35rem);
             letter-spacing: .01em;
             white-space: nowrap;
+        }
+
+        .guide-title--a11y {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+        }
+
+        .guide-topbar__workflow {
+            min-width: 0;
+        }
+
+        .guide-topbar__workflow .guide-workflow {
+            justify-content: safe center;
+            gap: 21px;
+            margin: 0;
+            padding: 4px 2px;
+            overflow-x: auto;
+        }
+
+        .guide-topbar__workflow .guide-workflow__step {
+            flex-basis: clamp(58px, 5vw, 80px);
+            height: 44px;
+            aspect-ratio: auto;
+            padding: 6px;
+            border-radius: 6px;
+            font-size: clamp(.53rem, .62vw, .68rem);
+            line-height: 1.2;
+        }
+
+        .guide-topbar__workflow .guide-workflow__step[data-guide-stage="check"] {
+            flex-basis: clamp(96px, 7vw, 120px);
+        }
+
+        .guide-topbar__workflow .guide-workflow__step::after {
+            inset-inline-start: calc(100% + 5px);
+            font-size: 1.1rem;
         }
 
         .guide-button,
@@ -135,14 +180,14 @@
         .guide-shell {
             display: grid;
             grid-template-columns: 250px minmax(0, 1fr);
-            min-height: calc(100vh - 66px);
+            min-height: calc(100vh - var(--guide-topbar-height));
         }
 
         .guide-sidebar {
             position: sticky;
-            top: 66px;
+            top: var(--guide-topbar-height);
             align-self: start;
-            height: calc(100vh - 66px);
+            height: calc(100vh - var(--guide-topbar-height));
             overflow-y: auto;
             padding: 34px 24px;
             background: var(--navy-900);
@@ -220,36 +265,51 @@
 
         .guide-page {
             width: min(100%, 1196px);
-            min-height: calc(100vh - 128px);
+            min-height: calc(100vh - var(--guide-topbar-height) - 62px);
             margin: 0 auto 42px;
             padding: clamp(20px, 3vw, 36px);
             border: 1px solid var(--line);
             border-radius: 3px;
             background: var(--paper);
             box-shadow: var(--shadow);
-            scroll-margin-top: 90px;
+            scroll-margin-top: calc(var(--guide-topbar-height) + 24px);
         }
 
-        .guide-page#sign-in { order: 11; }
-        .guide-page#cabinet { order: 12; }
-        .guide-page#workorders { order: 21; }
-        .guide-page#workorder-start { order: 22; }
-        .guide-page#workorder-filters { order: 23; }
-        .guide-page#workorder-open { order: 24; }
-        .guide-page#workorder-main { order: 25; }
-        .guide-page#workorder-main-details { order: 26; }
-        .guide-page#workorder-tasks { order: 27; }
-        .guide-page#workorder-processes { order: 28; }
-        .guide-page#workorder-resources { order: 29; }
-        .guide-page#tdr-parts-processes { order: 30; }
-        .guide-page#tdr-traveler { order: 31; }
-        .guide-page#tdr-process-form { order: 32; }
-        .guide-page#tdr-paper-workorder { order: 33; }
-        .guide-page#training { order: 40; }
-        .guide-page#technician-directory { order: 50; }
-        .guide-page#materials { order: 60; }
 
         .guide-page:last-child { margin-bottom: 42px; }
+
+        .guide-page--disassembly {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            overflow: hidden;
+            isolation: isolate;
+            color: #fff;
+            background-color: #101c26;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        .guide-page--disassembly::before {
+            position: absolute;
+            z-index: -1;
+            inset: 0;
+            content: '';
+            background: linear-gradient(180deg, rgba(5, 18, 28, .15) 28%, rgba(5, 18, 28, .9) 100%);
+        }
+
+        .guide-page--disassembly-first { background-image: url('{{ asset('img/user-guide/technician-disassembly.png') }}?v={{ filemtime(public_path('img/user-guide/technician-disassembly.png')) }}'); }
+        .guide-page--disassembly-result { background-image: url('{{ asset('img/user-guide/technician-disassembly-2.png') }}?v={{ filemtime(public_path('img/user-guide/technician-disassembly-2.png')) }}'); }
+        .guide-page--disassembly .chapter-label,
+        .guide-page--disassembly .page-lead { color: #eaf8ff; }
+        .guide-page--disassembly .page-title { color: #fff; }
+
+        @media (max-width: 700px) {
+            .guide-page--disassembly { min-height: calc(100svh - var(--guide-topbar-height) - 34px); }
+        }
+
         .chapter-label {
             display: flex;
             align-items: center;
@@ -283,6 +343,76 @@
             margin: 16px 0 30px;
             color: var(--muted);
             font-size: clamp(1rem, 1.8vw, 1.14rem);
+        }
+
+        .guide-workflow {
+            display: flex;
+            align-items: center;
+            gap: 27px;
+            margin: 4px 0 30px;
+            padding: 4px 2px 12px;
+            overflow-x: auto;
+            scrollbar-color: #315365 transparent;
+        }
+
+        .guide-workflow__step {
+            position: relative;
+            display: grid;
+            flex: 0 0 108px;
+            aspect-ratio: 1;
+            place-items: center;
+            padding: 10px;
+            border: 1px solid #2f6175;
+            border-radius: 7px;
+            background: linear-gradient(145deg, rgba(12, 43, 59, .94), rgba(7, 25, 37, .94));
+            color: #e9f3f7;
+            font-size: .76rem;
+            font-weight: 700;
+            line-height: 1.28;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        a.guide-workflow__step {
+            color: #e9f3f7;
+            cursor: pointer;
+            transition: border-color .18s ease, background .18s ease, color .18s ease, transform .18s ease;
+        }
+
+        a.guide-workflow__step:hover,
+        a.guide-workflow__step:focus-visible {
+            border-color: var(--cyan-500);
+            background: linear-gradient(145deg, rgba(13, 66, 83, .98), rgba(7, 30, 44, .98));
+            color: #fff;
+            outline: none;
+            transform: translateY(-2px);
+        }
+
+        .guide-workflow__step.is-active {
+            border-color: var(--cyan-500);
+            background: linear-gradient(145deg, rgba(13, 66, 83, .98), rgba(7, 30, 44, .98));
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(17, 181, 217, .22), 0 0 18px rgba(17, 181, 217, .18);
+        }
+
+        .guide-workflow__step::after {
+            content: "→";
+            position: absolute;
+            inset-inline-start: calc(100% + 7px);
+            top: 50%;
+            color: var(--cyan-500);
+            font-size: 1.35rem;
+            font-weight: 400;
+            line-height: 1;
+            transform: translateY(-50%);
+        }
+
+        .guide-workflow__step:last-child::after { content: none; }
+
+        .toc-group--workflow.is-active .toc-group__title {
+            border-inline-start-color: var(--cyan-500);
+            background: rgba(17, 181, 217, .08);
+            color: #6fe0f2;
         }
 
         .guide-page__title-row {
@@ -461,6 +591,39 @@
             display: block;
         }
 
+        .guide-log-card-phones {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            align-items: start;
+        }
+        .guide-log-card-phones .guide-figure { min-width: 0; }
+        .guide-photo-shot { position: relative; width: 100%; }
+        .guide-photo-shot img { display: block; width: 100%; height: auto; max-height: none; }
+        .guide-page--photos > .page-title { margin-bottom: 20px; }
+        .guide-photo-ring {
+            position: absolute; pointer-events: none; border: 3px solid #ffd34d;
+            border-radius: 46% 54% 49% 51%; transform: rotate(-4deg);
+            box-shadow: 0 0 0 1px #241d10;
+        }
+        .guide-photo-ring--group { left: 1%; top: 47%; width: 31%; height: 6%; }
+        .guide-photo-ring--camera { left: 72%; top: 65%; width: 15%; height: 6%; }
+        .guide-photo-ring--thumbnail { left: 42%; top: 51%; width: 15%; height: 7%; }
+        .guide-photo-ring--landscape { left: 77%; top: 34%; width: 11%; height: 18%; }
+        .guide-photo-rotation { display: flex; align-items: center; gap: 20px; margin: 18px 0; }
+        .guide-photo-rotation svg { width: min(32%, 260px); flex-shrink: 0; }
+        .guide-photo-rotation p { margin: 0; color: #ffd34d; line-height: 1.5; }
+        .guide-photo-wide-copy { width: 100%; max-width: none; line-height: 1.65; margin: 20px 0; }
+        .guide-log-card-steps { padding-left: 1.4em; margin: 0; }
+        .guide-log-card-steps li { padding-left: .35em; margin-bottom: 1.1em; line-height: 1.6; }
+        .guide-log-card-steps li::marker { color: var(--cyan-500); font-weight: 700; }
+        .guide-log-card-steps--wide { width: 100%; max-width: none; }
+        .guide-page--repair-bushings > .page-title { margin-bottom: 24px; }
+        .guide-repair-bushing-block + .guide-repair-bushing-block { margin-top: 28px; }
+        @media (max-width: 480px) {
+            .guide-log-card-phones { grid-template-columns: 1fr; }
+        }
+
         .guide-copy.guide-copy--single {
             display: block;
             width: 100%;
@@ -569,15 +732,17 @@
 
         @media (max-width: 1120px) {
             .guide-topbar {
-                grid-template-columns: auto 1fr;
+                grid-template-columns: auto minmax(0, 1fr) auto;
+                gap: 10px;
             }
 
             .guide-title { display: none; }
         }
 
         @media (max-width: 980px) {
+            :root { --guide-topbar-height: 74px; }
+
             .guide-topbar {
-                min-height: 58px;
                 padding: 8px 12px;
             }
 
@@ -586,16 +751,16 @@
 
             .guide-shell {
                 display: block;
-                min-height: calc(100vh - 58px);
+                min-height: calc(100vh - var(--guide-topbar-height));
             }
 
             .guide-sidebar {
                 position: fixed;
                 z-index: 35;
-                top: 58px;
+                top: var(--guide-topbar-height);
                 inset-inline-start: 0;
                 width: min(310px, 86vw);
-                height: calc(100vh - 58px);
+                height: calc(100vh - var(--guide-topbar-height));
                 transform: translateX(-105%);
                 box-shadow: 16px 0 40px rgba(0, 0, 0, .3);
                 transition: transform .2s ease;
@@ -608,15 +773,38 @@
         }
 
         @media (max-width: 620px) {
+            :root { --guide-topbar-height: 120px; }
+
             .guide-topbar {
-                grid-template-columns: 1fr;
+                grid-template-columns: auto minmax(0, 1fr);
                 gap: 6px;
+            }
+
+            .guide-topbar__workflow {
+                grid-column: 1 / -1;
+                grid-row: 2;
+            }
+
+            .guide-topbar__workflow .guide-workflow {
+                justify-content: flex-start;
+                gap: 17px;
+            }
+
+            .guide-topbar__workflow .guide-workflow__step {
+                flex-basis: 52px;
+                height: 40px;
+                font-size: .5rem;
+            }
+
+            .guide-topbar__workflow .guide-workflow__step[data-guide-stage="check"] {
+                flex-basis: 86px;
             }
 
             .guide-topbar__start,
             .guide-topbar__end {
                 justify-content: space-between;
                 gap: 5px;
+                min-width: 0;
             }
 
             .guide-button {
@@ -625,11 +813,11 @@
             }
 
             .language-list {
-                max-width: none;
-                overflow: visible;
+                min-width: 0;
+                overflow-x: auto;
             }
 
-            .language-button { min-width: 28px; }
+            .language-button { min-width: 28px; flex-shrink: 0; }
 
             .guide-page {
                 padding: 24px 18px;
@@ -677,7 +865,20 @@
             </a>
         </div>
 
-        <h1 class="guide-title" data-i18n="pageTitle">User Guide</h1>
+        <h1 class="guide-title--a11y" data-i18n="pageTitle">User Guide</h1>
+
+        <nav class="guide-topbar__workflow" aria-label="Technician workorder sequence">
+            <div class="guide-workflow" role="list">
+                <a class="guide-workflow__step" href="#workorder-start" role="listitem" data-guide-flow data-guide-stage="check" data-i18n="workflowCheck">Receive WO &amp; check data</a>
+                <a class="guide-workflow__step" href="#workorder-mobile-photos" role="listitem" data-guide-flow data-guide-stage="photos" data-i18n="workflowPhotos">Before photos</a>
+                <a class="guide-workflow__step" href="#workorder-tasks" role="listitem" data-guide-flow data-guide-stage="disassembly" data-i18n="workflowDisassembly">Start disassembly</a>
+                <a class="guide-workflow__step" href="#log-card-mobile" role="listitem" data-guide-flow data-guide-stage="log-card" data-i18n="workflowLogCard">Log Card</a>
+                <a class="guide-workflow__step" href="#tdr-parts-processes" role="listitem" data-guide-flow data-guide-stage="tdr" data-i18n="workflowTdr">TDR + processes</a>
+                <a class="guide-workflow__step" href="#workorder-processes" role="listitem" data-guide-flow data-guide-stage="repair" data-i18n="workflowRm">Repair &amp; Modification</a>
+                <a class="guide-workflow__step" href="#bushing-selection" role="listitem" data-guide-flow data-guide-stage="bushings" data-i18n="workflowBushings">Bushings</a>
+                <a class="guide-workflow__step" href="#tdr-paper-workorder" role="listitem" data-guide-flow data-guide-stage="forms" data-i18n="workflowForms">Forms &amp; handoff</a>
+            </div>
+        </nav>
 
         <div class="guide-topbar__end">
             <button type="button" class="guide-button" id="previous-page">
@@ -707,20 +908,60 @@
                     <a class="toc-link" href="#cabinet" data-i18n="cabinetNav">1.2 Cabinet</a>
                 </section>
 
-                <section class="toc-group">
-                    <h3 class="toc-group__title" data-i18n="workorderGroup">2. Workorder</h3>
+                <section class="toc-group toc-group--workflow" data-guide-stage-group="check">
+                    <h3 class="toc-group__title" data-i18n="workflowCheck">Receive WO &amp; check data</h3>
                     <a class="toc-link" href="#workorders" data-i18n="workorderNav">2.1 Workorders page</a>
                     <a class="toc-link" href="#workorder-start" data-i18n="workorderStartNav">2.2 Getting started with a workorder</a>
                     <a class="toc-link" href="#workorder-filters" data-i18n="filtersNav">2.3 Filters</a>
                     <a class="toc-link" href="#workorder-open" data-i18n="workorderOpenNav">2.4 Open a workorder</a>
                     <a class="toc-link" href="#workorder-main" data-i18n="workorderMainNav">2.5 Main</a>
                     <a class="toc-link" href="#workorder-main-details" data-i18n="workorderMainDetailsNav">2.6 Main: header and work area</a>
-                    <a class="toc-link" href="#workorder-tasks" data-i18n="workorderTasksNav">2.7 Tasks and notes</a>
-                    <a class="toc-link" href="#workorder-processes" data-i18n="workorderProcessesNav">2.8 Processes and parts</a>
-                    <a class="toc-link" href="#workorder-resources" data-i18n="workorderResourcesNav">2.9 TDR, pictures and PDF Library</a>
+                </section>
+
+                <section class="toc-group toc-group--workflow" data-guide-stage-group="photos">
+                    <h3 class="toc-group__title" data-i18n="workflowPhotos">Before photos</h3>
+                    <a class="toc-link" href="#workorder-mobile-photos" data-i18n="bpSelectTitle">{{ $beforePhotosGuideTranslations['en']['bpSelectTitle'] }}</a>
+                    <a class="toc-link" href="#workorder-mobile-camera" data-i18n="bpRotateTitle">{{ $beforePhotosGuideTranslations['en']['bpRotateTitle'] }}</a>
+                    <a class="toc-link" href="#workorder-mobile-photo-review" data-i18n="bpReviewTitle">{{ $beforePhotosGuideTranslations['en']['bpReviewTitle'] }}</a>
+                    <a class="toc-link" href="#workorder-resources" data-i18n="bpDesktopTitle">{{ $beforePhotosGuideTranslations['en']['bpDesktopTitle'] }}</a>
+                </section>
+
+                <section class="toc-group toc-group--workflow" data-guide-stage-group="disassembly">
+                    <h3 class="toc-group__title" data-i18n="workflowDisassembly">Start disassembly</h3>
+                    <a class="toc-link" href="#workorder-tasks" data-i18n="disassemblyFirstNav">Disassemble the unit</a>
+                    <a class="toc-link" href="#workorder-disassembly-result" data-i18n="disassemblyResultNav">Parts after disassembly</a>
+                </section>
+
+                <section class="toc-group toc-group--workflow" data-guide-stage-group="log-card">
+                    <h3 class="toc-group__title" data-i18n="workflowLogCard">Log Card</h3>
+                    <a class="toc-link" href="#log-card-mobile" data-i18n="lcMobileTitle">Log Card: phone</a>
+                    <a class="toc-link" href="#log-card-desktop" data-i18n="lcDesktopTitle">Log Card: desktop</a>
+                </section>
+
+                <section class="toc-group toc-group--workflow" data-guide-stage-group="tdr">
+                    <h3 class="toc-group__title" data-i18n="workflowTdr">TDR + processes</h3>
                     <a class="toc-link" href="#tdr-parts-processes" data-i18n="tdrPartsProcessesNav">2.10 TDR: parts and processes</a>
                     <a class="toc-link" href="#tdr-traveler" data-i18n="tdrTravelerNav">2.11 Traveler: process groups</a>
                     <a class="toc-link" href="#tdr-process-form" data-i18n="tdrProcessFormNav">2.12 Process form</a>
+                </section>
+
+                <section class="toc-group toc-group--workflow" data-guide-stage-group="repair">
+                    <h3 class="toc-group__title" data-i18n="workflowRm">Repair &amp; Modification</h3>
+                    <a class="toc-link" href="#workorder-processes"><span>6.1</span> <span data-i18n="rbrmTitle">R&amp;M: enter repairs and modifications</span></a>
+                    <a class="toc-link" href="#repair-templates"><span>6.2</span> <span data-i18n="rbtemplatesTitle">R&amp;M: templates and notes</span></a>
+                    <a class="toc-link" href="#repair-form"><span>6.3</span> <span data-i18n="rbrmFormTitle">R&amp;M: check the printed record</span></a>
+                </section>
+
+                <section class="toc-group toc-group--workflow" data-guide-stage-group="bushings">
+                    <h3 class="toc-group__title" data-i18n="workflowBushings">Bushings</h3>
+                    <a class="toc-link" href="#bushing-selection"><span>7.1</span> <span data-i18n="rbbushSelectTitle">Bushings: select parts and quantity</span></a>
+                    <a class="toc-link" href="#bushing-processes"><span>7.2</span> <span data-i18n="rbbushProcessesTitle">Bushings: assign processes and save</span></a>
+                    <a class="toc-link" href="#bushing-batches"><span>7.3</span> <span data-i18n="rbbushBatchesTitle">Bushings: process batches</span></a>
+                    <a class="toc-link" href="#bushing-forms"><span>7.4</span> <span data-i18n="rbbushFormsTitle">Bushings: vendor and process forms</span></a>
+                </section>
+
+                <section class="toc-group toc-group--workflow" data-guide-stage-group="forms">
+                    <h3 class="toc-group__title" data-i18n="workflowForms">Forms &amp; handoff</h3>
                     <a class="toc-link" href="#tdr-paper-workorder" data-i18n="tdrPaperWorkorderNav">2.13 TDR: paper workorder</a>
                 </section>
 
@@ -1000,51 +1241,22 @@
                 </div>
             </article>
 
-            <article class="guide-page" id="workorder-tasks" data-guide-page data-guide-order="27">
-                <div class="chapter-label" data-i18n="workorderTasksChapter">2.7 · Workorder</div>
-                <h2 class="page-title" data-i18n="workorderTasksTitle">Tasks and notes</h2>
-                <p class="page-lead" data-i18n="workorderTasksLead">Record only work that has actually been completed.</p>
-
-                <div class="guide-page__split">
-                    <figure class="guide-figure">
-                        <img src="{{ asset('img/user-guide/technician-workorder-main-workarea.png') }}" alt="Workorder tasks and notes area" data-i18n-alt="workorderTasksAlt">
-                        <figcaption data-i18n="workorderTasksCaption">Tasks, dates and workorder notes.</figcaption>
-                    </figure>
-                    <div class="guide-copy">
-                        <p data-i18n="workorderTasksCopy">Use the phase buttons to locate the assigned task, then record its date only after the work is complete. The Workorder Notes field is for a short factual note; it saves when you leave the field or press Ctrl+Enter. The All tab gives context, while Tasks / Notes focuses on the work and notes for the order.</p>
-                    </div>
-                </div>
+            <article class="guide-page guide-page--disassembly guide-page--disassembly-first" id="workorder-tasks" data-guide-page data-guide-order="27">
+                <div class="chapter-label" data-i18n="disassemblyFirstChapter">Disassembly · step 1</div>
+                <h2 class="page-title" data-i18n="disassemblyFirstTitle">Disassemble the unit</h2>
+                <p class="page-lead" data-i18n="disassemblyFirstLead">Work at the bench: dismantle the unit, clean the parts and sort them into their groups.</p>
             </article>
 
-            <article class="guide-page" id="workorder-processes" data-guide-page data-guide-order="28">
-                <div class="chapter-label" data-i18n="workorderProcessesChapter">2.8 · Workorder</div>
-                <h2 class="page-title" data-i18n="workorderProcessesTitle">Processes and parts</h2>
-                <p class="page-lead" data-i18n="workorderProcessesLead">Open the section required by the assigned work.</p>
-
-                <div class="guide-page__split">
-                    <figure class="guide-figure">
-                        <img src="{{ asset('img/user-guide/technician-workorder-main-technician.png') }}" alt="Workorder process and parts panels" data-i18n-alt="workorderProcessesAlt">
-                        <figcaption data-i18n="workorderProcessesCaption">Main workorder sections for a technician.</figcaption>
-                    </figure>
-                    <div class="guide-copy">
-                        <p data-i18n="workorderProcessesCopy">STD Processes lists standard work such as stress relief, NDT, CAD and paint. Parts / Processes shows component work and repair processes, and Bushing / Processes shows bushing work when the order contains it. Check the task and status first, open only the section needed for that task, and enter dates or notes only for work you have performed.</p>
-                    </div>
-                </div>
+            <article class="guide-page guide-page--disassembly guide-page--disassembly-result" id="workorder-disassembly-result" data-guide-page data-guide-order="27.1">
+                <div class="chapter-label" data-i18n="disassemblyResultChapter">Disassembly · step 2</div>
+                <h2 class="page-title" data-i18n="disassemblyResultTitle">Parts ready for inspection</h2>
+                <p class="page-lead" data-i18n="disassemblyResultLead">After disassembly, the cleaned and sorted parts are ready for the Log Card and the next workorder steps.</p>
             </article>
 
-            <article class="guide-page" id="workorder-resources" data-guide-page data-guide-order="29">
-                <div class="chapter-label" data-i18n="workorderResourcesChapter">2.9 · Workorder</div>
-                <h2 class="page-title" data-i18n="workorderResourcesTitle">TDR, pictures and PDF Library</h2>
-                <p class="page-lead" data-i18n="workorderResourcesLead">Use supporting records directly from the workorder header.</p>
+            @include('admin.user-guide.log-card-pages')
 
-                <figure class="guide-figure">
-                    <img src="{{ asset('img/user-guide/technician-workorder-main-header-only.png') }}" alt="Workorder header actions" data-i18n-alt="workorderResourcesAlt">
-                    <figcaption data-i18n="workorderResourcesCaption">Buttons in the workorder header.</figcaption>
-                </figure>
-                <div class="guide-copy guide-copy--single">
-                    <p data-i18n="workorderResourcesCopy">The green hammer opens the TDR Report for the order. The blue Pictures button opens photo evidence: review it before work and add images only to the correct group. The yellow PDF Library button opens attached manuals, instructions and reference documents. The Training indicator shows your training status for this manual, and the plus button opens your training record form.</p>
-                </div>
-            </article>
+
+            @include('admin.user-guide.before-photos-pages')
 
             <article class="guide-page" id="tdr-parts-processes" data-guide-page data-guide-order="30">
                 <div class="chapter-label" data-i18n="tdrPartsProcessesChapter">2.10 · TDR</div>
@@ -1128,6 +1340,8 @@
                     <p data-i18n="tdrProcessFormCopy">Form opens in a new tab and fills the sheet from the selected process and its part: workorder number, component, IPL, part number, serial number, process text, quantity and CMM reference. The selected Vendor and RO number appear when they are already assigned. Review every field before Print Form: the form is a printable record and does not save or alter the workorder.</p>
                 </div>
             </article>
+
+            @include('admin.user-guide.repair-bushings-pages')
 
             <article class="guide-page" id="tdr-paper-workorder" data-guide-page data-guide-order="33">
                 <div class="chapter-label" data-i18n="tdrPaperWorkorderChapter">2.13 · TDR</div>
@@ -1660,15 +1874,110 @@
                     tdrPaperWorkorderNav: '2.13 TDR: папяровы нарад', tdrPaperWorkorderChapter: '2.13 · TDR'
                 }
             };
+            const workflowTranslations = {
+                en: {
+                    workflowCheck: 'Receive WO & check data', workflowPhotos: 'Before photos', workflowDisassembly: 'Start disassembly', workflowLogCard: 'Log Card', workflowTdr: 'TDR + processes', workflowRm: 'Repair & Modification', workflowBushings: 'Bushings', workflowForms: 'Forms & handoff'
+                },
+                ru: {
+                    workflowCheck: 'Получение WO и сверка данных', workflowPhotos: 'Фото до разборки', workflowDisassembly: 'Начать разборку', workflowLogCard: 'Log Card', workflowTdr: 'TDR и процессы', workflowRm: 'Repair & Modification', workflowBushings: 'Bushings', workflowForms: 'Формы и передача'
+                },
+                uk: {
+                    workflowCheck: 'Отримання WO і звірка даних', workflowPhotos: 'Фото до розбирання', workflowDisassembly: 'Почати розбирання', workflowLogCard: 'Log Card', workflowTdr: 'TDR і процеси', workflowRm: 'Repair & Modification', workflowBushings: 'Bushings', workflowForms: 'Форми й передача'
+                },
+                he: {
+                    workflowCheck: 'קבלת WO ובדיקת נתונים', workflowPhotos: 'צילום לפני פירוק', workflowDisassembly: 'תחילת פירוק', workflowLogCard: 'Log Card', workflowTdr: 'TDR ותהליכים', workflowRm: 'Repair & Modification', workflowBushings: 'Bushings', workflowForms: 'טפסים והעברה'
+                },
+                de: {
+                    workflowCheck: 'WO erhalten und Daten prüfen', workflowPhotos: 'Fotos vor Zerlegung', workflowDisassembly: 'Zerlegung beginnen', workflowLogCard: 'Log Card', workflowTdr: 'TDR und Prozesse', workflowRm: 'Repair & Modification', workflowBushings: 'Bushings', workflowForms: 'Formulare und Übergabe'
+                },
+                kk: {
+                    workflowCheck: 'WO алу және деректерді тексеру', workflowPhotos: 'Бөлшектеуге дейін фото', workflowDisassembly: 'Бөлшектеуді бастау', workflowLogCard: 'Log Card', workflowTdr: 'TDR және процестер', workflowRm: 'Repair & Modification', workflowBushings: 'Bushings', workflowForms: 'Пішіндер және тапсыру'
+                },
+                be: {
+                    workflowCheck: 'Атрыманне WO і праверка даных', workflowPhotos: 'Фота да разборкі', workflowDisassembly: 'Пачаць разборку', workflowLogCard: 'Log Card', workflowTdr: 'TDR і працэсы', workflowRm: 'Repair & Modification', workflowBushings: 'Bushings', workflowForms: 'Формы і перадача'
+                }
+            };
+            const photoGuideTranslations = @json($beforePhotosGuideTranslations);
+            const disassemblyGuideTranslations = {
+                en: {
+                    disassemblyFirstNav: 'Disassemble the unit', disassemblyFirstChapter: 'Disassembly · step 1', disassemblyFirstTitle: 'Disassemble the unit', disassemblyFirstLead: 'Work at the bench: dismantle the unit, clean the parts and sort them into their groups.',
+                    disassemblyResultNav: 'Parts after disassembly', disassemblyResultChapter: 'Disassembly · step 2', disassemblyResultTitle: 'Parts ready for inspection', disassemblyResultLead: 'After disassembly, the cleaned and sorted parts are ready for the Log Card and the next workorder steps.'
+                },
+                ru: {
+                    disassemblyFirstNav: 'Разобрать юнит', disassemblyFirstChapter: 'Разборка · этап 1', disassemblyFirstTitle: 'Разборка юнита', disassemblyFirstLead: 'Работа на столе: разберите юнит, очистите детали и разложите их по группам.',
+                    disassemblyResultNav: 'Детали после разборки', disassemblyResultChapter: 'Разборка · этап 2', disassemblyResultTitle: 'Детали готовы к осмотру', disassemblyResultLead: 'После разборки очищенные и разложенные детали готовы к Log Card и следующим этапам наряда.'
+                },
+                uk: {
+                    disassemblyFirstNav: 'Розібрати вузол', disassemblyFirstChapter: 'Розбирання · етап 1', disassemblyFirstTitle: 'Розбирання вузла', disassemblyFirstLead: 'Робота на столі: розберіть вузол, очистіть деталі та розкладіть їх по групах.',
+                    disassemblyResultNav: 'Деталі після розбирання', disassemblyResultChapter: 'Розбирання · етап 2', disassemblyResultTitle: 'Деталі готові до огляду', disassemblyResultLead: 'Після розбирання очищені й розкладені деталі готові до Log Card і наступних етапів наряду.'
+                },
+                he: {
+                    disassemblyFirstNav: 'פירוק היחידה', disassemblyFirstChapter: 'פירוק · שלב 1', disassemblyFirstTitle: 'פירוק היחידה', disassemblyFirstLead: 'עבודה על שולחן: פרק את היחידה, נקה את החלקים ומיין אותם לקבוצות.',
+                    disassemblyResultNav: 'חלקים לאחר פירוק', disassemblyResultChapter: 'פירוק · שלב 2', disassemblyResultTitle: 'החלקים מוכנים לבדיקה', disassemblyResultLead: 'לאחר הפירוק, החלקים הנקיים והממוינים מוכנים ל-Log Card ולשלבים הבאים של ההזמנה.'
+                },
+                de: {
+                    disassemblyFirstNav: 'Einheit zerlegen', disassemblyFirstChapter: 'Zerlegung · Schritt 1', disassemblyFirstTitle: 'Einheit zerlegen', disassemblyFirstLead: 'Arbeit an der Werkbank: Zerlegen Sie die Einheit, reinigen Sie die Teile und sortieren Sie sie in Gruppen.',
+                    disassemblyResultNav: 'Teile nach der Zerlegung', disassemblyResultChapter: 'Zerlegung · Schritt 2', disassemblyResultTitle: 'Teile bereit zur Prüfung', disassemblyResultLead: 'Nach der Zerlegung sind die gereinigten und sortierten Teile für die Log Card und die nächsten Auftragsschritte bereit.'
+                },
+                kk: {
+                    disassemblyFirstNav: 'Торапты бөлшектеу', disassemblyFirstChapter: 'Бөлшектеу · 1-кезең', disassemblyFirstTitle: 'Торапты бөлшектеу', disassemblyFirstLead: 'Үстелдегі жұмыс: торапты бөлшектеп, бөлшектерді тазалаңыз және топтарға бөліңіз.',
+                    disassemblyResultNav: 'Бөлшектеуден кейінгі бөлшектер', disassemblyResultChapter: 'Бөлшектеу · 2-кезең', disassemblyResultTitle: 'Бөлшектер тексеруге дайын', disassemblyResultLead: 'Бөлшектеуден кейін тазаланған және сұрыпталған бөлшектер Log Card пен нарядтың келесі кезеңдеріне дайын.'
+                },
+                be: {
+                    disassemblyFirstNav: 'Разабраць вузел', disassemblyFirstChapter: 'Разборка · этап 1', disassemblyFirstTitle: 'Разборка вузла', disassemblyFirstLead: 'Праца на стале: разбярыце вузел, ачысціце дэталі і раскладзіце іх па групах.',
+                    disassemblyResultNav: 'Дэталі пасля разборкі', disassemblyResultChapter: 'Разборка · этап 2', disassemblyResultTitle: 'Дэталі гатовыя да агляду', disassemblyResultLead: 'Пасля разборкі ачышчаныя і раскладзеныя дэталі гатовыя да Log Card і наступных этапаў нарада.'
+                }
+            };
+            const logCardGuideTranslations = @json($logCardGuideTranslations);
+            const repairBushingGuideTranslations = @json($repairBushingGuideTranslations);
             const languageButtons = [...document.querySelectorAll('[data-language]')];
-            const pages = [...document.querySelectorAll('[data-guide-page]')]
-                .sort((left, right) => Number(left.dataset.guideOrder) - Number(right.dataset.guideOrder));
+            // The contents is the single navigation order, including pages within a stage.
             const tocLinks = [...document.querySelectorAll('.toc-link')];
+            const pageOrder = new Map(tocLinks.map((link, index) => [link.hash.slice(1), index]));
+            const pages = [...document.querySelectorAll('[data-guide-page]')]
+                .sort((left, right) => (pageOrder.get(left.id) ?? Infinity) - (pageOrder.get(right.id) ?? Infinity));
+            // Move whole articles, with their images, captions and translated text.
+            const reading = document.querySelector('.guide-reading');
+            pages.forEach((page) => reading.appendChild(page));
+            const workflowLinks = [...document.querySelectorAll('[data-guide-flow]')];
+            const workflowStageGroups = [...document.querySelectorAll('[data-guide-stage-group]')];
+            const workflowStageByPage = {
+                workorders: 'check',
+                'workorder-start': 'check',
+                'workorder-filters': 'check',
+                'workorder-open': 'check',
+                'workorder-main': 'check',
+                'workorder-main-details': 'check',
+                'workorder-mobile-photos': 'photos',
+                'workorder-mobile-camera': 'photos',
+                'workorder-mobile-photo-review': 'photos',
+                'workorder-resources': 'photos',
+                'workorder-tasks': 'disassembly',
+                'workorder-disassembly-result': 'disassembly',
+                'log-card-mobile': 'log-card',
+                'log-card-desktop': 'log-card',
+                'tdr-paper-workorder': 'forms',
+                'tdr-parts-processes': 'tdr',
+                'tdr-traveler': 'tdr',
+                'workorder-processes': 'repair',
+                'repair-templates': 'repair',
+                'repair-form': 'repair',
+                'bushing-selection': 'bushings',
+                'bushing-processes': 'bushings',
+                'bushing-batches': 'bushings',
+                'bushing-forms': 'bushings',
+                'tdr-process-form': 'tdr',
+            };
             const sidebar = document.getElementById('guide-sidebar');
             const tocToggle = document.getElementById('toc-toggle');
             const previousButton = document.getElementById('previous-page');
             const nextButton = document.getElementById('next-page');
             let activePageIndex = 0;
+            let isRestoringHash = true;
+
+            if ('scrollRestoration' in window.history) {
+                window.history.scrollRestoration = 'manual';
+            }
 
             if ('scrollRestoration' in history) {
                 history.scrollRestoration = 'manual';
@@ -1676,7 +1985,7 @@
 
             function applyLanguage(language, persist = true) {
                 const selected = translations[language] ? language : 'en';
-                const dictionary = { ...translations[selected], ...mainTranslations[selected], ...mainDetailsTranslations[selected], ...mainHeaderActionsTranslations[selected], ...technicianGuideTranslations[selected], ...tdrGuideTranslations[selected], ...tdrPartsAddTranslations[selected], ...tdrPartsDetailedTranslations[selected], ...tdrTravelerTranslations[selected], workorderMainHeaderStep3: mainHeaderPhotoPdfTranslations[selected] };
+                const dictionary = { ...translations[selected], ...mainTranslations[selected], ...mainDetailsTranslations[selected], ...mainHeaderActionsTranslations[selected], ...technicianGuideTranslations[selected], ...tdrGuideTranslations[selected], ...tdrPartsAddTranslations[selected], ...tdrPartsDetailedTranslations[selected], ...tdrTravelerTranslations[selected], ...workflowTranslations[selected], ...photoGuideTranslations[selected], ...disassemblyGuideTranslations[selected], ...logCardGuideTranslations[selected], ...repairBushingGuideTranslations[selected], workorderMainHeaderStep3: mainHeaderPhotoPdfTranslations[selected] };
 
                 document.documentElement.lang = selected;
                 // Hebrew changes the words only. The guide navigation and page layout stay LTR.
@@ -1724,6 +2033,14 @@
                     else link.removeAttribute('aria-current');
                 });
 
+                const activeStage = workflowStageByPage[id] || null;
+                workflowLinks.forEach((link) => {
+                    link.classList.toggle('is-active', link.dataset.guideStage === activeStage);
+                });
+                workflowStageGroups.forEach((group) => {
+                    group.classList.toggle('is-active', group.dataset.guideStageGroup === activeStage);
+                });
+
                 previousButton.disabled = activePageIndex === 0;
                 nextButton.disabled = activePageIndex === pages.length - 1;
             }
@@ -1744,7 +2061,7 @@
                 button.addEventListener('click', () => applyLanguage(button.dataset.language));
             });
 
-            tocLinks.forEach((link) => {
+            [...tocLinks, ...workflowLinks].forEach((link) => {
                 link.addEventListener('click', (event) => {
                     event.preventDefault();
                     const targetId = link.getAttribute('href')?.slice(1);
@@ -1761,15 +2078,25 @@
                 tocToggle.setAttribute('aria-expanded', String(isOpen));
             });
 
-            const observer = new IntersectionObserver((entries) => {
-                const visible = entries
-                    .filter((entry) => entry.isIntersecting)
-                    .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-                if (!visible) return;
-                setActivePage(pages.indexOf(visible.target));
-            }, { rootMargin: '-15% 0px -60% 0px', threshold: [0, .2, .5] });
-
-            pages.forEach((page) => observer.observe(page));
+            // Determine the current page from the whole layout, not only the
+            // changed entries of an IntersectionObserver (which may be stale).
+            let scrollFrame = null;
+            function syncVisiblePage() {
+                scrollFrame = null;
+                if (isRestoringHash) return;
+                const readingLine = parseFloat(getComputedStyle(document.documentElement)
+                    .getPropertyValue('--guide-topbar-height')) + 48;
+                let index = 0;
+                pages.forEach((page, pageIndex) => {
+                    if (page.getBoundingClientRect().top <= readingLine) index = pageIndex;
+                });
+                setActivePage(index);
+            }
+            function scheduleVisiblePage() {
+                if (scrollFrame === null) scrollFrame = window.requestAnimationFrame(syncVisiblePage);
+            }
+            window.addEventListener('scroll', scheduleVisiblePage, { passive: true });
+            window.addEventListener('resize', scheduleVisiblePage);
 
             const initialPageIndex = Math.max(0, pages.findIndex((page) => `#${page.id}` === window.location.hash));
             setActivePage(initialPageIndex);
@@ -1777,8 +2104,18 @@
             function restoreHashPage() {
                 const hashPageIndex = pages.findIndex((page) => `#${page.id}` === window.location.hash);
                 if (hashPageIndex >= 0) {
-                    window.setTimeout(() => openPage(hashPageIndex), 0);
+                    // Browser scroll restoration can run after the initial script, so restore
+                    // once immediately and once after the layout has settled.
+                    openPage(hashPageIndex);
+                    window.requestAnimationFrame(() => openPage(hashPageIndex));
+                    window.setTimeout(() => {
+                        openPage(hashPageIndex);
+                        isRestoringHash = false;
+                    }, 180);
+                    return;
                 }
+
+                isRestoringHash = false;
             }
 
             if (document.readyState === 'complete') {
@@ -1786,6 +2123,11 @@
             } else {
                 window.addEventListener('load', restoreHashPage, { once: true });
             }
+
+            window.addEventListener('hashchange', () => {
+                isRestoringHash = true;
+                restoreHashPage();
+            });
 
             if (window.UserUiSettings) {
                 window.UserUiSettings.get(scope, 'language', 'en')

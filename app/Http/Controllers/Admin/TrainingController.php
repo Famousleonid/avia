@@ -257,7 +257,7 @@ class TrainingController extends Controller
 
         $savedSort = \App\Models\UserUiSetting::where('user_id', $user->id)
             ->where('scope', 'trainings')->where('key', 'sort')->first()?->value;
-        $trainingSort = in_array($savedSort, ['asc', 'desc'], true) ? $savedSort : null;
+        $trainingSort = in_array($savedSort, ['asc', 'desc', 'date_asc', 'date_desc'], true) ? $savedSort : null;
 
         return view('admin.trainings.index', compact(
             'trainingSort',

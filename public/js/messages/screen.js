@@ -8,6 +8,13 @@
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
     let active = null, checking = false, dismissing = false, stopped = false, generation = 0;
     let previewing = false, previewFocus = null;
+    function editingInProgress() {
+        const focused = document.activeElement;
+        return focused?.matches('input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select')
+            || focused?.isContentEditable
+            || document.querySelector('dialog[open], .modal.show, .modal.showing, .offcanvas.show, .offcanvas.showing, .select2-container--open')
+            || (document.getElementById('tdrInlineCreateRow')?.getClientRects().length > 0);
+    }
     function render(message) {
         const kinds = { alert: ['Alert', '!'], info: ['Info', 'i'], message: ['Message', '✉'] };
         const kind = Object.hasOwn(kinds, message.kind) ? message.kind : 'info';
@@ -51,9 +58,10 @@
             // Another tab/device may already have acknowledged the active message.
             if (active && !items.some(item => item.id === active.id)) close();
             if (active || !items.length) return;
-            // Do not take focus away from another application dialog or unsaved form modal.
-            if (document.querySelector('dialog[open], .modal.show')) return;
+            // Keep pending messages on the server while the user is entering data.
+            if (editingInProgress()) return;
             active = items[0];
+            previewFocus = document.activeElement;
             render(active);
         } catch (_) { /* Retry transient failures on the next poll. */ }
         finally { checking = false; }
@@ -90,9 +98,15 @@
     dialog.addEventListener('cancel', event => { event.preventDefault(); dismiss(); });
     // Bootstrap focus traps must not move focus out of the application's top-layer dialog.
     dialog.addEventListener('focusin', event => event.stopPropagation());
+    // A notification click must never reach page-level "outside click" handlers
+    // which may close and reset an inline editor underneath the dialog.
+    ['click', 'dblclick', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'keydown', 'keyup'].forEach(type => {
+        dialog.addEventListener(type, event => event.stopPropagation());
+    });
     window.addEventListener('focus', poll);
     document.addEventListener('visibilitychange', poll);
     document.addEventListener('hidden.bs.modal', poll);
+    document.addEventListener('hidden.bs.offcanvas', poll);
     setInterval(poll, 30000);
     poll();
 })();

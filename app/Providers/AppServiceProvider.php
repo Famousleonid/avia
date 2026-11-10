@@ -107,15 +107,29 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer(['admin.master', 'admin.index'], function ($view): void {
             $backgroundUrl = null;
+            $internetBackgroundEnabled = false;
+            $internetBackgroundControls = false;
+            $birthdayBackgroundEligible = false;
+            $birthdayBackgroundState = ['active' => false, 'url' => null, 'caption' => '', 'expires_at' => null];
 
             if (auth()->check()) {
                 /** @var User $user */
                 $user = auth()->user();
                 $backgrounds = app(\App\Services\UserProjectBackground::class);
-                if ($backgrounds->current($user)) $backgroundUrl = $backgrounds->url($user);
+                $backgroundMode = app(\App\Services\InternetProjectBackground::class)->settings($user)['mode'] ?? 'manual';
+                if ($backgroundMode !== 'off' && $backgrounds->current($user)) $backgroundUrl = $backgrounds->url($user);
+                $internetBackgroundEnabled = $backgroundMode === 'internet';
+                $internetBackgroundControls = in_array($backgroundMode, ['off', 'internet'], true);
+                $birthdayBackground = app(\App\Services\BirthdayProjectBackground::class);
+                $birthdayBackgroundEligible = $birthdayBackground->isStaff($user);
+                if ($birthdayBackgroundEligible) $birthdayBackgroundState = $birthdayBackground->state($user);
             }
 
             $view->with('userProjectBackgroundUrl', $backgroundUrl);
+            $view->with('internetBackgroundEnabled', $internetBackgroundEnabled);
+            $view->with('internetBackgroundControls', $internetBackgroundControls);
+            $view->with('birthdayBackgroundEligible', $birthdayBackgroundEligible);
+            $view->with('birthdayBackgroundState', $birthdayBackgroundState);
         });
     }
 

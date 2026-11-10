@@ -77,7 +77,10 @@
                 const draft = drafts.get(option.id);
                 if (!wasChecked && option.selected && !historyRepresented && draft) {
                     const need = field(checkbox, 'need_processes');
-                    if (need) need.checked = draft.need_processes;
+                    if (need) {
+                        delete need.dataset.deselectedProcesses;
+                        need.checked = draft.need_processes;
+                    }
                     Object.entries(draft.processes || {}).forEach(([key, value]) => {
                         const control = field(checkbox, key) || field(checkbox, key + '][');
                         if (control) {
@@ -250,7 +253,10 @@
             const prefix = checkbox.name.replace('[selected]', '');
             checkbox.closest('.bushing-row').querySelectorAll('input,select').forEach(control => {
                 if (!control.name.startsWith(prefix + '[')) return;
-                if (control.type === 'checkbox') control.checked = false;
+                if (control.type === 'checkbox') {
+                    control.checked = false;
+                    delete control.dataset.deselectedProcesses;
+                }
                 else if (control.matches('.bushing-qty-input')) control.value = '1';
                 else if (control.tagName === 'SELECT') {
                     control.value = '';

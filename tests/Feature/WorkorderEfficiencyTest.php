@@ -11,16 +11,67 @@ class WorkorderEfficiencyTest extends TestCase
 {
     use DatabaseTransactions, BuildsDomainData;
 
+    public function test_only_overhauls_contribute_to_workorders_counts_averages_and_part_options(): void
+    {
+        $unit = $this->createUnit(['part_number' => '4259A0000-01']);
+        $variant = $this->createUnit(['part_number' => '4259A0000-02']);
+        $repairOnly = $this->createUnit(['part_number' => 'REPAIRONLY-01']);
+        $tech = $this->createUserWithRole('Technician');
+        $repairTech = $this->createUserWithRole('Technician');
+        $general = GeneralTask::firstOrCreate(['name' => 'Disassembly']);
+        $task = Task::firstOrCreate(['name' => '2. Disassembly'], ['general_task_id' => $general->id, 'task_has_start_date' => true]);
+        $included = [];
+        $excluded = [];
+        foreach ([
+            ['Overhaul', $unit, $tech, '2026-01-06', true],
+            ['Overhaul', $variant, $tech, '2026-01-08', true],
+            ['Overhaul', $unit, $tech, null, true],
+            ['Repair', $unit, $tech, '2026-01-30', false],
+            ['Repair', $variant, $repairTech, null, false],
+            ['Test & inspect', $unit, $repairTech, '2026-01-30', false],
+            ['Repair', $repairOnly, $repairTech, '2026-01-30', false],
+        ] as [$instruction, $part, $user, $finish, $include]) {
+            $wo = $this->createWorkorder([
+                'instruction_id' => $this->createInstruction(['name' => $instruction])->id,
+                'unit_id' => $part->id, 'user_id' => $user->id,
+            ]);
+            Main::create(['workorder_id' => $wo->id, 'task_id' => $task->id,
+                'general_task_id' => $general->id, 'date_start' => '2026-01-05', 'date_finish' => $finish]);
+            if ($include) {
+                $included[] = $wo->id;
+            } else {
+                $excluded[] = $wo;
+            }
+        }
+        $report = app(WorkorderEfficiency::class)->report('4259A0000');
+        $this->assertSame($included, $report['workorders']->modelKeys());
+        $this->assertCount(1, $report['rows']);
+        $this->assertSame([1, 3], $report['rows']->first()['days']);
+        $this->assertEquals(2, $report['average']);
+        $this->assertEquals(2, $report['rows']->first()['average']);
+        $this->assertNotContains('REPAIRONLY', $report['partNumbers']);
+        $empty = app(WorkorderEfficiency::class)->report('REPAIRONLY-01');
+        $this->assertCount(0, $empty['workorders']);
+        $this->assertNull($empty['average']);
+        $response = $this->actingAs($this->createUserWithRole('Admin'))
+            ->get(route('workorders.status.efficiency', ['part_number' => '4259A0000']))
+            ->assertOk()->assertSee('Workorders (overhaul) · working days')->assertSee('Not completed');
+        foreach ($excluded as $wo) {
+            $response->assertDontSee('w'.$wo->number);
+            $this->assertDatabaseHas('workorders', ['id' => $wo->id, 'instruction_id' => $wo->instruction_id]);
+        }
+    }
+
     public function test_modifications_share_one_option_and_report_without_merging_different_bases(): void
     {
         $base = '2821A0000';
         $ids = [];
         foreach ([$base.'-02', $base.'- 03', $base.'-04', $base.'-4'] as $number) {
             $unit = $this->createUnit(['part_number' => $number]);
-            $ids[] = $this->createWorkorder(['unit_id' => $unit->id])->id;
+            $ids[] = $this->createWorkorder(['instruction_id' => $this->createOverhaulInstruction()->id, 'unit_id' => $unit->id])->id;
         }
         $other = $this->createUnit(['part_number' => '2821A0100-03']);
-        $this->createWorkorder(['unit_id' => $other->id]);
+        $this->createWorkorder(['instruction_id' => $this->createOverhaulInstruction()->id, 'unit_id' => $other->id]);
         $service = app(WorkorderEfficiency::class);
         $report = $service->report($base.'-02');
         $this->assertSame($base, $report['partNumber']);
@@ -40,10 +91,10 @@ class WorkorderEfficiencyTest extends TestCase
         $ids = [];
         foreach (['190-70150-003', '190-70150-004'] as $number) {
             $unit = $this->createUnit(['part_number' => $number]);
-            $ids[] = $this->createWorkorder(['unit_id' => $unit->id])->id;
+            $ids[] = $this->createWorkorder(['instruction_id' => $this->createOverhaulInstruction()->id, 'unit_id' => $unit->id])->id;
         }
         $other = $this->createUnit(['part_number' => '190-70250-003']);
-        $this->createWorkorder(['unit_id' => $other->id]);
+        $this->createWorkorder(['instruction_id' => $this->createOverhaulInstruction()->id, 'unit_id' => $other->id]);
         $service = app(WorkorderEfficiency::class);
         $this->assertSame('190-70150', $service->partFamily('190-70150-003'));
         foreach (['190-70150', '190-70150-003'] as $selection) {
@@ -68,7 +119,7 @@ class WorkorderEfficiencyTest extends TestCase
         $general = GeneralTask::firstOrCreate(['name' => 'Disassembly']);
         $task = Task::firstOrCreate(['name' => '2. Disassembly'], ['general_task_id' => $general->id, 'task_has_start_date' => true]);
         foreach ([[0, false, $tech], [4, false, $tech], [20, true, $tech], [null, false, $tech], [8, false, $other]] as [$days, $skip, $user]) {
-            $wo = $this->createWorkorder(['unit_id' => $unit->id, 'user_id' => $user->id]);
+            $wo = $this->createWorkorder(['instruction_id' => $this->createOverhaulInstruction()->id, 'unit_id' => $unit->id, 'user_id' => $user->id]);
             Main::create(['workorder_id' => $wo->id, 'task_id' => $task->id, 'general_task_id' => $general->id,
                 'user_id' => $other->id, 'date_start' => '2026-01-01',
                 'date_finish' => $days === null ? null : now()->parse('2026-01-01')->addDays($days)->toDateString(), 'ignore_row' => $skip]);
@@ -106,7 +157,7 @@ class WorkorderEfficiencyTest extends TestCase
         ];
         $expected = [];
         foreach ($cases as [$start, $finish, $submitted, $inspected, $ignoreInspection, $days, $source]) {
-            $wo = $this->createWorkorder(['unit_id' => $unit->id, 'open_at' => '2026-01-02 15:00:00']);
+            $wo = $this->createWorkorder(['instruction_id' => $this->createOverhaulInstruction()->id, 'unit_id' => $unit->id, 'open_at' => '2026-01-02 15:00:00']);
             foreach ([['2. Disassembly', $start, $finish, false], ['3. WO Submitted to inspection', null, $submitted, false], ['Post Disassembly inspection', null, $inspected, $ignoreInspection]] as [$name, $from, $to, $ignored]) {
                 Main::create(['workorder_id' => $wo->id, 'task_id' => $tasks[$name]->id,
                     'general_task_id' => $general->id, 'date_start' => $from, 'date_finish' => $to, 'ignore_row' => $ignored]);
@@ -114,7 +165,7 @@ class WorkorderEfficiencyTest extends TestCase
             $expected[$wo->id] = [$days, $source];
         }
         // A historical WO with no task rows stays incomplete until an inspection date exists.
-        $missing = $this->createWorkorder(['unit_id' => $unit->id, 'open_at' => '2024-02-02']);
+        $missing = $this->createWorkorder(['instruction_id' => $this->createOverhaulInstruction()->id, 'unit_id' => $unit->id, 'open_at' => '2024-02-02']);
         $expected[$missing->id] = [null, 'Dates not completed'];
         $report = app(WorkorderEfficiency::class)->report('EFF-FALLBACK');
         $cells = [];

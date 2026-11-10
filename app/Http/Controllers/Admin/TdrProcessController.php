@@ -1624,6 +1624,7 @@ class TdrProcessController extends Controller
         ]));
 
         DB::transaction(function () use ($ids, $travelerGroup, $needsCleanup, $hasAnyDate, $hasDateConflict, $hasRepairOrderConflict, $sharedVendorId, $sharedRepairOrder, $current_tdr, $beforeRows, $clearedFields): void {
+            app(\App\Services\QuantumRoBufferApplyService::class)->queueTravelerMappingReview($current_tdr, $travelerGroup);
             $updates = [
                 'in_traveler' => true,
                 'traveler_group' => $travelerGroup,
@@ -1659,7 +1660,21 @@ class TdrProcessController extends Controller
                 ->log("Traveler {$travelerGroup} created");
         });
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'quantum_rebind_url' => $request->user()?->roleIs('Admin') && $request->user()->can('feature.vendor_tracking')
+                ? route('tdr-processes.traveler-rebind-suggestions', ['tdrId' => $current_tdr->id, 'group' => $travelerGroup])
+                : null,
+        ]);
+    }
+
+    public function travelerRebindSuggestions(Request $request, $tdrId, \App\Services\QuantumRoBufferApplyService $service)
+    {
+        abort_unless($request->user()?->roleIs('Admin') && $request->user()->can('feature.vendor_tracking'), 403);
+        $data = $request->validate(['group' => ['required', 'integer', 'min:1']]);
+        $tdr = Tdr::with('workorder')->findOrFail($tdrId);
+        abort_unless($request->user()->can('workorders.view', $tdr->workorder), 403);
+        return response()->json(['suggestions' => $service->travelerRebindSuggestions($tdr, (int) $data['group'])]);
     }
 
     public function travelerUngroup(Request $request, $tdrId)

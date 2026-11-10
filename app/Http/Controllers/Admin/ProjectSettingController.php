@@ -20,7 +20,7 @@ class ProjectSettingController extends Controller
     public function index(Request $request): View
     {
         $marketingEmails = ProjectSetting::marketingWoEstimateEmailRecipients();
-        $activeSection = in_array($request->query('section'), ['printed-forms', 'marketing', 'user-background'], true)
+        $activeSection = in_array($request->query('section'), ['printed-forms', 'marketing', 'user-background', 'birthday-background'], true)
             ? (string) $request->query('section')
             : 'printed-forms';
         $users = User::query()
@@ -45,9 +45,12 @@ class ProjectSettingController extends Controller
             'users' => $users,
             'selectedUser' => $selectedUser,
             'userBackground' => $background,
+            'internetBackground' => $selectedUser ? app(\App\Services\InternetProjectBackground::class)->settings($selectedUser) : [],
             'userBackgroundImages' => array_map(fn ($image) => $image + ['url' => $backgrounds->url($selectedUser, $image)], $images),
             'userBackgroundCurrentId' => $current['id'] ?? null,
             'userBackgroundUrl' => $current ? $backgrounds->url($selectedUser, $current) : null,
+            'birthdayBackground' => app(\App\Services\BirthdayProjectBackground::class)->settings(),
+            'birthdayBackgroundPreview' => app(\App\Services\BirthdayProjectBackground::class)->imageUrl(),
         ]);
     }
 
@@ -108,6 +111,33 @@ class ProjectSettingController extends Controller
             ->with('success', 'Project settings saved.');
     }
 
+    public function saveBirthdayBackground(Request $request, \App\Services\BirthdayProjectBackground $background): RedirectResponse
+    {
+        $data = $request->validate([
+            'mode' => ['required', Rule::in(['off', 'birthday_person', 'birthday_and_everyone'])],
+            'birthday_image' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        ]);
+        if ($data['mode'] !== 'off' && ! $request->hasFile('birthday_image') && ! $background->imagePath()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['birthday_image' => 'Choose a birthday image before enabling this background.']);
+        }
+        $background->save($data['mode'], $request->file('birthday_image'));
+        return redirect()->route('admin.project-settings.index', ['section' => 'birthday-background'])
+            ->with('success', 'Birthday background saved.');
+    }
+
+    public function birthdayBackgroundState(Request $request, \App\Services\BirthdayProjectBackground $background)
+    {
+        return response()->json($background->state($request->user()))->header('Cache-Control', 'private, no-store');
+    }
+
+    public function birthdayBackgroundImage(Request $request, \App\Services\BirthdayProjectBackground $background)
+    {
+        abort_unless($request->user()->isSystemAdmin() || $background->state($request->user())['active'], 403);
+        $path = $background->imagePath();
+        abort_unless($path, 404);
+        return response()->file(Storage::disk('private')->path($path), ['Cache-Control' => 'private, no-store']);
+    }
+
     public function storeUserBackground(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -153,6 +183,44 @@ class ProjectSettingController extends Controller
         return redirect()
             ->route('admin.project-settings.index', ['section' => 'user-background', 'user_id' => $user->id])
             ->with('success', "Background updated for {$user->name}.");
+    }
+
+    public function saveInternetBackground(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
+            'mode' => ['required', Rule::in(['off', 'manual', 'internet'])],
+            'topic' => ['nullable', 'required_if:mode,internet', 'string', 'max:120'],
+            'cadence' => ['sometimes', Rule::in(['button', 'daily'])],
+        ], ['topic.required_if' => 'Enter a photo topic for Internet photos.']);
+        UserUiSetting::updateOrCreate([
+            'user_id' => $data['user_id'], 'scope' => UserUiSetting::PROJECT_APPEARANCE_SCOPE,
+            'key' => \App\Services\InternetProjectBackground::KEY,
+        ], ['value' => ['mode' => $data['mode'], 'topic' => trim($data['topic'] ?? ''), 'cadence' => $data['cadence'] ?? 'button']]);
+
+        return redirect()->route('admin.project-settings.index', ['section' => 'user-background', 'user_id' => $data['user_id']])
+            ->with('success', 'Background source saved.');
+    }
+
+    public function internetBackground(Request $request, User $user)
+    {
+        abort_unless((int) $request->user()?->id === (int) $user->id || $request->user()?->isSystemAdmin(), 403);
+        $service = app(\App\Services\InternetProjectBackground::class);
+        if ($request->isMethod('patch')) {
+            $request->merge(['mode' => $request->input('mode', 'internet')]);
+            $data = $request->validate([
+                'mode' => ['required', Rule::in(['off', 'internet'])],
+                'topic' => ['nullable', 'required_if:mode,internet', 'string', 'max:120'],
+                'cadence' => ['required', Rule::in(['button', 'daily'])],
+            ], ['topic.required_if' => 'Enter a photo topic, or turn off Show internet background.']);
+            UserUiSetting::updateOrCreate([
+                'user_id' => $user->id, 'scope' => UserUiSetting::PROJECT_APPEARANCE_SCOPE,
+                'key' => \App\Services\InternetProjectBackground::KEY,
+            ], ['value' => ['mode' => $data['mode'], 'topic' => trim($data['topic'] ?? $service->settings($user)['topic'] ?? ''), 'cadence' => $data['cadence']]]);
+        }
+        $photo = $service->current($user, $request->isMethod('post'));
+        return response()->json(['photo' => $photo, 'settings' => $service->settings($user), 'issue' => $service->issue()])
+            ->header('Cache-Control', 'private, no-store');
     }
 
     public function destroyUserBackground(Request $request, User $user): RedirectResponse

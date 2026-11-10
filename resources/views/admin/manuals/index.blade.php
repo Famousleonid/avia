@@ -216,17 +216,13 @@
 
         #createCmmOffcanvas,
         #editCmmOffcanvas {
-            --bs-offcanvas-width: min(980px, 100vw);
+            --bs-offcanvas-width: min(1600px, 100vw);
             top: .75rem;
             bottom: 4vh;
             height: auto;
             max-height: calc(100vh - .75rem - 4vh);
             display: flex;
             flex-direction: column;
-        }
-
-        #editCmmOffcanvas {
-            --bs-offcanvas-width: min(1240px, 100vw);
         }
 
         #createCmmOffcanvas,
@@ -257,10 +253,45 @@
         .cmm-drawer-main {
             flex: 1 1 auto;
             min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+            gap: 24px;
+            align-content: start;
         }
+
+        .cmm-drawer-main > div { min-width: 0; }
 
         .cmm-drawer-right {
             border-left: 1px solid var(--avia-border);
+            padding-left: 16px;
+        }
+
+        .cmm-drawer-access {
+            grid-column: 1 / -1;
+            border-left: 0;
+            border-top: 1px solid var(--avia-border);
+            padding: 16px 0 0;
+        }
+
+        @media (min-width: 1200px) {
+            .cmm-drawer-main:has(.cmm-drawer-access) {
+                grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) 220px;
+            }
+            .cmm-drawer-access {
+                grid-column: auto;
+                border-top: 0;
+                border-left: 1px solid var(--avia-border);
+                padding: 0 0 0 16px;
+            }
+        }
+
+        .cmm-drawer-units .unit-field {
+            display: grid;
+            grid-template-columns: minmax(20ch, .9fr) minmax(0, 1.4fr) 34px;
+        }
+        .cmm-drawer-units .unit-field > .form-control {
+            width: 100%;
+            min-width: 0;
         }
 
         .cmm-drawer-units,
@@ -286,10 +317,24 @@
         }
 
         @media (max-width: 991.98px) {
+            .cmm-drawer-main { grid-template-columns: minmax(0, 1fr); }
             .cmm-drawer-right {
                 border-left: 0;
                 border-top: 1px solid var(--avia-border);
                 padding-top: 1rem;
+                padding-left: 0;
+            }
+        }
+        @media (max-width: 575.98px) {
+            .cmm-drawer-units .unit-field {
+                grid-template-columns: minmax(0, 1fr) 34px;
+                gap: 6px;
+            }
+            .cmm-drawer-units .unit-field > .form-control { grid-column: 1; }
+            .cmm-drawer-units .unit-field > .removeUnitField { grid-column: 2; grid-row: 1 / 3; }
+            .cmm-drawer-units .unit-field > * {
+                margin-left: 0 !important;
+                border-radius: var(--bs-border-radius) !important;
             }
         }
     </style>
@@ -558,8 +603,8 @@
             <form method="POST" action="{{ route('manuals.store') }}" enctype="multipart/form-data" id="createCmmDrawerForm" novalidate>
                 @csrf
                 <div id="createCmmErrors" class="alert alert-danger d-none"></div>
-                <div class="row g-3 cmm-drawer-main">
-                    <div class="col-12 col-lg-8">
+                <div class="cmm-drawer-main">
+                    <div class="cmm-drawer-details">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label" for="create_cmm_number">{{ __('CMM No:') }}</label>
@@ -630,7 +675,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 col-lg-4 cmm-drawer-right">
+                    <div class="cmm-drawer-components cmm-drawer-right">
                         <div class="mb-3">
                             <label class="form-label">{{ __('Image component:') }}</label>
                             <input type="file" name="img" class="form-control">
@@ -674,8 +719,8 @@
                 @csrf
                 @method('PUT')
                 <div id="editCmmErrors" class="alert alert-danger d-none"></div>
-                <div class="row g-3 cmm-drawer-main">
-                    <div class="col-12 col-xl-6">
+                <div class="cmm-drawer-main">
+                    <div class="cmm-drawer-details">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label" for="edit_cmm_number">{{ __('CMM No:') }}</label>
@@ -746,7 +791,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 col-xl-3 cmm-drawer-right">
+                    <div class="cmm-drawer-components cmm-drawer-right">
                         <div class="mb-3">
                             <label class="form-label">{{ __('Image component:') }}</label>
                             <input type="file" name="img" class="form-control">
@@ -764,7 +809,7 @@
                         <small class="text-muted">{{ __('Add component PN / Name pairs.') }}</small>
                     </div>
                     @if(auth()->user()?->roleIs('Admin'))
-                        <div class="col-12 col-xl-3 cmm-drawer-right">
+                        <div class="cmm-drawer-access cmm-drawer-right">
                             <div class="text-uppercase small text-secondary mb-2">{{ __('Users with access') }}</div>
                             <div class="cmm-drawer-users small" id="editCmmPermittedUsers">
                                 @foreach(($users ?? collect()) as $u)
