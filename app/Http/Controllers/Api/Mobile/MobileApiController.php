@@ -327,9 +327,14 @@ class MobileApiController extends Controller
             return null;
         };
 
+        // Expose catalogue identity also for standalone and Qty > 1 rows so the
+        // mobile web picker can offer bare hardware without guessing from names.
+        $catalogGroups = ManualPartGroup::with('options.coverages')->where('manual_id', $manualId)->get();
+        $assemblyComponentIds = $catalogGroups->where('type', ManualPartGroup::TYPE_ASSY)
+            ->flatMap(fn ($group) => $group->options->pluck('component_id'))->filter()->map(fn ($id) => (int) $id)->unique();
         $componentPayload = fn (Component $c) => array_merge(
             $this->mobileLogCardComponentPayload($c),
-            ['hint' => $hintFor($c)]
+            ['hint' => $hintFor($c), 'is_assy_part' => $assemblyComponentIds->contains((int) $c->id)]
         );
 
         [$assyGroups, $assyGroupedComponentIds] = $this->mobileLogCardAssyGroups(
@@ -338,7 +343,6 @@ class MobileApiController extends Controller
             $componentPayload,
             $workorder
         );
-        $catalogGroups = ManualPartGroup::with('options.coverages')->where('manual_id', $manualId)->get();
         $components = $components->sort(fn ($a, $b) => strnatcasecmp($a->part_number, $b->part_number)
             ?: \App\Models\StdProcess::compareIplValues($a->ipl_num, $b->ipl_num))->values();
         $draftGroups = app(\App\Services\LogCardDraftChoiceGroups::class)->merge(
@@ -357,7 +361,9 @@ class MobileApiController extends Controller
                 ? $group['choices']->first()['manual_part_group_id'] : null,
             'selection_type' => $group['choices']->count() > 1 ? 'radio' : 'single',
             'choices' => $group['choices']->map(function ($choice) use ($componentPayload) {
-                $payload = array_merge($componentPayload($choice['component']), $choice);
+                $component = $componentPayload($choice['component']);
+                $payload = array_merge($component, $choice);
+                $payload['is_assy_part'] = $component['is_assy_part'];
                 unset($payload['component']);
                 return $payload;
             })->values(),

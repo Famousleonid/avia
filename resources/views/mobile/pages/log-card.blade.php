@@ -184,19 +184,28 @@
             margin-bottom: .75rem;
         }
         .mobile-draft-top > strong { min-width: 0; overflow-wrap: anywhere; }
-        .draft-include {
-            flex: 0 0 auto;
-            min-height: 48px;
-            min-width: 116px;
-            padding: .6rem .85rem;
-            border-radius: .55rem;
-            border: 1px solid #72808d;
-            background: #343d45;
-            color: #fff;
-            font-size: 1rem;
+        .mobile-draft-options { display: grid; min-width: 0; }
+        .mobile-draft-collapse {
+            display: grid;
+            grid-template-rows: 1fr;
+            opacity: 1;
+            min-width: 0;
+            transition: grid-template-rows 650ms ease-in-out, opacity 650ms ease-in-out, margin-bottom 650ms ease-in-out;
         }
-        .draft-include[aria-pressed="true"] { color: #a3efd7; background: #174f42; border-color: #3da488; }
-        .mobile-draft-options { display: grid; gap: .5rem; min-width: 0; }
+        .mobile-draft-option-slot:not(:last-child) { margin-bottom: .5rem; }
+        .mobile-draft-clip { min-height: 0; min-width: 0; overflow: hidden; }
+        .mobile-draft-collapse.is-collapsed {
+            grid-template-rows: 0fr;
+            opacity: 0;
+            margin-bottom: 0;
+            pointer-events: none;
+            /* Let the selected part highlight register before the list folds. */
+            transition-delay: 180ms;
+        }
+        .mobile-draft-collapse[hidden] { display: none; }
+        @media (prefers-reduced-motion: reduce) {
+            .mobile-draft-collapse { transition: none; }
+        }
         .mobile-draft-option {
             display: grid;
             grid-template-columns: minmax(0, 1fr) 24px;
@@ -212,12 +221,11 @@
             background: #252b31;
             color: #f5f7f9;
         }
-        .mobile-draft-option[aria-checked="true"], .mobile-draft-option[aria-pressed="true"] {
+        .mobile-draft-option[aria-pressed="true"] {
             background: #144b61;
             border: 2px solid #29c9ee;
             padding: calc(.75rem - 1px);
         }
-        .mobile-draft-option[hidden] { display: none; }
         .mobile-draft-part { min-width: 0; overflow-wrap: anywhere; }
         .mobile-draft-identity { font-size: 1rem; }
         .mobile-draft-identity .mobile-log-card-meta { font-size: .9rem; color: #c3d1dc; }
@@ -227,14 +235,12 @@
             display: grid; place-items: center;
             border: 1px solid #9aaab6; border-radius: 50%;
         }
-        .mobile-draft-option[aria-checked="true"] .mobile-draft-mark,
         .mobile-draft-option[aria-pressed="true"] .mobile-draft-mark {
             background: #29c9ee; color: #102832; border-color: #29c9ee;
         }
         .mobile-draft-details { min-width: 0; display: grid; gap: .65rem; margin-top: 1rem; }
-        .mobile-draft-details[hidden] { display: none; }
-        .mobile-draft-serial-label, .mobile-draft-details .mobile-group-assy-choice { color: #bfd2df; font-size: .85rem; }
-        .mobile-draft-details .form-control, .mobile-draft-details .form-select {
+        .mobile-draft-serial-label { color: #bfd2df; font-size: .85rem; }
+        .mobile-draft-details .form-control {
             min-height: 52px; font-size: 1rem; margin-top: .35rem; border-radius: .55rem;
         }
         .mobile-draft-photo {
@@ -244,6 +250,7 @@
         }
         .mobile-log-card-draft-choice button:disabled { opacity: .65; }
         .mobile-log-card-draft-choice button:focus-visible { outline: 3px solid #f3d76c; outline-offset: 2px; }
+        .mobile-draft-clip button:focus-visible { outline-offset: -5px; }
 
         .mobile-log-card-draft-choice .form-select,
         .mobile-log-card-draft-choice .form-control,
@@ -274,7 +281,6 @@
          data-store-url="{{ route('mobile.log-card.store', $workorder->id) }}"
          data-row-url-template="{{ route('mobile.log-card.rows.update', ['logCard' => '__CARD__', 'row' => '__ROW__']) }}"
          data-variant-url-template="{{ route('mobile.log-card.rows.variant.update', ['logCard' => '__CARD__', 'row' => '__ROW__']) }}"
-         data-assembly-url-template="{{ route('mobile.log-card.rows.assembly.update', ['logCard' => '__CARD__', 'row' => '__ROW__']) }}"
          data-photo-url="{{ route('mobile.log-card.photo.store', $workorder) }}">
 
         <header class="mobile-log-card-header border-bottom border-info px-3 py-2">
@@ -295,7 +301,7 @@
         </main>
 
         <form id="mobileLogCardPhotoForm" class="d-none" enctype="multipart/form-data">
-            <input id="mobileLogCardPhotoInput" type="file" name="photo" accept="image/*" capture="environment">
+            <input id="mobileLogCardPhotoInput" type="file" name="photo" accept="image/*" capture="environment" data-mobile-photo-retry>
         </form>
 
         <div id="mobileLogCardRecognition" class="modal fade mobile-log-card-review-modal" tabindex="-1"

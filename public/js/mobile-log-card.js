@@ -7,6 +7,9 @@
     const content = document.getElementById('mobileLogCardContent');
     const status = document.getElementById('mobileLogCardStatus');
     const photoInput = document.getElementById('mobileLogCardPhotoInput');
+    // This input prepares its own upright landscape crop. Other mobile camera
+    // inputs keep the shared portrait guard (also support cached older HTML).
+    photoInput.setAttribute('data-mobile-photo-retry', '');
     const recognitionPanel = document.getElementById('mobileLogCardRecognition');
     const recognitionMeta = document.getElementById('mobileLogCardRecognitionMeta');
     const recognitionPhoto = document.getElementById('mobileLogCardRecognitionPhoto');
@@ -22,6 +25,7 @@
     let localPreviewUrl = null;
     let recognitionExpectedPartNumber = '';
     let pendingRecognitionFile = null;
+    let photoRequest = 0;
     const draftScope = 'mobile.log-card.draft';
     const draftKey = `wo:${app.dataset.workorderId}`;
     let draftReady = false;
@@ -29,6 +33,7 @@
     let draftValue = null;
     let draftDirty = false;
     let draftSaving = null;
+    const foldTimers = new WeakMap();
     const recognitionModal = recognitionPanel && window.bootstrap?.Modal
         ? new window.bootstrap.Modal(recognitionPanel, { backdrop: 'static', keyboard: false })
         : null;
@@ -192,10 +197,6 @@
             included: draftIncluded(row),
             componentId: selectedDraftChoice(row)?.component_id || null,
             serial: row.querySelector('.draft-serial').value,
-            assemblies: Array.from(row.querySelectorAll('.mobile-group-assy-choice')).map(panel => ({
-                componentId: Number(panel.dataset.componentId),
-                value: panel.querySelector('select').value,
-            })),
         })) };
         draftDirty = true;
         clearTimeout(draftTimer);
@@ -234,89 +235,82 @@
             // A removed/unavailable variant must not silently select a different part.
             if (option && row.included === true) selectDraftOption(card, option);
             card.querySelector('.draft-serial').value = typeof row.serial === 'string' ? row.serial.slice(0, 255) : '';
-            card.querySelectorAll('.mobile-group-assy-choice').forEach(panel => {
-                const assy = (Array.isArray(row.assemblies) ? row.assemblies : []).find(item =>
-                    Number(item?.componentId) === Number(panel.dataset.componentId));
-                const select = panel.querySelector('select');
-                if (assy && Array.from(select.options).some(item => item.value === String(assy.value))) select.value = String(assy.value);
-            });
             card.dataset.draftTouched = '1';
             syncDraftCard(card);
         });
     }
 
     function renderDraftChoices(choices, key, manual, disabled, separate = false) {
-        const multiple = choices.length > 1;
+        choices = choices.filter(choice => !choice.is_assy_part && choice.choice_kind !== 'assy');
+        if (!choices.length) return '';
         const names = choices.map(choice => (choice.name || '').replace(/\s+(LH|RH)$/i, '').trim());
         const heading = names.length && names.every(name => name.toLowerCase() === names[0].toLowerCase())
             ? names[0] : 'Select part';
-        const options = choices.map(choice => `<button type="button" class="mobile-draft-option draft-component"
-            ${multiple ? 'role="radio" aria-checked="false"' : 'data-single aria-pressed="false"'}
+        const options = choices.map(choice => `<div class="mobile-draft-collapse mobile-draft-option-slot"><div class="mobile-draft-clip"><button type="button" class="mobile-draft-option draft-component"
+            aria-pressed="false"
             value="${payloadAttr(choice)}" ${disabled ? 'disabled' : ''}>
             <span class="mobile-draft-part"><span class="mobile-draft-identity"><span class="mobile-log-card-meta">(${escapeHtml(choice.ipl_num || '—')})</span> <strong>${escapeHtml(choice.part_number || '—')}</strong></span>
                 <span class="mobile-draft-description">${escapeHtml(choice.name || '')}</span>
                 ${separate ? `<small class="d-block mobile-log-card-meta">Unit ${choice.unit_index} of ${escapeHtml(choice.units_assy)}</small>` : ''}
             </span><span class="mobile-draft-mark" aria-hidden="true"></span>
-        </button>`).join('');
-        const assemblies = choices.map(choice => {
-            const parents = choice.assembly_choices || [];
-            const legacy = choice.assemblies || [];
-            if (!parents.length && (!legacy.length || choice.choice_kind)) return '';
-            const options = parents.length
-                ? '<option value="">No ASSY</option>' + parents.map(assy => `<option value="${assy.option_id}" data-group-id="${assy.group_id}" ${parents.length === 1 ? 'selected' : ''}>(${escapeHtml(assy.ipl_num)}) ${escapeHtml(assy.part_number)}</option>`).join('')
-                : legacy.map(assy => `<option value="${assy.id}">(${escapeHtml(assy.assy_ipl_num)}) ${escapeHtml(assy.assy_part_number)}</option>`).join('');
-            return `<label class="mobile-group-assy-choice small w-100" data-component-id="${choice.component_id}" ${multiple ? 'hidden' : ''}>
-                ASSY <select class="form-select form-select-sm ${parents.length ? 'draft-assy-choice' : 'draft-legacy-assy'}" ${disabled ? 'disabled' : ''}>${options}</select>
-            </label>`;
-        }).join('');
+        </button></div></div>`).join('');
         return `<article class="mobile-log-card-row mobile-log-card-draft-choice" data-draft-kind="${separate ? 'separate' : 'choices'}"
             data-group-key="${escapeHtml(key)}" data-manual-id="${manual.id}">
-            <div class="mobile-draft-top"><strong>${escapeHtml(heading)}</strong>
-                <button type="button" class="draft-include" aria-pressed="false" aria-label="Include in Log Card" ${disabled ? 'disabled' : ''}>＋ Add</button>
-            </div>
-            <div class="mobile-draft-options" ${multiple ? 'role="radiogroup" aria-label="Select a part"' : ''}>${options}</div>
-            <div class="mobile-draft-details" hidden>${assemblies}
+            <div class="mobile-draft-top"><strong>${escapeHtml(heading)}</strong></div>
+            <div class="mobile-draft-options" role="group" aria-label="Select a part">${options}</div>
+            <div class="mobile-draft-collapse mobile-draft-details-slot is-collapsed" hidden><div class="mobile-draft-clip"><div class="mobile-draft-details">
                 <label class="mobile-draft-serial-label">Received S/N
                     <input type="text" class="form-control draft-serial" maxlength="255" placeholder="Enter serial number" ${disabled ? 'disabled' : ''}>
                 </label>
                 <button type="button" class="mobile-draft-photo" data-draft-photo ${disabled ? 'disabled' : ''}><i class="bi bi-camera" aria-hidden="true"></i> Photo + read</button>
-            </div>
+            </div></div></div>
         </article>`;
     }
 
     function draftIncluded(card) {
-        return card.querySelector('.draft-include').getAttribute('aria-pressed') === 'true';
-    }
-
-    function setDraftIncluded(card, included) {
-        card.querySelector('.draft-include').setAttribute('aria-pressed', String(included));
-        if (!included) card.querySelectorAll('.draft-component[role="radio"]').forEach(option => option.setAttribute('aria-checked', 'false'));
-        syncDraftCard(card);
-        rememberDraft(card);
+        return Boolean(selectedDraftChoice(card));
     }
 
     function selectDraftOption(card, option) {
-        card.querySelectorAll('.draft-component[role="radio"]').forEach(item => item.setAttribute('aria-checked', String(item === option)));
-        setDraftIncluded(card, true);
+        card.querySelectorAll('.draft-component').forEach(item => item.setAttribute('aria-pressed', String(item === option)));
+        syncDraftCard(card, draftReady);
+        rememberDraft(card);
     }
 
-    function syncDraftCard(card) {
+    function foldDraftSection(section, collapsed, animate) {
+        clearTimeout(foldTimers.get(section));
+        section.inert = collapsed;
+        section.setAttribute('aria-hidden', String(collapsed));
+        if (!animate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            section.classList.toggle('is-collapsed', collapsed);
+            section.hidden = collapsed;
+            return;
+        }
+        if (section.hidden && collapsed) return;
+        if (section.hidden) {
+            section.hidden = false;
+            // Establish the collapsed grid before expanding, including after
+            // restoring a draft. No fixed pixel heights: wrapped text can resize.
+            section.getBoundingClientRect();
+        }
+        section.classList.toggle('is-collapsed', collapsed);
+        // The latest toggle wins; a previous collapse must never hide a reopened
+        // option. Keep hidden rows out of layout after the CSS transition ends.
+        if (collapsed) foldTimers.set(section, setTimeout(() => {
+            if (section.classList.contains('is-collapsed')) section.hidden = true;
+        }, 900));
+    }
+
+    function syncDraftCard(card, animate = false) {
         const choice = selectedDraftChoice(card);
         const included = draftIncluded(card);
-        const include = card.querySelector('.draft-include');
-        include.textContent = included ? 'Deselect' : '＋ Add';
-        include.setAttribute('aria-label', included ? 'Deselect part' : 'Add part to Log Card');
         card.classList.toggle('is-included', included);
         card.querySelectorAll('.draft-component').forEach(option => {
-            const selected = included && (option.hasAttribute('data-single') || option.getAttribute('aria-checked') === 'true');
-            option.hidden = included && Boolean(choice) && !selected;
-            if (option.hasAttribute('data-single')) option.setAttribute('aria-pressed', String(selected));
+            const selected = option.getAttribute('aria-pressed') === 'true';
             option.querySelector('.mobile-draft-mark').textContent = selected ? '✓' : '';
+            foldDraftSection(option.closest('.mobile-draft-option-slot'), included && !selected, animate);
         });
-        card.querySelector('.mobile-draft-details').hidden = !included || !choice;
-        card.querySelectorAll('.mobile-group-assy-choice').forEach(label => {
-            label.hidden = !choice || Number(label.dataset.componentId) !== Number(choice.component_id);
-        });
+        foldDraftSection(card.querySelector('.mobile-draft-details-slot'), !included || !choice, animate);
     }
 
     async function renderCreateCard() {
@@ -342,10 +336,11 @@
             (template.groups || []).forEach(group => items.push({html:renderDraftChoices(group.variants || [], `manual-${manual.id}-${group.ipl_group}`, manual, readOnly),rank:rank(group.variants || []),part:group.variants?.[0]?.part_number || ""}));
             (template.separate || []).forEach(choice => items.push({html:renderDraftChoices([choice], `manual-${manual.id}-${choice.component_id}-${choice.unit_index}`, manual, readOnly, true),rank:rank([choice]),part:choice.part_number || ""}));
             items.sort((a,b) => (a.rank-b.rank) || a.part.localeCompare(b.part, undefined, {numeric:true, sensitivity:"base"}));
-            if (!items.length) return '';
+            const visibleItems = items.filter(item => item.html);
+            if (!visibleItems.length) return '';
             return `<section class="mb-3 mobile-draft-section">
                 <div class="mobile-draft-heading">Manual: ${escapeHtml(manual.number || manual.label || "")}</div>
-                ${items.map(item => item.html).join('')}
+                ${visibleItems.map(item => item.html).join('')}
             </section>`;
         }).join('');
 
@@ -366,26 +361,14 @@
         const row = {
             component_id: Number(choice.component_id), manual_id: Number(card.dataset.manualId), included: '1',
             serial_number: card.querySelector('.draft-serial')?.value?.trim() || '', ipl_group: card.dataset.groupKey || '',
+            // Bare hardware is an explicit choice: do not restore an automatic
+            // parent ASSY (including legacy assemblies) on the server or in print.
+            manual_part_group_choice: 'component', manual_part_group_id: null,
+            assy_option_id: null, assy_selection_explicit: '1',
         };
         if (card.dataset.draftKind === 'separate') {
             row.unit_index = Number(choice.unit_index || 0) || null;
             row.units_assy = String(choice.units_assy || '');
-        }
-        if (choice.choice_kind) {
-            row.manual_part_group_id = Number(choice.manual_part_group_id) || null;
-            row.manual_part_group_choice = choice.choice_kind;
-            if (choice.manual_part_group_option_id) row.manual_part_group_option_id = Number(choice.manual_part_group_option_id);
-        }
-        const panel = Array.from(card.querySelectorAll('.mobile-group-assy-choice'))
-            .find(label => Number(label.dataset.componentId) === Number(choice.component_id));
-        const selector = panel?.querySelector('.draft-assy-choice');
-        if (selector) {
-            row.manual_part_group_choice = 'component';
-            row.manual_part_group_id = selector.value ? Number(selector.selectedOptions[0]?.dataset.groupId) : null;
-            row.assy_option_id = selector.value ? Number(selector.value) : null;
-            row.assy_selection_explicit = '1';
-        } else if (panel?.querySelector('.draft-legacy-assy')) {
-            row.component_assembly_id = Number(panel.querySelector('.draft-legacy-assy').value);
         }
         return row;
     }
@@ -466,28 +449,8 @@
         }
     }
 
-    async function changeAssembly(control) {
-        const rowCard = control.closest('[data-saved-row]');
-        const row = Number(rowCard.dataset.savedRow);
-        const selectedText = control.options[control.selectedIndex]?.textContent?.trim() || control.value;
-        if (!await confirmChange(`Change the assembly for this Log Card row to ${selectedText}?`)) {
-            await loadCard();
-            return;
-        }
-        setBusy(true);
-        try {
-            await request(endpoint(app.dataset.assemblyUrlTemplate, cardData.log_card_id, row), 'PATCH', {
-                component_assembly_id: Number(control.value),
-            });
-            await loadCard();
-        } catch (error) {
-            notify(error.message, 'error');
-        } finally {
-            setBusy(false);
-        }
-    }
-
     function startPhoto(target, shouldRecognize = true) {
+        photoRequest++;
         recognitionTarget = target;
         photoShouldRecognize = shouldRecognize;
         document.querySelectorAll('.is-photo-target').forEach(element => element.classList.remove('is-photo-target'));
@@ -496,22 +459,59 @@
         photoInput.click();
     }
 
-    async function uploadPhoto(file) {
-        if (photoShouldRecognize) {
-            pendingRecognitionFile = file;
-            openRecognitionReview(file);
-        } else {
-            pendingRecognitionFile = null;
+    async function landscapePhoto(file) {
+        const url = URL.createObjectURL(file);
+        const canvas = document.createElement('canvas');
+        try {
+            const image = new Image();
+            image.src = url;
+            // Browser decoding applies EXIF before cropping. Never rotate pixels
+            // based on viewport orientation or swap width and height.
+            await image.decode();
+            const height = Math.min(image.naturalHeight, image.naturalWidth * 3 / 4);
+            const width = height * 4 / 3;
+            const units = Math.floor(height / 3);
+            if (units < 1) throw new Error('Invalid photo');
+            canvas.width = units * 4;
+            canvas.height = units * 3;
+            canvas.getContext('2d').drawImage(image,
+                (image.naturalWidth - width) / 2, (image.naturalHeight - height) / 2, width, height,
+                0, 0, canvas.width, canvas.height);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .94));
+            if (!blob) throw new Error('Could not prepare photo');
+            return new File([blob], `log-card-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        } finally {
+            URL.revokeObjectURL(url);
+            canvas.width = canvas.height = 0;
         }
+    }
 
-        const form = new FormData();
-        form.append('photo', file);
-        form.append('recognize', photoShouldRecognize ? '1' : '0');
-        appendPhotoContext(form);
-
+    async function uploadPhoto(original) {
+        const current = ++photoRequest;
+        pendingRecognitionFile = null;
+        if (photoShouldRecognize) {
+            openRecognitionReview(original);
+            recognitionMeta.textContent = 'Preparing landscape photo… Photo not saved.';
+        }
         setBusy(true);
         try {
+            let file;
+            try {
+                file = await landscapePhoto(original);
+            } catch (_) {
+                throw new Error('Photo not saved. This image could not be prepared. Retake it as a JPEG photo.');
+            }
+            if (current !== photoRequest) return;
+            if (photoShouldRecognize) {
+                pendingRecognitionFile = file;
+                openRecognitionReview(file);
+            }
+            const form = new FormData();
+            form.append('photo', file);
+            form.append('recognize', photoShouldRecognize ? '1' : '0');
+            appendPhotoContext(form);
             const response = await request(app.dataset.photoUrl, 'POST', form);
+            if (current !== photoRequest) return;
             if (photoShouldRecognize) {
                 showRecognition(response.recognition || {}, response.photo || null, response.recognition_error || '');
                 notify(response.message || 'Photo read by Avi. Confirm to save it.', response.recognition_error ? 'warning' : 'success');
@@ -520,10 +520,11 @@
                 notify(response.message || 'Photo saved.', 'success');
             }
         } catch (error) {
+            if (current !== photoRequest) return;
             notify(error.message, 'error');
             if (photoShouldRecognize) showRecognitionUploadError(error.message);
         } finally {
-            setBusy(false);
+            if (current === photoRequest) setBusy(false);
         }
     }
 
@@ -586,12 +587,10 @@
         applyRecognitionButton.disabled = true;
     }
 
-    function hideRecognition(clearTarget = true) {
+    function hideRecognition() {
         recognitionModal?.hide();
-        if (clearTarget) {
-            recognitionTarget = null;
-            pendingRecognitionFile = null;
-        }
+        recognitionTarget = null;
+        pendingRecognitionFile = null;
         document.querySelectorAll('.is-photo-target').forEach(element => element.classList.remove('is-photo-target'));
     }
 
@@ -617,8 +616,9 @@
 
     function retakeRecognitionPhoto() {
         const target = recognitionTarget;
-        pendingRecognitionFile = null;
-        hideRecognition(false);
+        if (!target) return;
+        // Keep review open behind the system camera. A fast return must not race
+        // Bootstrap's hide transition, and Cancel must retain the current photo.
         startPhoto(target, true);
     }
 
@@ -647,7 +647,7 @@
     }
 
     function selectedDraftChoice(card) {
-        const input = card?.querySelector('.draft-component[aria-checked="true"], .draft-component[data-single]');
+        const input = card?.querySelector('.draft-component[aria-pressed="true"]');
         return input ? decodePayload(input.value) : null;
     }
 
@@ -723,22 +723,10 @@
     }
 
     content.addEventListener('click', event => {
-        const include = event.target.closest('.draft-include');
-        if (include && !include.disabled) {
-            const card = include.closest('[data-draft-kind]');
-            if (!draftIncluded(card) && !selectedDraftChoice(card)) {
-                notify('Select a part variant.', 'warning');
-                card.querySelector('.draft-component')?.focus();
-                return;
-            }
-            setDraftIncluded(card, !draftIncluded(card));
-            return;
-        }
         const option = event.target.closest('.draft-component');
         if (option && !option.disabled) {
             const card = option.closest('[data-draft-kind]');
-            if (option.hasAttribute('data-single')) setDraftIncluded(card, !draftIncluded(card));
-            else selectDraftOption(card, option);
+            selectDraftOption(card, option.getAttribute('aria-pressed') === 'true' ? null : option);
             return;
         }
         const createButton = event.target.closest('[data-create-log-card]');
@@ -758,16 +746,13 @@
                 element.querySelector('.draft-component')?.focus();
                 return;
             }
-            setDraftIncluded(element, true);
             return void startPhoto({ type: 'draft', element });
         }
     });
 
     content.addEventListener('change', event => {
         const control = event.target;
-        if (control.matches('.draft-assy-choice, .draft-legacy-assy')) rememberDraft(control.closest('[data-draft-kind]'));
         if (control.matches('[data-row-variant]')) return void changeVariant(control);
-        if (control.matches('[data-row-assembly]')) return void changeAssembly(control);
         if (control.matches('[data-row-field]')) return void saveRowField(control);
     });
 
@@ -800,6 +785,7 @@
     recognitionPanel?.addEventListener('hidden.bs.modal', releaseLocalPreview);
     photoInput.addEventListener('change', () => {
         const file = photoInput.files?.[0];
+        photoInput.value = '';
         if (file) uploadPhoto(file);
     });
 

@@ -208,6 +208,42 @@ class MobileLogCardWebTest extends TestCase
         });
     }
 
+    public function test_landscape_jpeg_from_mobile_crop_is_recognized_then_saved_unchanged_after_confirm(): void
+    {
+        config()->set('services.openai.api_key', 'test-key-not-a-real-secret');
+        config()->set('services.openai.retry_attempts', 1);
+        Http::fake(['https://api.openai.com/v1/responses' => Http::response([
+            'output' => [['type' => 'function_call', 'name' => 'extract_nameplate_identifiers',
+                'arguments' => json_encode(['part_numbers' => ['BARE-PN'], 'serial_numbers' => ['UPRIGHT-SN'],
+                    'other_identifiers' => [], 'confidence' => 'high', 'notes' => 'Upright plate.'])]],
+        ])]);
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $technician->id]);
+        $jpeg = UploadedFile::fake()->image('landscape-crop.jpg', 720, 540);
+        $bytes = file_get_contents($jpeg->getPathname());
+        $hash = hash('sha256', $bytes);
+        $send = fn (bool $recognize) => $this->actingAs($technician)->post(route('mobile.log-card.photo.store', $workorder), [
+            'photo' => UploadedFile::fake()->createWithContent('landscape-crop.jpg', $bytes),
+            'expected_part_number' => 'BARE-PN', 'row_index' => 1, 'recognize' => $recognize ? 1 : 0,
+        ], ['Accept' => 'application/json']);
+        $send(true)->assertOk()->assertJsonPath('recognition.serial_numbers.0', 'UPRIGHT-SN')
+            ->assertJsonPath('pending_confirmation', true)->assertJsonPath('photo_count', 0);
+        $this->assertCount(0, $workorder->fresh()->getMedia('logs'));
+        Http::assertSent(function (HttpRequest $request) use ($hash): bool {
+            $url = $request->data()['input'][0]['content'][1]['image_url'] ?? '';
+            return str_starts_with($url, 'data:image/jpeg;base64,')
+                && hash('sha256', base64_decode(explode(',', $url, 2)[1])) === $hash;
+        });
+        $send(false)->assertOk()->assertJsonPath('pending_confirmation', false)->assertJsonPath('photo_count', 1);
+        Http::assertSentCount(1);
+        $media = $workorder->fresh()->getMedia('logs')->first();
+        $this->assertSame($hash, hash_file('sha256', $media->getPath()));
+        $dimensions = getimagesize($media->getPath());
+        $this->assertSame([720, 540], [$dimensions[0], $dimensions[1]]);
+        $this->assertSame('mobile_log_card', $media->getCustomProperty('source'));
+        $this->assertSame(1, $media->getCustomProperty('log_card_row_index'));
+    }
+
     public function test_unlabelled_identifier_is_offered_as_serial_candidate_for_selected_part_number(): void
     {
         config()->set('services.openai.api_key', 'test-key-not-a-real-secret');

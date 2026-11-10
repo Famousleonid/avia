@@ -85,6 +85,61 @@ class LogCardAssemblyIdentityTest extends TestCase
         return ['one parent' => [1], 'two parents' => [2]];
     }
 
+    /** @dataProvider springParentCounts */
+    public function test_mobile_bare_parts_identify_assy_and_save_each_instance_without_a_parent(int $quantity): void
+    {
+        [$admin, $wo, $part, $first, $second] = $this->scopedMainFitting();
+        $wo->update(['scope_type' => 'full_unit', 'scope_part_group_option_id' => null]);
+        $part->update(['units_assy' => $quantity]);
+        // An ASSY may itself have quantity > 1; identify it without a name heuristic.
+        Component::whereKey($first->component_id)->update(['log_card' => true, 'units_assy' => $quantity, 'name' => 'Fitting']);
+        $part->assemblies()->create(['assy_part_number' => 'LEGACY-ASSEMBLY', 'assy_ipl_num' => '1-1']);
+        if ($quantity === 1) $second->coverages()->delete();
+        $this->actingAs($admin)->withSession(['auth.version' => (int) $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()]);
+        $template = $this->getJson(route('mobile.log-card.template', $wo->id))->assertOk()->json('data');
+        $choices = collect($template['assy_groups'])->flatMap(fn ($g) => $g['choices'])
+            ->concat(collect($template['groups'])->flatMap(fn ($g) => $g['variants']))->concat($template['separate']);
+        $this->assertCount($quantity, $choices->where('component_id', $part->id));
+        $this->assertCount($quantity, $choices->where('component_id', $first->component_id));
+        foreach ($choices->where('component_id', $part->id) as $choice) $this->assertFalse($choice['is_assy_part']);
+        foreach ($choices->where('component_id', $first->component_id) as $choice) $this->assertTrue($choice['is_assy_part']);
+        $rows = [];
+        for ($i = 1; $i <= $quantity; $i++) {
+            $rows[] = ['component_id' => $part->id, 'manual_id' => $part->manual_id,
+                'included' => '1', 'serial_number' => 'BARE-SN-'.$i,
+                'unit_index' => $quantity > 1 ? $i : null, 'units_assy' => (string) $quantity,
+                'manual_part_group_choice' => 'component', 'manual_part_group_id' => null,
+                'assy_option_id' => null, 'assy_selection_explicit' => '1'];
+        }
+        $this->postJson(route('mobile.log-card.store', $wo->id), ['rows' => $rows])->assertOk();
+        $log = LogCard::where('workorder_id', $wo->id)->firstOrFail();
+        $saved = collect(json_decode($log->component_data, true))->where('component_id', (string) $part->id)->values();
+        $this->assertCount($quantity, $saved);
+        foreach ($saved as $row) {
+            $this->assertTrue(app(LogCardAssemblyIdentity::class)->isExplicitNoAssembly($row));
+            $this->assertEmpty($row['component_assembly_id']);
+            $this->assertEmpty($row['assy_part_number']);
+        }
+        $data = $this->getJson(route('mobile.log-card.data', $wo->id))->assertOk()->json('data.rows');
+        foreach (collect($data)->where('kind', 'component') as $row) $this->assertSame('', $row['assy_part_number']);
+        $print = $this->get(route('log_card.logCardForm', $wo))->assertOk();
+        for ($i = 1; $i <= $quantity; $i++) $print->assertSee('BARE-SN-'.$i);
+        $print->assertDontSee($first->part_number)->assertDontSee($second->part_number)->assertDontSee('LEGACY-ASSEMBLY');
+        // The desktop can assign an ASSY later; explicit empty is not a lock.
+        $rows[0]['manual_part_group_id'] = $first->manual_part_group_id;
+        $rows[0]['assy_option_id'] = $first->id;
+        $rows[0]['assy_serial_number'] = 'DESKTOP-ASSY-SN';
+        $this->putJson(route('log_card.update', $log), [
+            'workorder_id' => $wo->id, 'component_data' => json_encode($rows),
+        ])->assertOk();
+        $saved = collect(json_decode($log->fresh()->component_data, true))->where('component_id', (string) $part->id)->values();
+        $this->assertSame($first->part_number, $saved[0]['assy_part_number']);
+        $this->assertSame('BARE-SN-1', $saved[0]['serial_number']);
+        if ($quantity > 1) $this->assertEmpty($saved[1]['assy_part_number']);
+        $this->get(route('log_card.logCardForm', $wo))->assertOk()
+            ->assertSee('BARE-SN-1')->assertSee($first->part_number)->assertSee('DESKTOP-ASSY-SN');
+    }
+
     public function test_empty_assy_survives_save_reopen_print_and_mobile_with_one_or_multiple_parents(): void
     {
         [$admin, $wo, $part, $first, $second] = $this->scopedMainFitting();
