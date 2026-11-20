@@ -26,7 +26,7 @@ class TdrManufacturePrintTest extends TestCase
         Tdr::create($base + ['tdr_type' => Tdr::TYPE_MANUFACTURE_REPAIR, 'necessaries_id' => $repair->id]);
         $lines = app(TdrInspectionLinesBuilder::class)->build($wo->fresh());
         $this->assertCount(1, $lines);
-        $this->assertStringContainsString('Manufacture: (1-272RS, 4pcs)', $lines[0]);
+        $this->assertStringContainsString('(1-272RS, 4pcs) <b>REPAIR SLEEVE (EC)</b> - Manufacture', $lines[0]);
         $this->assertSame(1, substr_count($lines[0], 'REPAIR SLEEVE (EC)'));
         $this->assertStringNotContainsString('scrap', $lines[0]);
         $this->assertSame(2, $wo->tdrs()->count());

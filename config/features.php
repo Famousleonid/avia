@@ -13,6 +13,15 @@
  */
 return [
 
+    'stock' => [
+        'label' => 'Stock',
+        'group' => 'Pages',
+        'managed' => false,
+        'roles' => ['Admin'],
+        'admin_only' => true,
+        'allow_is_admin' => false,
+    ],
+
     'wo_status.efficiency' => [
         'label' => 'WO Status — Efficiency',
         'group' => 'Pages',
@@ -52,6 +61,14 @@ return [
 
     'ec' => [
         'label' => 'EC',
+        'group' => 'Pages',
+        'managed' => true,
+        'roles' => [],
+        'allow_is_admin' => false,
+    ],
+
+    'process_vendor' => [
+        'label' => 'Process Vendor',
         'group' => 'Pages',
         'managed' => true,
         'roles' => [],

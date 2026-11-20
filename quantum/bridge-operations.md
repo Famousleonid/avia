@@ -58,3 +58,6 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\avia\WO\install_unit_
 3. Прочитать текущие WO-скрипты, лог и состояние отдельной задачи, не затрагивая RO/media.
 4. Выполнить только разрешённый перенос/запуск/настройку. Если инструмент требует отдельного подтверждения, соблюдать его.
 5. Подтвердить результат логом, статусом задачи и при необходимости чтением сайта. Сообщить количество, время, расписание и ограничения.
+
+## Stock daily — 18/Nov/2026
+Separate task sync_quantum_stock_daily installed by user at05:00 bridge time; runner C:\avia\Stock\run_stock_daily.ps1. First upload22372 rows succeeded10:13:26 and production snapshot verified. Includes WO reservation links. AVIAStock tunnel service removed; its production public key and URL setting removed. No request polling/button or tunnel needed. Existing sync_quantum and Unit History untouched. See stock.md for details.

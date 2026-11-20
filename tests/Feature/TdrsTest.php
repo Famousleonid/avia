@@ -2275,9 +2275,11 @@ class TdrsTest extends TestCase
         $html = $response->getContent();
 
         // Reason is taken from the code, defect codes keep "(scrap)".
-        $this->assertStringContainsString('Cracked (scrap): (1-30)', $html);
+        preg_match('/const allInspections = (.*);/', $html, $printedLines);
+        $html = implode("\n", json_decode($printedLines[1], true, 512, JSON_THROW_ON_ERROR));
+        $this->assertStringContainsString('(1-30) <b>BUSHING</b> - Cracked (scrap)', $html);
         // Customer Request: reason printed, but WITHOUT the scrap label.
-        $this->assertStringContainsString('Customer Request: (1-170)', $html);
+        $this->assertStringContainsString('(1-170) <b>END, ROD</b> - Customer Request', $html);
         $this->assertStringNotContainsString('Customer Request (scrap)', $html);
         // The condition name must no longer be used as the Order New reason.
         $this->assertStringNotContainsString('SERVICE BULLETIN CHANGE (scrap)', $html);
@@ -2546,8 +2548,8 @@ class TdrsTest extends TestCase
         $this->assertCount(5, $lines);
         $this->assertStringContainsString('SEAL(S) WORN (left side)', $joined);
         $this->assertStringContainsString('BENT', $joined);
-        $this->assertStringContainsString('Cracked (scrap): (1-30)', $joined);
-        $this->assertStringContainsString('Customer Request: (1-170)', $joined);
+        $this->assertStringContainsString('(1-30) <b>BUSHING</b> - Cracked (scrap)', $joined);
+        $this->assertStringContainsString('(1-170) <b>END, ROD</b> - Customer Request', $joined);
         $this->assertStringNotContainsString('Customer Request (scrap)', $joined);
         $this->assertStringContainsString('(2-40) <b>SLEEVE</b> - CORRODED', $joined);
         $this->assertStringNotContainsString('IS NECESSARY', $joined);

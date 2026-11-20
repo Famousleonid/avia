@@ -1,4 +1,11 @@
+@php
+    $emptyColumnCount = max(0, 7 - count($matrix['columns']));
+    $displayColumnCount = 1 + count($matrix['columns']) + $emptyColumnCount;
+@endphp
 <div class="main-ro-scroll">
+    @foreach($lines->filter(fn ($line) => $line->apply_status === 'unresolved' && str_starts_with((string) $line->apply_message, 'TDR S/N mismatch:')) as $conflict)
+        <div class="alert alert-warning mb-2" role="alert">{{ $conflict->apply_message }}</div>
+    @endforeach
     <table class="main-ro-table" aria-label="WO {{ $workorder->number }} synchronized Quantum RO">
         <thead>
         @foreach(['description' => 'Description', 'pn' => 'Part No.', 'serial' => 'Serial No.'] as $field => $label)
@@ -7,6 +14,9 @@
                 @foreach($matrix['columns'] as $column)
                     <th scope="col" @if($column['complete']) class="main-ro-part-complete" title="All listed processes returned" @endif>{{ $column[$field] ?: '—' }}</th>
                 @endforeach
+                @for($blank = 0; $blank < $emptyColumnCount; $blank++)
+                    <th class="main-ro-empty-column" aria-hidden="true"></th>
+                @endfor
             </tr>
         @endforeach
         </thead>
@@ -51,10 +61,18 @@
                         </span>
                     </td>
                 @endforeach
+                @for($blank = 0; $blank < $emptyColumnCount; $blank++)
+                    <td class="main-ro-empty-column" aria-hidden="true"></td>
+                @endfor
             </tr>
         @empty
-            <tr><td class="text-center text-muted py-4">No synchronized RO lines or planned part processes for this workorder.</td></tr>
+            <tr><td colspan="{{ $displayColumnCount }}" class="text-center text-muted py-4">No synchronized RO lines or planned part processes for this workorder.</td></tr>
         @endforelse
+            <tr class="main-ro-empty-row" aria-hidden="true">
+                @for($cell = 0; $cell < $displayColumnCount; $cell++)
+                    <td></td>
+                @endfor
+            </tr>
         </tbody>
     </table>
 </div>

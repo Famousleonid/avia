@@ -20,6 +20,7 @@ class TdrProcess extends Model
         'rule_process_ids', // ManualParameterRuleProcess ids that fed this group (for document generation)
         'phase_rule_process_ids', // MasterRulePhaseRuleProcess ids (Start/Finish) — kept separate from Main
         'description',
+        'specification_descriptions',
         'requires_fig',
         'requires_zone',
         'notes',
@@ -46,6 +47,7 @@ class TdrProcess extends Model
     ];
     protected $casts = [
         'processes'        => 'array',
+        'specification_descriptions' => 'array',
         'rule_process_ids' => 'array',
         'phase_rule_process_ids' => 'array',
         'date_start'  => 'date',   // <-- важно
@@ -64,6 +66,19 @@ class TdrProcess extends Model
     public function machiningWorkSteps()
     {
         return $this->hasMany(MachiningWorkStep::class, 'tdr_process_id')->orderBy('step_index');
+    }
+
+    public function descriptionForSpecification(int $processId): string
+    {
+        $descriptions = $this->specification_descriptions ?? [];
+        return array_key_exists($processId, $descriptions)
+            ? (string) $descriptions[$processId]
+            : (string) $this->description;
+    }
+
+    public static function selectedSpecificationDescriptions(array $ids, array $descriptions): array
+    {
+        return array_map(fn ($value) => (string) $value, array_intersect_key($descriptions, array_flip(self::normalizeStoredProcessIds($ids))));
     }
 
     /**
@@ -159,9 +174,9 @@ class TdrProcess extends Model
             && trim((string) ($this->plus_process ?? '')) !== '';
     }
 
-    public function missingDescriptionRequirements(): array
+    public function missingDescriptionRequirements(?int $specificationId = null): array
     {
-        $description = (string) ($this->description ?? '');
+        $description = $specificationId === null ? (string) $this->description : $this->descriptionForSpecification($specificationId);
         $missing = [];
 
         if ($this->requires_fig && stripos($description, 'FIG') === false) {
@@ -185,6 +200,7 @@ class TdrProcess extends Model
                 'plus_process',
                 'processes',
                 'description',
+                'specification_descriptions',
                 'notes',
                 'date_start',
                 'date_finish',

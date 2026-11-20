@@ -288,6 +288,10 @@
             font-size: var(--log-card-description-font-size, 14px) !important;
         }
 
+        .log-card-part-numbers { min-width: 0; padding-left: 2px; padding-right: 2px; }
+        .log-card-number-line { white-space: nowrap; line-height: 1.2; }
+        .log-card-number-line > span { display: inline-block; white-space: nowrap; }
+
         .log-card-record-row {
             display: grid;
             grid-column: 1 / -1;
@@ -681,30 +685,14 @@
 {{--                    , S/A--}}
 {{--                @endif--}}
             </div>
-            <div class="div14 border-b-r text-center  align-content-center pt-1 fs-7" style="line-height: 1.2">
-
-
-                @if($hasAssyPartNumber && !$hasAssySerialNumber)
-                    @if($displayPartNumber)
-                        {{ $displayPartNumber }} <br>
-                        ({{ $assyPartNumber }})
-                    @else
-                        {{ $assyPartNumber }}
-                    @endif
-                @elseif($hasAssySerialNumber && !$hasSerialNumber)
-                    {{ $assyPartNumber }}
-                @else
-                    @if($hasAssySerialNumber && $hasSerialNumber)
-                        {{ $displayPartNumber }}
-                        @if($assyPartNumber !== '')
-                            ({{ $assyPartNumber }})
-                        @endif
-                    @else
-                        {{ $displayPartNumber }}
-                    @endif
-
+            <div class="div14 border-b-r text-center align-content-center pt-1 fs-7 log-card-part-numbers" style="line-height: 1.2">
+                @if(trim((string) $displayPartNumber) !== '')
+                    <div class="log-card-number-line"><span>{{ $displayPartNumber }}</span></div>
                 @endif
-                </div>
+                @if($hasAssyPartNumber)
+                    <div class="log-card-number-line"><span>({{ $assyPartNumber }})</span></div>
+                @endif
+            </div>
 <div class="div15 border-b-r  text-center align-content-center pt-1 fs-7" style="line-height: 1.2">
     @if($hasAssyPartNumber && !$hasAssySerialNumber)
         {{ $item['serial_number'] ?? '' }}
@@ -821,6 +809,33 @@ Service Bulletin.
 </footer>
 
 
+<script>
+(() => {
+    const fitNumbers = () => {
+        document.querySelectorAll('.log-card-part-numbers').forEach(cell => {
+            const lines = [...cell.querySelectorAll('.log-card-number-line > span')];
+            const base = parseFloat(getComputedStyle(cell).fontSize);
+            lines.forEach(line => line.style.fontSize = base + 'px');
+            const available = cell.querySelector('.log-card-number-line')?.clientWidth || 0;
+            const widest = Math.max(0, ...lines.map(line => line.getBoundingClientRect().width));
+            if (available && widest > available) {
+                const fitted = Math.floor(base * (available - 1) / widest * 10) / 10;
+                lines.forEach(line => line.style.fontSize = fitted + 'px');
+            }
+        });
+    };
+    const init = () => {
+        fitNumbers();
+        const observer = new ResizeObserver(fitNumbers);
+        document.querySelectorAll('.log-card-part-numbers').forEach(cell => observer.observe(cell));
+        new MutationObserver(fitNumbers).observe(document.documentElement, {attributes: true, attributeFilter: ['style']});
+        document.fonts.ready.then(fitNumbers);
+    };
+    document.addEventListener('DOMContentLoaded', init);
+    window.addEventListener('beforeprint', fitNumbers);
+    window.addEventListener('afterprint', fitNumbers);
+})();
+</script>
 </body>
 
 

@@ -3,6 +3,10 @@
         ? $tdrProcesses->filter(fn ($row) => (int) $row->tdrs_id === (int) $current_tdr->id && $row->in_traveler && !$row->ignore_row && (int) $row->traveler_group === (int) $attachmentGroup)
         : collect([$tdrProcessRow]);
     $hasAttachments = false;
+    if (!isset($attachmentGroup)) {
+        $hasAttachments = app(\App\Services\ProcessPrintAttachment::class)
+            ->forForm($tdrProcessRow->processName, [$tdrProcessRow]) !== null;
+    }
     foreach ($attachmentRows as $attachmentRow) {
         foreach ((array) ($attachmentRow->rule_process_ids ?? []) as $rid) {
             $hasAttachments = $hasAttachments || !empty(($docsByRp ?? [])[$rid]);

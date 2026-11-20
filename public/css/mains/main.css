@@ -356,6 +356,8 @@
         border-right: 1px solid var(--avia-border); border-bottom: 1px solid var(--avia-border);
         padding: .3rem .6rem; vertical-align: top; text-align: center; white-space: nowrap;
     }
+    .main-ro-table .main-ro-empty-column { min-width: 6rem; }
+    .main-ro-table .main-ro-empty-row { height: 2rem; }
     .main-ro-table thead {
         --ro-cell-bg: #253745;
         position: sticky; top: 0; z-index: 3; background: var(--ro-cell-bg);
@@ -1272,13 +1274,35 @@
     }
 
     .wo-notes-textarea{
-        font-size: .85rem;
+        font-size: var(--wo-notes-font-size, .85rem);
         min-height: 8.5rem;
         resize: vertical;
         background-color: var(--main-pane-control-bg) !important;
-        color: var(--main-pane-control-text) !important;
+        color: var(--wo-notes-color, var(--main-pane-control-text)) !important;
         border-color: var(--main-pane-border-soft) !important;
     }
+
+    .wo-notes-format { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+    .wo-notes-tools-toggle { flex: 0 0 28px; width: 28px; height: 26px; padding: 1px 4px; }
+    .wo-notes-tools { display: grid; grid-template-columns: 0fr; opacity: 0; min-width: 0; transition: grid-template-columns .35s ease, opacity .35s ease; }
+    .wo-notes-tools.is-open { grid-template-columns: 1fr; opacity: 1; }
+    .wo-notes-tools-clip { min-width: 0; overflow: hidden; }
+    .wo-notes-tools-inner { display: flex; align-items: center; gap: 6px; width: max-content; }
+    .wo-notes-tools-inner > * { flex-shrink: 0; }
+    @media (prefers-reduced-motion: reduce) { .wo-notes-tools { transition: none; } }
+    .main-notes-block .wo-notes-editor {
+        min-width: 0; width: 100%; white-space: pre-wrap; overflow-wrap: anywhere;
+        background: var(--main-pane-control-bg) !important;
+        color: var(--main-pane-control-text); font-size: .85rem;
+        border-color: var(--main-pane-border-soft);
+    }
+    .wo-notes-format .wo-notes-title { white-space: nowrap; }
+    .wo-notes-size { width: 76px; height: 26px; padding-top: 1px; padding-bottom: 1px; font-size: 12px; }
+    .wo-notes-style-reset { padding: 0 5px; height: 26px; }
+    .main-notes-block .wo-notes-head { gap: 8px; }
+    .main-notes-block .wo-notes-right { min-width: 0; }
+    .main-notes-block .wo-notes-hint { overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 1100px) { .main-notes-block .wo-notes-hint { display: none; } }
 
     /* Левая колонка: высоту ограничивает родитель; scroll живет внутри окон Tasks/Notes и Bushing отдельно. */
     .main-gt-scroll-area{
@@ -1622,3 +1646,8 @@
     html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .wo-bush-col-dt .fp-alt {
         font-size: .78rem !important;
     }
+
+    .wo-notes-swatch { width: 20px; height: 20px; flex: 0 0 20px; padding: 0; border: 1px solid #9ca3af; border-radius: 3px; cursor: pointer; }
+    .wo-notes-bold { height: 26px; padding: 1px 7px; }
+    .wo-notes-swatch:focus-visible { outline: 2px solid var(--bs-info); outline-offset: 2px; }
+    .main-notes-block .wo-notes-head { flex-wrap: wrap; }

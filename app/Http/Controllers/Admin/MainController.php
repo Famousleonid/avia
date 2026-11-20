@@ -126,7 +126,7 @@ class MainController extends Controller
             ->orderBy('rod_auto_key')
             ->get(['ro_number', 'pn', 'description', 'serial_number', 'bom_ref',
                 'vendor_name', 'out_date', 'returned_date', 'last_seen_at',
-                'apply_status', 'applied_target_table', 'applied_target_id', 'applied_targets']);
+                'apply_status', 'apply_message', 'applied_target_table', 'applied_target_id', 'applied_targets']);
 
         $tdrs = $workorder->tdrs()
             ->whereHas('component', fn ($query) => $query->whereIn('manual_id', $workorder->usedManualIds()))
@@ -283,7 +283,7 @@ class MainController extends Controller
         if ($request->user()?->roleIs(['Admin', 'Manager'])) $mainTabs[] = 'ro';
         $mainUiSettings = \App\Models\UserUiSetting::query()
             ->where('user_id', $request->user()->id)->where('scope', 'mains.show')
-            ->whereIn('key', array_merge(["activeTab:{$woId}", "generalTaskTab:{$woId}", 'avia_show_all_right'],
+            ->whereIn('key', array_merge(["activeTab:{$woId}", "generalTaskTab:{$woId}", 'avia_show_all_right', 'notesFormattingOpen'],
                 array_map(fn ($tab) => "panelWidth:{$woId}:{$tab}", $mainTabs)))
             ->pluck('value', 'key')->all();
         $userUiSettingsInitial = ['mains.show' => (object) $mainUiSettings];

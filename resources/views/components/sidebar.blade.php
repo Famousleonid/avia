@@ -481,7 +481,7 @@
                             </div>
                         </div>
 
-                        @if(auth()->user()->canManageGroupMessages())
+                        @if(auth()->user()->canSendScreenMessages())
                         <input type="checkbox" id="msgOnScreen" hidden>
                         <fieldset id="msgScreenKinds">
                             <legend>Show on screen</legend>
@@ -547,7 +547,7 @@
 
             <div class="modal-footer border-secondary">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-                @if(auth()->user()->canManageGroupMessages())
+                @if(auth()->user()->canSendScreenMessages())
                     <button type="button" class="btn btn-outline-info btn-sm" id="btnPreviewMsg"><i class="bi bi-eye me-1"></i> Preview</button>
                 @endif
                 <button type="button" class="btn btn-info btn-sm" id="btnSendMsg">

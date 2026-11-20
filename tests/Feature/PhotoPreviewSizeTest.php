@@ -23,6 +23,22 @@ class PhotoPreviewSizeTest extends TestCase
         $originalHash = hash_file('sha256', $media->getPath());
         $paths = [];
         try {
+            $smallPaths = [];
+            foreach ([80, 128] as $size) {
+                $path = storage_path('app/generated-thumbnails/media_'.$media->id.'_'.filemtime($media->getPath()).'_square_v2_'.$size.'.jpg');
+                $this->assertFileExists($path, 'Upload must prepare previews before any gallery request.');
+                $smallPaths[$size] = $path;
+            }
+            // Simulate an old photo missing one size. Backfill must repair only
+            // the missing cache file and leave the ready preview untouched.
+            touch($smallPaths[80], time() - 300);
+            clearstatcache(true, $smallPaths[80]);
+            $cachedAt = filemtime($smallPaths[80]);
+            unlink($smallPaths[128]);
+            $this->artisan('photos:warm-previews')->assertExitCode(0);
+            $this->assertFileExists($smallPaths[128]);
+            clearstatcache(true, $smallPaths[80]);
+            $this->assertSame($cachedAt, filemtime($smallPaths[80]));
             foreach ([80, 128, 192, 256, 320, 384, 512, 640, 768, 960] as $size) {
                 $response = $this->actingAs($admin)->get($url.'?size='.$size)->assertOk();
                 $path = $response->baseResponse->getFile()->getPathname();

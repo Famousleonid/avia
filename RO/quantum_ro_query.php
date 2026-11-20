@@ -63,6 +63,19 @@ SELECT
     wo.SI_NUMBER AS WO_NUMBER,
     pm_rd.PN,
     COALESCE(
+        (
+            SELECT CASE
+                WHEN COUNT(DISTINCT TRIM(rs.SERIAL_NUMBER)) = 1
+                    THEN MIN(TRIM(rs.SERIAL_NUMBER))
+                ELSE NULL
+            END
+            FROM QCTL.STOCK rs
+            WHERE rs.ROD_AUTO_KEY = rd.ROD_AUTO_KEY
+              AND rs.PNM_AUTO_KEY = rd.PNM_AUTO_KEY
+              AND rs.RCD_AUTO_KEY IS NOT NULL
+              AND rd.LAST_DELIVERY_DATE IS NOT NULL
+              AND TRIM(rs.SERIAL_NUMBER) IS NOT NULL
+        ),
         TRIM(rd.SERIAL_NUMBER),
         (
             SELECT CASE

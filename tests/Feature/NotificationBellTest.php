@@ -110,4 +110,32 @@ class NotificationBellTest extends TestCase
             ->assertSee('href="' . route('mains.show', $workorder->id) . '"', false)
             ->assertSee('Draft WO 8 created by ' . e($shipping->name), false);
     }
+
+    public function test_existing_notification_header_uses_unit_pn_not_process_part_or_recipient(): void
+    {
+        $recipient = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder();
+        $workorder->unit->update(['part_number' => 'HEADER-UNIT-123']);
+        $recipient->notify(new NewMessageNotification(
+            fromUserId: 0,
+            fromName: 'Header Sender',
+            text: 'Process update',
+            type: 'workorder',
+            event: 'assigned',
+            ui: [
+                'workorder' => ['id' => $workorder->id, 'no' => $workorder->number, 'owner_name' => 'Saved Owner'],
+                'part' => ['number' => 'PROCESS-PART-456'],
+            ],
+        ));
+
+        $this->actingAs($recipient)->getJson(route('notifications.latest'))
+            ->assertOk()
+            ->assertJsonPath('items.0.ui.workorder.unit_part_number', 'HEADER-UNIT-123')
+            ->assertJsonPath('items.0.ui.workorder.owner_name', 'Saved Owner')
+            ->assertJsonPath('items.0.ui.part.number', 'PROCESS-PART-456');
+        $this->get(route('notifications.index'))->assertOk()
+            ->assertSee('From: Header Sender')
+            ->assertSee('P/N: HEADER-UNIT-123')
+            ->assertDontSee('class="text-muted mx-1">to</span>', false);
+    }
 }

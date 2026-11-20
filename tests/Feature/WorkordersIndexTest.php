@@ -702,6 +702,73 @@ class WorkordersIndexTest extends TestCase
         $nextResponse->assertJsonStructure(['html', 'next_cursor', 'has_more']);
     }
 
+    public function test_tdr_part_search_finds_multiple_workorders_without_duplicates_and_keeps_filters(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $first = $this->createWorkorder(['user_id' => $admin->id]);
+        $second = $this->createWorkorder(['user_id' => $admin->id]);
+        $unrelated = $this->createWorkorder(['user_id' => $admin->id, 'serial_number' => 'TDR-ONLY-877']);
+        $part = Component::query()->create([
+            'manual_id' => $first->unit->manual_id, 'part_number' => 'TDR-ONLY-877',
+            'assy_part_number' => 'ASSEMBLY-SEARCH-887', 'name' => 'Search part', 'ipl_num' => '1-10',
+        ]);
+        foreach ([$first, $first, $second] as $wo) {
+            Tdr::query()->create(['workorder_id' => $wo->id, 'component_id' => $part->id,
+                'serial_number' => 'SN-TDR-9989', 'assy_serial_number' => 'SN-ASSY-889', 'qty' => 1,
+                'use_tdr' => true, 'use_process_forms' => true]);
+        }
+        // Archived manual parts must remain searchable in historical workorders.
+        $otherPart = Component::query()->create([
+            'manual_id' => $first->unit->manual_id, 'part_number' => 'UNMATCHED-PART',
+            'name' => 'Not a search result', 'ipl_num' => '9-99',
+        ]);
+        Tdr::query()->create(['workorder_id' => $first->id, 'component_id' => $otherPart->id,
+            'serial_number' => 'UNMATCHED-SERIAL', 'qty' => 1, 'use_tdr' => true]);
+        $part->delete();
+        foreach (['TDR-ONLY-877', 'ASSEMBLY-SEARCH-887', 'SN-TDR-9989', 'SN-ASSY-889'] as $term) {
+            $response = $this->actingAs($admin)->getJson(route('workorders.index', ['tdr_q' => $term]));
+            $response->assertOk()->assertJsonPath('total_count', 2)->assertJsonPath('loaded_count', 2);
+            $this->assertStringContainsString('data-id="'.$first->id.'"', $response->json('html'));
+            $this->assertStringContainsString('data-id="'.$second->id.'"', $response->json('html'));
+            $this->assertStringNotContainsString('data-id="'.$unrelated->id.'"', $response->json('html'));
+            $this->assertSame(3, substr_count($response->json('html'), 'data-matched-tdr='));
+            foreach (['P/N: TDR-ONLY-877', 'Search part', 'S/N: SN-TDR-9989', 'IPL: 1-10',
+                'ASSEMBLY-SEARCH-887', 'SN-ASSY-889'] as $detail) {
+                $this->assertStringContainsString($detail, $response->json('html'));
+            }
+            $this->assertStringNotContainsString('UNMATCHED-PART', $response->json('html'));
+            $this->assertStringContainsString(route('tdrs.show', $first->id), $response->json('html'));
+        }
+        $this->actingAs($admin)->get(route('workorders.index', ['tdr_q' => 'TDR-ONLY-877']))
+            ->assertOk()->assertSee('data-matched-tdr=', false)->assertSee('Search part');
+        $this->actingAs($admin)->getJson(route('workorders.index'))
+            ->assertOk()->assertDontSee('data-matched-tdr=', false);
+        $this->actingAs($admin)->getJson(route('workorders.index', [
+            'tdr_q' => 'TDR-ONLY-877', 'q' => $first->number, 'number_only' => 1,
+        ]))->assertOk()->assertJsonPath('total_count', 1);
+        $this->actingAs($admin)->getJson(route('workorders.index', ['tdr_q' => 'NO-SUCH-TDR-PART']))
+            ->assertOk()->assertJsonPath('total_count', 0);
+    }
+
+    public function test_tdr_search_treats_wildcards_literally_and_searches_beyond_first_page(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $part = Component::query()->create([
+            'manual_id' => $this->createManual()->id, 'part_number' => 'PN%_SEARCH',
+            'name' => 'Literal search part', 'ipl_num' => '1-10',
+        ]);
+        for ($i = 0; $i < 11; $i++) {
+            $wo = $this->createWorkorder(['user_id' => $admin->id]);
+            Tdr::query()->create(['workorder_id' => $wo->id, 'component_id' => $part->id,
+                'serial_number' => 'LITERAL-SERIAL', 'qty' => 1, 'use_tdr' => true]);
+        }
+        $params = ['tdr_q' => '%_', 'per_page' => 10];
+        $first = $this->actingAs($admin)->getJson(route('workorders.index', $params));
+        $first->assertOk()->assertJsonPath('total_count', 11)->assertJsonPath('loaded_count', 10)->assertJsonPath('has_more', true);
+        $this->actingAs($admin)->getJson(route('workorders.index', $params + ['cursor' => $first->json('next_cursor')]))
+            ->assertOk()->assertJsonPath('total_count', 11)->assertJsonPath('loaded_count', 1)->assertJsonPath('has_more', false);
+    }
+
     private function createEcTdrProcess($workorder, ProcessName $processName, array $attributes = []): TdrProcess
     {
         $component = Component::query()->create([

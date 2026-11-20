@@ -15,6 +15,9 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string>>
      */
     protected $listen = [
+        \Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAdded::class => [
+            \App\Listeners\WarmWorkorderPhotoPreviews::class,
+        ],
         Registered::class => [
             SendEmailVerificationNotification::class,
         ],

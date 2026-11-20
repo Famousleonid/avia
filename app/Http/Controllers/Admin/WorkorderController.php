@@ -279,6 +279,7 @@ class WorkorderController extends Controller
                 'html' => view('admin.workorders.partials.rows', [
                     'workorders' => $payload['workorders']->items(),
                     'ecStatuses' => $payload['ecStatuses'],
+                    'matchedTdrs' => $payload['matchedTdrs'],
                     'generalTasks' => $payload['generalTasks'],
                     'tasksByGeneral' => $payload['tasksByGeneral'],
                 ])->render(),
@@ -308,6 +309,7 @@ class WorkorderController extends Controller
             'generalTasks' => $payload['generalTasks'],
             'tasksByGeneral' => $payload['tasksByGeneral'],
             'ecStatuses' => $payload['ecStatuses'],
+            'matchedTdrs' => $payload['matchedTdrs'],
             'nextCursor' => $payload['nextCursor'],
             'hasMore' => $payload['hasMore'],
             'totalCount' => $payload['totalCount'],
@@ -415,6 +417,14 @@ class WorkorderController extends Controller
             $filters['cursor']
         );
 
+        $matchedTdrs = collect();
+        if ($filters['tdr_q'] !== '' && count($workorders->items()) > 0) {
+            $parts = Tdr::query()->with('component')
+                ->whereIn('workorder_id', collect($workorders->items())->pluck('id'));
+            $this->applyTdrPartSearch($parts, $filters['tdr_q']);
+            $matchedTdrs = $parts->orderBy('id')->get()->groupBy('workorder_id');
+        }
+
         $generalTasks = $this->workorderVisibility->visibleGeneralTasksFor($request->user());
 
         $tasksByGeneral = Task::query()
@@ -427,6 +437,7 @@ class WorkorderController extends Controller
 
         return [
             'workorders' => $workorders,
+            'matchedTdrs' => $matchedTdrs,
             'ecStatuses' => $this->buildEcStatuses(collect($workorders->items())),
             'generalTasks' => $generalTasks,
             'tasksByGeneral' => $tasksByGeneral,
@@ -454,6 +465,7 @@ class WorkorderController extends Controller
 
         return [
             'q' => trim((string) $request->get('q', '')),
+            'tdr_q' => trim((string) $request->get('tdr_q', '')),
             'number_only' => $request->boolean('number_only', false),
             'customer_id' => (string) $request->get('customer_id', ''),
             'technik_id' => (string) $request->get('technik_id', ''),
@@ -497,8 +509,27 @@ class WorkorderController extends Controller
         return $term;
     }
 
+    private function applyTdrPartSearch(Builder $tdr, string $term): void
+    {
+        $like = '%' . addcslashes($term, '\\%_') . '%';
+        $tdr->whereNotNull('component_id')->where(function (Builder $match) use ($like): void {
+            $match->where('serial_number', 'like', $like)
+                ->orWhere('assy_serial_number', 'like', $like)
+                ->orWhereHas('component', function (Builder $component) use ($like): void {
+                    $component->where('part_number', 'like', $like)
+                        ->orWhere('assy_part_number', 'like', $like);
+                });
+        });
+    }
+
     private function applyWorkorderIndexFilters(Builder $query, array $filters): void
     {
+        if (($filters['tdr_q'] ?? '') !== '') {
+            $query->whereHas('tdrs', function (Builder $tdr) use ($filters): void {
+                $this->applyTdrPartSearch($tdr, $filters['tdr_q']);
+            });
+        }
+
         if ($filters['q'] !== '') {
             if ($filters['number_only']) {
                 $query->where('workorders.number', 'like', '%' . $filters['q']);
@@ -1584,13 +1615,31 @@ class WorkorderController extends Controller
 
         $data = $request->validate([
             'notes' => ['nullable', 'string'],
+            'runs' => ['sometimes', 'array', 'max:10000'],
+            'runs.*.text' => ['present', 'string'],
+            'runs.*.color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'runs.*.bold' => ['sometimes', 'boolean'],
+            'runs.*.size' => ['nullable', 'integer', 'in:12,14,16,18,20,24'],
         ]);
 
         $old = (string) ($workorder->notes ?? '');
         $new = (string) ($data['notes'] ?? '');
+        $oldAppearance = $workorder->notes_appearance;
+        if (array_key_exists('runs', $data)) {
+            abort_unless(implode('', array_column($data['runs'], 'text')) === $new, 422);
+            $workorder->notes_appearance = ['runs' => array_map(fn ($run) => [
+                'text' => $run['text'], 'color' => $run['color'] ?? null,
+                'size' => isset($run['size']) ? (int) $run['size'] : null,
+                ...(array_key_exists('bold', $run) ? ['bold' => (bool) $run['bold']] : []),
+            ], $data['runs'])];
+        } elseif ($old !== $new) {
+            $appearance = $oldAppearance ?? [];
+            unset($appearance['runs']);
+            $workorder->notes_appearance = $appearance;
+        }
 
         // если ничего не поменялось — можно вернуть ok без логов
-        if ($old === $new) {
+        if ($old === $new && $oldAppearance === $workorder->notes_appearance) {
             return response()->json(['success' => true, 'notes' => $new]);
         }
 
@@ -1603,12 +1652,31 @@ class WorkorderController extends Controller
             ->performedOn($workorder)
             ->causedBy(auth()->user())
             ->withProperties([
-                'old' => ['notes' => $old],
-                'new' => ['notes' => $new],
+                'old' => ['notes' => $old, 'notes_appearance' => $oldAppearance],
+                'new' => ['notes' => $new, 'notes_appearance' => $workorder->notes_appearance],
             ])
             ->log($old === '' ? 'workorder_notes_created' : 'workorder_notes_updated');
 
         return response()->json(['success' => true, 'notes' => $new, 'user' => auth()->user()->selection_name]);
+    }
+
+    public function updateNotesAppearance(Request $request, Workorder $workorder)
+    {
+        abort_unless(auth()->check(), 403);
+        $data = $request->validate([
+            'color' => ['present', 'nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'size' => ['present', 'nullable', 'integer', 'in:12,14,16,18,20,24'],
+        ]);
+        $appearance = ['color' => $data['color'] ?: null, 'size' => $data['size'] ? (int) $data['size'] : null];
+        $old = $workorder->notes_appearance;
+        if ($old !== $appearance) {
+            $workorder->notes_appearance = $appearance;
+            $workorder->save();
+            activity()->useLog('workorders')->performedOn($workorder)->causedBy(auth()->user())
+                ->withProperties(['old' => ['notes_appearance' => $old], 'new' => ['notes_appearance' => $appearance]])
+                ->log('workorder_notes_appearance_updated');
+        }
+        return response()->json(['success' => true, 'appearance' => $appearance]);
     }
 
     public function notesLogs(Workorder $workorder)

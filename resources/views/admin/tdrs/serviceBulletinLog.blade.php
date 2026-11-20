@@ -271,6 +271,34 @@
             });
         });
 
+        // Blank rows are presentation only: never submit them as bulletin records.
+        function fillBlankRows() {
+            document.querySelectorAll('.sb-form-page').forEach(function (page) {
+                page.querySelectorAll('.sb-blank-row').forEach(function (row) { row.remove(); });
+                var table = page.querySelector('.sb-table');
+                var footer = page.querySelector('.sb-page-footer');
+                if (!table || !footer) return;
+                var available = Math.floor(footer.getBoundingClientRect().top - table.getBoundingClientRect().bottom) - 2;
+                var count = Math.floor(available / 52);
+                if (count < 1) return;
+                var height = Math.floor(available / count);
+                for (var i = 0; i < count; i++) {
+                    var row = table.tBodies[0].insertRow();
+                    row.className = 'sb-blank-row';
+                    row.setAttribute('aria-hidden', 'true');
+                    for (var column = 0; column < 12; column++) {
+                        var cell = row.insertCell();
+                        cell.style.height = height + 'px';
+                    }
+                }
+            });
+        }
+        window.addEventListener('beforeprint', fillBlankRows);
+        window.addEventListener('afterprint', fillBlankRows);
+        window.addEventListener('load', fillBlankRows);
+        window.addEventListener('resize', fillBlankRows);
+        document.fonts?.ready.then(fillBlankRows);
+
         function normalizeTableFontSize(value) {
             var parsed = Number.parseFloat(String(value));
             if (!Number.isFinite(parsed)) return defaultTableFontSize;
@@ -281,6 +309,7 @@
             appliedTableFontSize = normalizeTableFontSize(value);
             document.documentElement.style.setProperty('--sb-table-font-size', appliedTableFontSize + 'pt');
             if (fontSizeInput) fontSizeInput.value = String(appliedTableFontSize);
+            fillBlankRows();
         }
 
         async function loadPrintSettings() {

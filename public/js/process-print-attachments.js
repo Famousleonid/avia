@@ -1,4 +1,6 @@
 (() => {
+    if (window.processPrintImagesReady) return;
+    window.processPrintImagesReady = true;
     const modal = document.createElement('div');
     modal.className = 'modal fade';
     modal.tabIndex = -1;
@@ -15,7 +17,7 @@
         document.querySelectorAll('[data-process-images]').forEach(button => {
             if (button.dataset.processImages !== url) return;
             button.classList.toggle('has-print-images', count > 0);
-            button.title = `Print images by part number (${count})`;
+            button.title = `Print images by manual and part number (${count})`;
         });
     }
     async function mutate(target, options, message) {
@@ -30,26 +32,41 @@
             const result = await response.json();
             if (!response.ok) throw new Error(Object.values(result.errors || {}).flat().join(' ') || result.message || 'Could not save image.');
             await load();
+            window.showNotification?.('Process images updated.', 'success');
         } catch (e) { error(e.message); }
         finally { busy = false; dialog.show(); }
     }
     document.addEventListener('click', async event => {
-        const button = event.target.closest('[data-process-images]');
+        const button = event.target.closest('[data-process-images], [data-tdr-process-image]');
         if (!button || busy) return;
-        url = button.dataset.processImages;
+        if (button.hasAttribute('data-tdr-process-image')) {
+            const processId = button.closest('.process-row, [data-inline-process-row]')?.querySelector('.select2-process, [data-inline-process-name]')?.value;
+            if (!processId) { error('Select a process name first.'); return; }
+            url = button.dataset.urlTemplate.replace('__PROCESS__', encodeURIComponent(processId));
+        } else url = button.dataset.processImages;
         body.textContent = 'Loading…';
         bootstrap.Modal.getOrCreateInstance(modal).show();
         try { await load(); } catch(e) { body.textContent = e.message; }
     });
     body.addEventListener('submit', event => {
-        const form = event.target.closest('[data-process-image-form]');
+        const form = event.target.closest('[data-process-image-form], [data-process-image-manual-form]');
         if (!form) return;
         event.preventDefault();
-        mutate(form.action, {method:'POST', body:new FormData(form)}, 'Save this image for the part number? An existing image for this part number will be replaced.');
+        const data = new FormData(form);
+        const assigning = form.hasAttribute('data-process-image-manual-form');
+        if (assigning) data.append('_method', 'PATCH');
+        mutate(form.action, {method:'POST', body:data}, assigning
+            ? 'Assign this image to the selected manual? Existing images will not be overwritten.'
+            : 'Save this shared image for the manual, process and P/N? An assigned image for this exact combination will be replaced in all work orders.');
     });
     body.addEventListener('click', event => {
         const replace = event.target.closest('[data-process-image-replace]');
-        if (replace) { body.querySelector('[name="part_number"]').value = replace.dataset.processImageReplace; body.querySelector('[name="image"]').focus(); }
+        if (replace) {
+            const form = body.querySelector('[data-process-image-form]');
+            form.querySelector('[name="part_number"]').value = replace.dataset.processImageReplace;
+            form.querySelector('[name="manual_id"]').value = replace.dataset.manualId;
+            form.querySelector('[name="image"]').focus();
+        }
         const remove = event.target.closest('[data-process-image-delete]');
         if (remove) mutate(remove.dataset.processImageDelete, {method:'DELETE'}, 'Delete this print image?');
     });

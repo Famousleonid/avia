@@ -45,6 +45,9 @@ class AuthServiceProvider extends ServiceProvider
                 if ($user->isSystemAdmin()) {
                     return true;
                 }
+                if (($definition['admin_only'] ?? false) === true) {
+                    return $user->roleIs('Admin');
+                }
 
                 $rolesAllowed = $definition['roles'] ?? [];
                 $userIds = array_map(static fn ($id) => (int) $id, $definition['user_ids'] ?? []);

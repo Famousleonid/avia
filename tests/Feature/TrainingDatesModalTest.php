@@ -11,6 +11,28 @@ class TrainingDatesModalTest extends TestCase
 {
     use BuildsActiveTrainingData, DatabaseTransactions;
 
+    public function test_component_check_requires_every_date_including_base_form_for_selected_technician(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $other = $this->createUserWithRole('Technician');
+        $manual = $this->createManual();
+        $base = Training::create(['user_id' => $user->id, 'manuals_id' => $manual->id,
+            'form_type' => '132', 'date_training' => '2024-04-12', 'is_legacy' => false]);
+        Training::create(['user_id' => $user->id, 'manuals_id' => $manual->id,
+            'form_type' => '112', 'date_training' => '2025-04-18', 'is_legacy' => false,
+            'approved_by' => $user->id, 'approved_at' => now()]);
+        Training::create(['user_id' => $other->id, 'manuals_id' => $manual->id,
+            'form_type' => '112', 'date_training' => '2025-04-18', 'is_legacy' => false]);
+        $this->actingAs($user)->withSession(['auth.version' => (int) $user->auth_version,
+            'password_hash_web' => $user->getAuthPassword()]);
+        $url = route('trainings.index');
+        $this->get($url)->assertOk()->assertDontSee('bi bi-check-lg training-all-approved', false);
+        $base->update(['approved_by' => $user->id, 'approved_at' => now()]);
+        $this->get($url)->assertOk()->assertSee('bi bi-check-lg training-all-approved', false);
+        $base->update(['approved_by' => null, 'approved_at' => null]);
+        $this->get($url)->assertOk()->assertDontSee('bi bi-check-lg training-all-approved', false);
+    }
+
     public function test_technician_base_date_is_locked_and_uses_plain_style(): void
     {
         $user = $this->createUserWithRole('Technician', ['is_admin' => false]);

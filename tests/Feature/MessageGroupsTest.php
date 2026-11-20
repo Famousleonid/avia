@@ -22,6 +22,26 @@ class MessageGroupsTest extends TestCase
         ]);
     }
 
+    public function test_admin_without_system_flag_can_send_all_screen_message_types(): void
+    {
+        $sender = $this->createUserWithRole('Admin', ['is_admin' => 0]);
+        $recipient = $this->createUserWithRole('Technician');
+        $this->signIn($sender);
+        $html = view('components.sidebar')->render();
+        $this->assertStringContainsString('id="msgOnScreen"', $html);
+        $this->assertStringContainsString('id="btnPreviewMsg"', $html);
+        $this->assertStringNotContainsString('id="msgGroupEditor"', $html);
+        foreach (['alert', 'info', 'message'] as $kind) {
+            $this->postJson(route('admin.messages.send'), [
+                'user_ids' => [$recipient->id], 'message' => 'Admin '.$kind,
+                'on_screen' => true, 'screen_kind' => $kind,
+            ])->assertOk()->assertJsonPath('ok', true);
+            $this->assertDatabaseHas('screen_messages', [
+                'sender_id' => $sender->id, 'message' => 'Admin '.$kind, 'kind' => $kind,
+            ]);
+        }
+    }
+
     public function test_only_admin_and_manager_can_see_and_manage_shared_groups(): void
     {
         $admin = $this->createUserWithRole('Admin');

@@ -62,7 +62,7 @@
                     @php
                         $isUnread = is_null($n->read_at);
                         $fromName = trim((string) ($n->from_name ?: 'System'));
-                        $toName = trim((string) ($n->to_name ?? ''));
+                        $unitPartNumber = trim((string) data_get($n->ui, 'workorder.unit_part_number', ''));
                         $time = $n->created_at_human ?? optional($n->created_at)->diffForHumans();
                         $text = $n->text ?? '';
                         $url = trim((string) ($n->url ?? ''));
@@ -86,8 +86,8 @@
                                 <div class="d-flex align-items-center justify-content-between small">
                                     <div class="text-warning">
                                         From: {{ $fromName }}
-                                        @if($toName)
-                                            <span class="text-muted mx-1">to</span>{{ $toName }}
+                                        @if($unitPartNumber)
+                                            <span class="ms-2">P/N: {{ $unitPartNumber }}</span>
                                         @endif
                                     </div>
                                     <div class="text-muted">{{ $time }}</div>

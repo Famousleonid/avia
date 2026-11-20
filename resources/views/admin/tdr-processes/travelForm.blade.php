@@ -63,7 +63,7 @@
             /* Фиксированный размер страницы Letter в альбомной ориентации (11 x 8.5 дюймов = 279.4 x 215.9 мм) */
             @page {
                 size: letter landscape;
-                margin: var(--print-page-margin, 8mm) var(--print-page-margin, 8mm) 16mm;
+                margin: var(--print-page-margin, 8mm);
                 padding: 0;
             }
 
@@ -329,7 +329,7 @@
             .traveler-document-header .parent > .div1 { white-space: nowrap; }
             /* The screen form is narrower than landscape paper. Reserve room for task names. */
             .traveler-process-table col:nth-child(2) { width: 16% !important; }
-            .traveler-process-table col:nth-child(3) { width: 34% !important; }
+            .traveler-process-table col:nth-child(3) { width: 33% !important; }
         }
         .traveler-process-table td.div3,
         .traveler-process-table .process-description { font-size: 14px !important; line-height: 1.15; text-align: left; }
@@ -356,6 +356,7 @@
             .traveler-document-header > .row > .col-8 { margin-left: 33.333%; }
             .traveler-process-table { break-inside: auto !important; page-break-inside: auto !important; margin-bottom: 0 !important; }
             .container-fluid { padding-bottom: 0 !important; }
+            footer > .row { margin: 0; padding: 2px 0 !important; }
         }
     </style>
 </head>
@@ -394,7 +395,7 @@
 @endif
 <div class="container-fluid">
     <div class="row">
-<table class="table mt-2 traveler-process-table"><colgroup><col style="width:4%"><col style="width:14%"><col style="width:36%"><col style="width:9%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:9%"></colgroup><thead>
+<table class="table mt-2 traveler-process-table"><colgroup><col style="width:4%"><col style="width:14%"><col style="width:35%"><col style="width:10%"><col style="width:14%"><col style="width:10%"><col style="width:5.5%"><col style="width:7.5%"></colgroup><thead>
     <tr><td colspan="8" class="traveler-document-header"><div class="row">
         <div class="traveler-heading">
             <img class="traveler-heading-logo" src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo">
@@ -425,7 +426,7 @@
             <td class="div5 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Vendor Name</strong></td>
             <td class="div6 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Date
                     completed</strong></td>
-            <td class="div7 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Vendor stamp</strong></td>
+            <td class="div7 border-t-r-b traveler-table-header" style="min-height: 36px; padding-left: 0; padding-right: 0; align-content: center"> <strong style="white-space: nowrap">Vendor<br>stamp</strong></td>
             <td class="div8 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Note</strong></td></tr></thead><tbody>
 
             @php
@@ -548,7 +549,7 @@
                     @endif
                     @php
                         $additionalDescription = \App\Services\TravelerPrintDescription::additional(
-                            $tp->description, $subLabel,
+                            $tp->descriptionForSpecification((int) $subId), $subLabel,
                             [$processName, $tp->processName->name, $tp->processName->identityName(),
                                 $tp->processName->hasIdentity(['NDT-1', 'NDT-4']) ? 'NDT' : '']
                         );

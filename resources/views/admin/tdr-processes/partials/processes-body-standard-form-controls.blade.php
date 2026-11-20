@@ -1,5 +1,6 @@
 @php
     $combinedFormProcessId = $combinedFormProcessId ?? null;
+    if (\App\Models\ProcessName::isMachiningPrintedForm($tdrProcessRow->processName)) $combinedFormProcessId = null;
     $formParams = ['tdr_process' => $tdrProcessRow->id];
     if ($combinedFormProcessId !== null) {
         $formParams['process_id'] = $combinedFormProcessId;

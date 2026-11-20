@@ -23,6 +23,98 @@
             return (this.config.ndtProcessNames || []).includes(parseInt(processNameId));
         },
 
+        isMachiningProcess(processNameId) {
+            return (this.config.processNamesData || {})[processNameId]?.process_sheet_name === 'MACHINING';
+        },
+
+        showDescriptions(container, show) {
+            const hasSelection = !!container.querySelector('.edit-spec-list input:checked');
+            container.classList.toggle('show-descriptions', show && hasSelection);
+            const toggle = container.querySelector('[data-toggle-descriptions]');
+            if (toggle) {
+                toggle.classList.toggle('d-none', !hasSelection);
+                toggle.textContent = show ? 'Choose processes' : 'Back to descriptions';
+            }
+        },
+
+        renderSpecificationDescriptions(container, processNameId) {
+            const target = container.querySelector('.edit-spec-descriptions');
+            if (!target) return;
+            target.replaceChildren();
+            const selected = [...container.querySelectorAll('.edit-spec-list input:checked')];
+            if (!selected.length) { this.showDescriptions(container, false); return; }
+            selected.forEach(input => {
+                const label = document.createElement('label');
+                label.className = 'edit-spec-description';
+                const title = document.createElement('span');
+                title.textContent = input.nextElementSibling.textContent;
+                const field = document.createElement('textarea');
+                field.className = 'form-control form-control-sm';
+                field.name = 'specification_descriptions[' + input.value + ']';
+                field.maxLength = 255; field.rows = 3; field.placeholder = 'Description';
+                field.setAttribute('aria-label', 'Description: ' + title.textContent);
+                this.descriptionDrafts ??= {...(this.config.specificationDescriptions || {})};
+                field.value = this.descriptionDrafts[input.value] ?? (document.querySelector('#editCPForm [name="description"]')?.value || '');
+                field.addEventListener('input', () => { this.descriptionDrafts[input.value] = field.value; });
+                label.append(title, field); target.append(label);
+            });
+            this.showDescriptions(container, true);
+        },
+
+        createSpecificationPicker(container, processNameId) {
+            container.replaceChildren();
+            container.classList.remove('show-descriptions');
+            const search = document.createElement('input');
+            search.type = 'search'; search.className = 'form-control form-control-sm mb-2';
+            search.placeholder = 'Search any part of process…'; search.setAttribute('aria-label', 'Search processes');
+            const grid = document.createElement('div');
+            grid.className = 'edit-spec-grid' + (this.isMachiningProcess(processNameId) ? ' is-machining' : '');
+            const list = document.createElement('div'); list.className = 'edit-spec-list';
+            const empty = document.createElement('div'); empty.className = 'text-muted d-none';
+            empty.textContent = 'No matching processes'; empty.setAttribute('role', 'status'); list.append(empty);
+            grid.append(list);
+            if (this.isMachiningProcess(processNameId)) {
+                const descriptions = document.createElement('div'); descriptions.className = 'edit-spec-descriptions';
+                grid.append(descriptions);
+            }
+            container.append(search, grid);
+            if (this.isMachiningProcess(processNameId)) {
+                const toggle = document.createElement('button');
+                toggle.type = 'button'; toggle.className = 'btn btn-sm btn-outline-info mb-2 d-none';
+                toggle.dataset.toggleDescriptions = '';
+                toggle.addEventListener('click', () => {
+                    const show = !container.classList.contains('show-descriptions');
+                    this.showDescriptions(container, show);
+                    if (!show) { search.focus({preventScroll: true}); search.select(); }
+                });
+                container.insertBefore(toggle, search);
+            }
+            search.addEventListener('input', () => {
+                const query = search.value.trim().toLocaleLowerCase(); let count = 0;
+                list.querySelectorAll('.form-check').forEach(row => {
+                    const matches = row.querySelector('label').textContent.toLocaleLowerCase().includes(query);
+                    row.classList.toggle('d-none', !matches); if (matches) count++;
+                });
+                empty.classList.toggle('d-none', count > 0); list.scrollTop = 0;
+            });
+            list.addEventListener('change', event => {
+                this.renderSpecificationDescriptions(container, processNameId);
+                if (event.target.checked) container.querySelector('textarea[name="specification_descriptions[' + event.target.value + ']"]')?.focus({preventScroll: true});
+            });
+        },
+
+        appendSpecification(container, process, processNameId, rowIndex, checked) {
+            container.querySelector('.edit-spec-empty-catalog')?.remove();
+            const div = document.createElement('div'); div.className = 'form-check';
+            const input = document.createElement('input');
+            input.type = this.isMachiningProcess(processNameId) ? 'checkbox' : 'radio';
+            input.name = 'processes[' + rowIndex + '][process][]'; input.value = process.id;
+            input.className = 'form-check-input'; input.id = 'process_' + rowIndex + '_' + process.id; input.checked = checked;
+            const label = document.createElement('label'); label.className = 'form-check-label'; label.htmlFor = input.id;
+            window.renderProcessChoiceLabel(label, process); div.append(input, label);
+            container.querySelector('.edit-spec-list').append(div);
+        },
+
         isEcEligibleProcess(processNameId) {
             return (this.config.ecEligibleProcessNameIds || []).includes(parseInt(processNameId));
         },
@@ -74,60 +166,16 @@
         },
 
         onDomReady() {
-            const processNameSelect = document.querySelector('select[name="processes[0][process_names_id]"]');
+            const processNameSelect = document.querySelector('[data-edit-process-name]');
             const ecCheckboxContainer = document.getElementById('ec-checkbox-container');
             const ndtPlusContainer = document.querySelector('.ndt-plus-process-container');
             const ndtPlusSelect = document.querySelector('.select2-ndt-plus');
 
-            this.initProcessNameSelect(processNameSelect, ecCheckboxContainer, ndtPlusContainer, ndtPlusSelect);
-            this.sizeProcessNameColumn(processNameSelect);
-            document.fonts?.ready.then(() => this.sizeProcessNameColumn(processNameSelect));
             this.initNdtPlusSelect(ndtPlusContainer, ndtPlusSelect);
             this.initPageLoad(processNameSelect, ecCheckboxContainer, ndtPlusContainer, ndtPlusSelect);
             this.bindCheckboxChange();
             this.bindModal();
             this.bindFormSubmit();
-        },
-
-        sizeProcessNameColumn(select) {
-            const column = select?.closest('.process-row > .row > div');
-            if (!column) return;
-            const rendered = column.querySelector('.select2-selection__rendered') || select;
-            const style = getComputedStyle(rendered);
-            const context = document.createElement('canvas').getContext('2d');
-            if (!context) return;
-            context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-            const longest = Math.max(0, ...Array.from(select.options, option => context.measureText(option.text.trim()).width));
-            const gutter = getComputedStyle(column);
-            // Include the control padding/arrow and the Bootstrap column gutters.
-            const controlSpace = Math.max(40, (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0) + 20);
-            const width = Math.ceil(longest + controlSpace + (parseFloat(gutter.paddingLeft) || 0) + (parseFloat(gutter.paddingRight) || 0));
-            column.style.setProperty('--process-name-width', `${width}px`);
-        },
-
-        initProcessNameSelect(processNameSelect, ecCheckboxContainer, ndtPlusContainer, ndtPlusSelect) {
-            if (typeof $ === 'undefined' || !$.fn.select2 || !processNameSelect) return;
-
-            const self = this;
-            const dropdownParent = (this.config && this.config.dropdownParent) || document.body;
-            $(processNameSelect).select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                placeholder: 'Select Process Name',
-                allowClear: false,
-                dropdownParent: $(dropdownParent),
-                templateResult: (data) => (data.id ? data.text : null)
-            })
-                .on('select2:select', function (e) {
-                    const select = e.target;
-                    const processNameId = select.value;
-                    const processRow = select.closest('.process-row');
-
-                    self.toggleEcCheckbox(processRow, processNameId);
-                    self.toggleNotesField(processRow, processNameId);
-                    self.handleNdtContainer(processRow, processNameId, ndtPlusSelect);
-                    self.loadProcessesForRow(select);
-                });
         },
 
         handleNdtContainer(processRow, processNameId, ndtPlusSelect) {
@@ -225,6 +273,7 @@
             const saveButton = document.querySelector('button[type="submit"]');
 
             if (!processNameId || !processOptionsContainer) return;
+            document.querySelector('#editCPForm .process-description-field')?.classList.toggle('d-none', this.isMachiningProcess(processNameId));
 
             const expandPicker = () => processRow.classList.add('specification-picker-expanded');
             if (!processOptionsContainer.dataset.widePickerBound) {
@@ -232,7 +281,8 @@
                 processOptionsContainer.addEventListener('pointerdown', expandPicker);
                 processOptionsContainer.addEventListener('focusin', expandPicker);
                 processOptionsContainer.addEventListener('change', event => {
-                    if (!event.target.matches('input[type="radio"]')) return;
+                    if (!event.target.matches('input[type="radio"], input[type="checkbox"]')) return;
+                    if (event.target.type === 'checkbox') return;
                     processRow.classList.remove('specification-picker-expanded');
                     document.querySelector('#editCPForm [name="description"]')?.focus({preventScroll: true});
                 });
@@ -242,12 +292,16 @@
             const match = selectElement.name?.match(/processes\[(\d+)\]/);
             const rowIndex = match ? match[1] : '0';
 
+            const loadVersion = (this.processLoadVersion || 0) + 1;
+            this.processLoadVersion = loadVersion;
+            saveButton.disabled = true;
             processOptionsContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
 
             fetch(`${this.config.getProcessesUrl}?processNameId=${processNameId}&manualId=${manualId}`)
                 .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || e.message); }))
                 .then(data => {
-                    processOptionsContainer.innerHTML = '';
+                    if (loadVersion !== this.processLoadVersion) return;
+                    this.createSpecificationPicker(processOptionsContainer, processNameId);
                     let hasProcesses = false;
 
                     const isInitialLoad = !selectElement.dataset.loaded;
@@ -257,27 +311,26 @@
                     if (data.existingProcesses?.length) {
                         const firstId = currentProcesses[0];
                         data.existingProcesses.forEach(process => {
-                            const div = document.createElement('div');
-                            div.classList.add('form-check');
-                            const checked = process.id == firstId;
-                            div.innerHTML = `<input type="radio" name="processes[${rowIndex}][process]" value="${process.id}" class="form-check-input" id="process_${rowIndex}_${process.id}" ${checked ? 'checked' : ''}><label class="form-check-label" for="process_${rowIndex}_${process.id}"></label>`;
-                            window.renderProcessChoiceLabel(div.querySelector('label'), process);
-                            processOptionsContainer.appendChild(div);
+                            const multiple = this.isMachiningProcess(processNameId);
+                            const checked = multiple ? currentProcesses.some(id => id == process.id) : process.id == firstId;
+                            this.appendSpecification(processOptionsContainer, process, processNameId, rowIndex, checked);
                             hasProcesses = true;
                         });
                     }
 
+                    this.renderSpecificationDescriptions(processOptionsContainer, processNameId);
                     if (hasProcesses) {
                         saveButton.disabled = false;
                     } else {
                         const div = document.createElement('div');
-                        div.className = 'text-muted mt-2';
+                        div.className = 'text-muted mt-2 edit-spec-empty-catalog';
                         div.textContent = 'No specification. Add specification for this process.';
                         processOptionsContainer.appendChild(div);
                         saveButton.disabled = true;
                     }
                 })
                 .catch(err => {
+                    if (loadVersion !== this.processLoadVersion) return;
                     processOptionsContainer.innerHTML = `<div class="text-danger">Error: ${err.message}</div>`;
                     saveButton.disabled = true;
             (window.NotificationHandler?.error || window.notifyError)('Error while loading processes');
@@ -354,7 +407,7 @@
                 const triggerBtn = e.relatedTarget;
                 if (!triggerBtn) return;
                 const row = triggerBtn.closest('.process-row');
-                const select = row?.querySelector('.select2-process');
+                const select = row?.querySelector('[data-edit-process-name]');
                 const processNameId = (typeof $ !== 'undefined' && select && $(select).hasClass('select2-hidden-accessible'))
                     ? $(select).val() : select?.value;
                 if (!processNameId || processNameId === '') {
@@ -363,7 +416,7 @@
                     return;
                 }
                 window._editProcessCurrentRow = row;
-                const processName = select?.options[select.selectedIndex]?.text || '';
+                const processName = select?.dataset.processName || '';
                 document.getElementById('modalProcessName').textContent = processName;
                 document.getElementById('modalProcessNameId').value = processNameId;
                 document.getElementById('newProcessInput').value = '';
@@ -373,11 +426,11 @@
                 const btn = e.target.closest('.btn[data-bs-target="#addProcessModal"]');
                 if (!btn) return;
                 const row = btn.closest('.process-row');
-                const select = row?.querySelector('.select2-process');
+                const select = row?.querySelector('[data-edit-process-name]');
                 const processNameId = (typeof $ !== 'undefined' && $(select).hasClass('select2-hidden-accessible'))
                     ? $(select).val() : select?.value;
                 if (!processNameId || processNameId === '') return;
-                document.getElementById('modalProcessName').textContent = select?.options[select.selectedIndex]?.text || '';
+                document.getElementById('modalProcessName').textContent = select?.dataset.processName || '';
                 document.getElementById('modalProcessNameId').value = processNameId;
                 document.getElementById('newProcessInput').value = '';
                 window._editProcessCurrentRow = row;
@@ -400,7 +453,7 @@
             }
             if (!processNameId || !manualId || !processOptionsContainer) return;
 
-            const match = row?.querySelector('.select2-process')?.name?.match(/processes\[(\d+)\]/);
+            const match = row?.querySelector('[data-edit-process-name]')?.name?.match(/processes\[(\d+)\]/);
             const rowIndex = match ? match[1] : '0';
 
             const loadingDiv = document.createElement('div');
@@ -425,10 +478,11 @@
                 .then(data => {
                     loadingDiv.remove();
                     if (data.success && data.process) {
-                        const div = document.createElement('div');
-                        div.classList.add('form-check');
-                        div.innerHTML = `<input type="radio" name="processes[${rowIndex}][process]" value="${data.process.id}" class="form-check-input" id="process_${rowIndex}_${data.process.id}" checked><label class="form-check-label" for="process_${rowIndex}_${data.process.id}">${data.process.process}</label>`;
-                        processOptionsContainer.appendChild(div);
+                        if (!processOptionsContainer.querySelector('.edit-spec-list')) this.createSpecificationPicker(processOptionsContainer, processNameId);
+                        this.appendSpecification(processOptionsContainer, data.process, processNameId, rowIndex, true);
+                        this.renderSpecificationDescriptions(processOptionsContainer, processNameId);
+                        const search = processOptionsContainer.querySelector('input[type="search"]');
+                        search.value = ''; search.dispatchEvent(new Event('input'));
                         document.getElementById('newProcessInput').value = '';
                         saveButton.disabled = false;
                         (window.NotificationHandler?.success || window.notifySuccess)('Process added successfully!');
@@ -450,7 +504,7 @@
 
             form.addEventListener('submit', (e) => {
                 const processRow = document.querySelector('.process-row');
-                const checkedRadio = processRow?.querySelector('.process-options input[type="radio"]:checked');
+                const checkedRadio = processRow?.querySelector('.process-options input:checked');
                 const ndtIds = Array.from(processRow?.querySelectorAll('.ndt-plus-process-options input[type="checkbox"]:checked') || []).map(cb => parseInt(cb.value));
 
                 if (!checkedRadio) {
@@ -459,19 +513,16 @@
                     return;
                 }
 
-                const mainId = parseInt(checkedRadio.value);
                 const optionsContainer = processRow?.querySelector('.process-options');
-                checkedRadio.removeAttribute('name');
-
-                const mainInput = document.createElement('input');
-                mainInput.type = 'hidden';
-                mainInput.name = 'processes[0][process][]';
-                mainInput.value = mainId;
-                optionsContainer?.appendChild(mainInput);
+                optionsContainer?.querySelectorAll('.ndt-submit-value').forEach(input => input.remove());
+                optionsContainer?.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+                    input.name = 'processes[0][process][]';
+                });
 
                 ndtIds.forEach(processId => {
                     const input = document.createElement('input');
                     input.type = 'hidden';
+                    input.className = 'ndt-submit-value';
                     input.name = 'processes[0][process][]';
                     input.value = processId;
                     optionsContainer?.appendChild(input);

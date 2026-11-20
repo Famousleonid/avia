@@ -20,6 +20,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
+        $schedule->command('process-vendor:refresh')->everyFiveMinutes()->withoutOverlapping(60)->runInBackground();
         $schedule->command('events:run')->dailyAt('06:00');
         $schedule->command('marketing:send-follow-ups')->dailyAt('07:00');
         $schedule->command('marketing:send-wo-estimate-date-emails')->dailyAt('07:20');

@@ -39,8 +39,12 @@ class WorkorderStdProcessItemsService
      * Preview retains fully excluded rows in memory only, without changing the stored work list.
      * @return array<int, array<string, mixed>>
      */
-    public function rebuild(Workorder $workorder, bool $previewExcluded = false): array
+    public function rebuild(Workorder $workorder, bool $previewExcluded = false, ?string $previewStd = null): array
     {
+        if ($previewStd !== null) {
+            StdProcess::assertValidStd($previewStd);
+            if (!$previewExcluded) throw new \InvalidArgumentException('A scoped STD preview must be read-only.');
+        }
         if ($workorder->relationLoaded('unit')
             && (int) ($workorder->unit?->id ?? 0) !== (int) $workorder->unit_id) {
             $workorder->unsetRelation('unit');
@@ -53,7 +57,7 @@ class WorkorderStdProcessItemsService
         $workorder->loadMissing(['unit.manuals', 'instruction:id,name']);
         $branchResolver = app(ManualIplBranchRuleResolver::class);
 
-        return DB::transaction(function () use ($workorder, $branchResolver, $previewExcluded): array {
+        return DB::transaction(function () use ($workorder, $branchResolver, $previewExcluded, $previewStd): array {
             if (! $previewExcluded) {
                 WorkorderStdProcessItem::query()
                     ->where('workorder_id', $workorder->id)
@@ -88,7 +92,7 @@ class WorkorderStdProcessItemsService
                     StdProcess::syncFromComponentFlagsForManualWhenCountsDiffer($manual);
                 }
 
-                foreach (StdProcess::validStdValues() as $std) {
+                foreach ($previewStd !== null ? [$previewStd] : StdProcess::validStdValues() as $std) {
                     $scopeQuantities = $scopeResolver->componentQuantities($workorder, $std);
                     $scopeComponentIds = $scopeQuantities !== null ? array_keys($scopeQuantities) : null;
                     $scopeComponentRank = $scopeComponentIds !== null
@@ -269,7 +273,7 @@ class WorkorderStdProcessItemsService
 
         $coverage = ($isSnapshot ? $this->snapshotCoverage : app(PartGroupCoverageResolver::class))->coverageForWorkorder($workorder, $std);
         $items = $includeExcluded
-            ? collect($this->rebuild($workorder, true))->where('std_type', $std)
+            ? collect($this->rebuild($workorder, true, $std))->where('std_type', $std)
                 ->map(fn (array $row) => (new WorkorderStdProcessItem())->forceFill($row))
             : WorkorderStdProcessItem::query()
             ->where('workorder_id', $workorder->id)

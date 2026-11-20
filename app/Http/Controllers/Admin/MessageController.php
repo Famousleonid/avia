@@ -38,8 +38,11 @@ class MessageController extends Controller
      */
     public function send(Request $request): JsonResponse
     {
-        if (!empty($request->input('group_ids')) || $request->boolean('on_screen')) {
+        if (!empty($request->input('group_ids'))) {
             abort_unless($request->user()->canManageGroupMessages(), 403);
+        }
+        if ($request->boolean('on_screen')) {
+            abort_unless($request->user()->canSendScreenMessages(), 403);
         }
         $data = $request->validate([
             'user_ids'     => ['required_without:group_ids', 'array'],

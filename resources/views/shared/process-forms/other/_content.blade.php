@@ -16,6 +16,9 @@
     }
     $emptyRows = max(0, $totalRows - $dataRows);
     $rowIndex = 1;
+    $printedParts = [];
+    $compactPartDetails = \App\Models\ProcessName::isMachiningPrintedForm($process_name)
+        || $process_name->process_sheet_name === 'ANODIZING';
 @endphp
 
 <h6 class="mt-4 ms-3"><strong>
@@ -38,14 +41,21 @@
         @foreach($table_data as $data)
             @php $comp = $data['component'] ?? null; $proc = $data['process'] ?? null; $ep = $data['extra_process'] ?? null; @endphp
             @if($comp)
+            @php
+                $partKey = 'table:'.$comp->id.':'.($ep->id ?? '').':'.($ep->serial_num ?? '');
+                $showPartDetails = !$compactPartDetails || !isset($printedParts[$partKey]);
+                $printedParts[$partKey] = true;
+            @endphp
             <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px; line-height: 1.1">{{
-                $comp->ipl_num }}</div>
+                $showPartDetails ? $comp->ipl_num : '' }}</div>
                 <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px; line-height: 1.1">
-                    {{ $comp->part_number }}
-                    @if(isset($ep) && $ep->serial_num)<br>SN {{ $ep->serial_num }}@endif
+                    @if($showPartDetails)
+                        {{ $comp->part_number }}
+                        @if(isset($ep) && $ep->serial_num)<br>SN {{ $ep->serial_num }}@endif
+                    @endif
                 </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">{{ $comp->name }}</div>
+                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">{{ $showPartDetails ? $comp->name : '' }}</div>
                 <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px; line-height: 1.1">
                     @php
                         $procText = null;
@@ -84,13 +94,20 @@
     @foreach($process_tdr_components ?? [] as $component)
         @php $processData = is_array($component->processes) ? $component->processes : (json_decode($component->processes ?? '[]', true) ?: []); @endphp
         @foreach($processData as $process)
+            @php
+                $partKey = 'tdr:'.$component->tdrs_id;
+                $showPartDetails = !$compactPartDetails || !isset($printedParts[$partKey]);
+                $printedParts[$partKey] = true;
+            @endphp
             <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">{{ $component->tdr->component->ipl_num }}</div>
+                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">{{ $showPartDetails ? $component->tdr->component->ipl_num : '' }}</div>
                 <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
-                    {{ $component->tdr->component->part_number }}
-                    @if($component->tdr->serial_number)<br>SN {{ $component->tdr->serial_number }}@endif
+                    @if($showPartDetails)
+                        {{ $component->tdr->component->part_number }}
+                        @if($component->tdr->serial_number)<br>SN {{ $component->tdr->serial_number }}@endif
+                    @endif
                 </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">{{ $component->tdr->component->name }}</div>
+                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">{{ $showPartDetails ? $component->tdr->component->name : '' }}</div>
                 <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px">
                     @php
                         $procText = null;
@@ -108,8 +125,8 @@
                     @if($procText)
                         @include('shared.process-forms._process-text', [
                             'text' => $procText,
-                            'description' => $component->description ?? '',
-                            'showRequirementStar' => method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [],
+                            'description' => $component->descriptionForSpecification((int) $process),
+                            'showRequirementStar' => method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements((int) $process) !== [],
                         ])
                     @endif
                 </div>

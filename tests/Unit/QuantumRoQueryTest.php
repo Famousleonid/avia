@@ -8,6 +8,17 @@ require_once __DIR__ . '/../../RO/quantum_ro_query.php';
 
 class QuantumRoQueryTest extends TestCase
 {
+    public function test_returned_serial_is_scoped_to_exact_ro_detail_and_precedes_outbound_serial(): void
+    {
+        $sql = buildQuantumRoQuery([])['sql'];
+        $this->assertStringContainsString('rs.ROD_AUTO_KEY = rd.ROD_AUTO_KEY', $sql);
+        $this->assertStringContainsString('rs.PNM_AUTO_KEY = rd.PNM_AUTO_KEY', $sql);
+        $this->assertStringContainsString('rs.RCD_AUTO_KEY IS NOT NULL', $sql);
+        $this->assertStringContainsString('rd.LAST_DELIVERY_DATE IS NOT NULL', $sql);
+        $this->assertStringContainsString('COUNT(DISTINCT TRIM(rs.SERIAL_NUMBER)) = 1', $sql);
+        $this->assertLessThan(strpos($sql, 'TRIM(rd.SERIAL_NUMBER)'), strpos($sql, 'FROM QCTL.STOCK rs'));
+    }
+
     public function test_incremental_query_watches_all_non_empty_bom_ref_rows_without_date_window(): void
     {
         $query = buildQuantumRoQuery([

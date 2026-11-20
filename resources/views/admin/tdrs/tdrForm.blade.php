@@ -355,6 +355,10 @@
             margin: 0;
         }
 
+        [data-tdr-part-line] {
+            display: block;
+        }
+
         .tdr-entry-text b,
         .tdr-entry-text strong {
             font-weight: 700;
@@ -423,6 +427,8 @@
                 max-width: none;
                 margin: 0;
                 padding: 0;
+                /* Screen clipping cuts repeated icons on later printed pages. */
+                overflow: visible;
             }
 
             .tdr-page {
@@ -698,7 +704,8 @@
 
         const tableHeight = parseCssPixels(settings.tdrTableHeight || defaultSettings.tdrTableHeight, 640);
         const measureTable = createMeasurementTable(container);
-        const pages = packInspectionsByColumnHeight(allInspections, tableHeight, measureTable);
+        const compactEntries = pairSingleLineParts(allInspections, measureTable);
+        const pages = packInspectionsByColumnHeight(compactEntries, tableHeight, measureTable);
         measureTable.remove();
 
         pages.forEach(function(pageData, index) {
@@ -758,11 +765,38 @@
         measure.style.position = 'absolute';
         measure.style.visibility = 'hidden';
         measure.style.pointerEvents = 'none';
-        measure.style.width = getComputedStyle(document.querySelector('.tdr-sheet')).width;
+        // Measure inside the actual content width, capped to Letter's printable width.
+        // A pair must fit on paper too, even when the screen sheet is wider.
+        measure.style.width = 'calc(215.9mm - (var(--tdr-print-edge-margin) * 2))';
         measure.style.left = '-10000px';
         measure.style.top = '0';
         container.appendChild(measure);
+        measure.style.width = Math.min(container.getBoundingClientRect().width,
+            measure.getBoundingClientRect().width) + 'px';
         return measure;
+    }
+
+    function pairSingleLineParts(items, measureTable) {
+        const fits = items.map(function(item) {
+            // Keep general conditions/notes and the Missing summary separate.
+            if (!/^\(\d[^)]*\)\s*<b>/i.test(String(item))) return false;
+            measureTable.innerHTML = '';
+            const row = createTdrTableRow('<span data-tdr-part-line>' + item + '</span>', '', 0);
+            measureTable.appendChild(row);
+            const line = row.querySelector('[data-tdr-part-line]');
+            return line.getBoundingClientRect().height <= parseFloat(getComputedStyle(line).lineHeight) + 0.5
+                && line.scrollWidth <= line.clientWidth;
+        });
+        const entries = [];
+        for (let index = 0; index < items.length; index++) {
+            if (fits[index] && fits[index + 1]) {
+                entries.push('<span data-tdr-part-line>' + items[index] + '</span>'
+                    + '<span data-tdr-part-line>' + items[++index] + '</span>');
+            } else {
+                entries.push(items[index]);
+            }
+        }
+        return entries;
     }
 
     function packInspectionsByColumnHeight(items, tableHeight, measureTable) {

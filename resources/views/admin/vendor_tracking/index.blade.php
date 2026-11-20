@@ -2,6 +2,7 @@
 
 @section('style')
     <style>
+        body:has(#vendorInfoModal.show) #aiAssistantWidget { visibility: hidden; }
         .content:has(.vendor-tracking-page) {
             overflow: hidden !important;
             padding-top: 0 !important;
@@ -2241,8 +2242,9 @@
                         </div>
                         <span class="badge text-bg-secondary vendor-profile-status" id="vendorTrustStateBadge">Not trusted</span>
                     </div>
+                    @include('admin.vendor_tracking._contact_fields', ['prefix' => 'trackingVendor'])
                     <label class="form-label small text-muted" for="vendorDescriptionInput">Description</label>
-                    <textarea id="vendorDescriptionInput" class="form-control form-control-sm" rows="7" placeholder="Write notes for this vendor..."></textarea>
+                    <textarea id="vendorDescriptionInput" class="form-control form-control-sm" rows="3" placeholder="Write notes for this vendor..."></textarea>
                     <div id="vendorInfoStatus" class="small text-muted mt-3"></div>
                     <hr class="border-secondary my-3">
                     <div id="vendorMediaList" class="vendor-media-grid"></div>
@@ -4214,6 +4216,9 @@
                 }
 
                 currentInfoVendorId = Number(vendorId);
+                const loadingVendorId = currentInfoVendorId;
+                vendorProfileSaveBtn.disabled = true;
+                vendorInfoModalEl.querySelectorAll('[data-vendor-field]').forEach(input => input.value = '');
                 const triggerButton = tbody.querySelector(`.js-vendor-info-open[data-vendor-id="${currentInfoVendorId}"]`);
                 const initialTrusted = triggerButton?.dataset.trusted === '1';
 
@@ -4234,7 +4239,10 @@
                 }
 
                 try {
-                    const vendor = await loadVendorData(currentInfoVendorId);
+                    const vendor = await loadVendorData(loadingVendorId);
+                    if (currentInfoVendorId !== loadingVendorId) return;
+                    vendorInfoModalEl.querySelectorAll('[data-vendor-field]').forEach(input => input.value = vendor[input.dataset.vendorField] || '');
+                    vendorProfileSaveBtn.disabled = false;
                     if (vendorInfoModalName) {
                         vendorInfoModalName.textContent = vendor.name;
                     }
@@ -4334,12 +4342,13 @@
                         body: JSON.stringify({
                             is_trusted: vendorTrustedInput?.checked ? 1 : 0,
                             description: vendorDescriptionInput?.value ?? '',
+                            ...Object.fromEntries([...vendorInfoModalEl.querySelectorAll('[data-vendor-field]')].map(input => [input.dataset.vendorField, input.value.trim()])),
                         }),
                     });
 
                     const data = await response.json();
                     if (!response.ok || data.success === false) {
-                        throw new Error('Save failed');
+                        throw new Error(Object.values(data.errors || {}).flat()[0] || 'Save failed');
                     }
 
                     const isTrusted = Boolean(data.vendor?.is_trusted);
@@ -4348,7 +4357,7 @@
                     setInfoStatus('Vendor info saved.', false);
                     vendorInfoModal?.hide();
                 } catch (error) {
-                    setInfoStatus('Failed to save vendor info.', true);
+                    setInfoStatus(error.message || 'Failed to save vendor info.', true);
                 } finally {
                     vendorProfileSaveBtn.removeAttribute('disabled');
                 }

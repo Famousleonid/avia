@@ -75,6 +75,10 @@
             const resultingCrossedOut = element.dataset.kitPrlControllerCrossedOut === '1' || crossedOut;
 
             element.dataset.kitPrlManualCrossedOut = crossedOut ? '1' : '0';
+            const reasons = [element.dataset.kitPrlSourceReason, crossedOut ? 'Manually crossed out' : ''].filter(Boolean);
+            element.title = resultingCrossedOut
+                ? 'Crossed out: ' + (reasons.join('; ') || 'Automatically excluded by selection rules')
+                : (element.dataset.kitPrlIdleTitle || '');
             element.classList.toggle('kit-prl-option-crossed-out', resultingCrossedOut);
             if (element.classList.contains('prl-part-number-line')) {
                 element.classList.toggle('prl-part-number-crossed-out', resultingCrossedOut);

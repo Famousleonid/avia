@@ -1397,6 +1397,17 @@ document.addEventListener('DOMContentLoaded', function() {
         var descriptionInput = container.querySelector('[data-inline-process-description]');
         var saveBtn = container.querySelector('[data-inline-process-save]');
         var selectedProcessId = '';
+        var specificationDescriptions = {};
+        var processLoadVersion = 0;
+        var layoutTable = container.querySelector('.tdr-processes-table') || createRow?.closest('table');
+        if (layoutTable) {
+            var alignMachiningColumns = function() {
+                var header = layoutTable.querySelector('thead th:nth-child(3)');
+                if (header) layoutTable.style.setProperty('--machining-spec-width', Math.max(0, header.getBoundingClientRect().width - 8) + 'px');
+            };
+            new ResizeObserver(alignMachiningColumns).observe(layoutTable);
+            alignMachiningColumns();
+        }
         var selectedProcessName = '';
         var selectedProcessCanCreate = false;
         var selectedProcessCreateMessage = '';
@@ -1406,14 +1417,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!addRow || !createRow || !addBtn || !nameSelect || !saveBtn) return;
 
         // Keep the picker in table flow so its height remains scrollable. While open,
-        // span Process, Description and Traveler, stopping before the Action column.
+        // span Process and Description; keep selected descriptions under their header.
         function syncInlineProcessPickerColumns() {
             var expanded = processOptions && !processOptions.classList.contains('d-none');
             var cells = createRow.cells;
             if (cells.length < 6) return;
-            cells[2].colSpan = expanded ? 3 : 1;
+            cells[2].colSpan = expanded ? 2 : 1;
             cells[3].classList.toggle('d-none', Boolean(expanded));
-            cells[4].classList.toggle('d-none', Boolean(expanded));
+            cells[4].classList.remove('d-none');
         }
         if (processOptions) {
             new MutationObserver(syncInlineProcessPickerColumns).observe(processOptions, {attributes: true, attributeFilter: ['class']});
@@ -1422,7 +1433,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (processText) {
             processText.tabIndex = 0;
             processText.setAttribute('role', 'button');
-            function reopenInlineProcessPicker() {
+            function reopenInlineProcessPicker(event) {
+                if (event?.target.closest('textarea')) return;
                 if (!selectedProcessId || !processOptions?.querySelector('input')) return;
                 processOptions.classList.remove('d-none');
                 processText.classList.add('d-none');
@@ -1430,6 +1442,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             processText.addEventListener('click', reopenInlineProcessPicker);
             processText.addEventListener('keydown', function(event) {
+                if (event.target.closest('textarea')) return;
                 if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); reopenInlineProcessPicker(); }
             });
         }
@@ -1474,7 +1487,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function resetInlineProcessRow() {
+            processLoadVersion++;
             selectedProcessId = '';
+            specificationDescriptions = {};
             nameSelect.value = '';
             if (window.jQuery && jQuery(nameSelect).hasClass('select2-hidden-accessible')) {
                 jQuery(nameSelect).select2('close').trigger('change.select2');
@@ -1560,11 +1575,152 @@ document.addEventListener('DOMContentLoaded', function() {
             addBtn.focus({preventScroll: true});
         }, {capture: true, signal: inlineDismissController.signal});
 
+        function showInlineDescriptions(show) {
+            var hasSelection = !!processOptions.querySelector('input:checked');
+            processOptions.classList.toggle('show-descriptions', show && hasSelection);
+            var toggle = processOptions.querySelector('[data-toggle-descriptions]');
+            if (toggle) {
+                toggle.classList.toggle('d-none', !hasSelection);
+                toggle.textContent = show ? 'Choose processes' : 'Back to descriptions';
+            }
+        }
+
+        function renderSelectedDescriptions() {
+            var target = processOptions.querySelector('.tdr-process-picker-descriptions');
+            if (!target) return;
+            target.replaceChildren();
+            var chosen = Array.from(processOptions.querySelectorAll('input:checked'));
+            if (!chosen.length) {
+                showInlineDescriptions(false);
+                return;
+            }
+            chosen.forEach(function(input) {
+                var label = document.createElement('label');
+                label.className = 'tdr-process-picker-description';
+                var title = document.createElement('span');
+                title.textContent = input.nextElementSibling.textContent;
+                var field = document.createElement('textarea');
+                field.className = 'form-control form-control-sm';
+                field.rows = 3;
+                field.maxLength = 255;
+                field.placeholder = 'Description';
+                field.dataset.specificationId = input.value;
+                field.setAttribute('aria-label', 'Description: ' + title.textContent);
+                field.value = specificationDescriptions[input.value] ?? (descriptionInput?.value || '');
+                specificationDescriptions[input.value] = field.value;
+                field.addEventListener('input', function() { specificationDescriptions[input.value] = field.value; });
+                label.append(title, field);
+                target.append(label);
+            });
+            showInlineDescriptions(true);
+        }
+
+        function appendProcessOption(process, checked) {
+            var list = processOptions.querySelector('.tdr-process-picker-list');
+            if (!list) return;
+            var label = document.createElement('label');
+            label.className = 'tdr-process-inline-option';
+            var input = document.createElement('input');
+            input.type = nameSelect.selectedOptions[0]?.dataset.machining === '1' ? 'checkbox' : 'radio';
+            input.name = 'inline_process_' + wrapper.dataset.tdrId;
+            input.value = String(process.id);
+            input.checked = !!checked;
+            var text = document.createElement('span');
+            text.textContent = process.process || ('#' + process.id);
+            if (process.process_comment) {
+                var comment = document.createElement('span');
+                comment.className = 'tdr-process-inline-option-comment';
+                comment.textContent = process.process_comment;
+                text.append(comment);
+            }
+            label.append(input, text);
+            list.append(label);
+            if (checked) input.dispatchEvent(new Event('change', {bubbles: true}));
+        }
+
+        function buildProcessPicker(processes) {
+            processOptions.replaceChildren();
+            processOptions.classList.remove('show-descriptions');
+            var machining = nameSelect.selectedOptions[0]?.dataset.machining === '1';
+            var toolbar = document.createElement('div');
+            toolbar.className = 'tdr-process-picker-toolbar';
+            var search = document.createElement('input');
+            search.type = 'search';
+            search.className = 'form-control form-control-sm';
+            search.placeholder = 'Search any part of process…';
+            search.setAttribute('aria-label', 'Search processes');
+            toolbar.append(search);
+            if (machining) {
+                var toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'btn btn-sm btn-outline-info d-none';
+                toggle.dataset.toggleDescriptions = '';
+                toggle.addEventListener('click', function() {
+                    var show = !processOptions.classList.contains('show-descriptions');
+                    showInlineDescriptions(show);
+                    if (!show) { search.focus({preventScroll: true}); search.select(); }
+                });
+                toolbar.append(toggle);
+            }
+            var grid = document.createElement('div');
+            grid.className = 'tdr-process-picker-grid' + (machining ? ' is-machining' : '');
+            var list = document.createElement('div');
+            list.className = 'tdr-process-picker-list';
+            var empty = document.createElement('div');
+            empty.className = 'text-muted d-none';
+            empty.textContent = 'No matching processes';
+            empty.setAttribute('role', 'status');
+            list.append(empty);
+            grid.append(list);
+            if (machining) {
+                var descriptions = document.createElement('div');
+                descriptions.className = 'tdr-process-picker-descriptions';
+                grid.append(descriptions);
+            }
+            processOptions.append(toolbar, grid);
+            processes.forEach(function(process) { appendProcessOption(process, false); });
+            search.addEventListener('input', function() {
+                var query = search.value.trim().toLocaleLowerCase();
+                var count = 0;
+                list.querySelectorAll('.tdr-process-inline-option').forEach(function(label) {
+                    var match = label.textContent.toLocaleLowerCase().includes(query);
+                    label.classList.toggle('d-none', !match);
+                    if (match) count++;
+                });
+                empty.classList.toggle('d-none', count > 0);
+                list.scrollTop = 0;
+            });
+            renderSelectedDescriptions();
+        }
+
+        wrapper.addEventListener('inline-process-created', function(event) {
+            if (String(nameSelect.value) !== String(event.detail.processNameId)) return;
+            if (!processOptions.querySelector('.tdr-process-picker-list')) buildProcessPicker([]);
+            var search = processOptions.querySelector('input[type="search"]');
+            search.value = '';
+            processOptions.classList.remove('d-none');
+            processText.classList.add('d-none');
+            appendProcessOption(event.detail.process, true);
+            search.dispatchEvent(new Event('input'));
+            scrollInlineProcessRowIntoView();
+        });
+
         if (processOptions) {
             processOptions.addEventListener('change', function(event) {
-                var input = event.target.closest('input[type="radio"]');
+                var input = event.target.closest('input[type="radio"], input[type="checkbox"]');
                 if (!input) return;
-                selectedProcessId = input.checked ? input.value : '';
+                selectedProcessId = processOptions.querySelector('input:checked')?.value || '';
+                if (input.type === 'checkbox') {
+                    renderSelectedDescriptions();
+                    if (input.checked) processOptions.querySelector('textarea[data-specification-id="' + input.value + '"]')?.focus({preventScroll: true});
+                } else if (input.checked && processText) {
+                    processText.textContent = input.nextElementSibling.textContent;
+                    processText.classList.remove('d-none', 'text-muted');
+                    processOptions.classList.add('d-none');
+                    window.clearTimeout(closeInlineProcessTimer);
+                    syncInlineProcessPickerColumns();
+                    descriptionInput?.focus({preventScroll: true});
+                }
             });
         }
 
@@ -1599,7 +1755,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         nameSelect.addEventListener('change', function() {
+            var loadVersion = ++processLoadVersion;
             selectedProcessId = '';
+            specificationDescriptions = {};
             var processNameId = nameSelect.value;
             selectedProcessName = nameSelect.options[nameSelect.selectedIndex]?.text || '';
             var manualId = wrapper.dataset.manualId || '';
@@ -1655,6 +1813,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 })
                 .then(function(result) {
+                    if (loadVersion !== processLoadVersion) return;
                     if (!result.ok) {
                         throw new Error(result.data.message || result.data.error || ("" + String(window.TdrshowConfig1.value81) + ""));
                     }
@@ -1684,44 +1843,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
 
                     if (processOptions) {
-                        processOptions.innerHTML = '';
-                        processes.forEach(function(process) {
-                            var label = document.createElement('label');
-                            label.className = 'tdr-process-inline-option';
-
-                            var input = document.createElement('input');
-                            input.type = 'radio';
-                            input.name = 'inline_process_' + wrapper.dataset.tdrId;
-                            input.value = String(process.id);
-
-                            var text = document.createElement('span');
-                            text.textContent = process.process || ('#' + process.id);
-
-                            if (process.process_comment) {
-                                var comment = document.createElement('span');
-                                comment.className = 'tdr-process-inline-option-comment';
-                                comment.textContent = process.process_comment;
-                                text.appendChild(comment);
-                            }
-
-                            label.appendChild(input);
-                            label.appendChild(text);
-                            processOptions.appendChild(label);
-
-                            input.addEventListener('change', function() {
-                                selectedProcessId = input.checked ? input.value : '';
-                                if (input.checked && processText) {
-                                    processText.textContent = process.process || ('#' + process.id);
-                                    processText.classList.remove('d-none', 'text-muted');
-                                    processOptions.classList.add('d-none');
-                                    window.clearTimeout(closeInlineProcessTimer);
-                                    syncInlineProcessPickerColumns();
-                                    descriptionInput?.focus({preventScroll: true});
-                                }
-                            });
-                        });
-                        // Even one specification needs an explicit choice: its change
-                        // handler collapses the wide picker and focuses Description.
+                        buildProcessPicker(processes);
+                        // Keep multi-selection and its descriptions visible together.
+                        // A single choice collapses the picker and focuses Description.
                         processOptions.classList.remove('d-none');
                         scrollInlineProcessRowIntoView();
                     } else {
@@ -1733,6 +1857,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     saveBtn.disabled = false;
                 })
                 .catch(function(error) {
+                    if (loadVersion !== processLoadVersion) return;
                     selectedProcessId = '';
                     selectedProcessCanCreate = false;
                     selectedProcessCreateMessage = error.message || ("" + String(window.TdrshowConfig1.value84) + "");
@@ -1834,8 +1959,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 tdrs_id: wrapper.dataset.tdrId,
                 processes: [{
                     process_names_id: processNameId,
-                    processes: [selectedProcessId],
+                    processes: Array.from(processOptions.querySelectorAll('input:checked')).map(function(input) { return input.value; }),
                     description: descriptionInput ? descriptionInput.value : '',
+                    specification_descriptions: nameSelect.selectedOptions[0]?.dataset.machining === '1' ? specificationDescriptions : {},
                     in_traveler: 0
                 }]
             };
@@ -1960,25 +2086,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         var processText = activeContainer.querySelector('[data-inline-process-text]');
 
                         if (nameSelect && String(nameSelect.value) === String(processNameId) && processOptions) {
-                            var label = document.createElement('label');
-                            label.className = 'tdr-process-inline-option';
-
-                            var input = document.createElement('input');
-                            input.type = 'radio';
-                            input.name = 'inline_process_' + modal.dataset.tdrId;
-                            input.value = String(result.data.process.id);
-                            input.checked = true;
-
-                            var text = document.createElement('span');
-                            text.textContent = result.data.process.process || ('#' + result.data.process.id);
-
-                            label.appendChild(input);
-                            label.appendChild(text);
-                            processOptions.appendChild(label);
-                            processOptions.classList.remove('d-none');
-                            if (processText) processText.classList.add('d-none');
-
-                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                            activeWrapper.dispatchEvent(new CustomEvent('inline-process-created', {
+                                detail: {processNameId: processNameId, process: result.data.process}
+                            }));
                         }
                     }
 

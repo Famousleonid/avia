@@ -803,7 +803,10 @@ class TdrPrintFormController extends Controller
                 if ($extraIds->has($id) && !$tdrIds->has($id)) {
                     $option['controller_crossed_out'] = true;
                     $option['crossed_out'] = true;
-                    $option['crossout_reason'] = 'Kit_E part is not listed in TDR';
+                    $option['crossout_reason'] = collect([
+                        $option['crossout_reason'] ?? null,
+                        'Kit_E part is not listed in TDR',
+                    ])->filter()->unique()->implode('; ');
                 }
             }
             unset($option);

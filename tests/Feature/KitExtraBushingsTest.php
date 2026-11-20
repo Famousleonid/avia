@@ -125,7 +125,8 @@ class KitExtraBushingsTest extends TestCase
         $this->assertSame(2, $rows->last()['qty']);
         $this->assertCount(0, app(TdrPrintFormController::class)->kitRows($wo));
         $this->patchJson(route('tdrs.kit-crossouts.update', [$wo, $extra]), ['crossed_out' => true])->assertOk();
-        $response = $this->get(route('tdrs.kitForm', $wo))->assertOk();
+        $response = $this->get(route('tdrs.kitForm', $wo))->assertOk()
+            ->assertSee('Manually crossed out');
         $this->assertTrue(collect($response->viewData('ordersParts'))->last()['prl_crossed_out']);
         $this->patchJson(route('tdrs.kit-crossouts.update', [$wo, $extra]), ['crossed_out' => false])->assertOk();
     }
@@ -146,6 +147,8 @@ class KitExtraBushingsTest extends TestCase
             'part_number' => 'MS17986C616', 'name' => 'Extra pin', 'units_assy' => 1, 'kit_e' => true]);
         $rows = fn () => app(TdrPrintFormController::class)->kitRows($wo, true);
         $this->assertTrue($rows()->sole()['prl_crossed_out']);
+        $this->get(route('tdrs.kitForm', $wo))->assertOk()
+            ->assertSee('title="Crossed out: Kit_E part is not listed in TDR"', false);
         $tdr = Tdr::create(['workorder_id' => $wo->id, 'component_id' => $extra->id, 'qty' => 1]);
         $this->assertFalse($rows()->sole()['prl_crossed_out']);
         // A replacement selected in TDR also counts, while manual crossouts remain effective.

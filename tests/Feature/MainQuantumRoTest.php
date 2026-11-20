@@ -11,6 +11,23 @@ class MainQuantumRoTest extends TestCase
 {
     use BuildsDomainData, DatabaseTransactions;
 
+    public function test_corrected_return_serial_merges_main_fitting_columns_without_losing_ro_history(): void
+    {
+        $lines = collect([
+            new QuantumRoLine(['pn' => '2821-0111', 'serial_number' => 'L1755', 'bom_ref' => 'CR', 'ro_number' => 'R9499']),
+            new QuantumRoLine(['pn' => '2821-0111', 'serial_number' => 'L1645', 'bom_ref' => 'CHR', 'ro_number' => 'R9500']),
+            new QuantumRoLine(['pn' => '2821-0111', 'serial_number' => 'L1645', 'bom_ref' => 'NEI', 'ro_number' => 'R9610']),
+        ]);
+        $builder = app(\App\Services\QuantumRoMatrix::class);
+        $this->assertCount(2, $builder->build($lines)['columns']);
+        $lines->first()->serial_number = 'L1645';
+        $matrix = $builder->build($lines);
+        $this->assertCount(1, $matrix['columns']);
+        $this->assertSame('L1645', array_values($matrix['columns'])[0]['serial']);
+        $orders = collect($matrix['rows'])->flatMap(fn ($row) => collect($row['cells'])->flatten(1))->pluck('ro_number')->sort()->values()->all();
+        $this->assertSame(['R9499', 'R9500', 'R9610'], $orders);
+    }
+
     public function test_ro_details_are_scoped_to_the_exact_wo_and_keep_their_own_dates(): void
     {
         $wo = $this->createWorkorder(['number' => 887321]);
@@ -24,6 +41,7 @@ class MainQuantumRoTest extends TestCase
                 'source_uid' => 'main-ro-test:' . $pn, 'source_hash' => str_repeat('a', 64),
                 'wo_number' => $number, 'ro_number' => 'R-TEST', 'pn' => $pn,
                 'vendor_name' => '<script>vendor</script>', 'apply_status' => $status,
+                'apply_message' => $status === 'unresolved' ? 'TDR S/N mismatch: Quantum S/N: Q-SN; TDR S/N: T-SN' : null,
                 'out_date' => '2026-09-10', 'returned_date' => $returned,
                 'last_seen_at' => '2026-09-28 09:30:00',
             ]);
@@ -33,6 +51,7 @@ class MainQuantumRoTest extends TestCase
             ->withSession(['auth.version' => (int) $user->auth_version, 'password_hash_web' => $user->getAuthPassword()])
             ->getJson(route('mains.quantum-ro-lines', $wo))->assertOk();
         $html = $response->json('html');
+        $this->assertStringContainsString('Quantum S/N: Q-SN; TDR S/N: T-SN', $html);
         foreach (['PART-A', 'PART-B', 'PART-C', '10/Sep/2026', '20/Sep/2026', '22/Sep/2026', 'Part No.', '&lt;script&gt;'] as $value) {
             $this->assertStringContainsString($value, $html);
         }

@@ -15,6 +15,7 @@
     <style>.btn[data-process-images].has-print-images{border-color:#ffc107!important}</style>
     <style>
         .dir-description-cell { max-width: 360px; white-space: normal; line-height: 1.35; }
+        body:has(#dirVendorModal.show) #aiAssistantWidget { visibility: hidden; }
         .dir-vendor-media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .85rem; }
         .dir-vendor-media-item { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: .65rem; padding: .75rem; background: rgba(255, 255, 255, 0.04); }
         .dir-vendor-media-thumb { width: 100%; height: 120px; object-fit: cover; border-radius: .5rem; margin-bottom: .6rem; }
@@ -170,7 +171,7 @@
                                     <td class="text-center">
                                         <div class="btn-group" role="group">
                                             @if($slug === 'process_names')
-                                                <button type="button" class="btn btn-outline-info btn-sm btn-icon me-2 {{ $item->print_images_count > 0 ? 'has-print-images' : '' }}" data-process-images="{{ route('process-print-attachments.index', $item) }}" title="Print images by part number ({{ $item->print_images_count }})"><i class="bi bi-images"></i></button>
+                                                <button type="button" class="btn btn-outline-info btn-sm btn-icon me-2 {{ $item->print_images_count > 0 ? 'has-print-images' : '' }}" data-process-images="{{ route('process-print-attachments.index', $item) }}" title="Print images by manual and part number ({{ $item->print_images_count }})"><i class="bi bi-images"></i></button>
                                             @endif
                                             @if($isVendorDirectory)
                                                 <button class="btn btn-outline-primary btn-sm btn-icon me-2" data-bs-toggle="modal" data-bs-target="#dirVendorModal" onclick="dirOpenVendorAssets(this.closest('tr'))" title="View and edit"><i class="bi bi-pencil-square"></i></button>
@@ -378,9 +379,10 @@
                                     <input class="form-check-input" type="checkbox" role="switch" id="dirVendorTrusted">
                                     <label class="form-check-label" for="dirVendorTrusted">Trusted vendor</label>
                                 </div>
+                                @include('admin.vendor_tracking._contact_fields', ['prefix' => 'dirVendor'])
                                 <div class="mb-3">
                                     <label class="form-label" for="dirVendorDescription">Description</label>
-                                    <textarea id="dirVendorDescription" class="form-control" rows="9" placeholder="Vendor notes..."></textarea>
+                                    <textarea id="dirVendorDescription" class="form-control" rows="3" placeholder="Vendor notes..."></textarea>
                                 </div>
                                 <div id="dirVendorStatus" class="small text-muted"></div>
                             </div>
@@ -963,6 +965,8 @@
                 }
 
                 currentVendorRow = tr;
+                vendorSaveBtn.disabled = true;
+                vendorModalEl.querySelectorAll('[data-vendor-field]').forEach(input => input.value = '');
                 if (vendorModalTitle) {
                     vendorModalTitle.textContent = tr.dataset.name || 'Vendor';
                 }
@@ -982,6 +986,9 @@
 
                 try {
                     const vendor = await loadVendor(tr.dataset.id);
+                    if (currentVendorRow !== tr) return;
+                    vendorModalEl.querySelectorAll('[data-vendor-field]').forEach(input => input.value = vendor[input.dataset.vendorField] || '');
+                    vendorSaveBtn.disabled = false;
                     if (vendorModalTitle) {
                         vendorModalTitle.textContent = vendor.name || 'Vendor';
                     }
@@ -1028,12 +1035,13 @@
                             name: vendorNameInput?.value?.trim() || '',
                             is_trusted: vendorTrustedInput?.checked ? 1 : 0,
                             description: vendorDescriptionInput?.value || '',
+                            ...Object.fromEntries([...vendorModalEl.querySelectorAll('[data-vendor-field]')].map(input => [input.dataset.vendorField, input.value.trim()])),
                         }),
                     });
 
                     const data = await response.json();
                     if (!response.ok || data.success === false) {
-                        throw new Error('Failed to save vendor');
+                        throw new Error(Object.values(data.errors || {}).flat()[0] || 'Failed to save vendor');
                     }
 
                     updateVendorRow(currentVendorRow, data.vendor);
@@ -1043,7 +1051,7 @@
                     setVendorStatus('Vendor saved.');
                     vendorModal?.hide();
                 } catch (error) {
-                    setVendorStatus('Failed to save vendor.', true);
+                    setVendorStatus(error.message || 'Failed to save vendor.', true);
                 } finally {
                     vendorSaveBtn.disabled = false;
                 }

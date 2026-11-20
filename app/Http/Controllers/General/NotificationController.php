@@ -220,8 +220,9 @@ class NotificationController extends Controller
             ?? data_get($data, 'ui.workorder.user_name')
             ?? data_get($data, 'payload.workorder_user_name')
             ?? data_get($data, 'payload.workorder_owner_name');
+        $unitPartNumber = data_get($data, 'ui.workorder.unit_part_number');
 
-        if ($this->filledValue($workorderNo) && $this->filledValue($ownerName)) {
+        if ($this->filledValue($workorderNo) && $this->filledValue($ownerName) && $this->filledValue($unitPartNumber)) {
             return $data;
         }
 
@@ -232,6 +233,9 @@ class NotificationController extends Controller
 
         $data['ui']['workorder']['id'] = $meta['id'];
         $data['ui']['workorder']['no'] = $meta['no'];
+        $data['ui']['workorder']['unit_part_number'] = $this->filledValue($unitPartNumber)
+            ? trim((string) $unitPartNumber)
+            : $meta['unit_part_number'];
         $data['ui']['workorder']['owner_name'] = $this->filledValue($ownerName)
             ? trim((string) $ownerName)
             : $meta['owner_name'];
@@ -258,7 +262,7 @@ class NotificationController extends Controller
         }
 
         $workorder = Workorder::withoutGlobalScope('exclude_drafts')
-            ->with('user')
+            ->with(['user', 'unit'])
             ->when($this->filledValue($id), fn ($query) => $query->whereKey((int) $id))
             ->when(! $this->filledValue($id), fn ($query) => $query->where('number', trim((string) $number)))
             ->first();
@@ -267,6 +271,7 @@ class NotificationController extends Controller
             'id' => (int) $workorder->id,
             'no' => (string) $workorder->number,
             'owner_name' => trim((string) ($workorder->user?->selection_name ?? '')),
+            'unit_part_number' => trim((string) ($workorder->unit?->part_number ?? '')),
         ] : null;
 
         return $this->workorderMetaCache[$cacheKey];

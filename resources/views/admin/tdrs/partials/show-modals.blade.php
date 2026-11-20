@@ -275,7 +275,7 @@
                 @endif
                 <div id="pdfListContainer" class="pdf-library-list"></div>
                 </div>
-                <form id="pdfEditForm" hidden>
+                <form id="pdfEditForm" data-no-spinner hidden>
                     <h6 class="text-info mb-3">Edit document</h6>
                     <div class="mb-3">
                         <label for="pdfEditName" class="form-label">Name</label>

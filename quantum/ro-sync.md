@@ -1,11 +1,149 @@
 # Quantum RO Sync
 
+## 2026-11-18 W107917: no recorded T1 return and historical regrouping drift
+
+Restoration verified read-only18/Nov/2026 13:58 America/Toronto after the
+user executed V2: audit66649 records successful restore at13:57:09.
+Chrome stripping4645 is standalone R9309/Sent03Sep/Returned11Sep;
+NDT-1 4090 standalone R9360/Sent14Sep/Returned16Sep. Traveler1 contains
+exactly4091,4093,4092,4646,4647, all R9374/vendor4/Sent17Sep/Returned NULL.
+Stress Relief4087 is standalone; Machining4086 and Paint4308 are unchanged.
+Quantum staging was refreshed13:58:10 and still agrees with these RO/dates.
+No repair procedure remains. This supersedes the unsuccessful first-run
+observations below; the agent performed only production reads.
+
+Post-execution read-only verification18/Nov/2026 11:39 America/Toronto:
+production mcxq8917_avia still matches the complete pre-restoration guard
+(ready_for_restore=1). No repair_id wo107917_restore_20261118 audit exists,
+no avia_wo107917_* routine remains, and the latest Traveler audit is40686.
+The supplied phpMyAdmin screenshot shows CALL's first result (WO id401),
+not a final completion result. DROP PROCEDURE IF EXISTS note1305 is expected
+when the procedure is absent; it does not explain failure. The remaining
+phpMyAdmin output is needed to identify why no restoration committed.
+
+Root cause confirmed18/Nov/2026 12:22: the original handoff fixed the session
+to -05:00 although the snapshot used SYSTEM (America/Toronto DST rules).
+For process4090, September updated_at is15:17:47 under SYSTEM but14:17:47
+under fixed -05:00. Identical preflight gives1 under SYSTEM and0 under
+-05:00, so the strict stale-state guard rejected the original SQL. Current
+system_timezone=EST/current offset does not describe historical timestamps.
+V2 uses a fresh UTC snapshot and +00:00 for both SQL and local fixtures.
+Locking SELECT rows are consumed through cursors instead of returned to the
+client, so CALL's first result is completion or the actual SQL error rather
+than intermediate IDs. Six local fixture tests pass (restore/idempotence,
+rollback/idempotence, stale process/source rejection, atomic failure), and
+production UTC preflight=1 read-only. V2 remains a user-executed handoff;
+no production restoration was run by the agent. Use UTC snapshots and SQL
+for future guarded handoffs; never infer historical offsets from NOW().
+
+Read-only direct Oracle SELECT confirms R9374 detail33665 / WOB725006 / REF T1:
+OUT_DATE17/Sep/2026, LAST_DELIVERY_DATE NULL, QTY_REPAIR1, QTY_REPAIRED0.
+Production source4054/rod:33665 has the same values, last_seen18/Nov08:53:09;
+this is not a missing received return date in the bridge. R9309/detail33468
+and R9360/detail33638 do have returns11/Sep and16/Sep, respectively.
+
+Production audit40685: Yushkevich Viacheslav ungrouped TDR2181 Traveler1
+on17/Sep15:17:00, clearing Sent from the five applied R9374 targets.
+Audit40686 at15:17:47 recreated Traveler1 with4087,4645,4090,4093,4646,4647,
+clearing RO/vendor/Sent/Returned. It incorporated the already returned
+Chrome stripping4645 (R9309) and NDT-1 4090 (R9360), while Shot peening4091
+and Chrome plating4092 remained outside the new group with R9374 and blank Sent.
+The unchanged source remains applied with the old five-row snapshots;
+current inspectMapping resolves six current rows but identifies release
+blockers for4091/4092 because their Sent differs from the saved17/Sep date.
+Rebind is currently unavailable while this source remains applied rather
+than in reviewed unresolved status. Do not blindly reapply T1 to the new
+group: it now contains steps from two other, completed RO lines. Reconcile
+the intended Traveler composition and the claimed Quantum completion first.
+User subsequently confirmed that R9374 has not returned; the issue is the
+cleared earlier operations and altered grouping. Full audit18/Nov (app
+timezone America/Toronto) adds: Moyseyenko Viktor created NDT-1 on17/Aug15:45:33
+(33353), Chrome stripping on02/Sep11:46:27 (36733). On16/Sep he created
+Traveler1 with4091,4093,4092,4646 at11:29:38 (40311), ungrouped it11:30:19
+(40312); Yushkevich Viacheslav recreated those four plus Passivation4647
+at11:36:59 (40317). Moyseyenko created Traveler2 containing only Stress
+Relief4087 at13:06:11 (40326), ungrouped both13:06:47 (40327), recreated
+the same five-row Traveler1 at13:07:46 (40328). Those16/Sep grouping events
+did not contain Chrome stripping4645 or NDT-1 4090. Their completed dates
+were cleared specifically by17/Sep15:17:47 event40686, which records before
+values and cleared_fields. Both process records still exist; no deletion
+is evidenced. Account attribution establishes the logged actor/action,
+not the operator's intent.
+No production/Oracle data or application code changed during diagnosis.
+Direct Oracle query: quantum/log/wo107917-queries.json.
+
+Approved restoration prepared18/Nov/2026 (not executed on production): user
+explicitly requested Chrome stripping4645/R9309 Sent03/Sep Returned11/Sep and
+NDT-1 4090/R9360 Sent14/Sep Returned16/Sep as standalone; Traveler1 restored
+to4091,4093,4092,4646,4647 with R9374/vendor4/Sent17/Sep/Returned NULL;
+Stress Relief4087 standalone. SQL restores Quantum date attribution from
+the existing applied snapshots without modifying source rows. Guard identity,
+all10 TDR process rows and stable source fields/snapshots (exclude last_seen),
+lock affected scope, transact8 updates plus explicit audit, rollback on error.
+USE names the intended database; an optional separately guarded rollback
+restores the pre-repair business values and appends an undo audit. Local
+isolated testing-table checks passed for desired state/source preservation,
+idempotence, rollback/idempotence, stale process rejection, new Quantum return
+rejection and atomic failure recovery. JSON source snapshots compare by
+content across MariaDB text/MySQL native JSON; test fixture loading and SQL
+use the verified production session offset -05:00. Do not describe this
+prepared script as a completed production restoration.
+
+## 2026-11-18 W108054 / R9662: historical serial mismatch and separate STD routing
+
+Read-only production SELECT and deployed `inspectMapping` verified WO542,
+PIN PINTLE1172-0037, TDR2827/SN L697. Cad plating process5862 was created by
+Petrukhin Serhii on14/Oct/2026 12:45:31 (activity48738), with description
+`P. 6079. Fig 6024` and no RO/dates. Activity65841 records Quantum filling
+R9662/vendor2/Sent17/Nov/2026 on17/Nov07:05:02 Toronto.
+
+Received Quantum source4877/rod:34453 has WO W108054, PN1172-0037, SN L696,
+REF CP, vendor Micro Custom Tools; first_seen17/Nov07:03:11. It was applied
+before the serial-conflict guard was deployed (service mtime17/Nov13:41:14).
+Current read-only resolver rejects it as `TDR S/N mismatch` (L696 vs L697),
+but the historical applied target still holds R9662. An unchanged applied
+source is not automatically revalidated/cleared after deployment. Confirm
+the physical serial/source paperwork before any source or target correction.
+
+Same WO source4890/rod:34467, R9668, PN `CAD Removal`, REF CR, was unsupported
+and is dismissed with applied_at17/Nov13:37:57; no target was assigned.
+Sources4895/4897, R9669, PN `NDT`, REF N6/N1, both target STD NDT965,
+not the PIN's individual NDT rows. The other repair detail STAY DRAG1172-0201
+has a Cad plating process5872, but no received Quantum source for that P/N
+was present in this WO snapshot. These are AVIA buffer/audit observations,
+not a direct current Oracle verification. Production was not changed.
+
+Follow-up18/Nov/2026, direct Oracle SELECT: current R9662 detail34453 links
+WOB742378/WOO8372/W108054, PN1172-0037, REF CP. RO_DETAIL.SERIAL_NUMBER is
+NULL and no received STOCK row exists for ROD34453. The serial comes from
+VIEW_RPT_KIT_MATERIAL -> STOCK156832, stock line31, control46914/2, SN L696.
+SA_LOG198812 records NULL -> L696 at17/Nov/2026 06:59:41 under SYSUR22 /
+USER_NAME OLEKSII, linked to WOB742378/W108054. Events198813 at06:59:41 and
+198814 at06:59:47 retain L696; no subsequent events for that stock were found.
+WO_BOM742378 was created by OLEKSII at06:57:35; RO_DETAIL last modified by
+OLEKSII at06:59:59. SYS_USERS first/middle/last names are empty, so only the
+account identity is established. Audit establishes the initial value and
+account, not why that number was chosen or whether the physical PIN is L696
+or L697. Queries/evidence: quantum/log/audit-r9662-20261118*. No Oracle writes.
+
 ## Purpose
 
 Local bridge reads Quantum RO data and sends staged rows to avia API.
 Quantum remains read-only.
 
+Returned serial correction (17/Nov/2026): serial selection now first uses a unique nonempty STOCK.SERIAL_NUMBER for the exact STOCK.ROD_AUTO_KEY=RO_DETAIL.ROD_AUTO_KEY and matching PNM_AUTO_KEY, with RCD_AUTO_KEY populated and LAST_DELIVERY_DATE present. If no unique received serial is available, retain the existing RO_DETAIL then unique KIT MATERIAL fallback. Do not match receipts by RO number or P/N alone. Direct Oracle verification: ROD34005 received STOCK155460/RCD112931 now L1645; its original KIT STOCK155248 remains L1755. ROD34007 received STOCK155461/RCD112932 remains L1755. The full revised RO9499 query produces W107950=L1645, W107953=L1755 and preserves the three other lines. Nonempty REF rows are already polled without a date window, so a stock-only serial correction is re-exported even when RO LAST_MODIFIED does not change. The payload serial participates in source hashing. No Oracle data repair is needed for this case.
+
+Deployment verification17/Nov/2026: bridge SQL updated with guarded original SHA256 check and backup; deployed SHA2562BE5D68BF840DE54B6FFF0E1DB01FDDF333372A05C20BE6F339BD0146C3872ED. Normal scheduled sync15:18:10 updated production source4426 to L1645, applied to6040. Production matrix builder now returns only Main Fitting2821-0111/L1645 and BUSHING2821-0102RS20/NSN; no L1755 column. RO9499 sent15/Oct and returned20/Oct preserved. No manual production database update or forced sync was used.
+
+## RO9499 / W107950 serial discrepancy (17/Nov/2026, direct Oracle SELECT)
+
+RO_DETAIL34005 links WO_BOM733209 / W107950; its SERIAL_NUMBER is NULL. The bridge obtains L1755 from VIEW_RPT_KIT_MATERIAL, which joins STOCK_TI to STOCK: STOCK155248, stock line60, control46581/18. SA_LOG191536 records NULL -> L1755 on15/Oct/2026 07:57:10 under USER_NAME OLEKSII, linked directly to WOB733209/W107950. WO_BOM733209 was created07:56:20 by OLEKSII. SA_LOG191537/191538 retain the same serial; no later serial correction was found for STOCK155248. SLAVA handled the20/Oct return: SA_LOG192448 created received STOCK155460 with L1755 against ROD34005 at11:29:41. Do not attribute the original serial entry to SLAVA merely because RO_DETAIL.SYSUR_MODIFIED identifies that account. SYS_USERS FIRST_NAME/MIDDLE_NAME/LAST_NAME are empty for both accounts; only account names are established.
+
+Separate RO_DETAIL34007 / WO_BOM733212 belongs to W107953 and also resolves L1755, from distinct STOCK155250. Its initial serial event is SA_LOG191542 at15/Oct07:59:17, OLEKSII. AVIA production TDR2273 for W107950 has L1645 (created26/Aug16:51:22 by Yosypiv Dmytro); W107953 TDR2222 and WO have L1755. Thus the two matrix columns are distinct source serial identities, not duplicate TDRs. Production apply service allows a unique WO+PN+process fallback after a nonempty serial mismatch; RO9499 was applied to W107950 TdrProcess6040 (Cad stripping)19/Oct09:15:01 despite L1755 vs L1645. Matrix correctly retains a conflicting nonempty source serial in its own column. No production/Oracle data or runtime code changed during diagnosis. Recommended prevention: block automatic apply for conflicting nonempty serials and expose a diagnostic conflict; correct source stock/RO identity through reviewed Quantum operations, then verify synchronization and existing applied dates.
+
 ## Main workorder RO tab (28/Sep/2026)
+
+Serial conflict guard (17/Nov/2026): automatic detail and Traveler matching no longer falls back to a different nonempty TDR serial when Quantum supplies a nonempty serial. If no exact normalized serial matches and same-WO/P/N/process candidates have populated serials, keep the source unresolved with `TDR S/N mismatch`, including RO/WO/P/N/REF and both Quantum/TDR serials. Do not write RO/vendor/dates or release previous targets on this failure. Existing empty-serial behavior and exact case/space-normalized matches remain supported. Main RO shows the persisted conflict as an internal warning; Vendor Tracking displays the same explanation. Already applied, unchanged source lines are not retroactively reprocessed or cleared by this code change; historical corrections require review. Deploy app/resources, no schema change.
 
 The Main page has a read-only RO tab backed by `quantum_ro_lines`, loaded via
 `GET /mains/{workorder}/quantum-ro-lines` on tab activation. It shows

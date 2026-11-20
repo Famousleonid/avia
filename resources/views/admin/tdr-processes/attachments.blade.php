@@ -5,7 +5,13 @@
 </head>
 <body>
 <h1>Form attachments</h1>
-@if($travelerImages->isEmpty() && empty($figPagesHtml))<p>No form attachments.</p>@endif
+@if($travelerImages->isEmpty() && empty($figPagesHtml) && !$partPrintAttachment)<p>No form attachments.</p>@endif
+@if($partPrintAttachment)
+    <section class="attachment-figure">
+        <h2>{{ $attachmentProcessName->name }} · {{ $partPrintAttachment['part_number'] }}</h2>
+        <img src="{{ route('process-print-attachments.image', [$attachmentProcessName, $partPrintAttachment['media']]) }}" alt="{{ $partPrintAttachment['part_number'] }}">
+    </section>
+@endif
 @include('admin.tdr-processes.partials.traveler-template-images')
 @foreach($figPagesHtml as $figure)
     <section class="attachment-figure"><h2>{{ $figure['caption'] }}</h2>{!! $figure['html'] !!}</section>

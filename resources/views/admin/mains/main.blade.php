@@ -570,19 +570,9 @@
                             {{-- Tables --}}
                             <div class="d-flex flex-column flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}">
 
-                                @foreach($general_tasks as $i => $gt)
-
-                                    <div class="js-gt-pane flex-grow-1 min-h-0 d-flex flex-column"
-                                         data-gt-id="{{ $gt->id }}">
-                                        <div class="main-gt-scroll-area border border-secondary rounded flex-grow-1 min-h-0">
-                                            <div class="d-flex flex-column gap-3 main-gt-scroll-inner min-h-0">
-
-                                            @php
-                                                $gtTasks = ($tasksByGeneral[$gt->id] ?? collect());
-                                                $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
-                                            @endphp
-
-                                            <div class="main-tasks-notes-window border border-info rounded flex-shrink-0">
+<div class="main-gt-scroll-area border border-secondary rounded flex-grow-1 min-h-0">
+<div class="d-flex flex-column gap-3 main-gt-scroll-inner min-h-0">
+<div class="main-tasks-notes-window border border-info rounded flex-shrink-0">
                                                 {{-- GeneralTask buttons --}}
                                                 <div class="d-flex gap-2 main-gt-buttons">
                                                     @foreach($general_tasks as $menuGt)
@@ -594,6 +584,12 @@
                                                     @endforeach
                                                 </div>
 
+@foreach($general_tasks as $gt)
+@php
+$gtTasks = ($tasksByGeneral[$gt->id] ?? collect());
+$showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
+@endphp
+<div class="js-gt-pane flex-column" data-gt-id="{{ $gt->id }}">
                                             <div class="table-responsive main-tasks-block">
                                             <table
                                                 class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table dir-table mt-1">
@@ -786,12 +782,38 @@
                                                 </tbody>
                                             </table>
                                             </div>
+</div>
+@endforeach
                                             {{-- Workorder Notes --}}
 
-                                            <div class="wo-notes-box main-notes-block flex-shrink-0">
+                                            @php
+                                                $notesAppearanceAvailable = \Illuminate\Support\Facades\Route::has('workorders.notes.appearance')
+                                                    && is_file(public_path('js/mains/notes-appearance.js'));
+                                            @endphp
+                                            <div class="wo-notes-box main-notes-block flex-shrink-0"
+                                                 data-appearance-url="{{ $notesAppearanceAvailable ? route('workorders.notes.appearance', $current_workorder) : '' }}"
+                                                 data-appearance="{{ json_encode($current_workorder->notes_appearance ?? []) }}">
                                                 {{-- Header --}}
                                                 <div class="wo-notes-head">
-                                                    <div class="wo-notes-title">Workorder Notes</div>
+                                                    <div class="wo-notes-format">
+                                                        <div class="wo-notes-title">Workorder Notes</div>
+                                                        @if($notesAppearanceAvailable)
+                                                        <button type="button" class="btn btn-outline-info btn-sm wo-notes-tools-toggle" aria-label="Text formatting" title="Text formatting" aria-expanded="false" aria-controls="wo-notes-tools"><i class="bi bi-brush" aria-hidden="true"></i></button>
+                                                        <div id="wo-notes-tools" class="wo-notes-tools" inert><div class="wo-notes-tools-clip"><div class="wo-notes-tools-inner">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm wo-notes-bold" aria-label="Bold" title="Bold" aria-pressed="false"><strong>B</strong></button>
+                                                        @foreach(['#ff3333' => 'Bright red', '#00e676' => 'Bright green', '#ffff00' => 'Bright yellow'] as $noteColor => $noteColorName)
+                                                            <button type="button" class="wo-notes-swatch" data-color="{{ $noteColor }}" style="background-color: {{ $noteColor }}" aria-label="{{ $noteColorName }}" title="{{ $noteColorName }}"></button>
+                                                        @endforeach
+                                                        <select class="form-select form-select-sm wo-notes-size" aria-label="Notes font size" title="Font size">
+                                                            <option value="">Auto</option>
+                                                            @foreach([12, 14, 16, 18, 20, 24] as $notesSize)
+                                                                <option value="{{ $notesSize }}">{{ $notesSize }} px</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm wo-notes-style-reset" title="Reset text appearance" aria-label="Reset text appearance">↺</button>
+                                                        </div></div></div>
+                                                        @endif
+                                                    </div>
 
                                                     <div class="wo-notes-right">
                                                         <div class="wo-notes-hint">autosave on blur / Ctrl+Enter</div>
@@ -799,9 +821,6 @@
                                                            title="Unsaved"></i>
                                                         <span
                                                             class="text-muted small d-none js-notes-saving">Saving...</span>
-                                                        {{-- 💾 индикатор изменений (появляется только если текст изменён) --}}
-                                                        <i class="bi bi-save text-warning d-none js-notes-save-indicator"
-                                                           title="Unsaved"></i>
                                                         @hasanyrole('Admin|Manager')
                                                         {{-- кнопка логов --}}
                                                         <button type="button"
@@ -833,8 +852,7 @@
                                                 </div>
                                             </div>
 
-                                            {{-- WO bushing → процессы (по одной строке на процесс), Qty / RO / даты --}}
-                                            </div>
+</div>
                                             <div class="border border-info rounded wo-bushings-box main-section-window d-flex flex-column">
                                                 <div class="wo-notes-head">
                                                     <div class="wo-notes-title small">
@@ -849,11 +867,11 @@
                                                 <div class="p-2 pt-1 wo-bushings-list">
                                                     @forelse($bushingProcessSections as $section)
                                                         @if($loop->first)
-                                                            <div class="accordion wo-bush-strip-accordion" id="woBushingStripAccordion{{ $gt->id }}">
+                                                            <div class="accordion wo-bush-strip-accordion" id="woBushingStripAccordionshared">
                                                         @endif
                                                                 @php
-                                                                    $stripCollapseId = 'woBushStrip_gt'.$gt->id.'_'.$section['group_key'];
-                                                                    $stripHeadingId = 'woBushStrip_gt'.$gt->id.'_'.$section['group_key'].'_hdr';
+                                                                    $stripCollapseId = 'woBushStrip_gt'.'shared'.'_'.$section['group_key'];
+                                                                    $stripHeadingId = 'woBushStrip_gt'.'shared'.'_'.$section['group_key'].'_hdr';
                                                                 @endphp
                                                                 <div class="accordion-item wo-bush-strip-item border-secondary border-start-0 border-end-0 border-top-0">
                                                                     <h2 class="accordion-header" id="{{ $stripHeadingId }}">
@@ -878,7 +896,7 @@
                                                                     <div id="{{ $stripCollapseId }}"
                                                                          class="accordion-collapse collapse"
                                                                          aria-labelledby="{{ $stripHeadingId }}"
-                                                                         data-bs-parent="#woBushingStripAccordion{{ $gt->id }}">
+                                                                         data-bs-parent="#woBushingStripAccordionshared">
                                                                         <div class="accordion-body p-2 pt-1">
                                                                             @foreach($section['rows'] as $row)
                                                                                 <div class="mb-3 wo-bush-process-block">
@@ -918,7 +936,7 @@
                                                                                             @foreach($row['batches'] as $batch)
                                                                                                 @if(!empty($batch['is_batch']))
                                                                                                     @php
-                                                                                                        $batchCollapseId = 'woBushBatchCollapse_gt'.$gt->id.'_'.$row['process_group_key'].'_b'.$batch['id'];
+                                                                                                        $batchCollapseId = 'woBushBatchCollapse_gt'.'shared'.'_'.$row['process_group_key'].'_b'.$batch['id'];
                                                                                                         $batchLineCount = count($batch['line_items'] ?? []);
                                                                                                         $batchGroupLabel = $batch['batch_label'] ?? 'B';
                                                                                                         $batchQtySum = collect($batch['line_items'] ?? [])->sum(fn ($i) => (int) ($i['qty'] ?? 0));
@@ -1048,12 +1066,8 @@
                                                     @endforelse
                                                 </div>
                                             </div>
-
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                @endforeach
+</div>
+</div>
 
                             </div>
 
@@ -1692,6 +1706,9 @@
     <script src="{{ asset('js/tdrs/show/pdf-upload-handler.js') }}?v={{ filemtime(public_path('js/tdrs/show/pdf-upload-handler.js')) }}"></script>
     <script src="{{ asset('js/tdrs/show/pdf-delete-handler.js') }}"></script>
     <script src="{{ asset('js/tdrs/show/show-main.js') }}"></script>
+    @if(\Illuminate\Support\Facades\Route::has('workorders.notes.appearance') && is_file(public_path('js/mains/notes-appearance.js')))
+        <script src="{{ asset('js/mains/notes-appearance.js') }}?v={{ filemtime(public_path('js/mains/notes-appearance.js')) }}"></script>
+    @endif
 
     {{--  Общие --}}
     @include('admin.mains.partials.js.mains-common')

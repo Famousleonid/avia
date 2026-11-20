@@ -263,6 +263,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
+    Route::get('/stock', [\App\Http\Controllers\Admin\StockController::class, 'index'])->middleware('can:feature.stock')->name('stock.index');
     Route::get('/wo-status', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'index'])->name('workorders.status');
     Route::get('/wo-status/efficiency', [\App\Http\Controllers\Admin\WorkorderStatusController::class, 'efficiency'])->middleware('can:feature.wo_status.efficiency')->name('workorders.status.efficiency');
     Route::get('/wo-status/unit-history', [\App\Http\Controllers\Admin\QuantumUnitHistoryController::class, 'index'])->name('workorders.status.unit-history');
@@ -355,6 +356,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
         Route::post('/admin/workorders/recalc-stages', [\App\Http\Controllers\Admin\WorkorderController::class, 'recalcStages'])->name('workorders.recalcStages');
         Route::patch('/workorders/{workorder}/notes', [WorkorderController::class, 'updateNotes'])->name('workorders.notes.update');
+        Route::patch('/workorders/{workorder}/notes/appearance', [WorkorderController::class, 'updateNotesAppearance'])->name('workorders.notes.appearance');
         Route::get('/workorders/{workorder}/notes/logs', [WorkorderController::class, 'notesLogs'])->name('workorders.notes.logs');
 
         // PDF Library routes
@@ -725,6 +727,16 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/vendors/{vendor}/media', [VendorController::class, 'uploadMedia'])->name('vendors.media.upload');
     Route::delete('/vendors/{vendor}/media/{media}', [VendorController::class, 'destroyMedia'])->name('vendors.media.destroy');
     Route::get('/vendors/{vendor}/media/{media}', [VendorController::class, 'showMedia'])->name('vendors.media.show');
+    Route::get('/process-vendor', [\App\Http\Controllers\Admin\ProcessVendorController::class, 'index'])->name('process-vendor.index');
+    Route::get('/process-vendor/queue', [\App\Http\Controllers\Admin\ProcessVendorController::class, 'queue'])->name('process-vendor.queue');
+    Route::post('/process-vendor/refresh', [\App\Http\Controllers\Admin\ProcessVendorController::class, 'refresh'])->name('process-vendor.refresh');
+    Route::post('/process-vendor/preferences', [\App\Http\Controllers\Admin\ProcessVendorController::class, 'preferences'])->name('process-vendor.preferences');
+    Route::post('/process-vendor/check', [\App\Http\Controllers\Admin\ProcessVendorController::class, 'check'])->name('process-vendor.check');
+    Route::post('/process-vendor/orders', [\App\Http\Controllers\Admin\ProcessVendorController::class, 'store'])->name('process-vendor.orders.store');
+    Route::get('/process-vendor/orders', [\App\Http\Controllers\Admin\ProcessVendorController::class, 'orders'])->name('process-vendor.orders.index');
+    Route::get('/process-vendor/orders/{order}', [\App\Http\Controllers\Admin\ProcessVendorController::class, 'show'])->name('process-vendor.orders.show');
+    Route::post('/process-vendor/orders/{order}/cancel', [\App\Http\Controllers\Admin\ProcessVendorController::class, 'cancel'])->name('process-vendor.orders.cancel');
+
     Route::get('/vendor-tracking', [VendorTrackingController::class, 'index'])->name('vendor-tracking.index');
     Route::get('/vendor-tracking/export', [VendorTrackingController::class, 'export'])->name('vendor-tracking.export');
     Route::patch('/vendor-tracking/row', [VendorTrackingController::class, 'updateRow'])->name('vendor-tracking.row.update');
@@ -905,6 +917,7 @@ Route::middleware(['auth', 'verified', 'desktop'])
         Route::get('process_names/sp-form-preview', [TdrPrintFormController::class, 'specProcessFormPreview'])->name('process_names.sp-form-preview');
         Route::get('process_names/{processName}/print-attachments', [\App\Http\Controllers\Admin\ProcessPrintAttachmentController::class, 'index'])->name('process-print-attachments.index');
         Route::post('process_names/{processName}/print-attachments', [\App\Http\Controllers\Admin\ProcessPrintAttachmentController::class, 'store'])->name('process-print-attachments.store');
+        Route::patch('process_names/{processName}/print-attachments/{media}/manual', [\App\Http\Controllers\Admin\ProcessPrintAttachmentController::class, 'assignManual'])->name('process-print-attachments.assign-manual');
         Route::delete('process_names/{processName}/print-attachments/{media}', [\App\Http\Controllers\Admin\ProcessPrintAttachmentController::class, 'destroy'])->name('process-print-attachments.destroy');
         Route::get('process_names/{processName}/print-attachments/{media}/image', [\App\Http\Controllers\Admin\ProcessPrintAttachmentController::class, 'image'])->name('process-print-attachments.image');
         Route::patch('{directory}/{id}/field/{field}', [DirectoryController::class, 'updateField'])->name('directories.field.update');

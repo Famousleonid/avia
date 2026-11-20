@@ -73,6 +73,12 @@
             vertical-align: middle;
         }
 
+        #show-workorder .wo-matched-parts > td {
+            white-space: normal;
+            overflow-wrap: anywhere;
+            padding: 8px 12px;
+        }
+
         .col-number {
             width: 90px;
             font-size: 0.8rem;
@@ -500,6 +506,15 @@
                 </button>
             </div>
 
+            <div class="clearable-input" style="flex: 1 1 230px; min-width: 0;">
+                <input id="tdrSearchInput" type="text" class="form-control" placeholder="TDR part: P/N or S/N..."
+                       aria-label="Search TDR parts by part or serial number"
+                       title="Search stored TDR parts, including assembly P/N and S/N. Other filters still apply.">
+                <button id="clearTdrSearch" type="button" class="btn-clear" aria-label="Clear TDR part search">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            </div>
+
             <div class="d-flex flex-wrap align-items-center gap-5">
 
                 @roles("Admin|Manager")
@@ -676,6 +691,9 @@
             const totalCounter = document.getElementById('woTotal');
 
             const searchInput = document.getElementById('searchInput');
+            const tdrSearchInput = document.getElementById('tdrSearchInput');
+            const clearTdrSearch = document.getElementById('clearTdrSearch');
+            let tdrSearchDebounce = null;
             const clearSearchBtn = document.getElementById('clearSearch');
             const quickOpenSearchInput = document.getElementById('quickOpenSearchInput');
             const clearQuickOpenSearchBtn = document.getElementById('clearQuickOpenSearch');
@@ -703,6 +721,7 @@
 
             const state = {
                 q: '',
+                tdrQ: '',
                 numberOnly: false,
                 customerId: '',
                 technikId: '',
@@ -723,6 +742,7 @@
 
             const serverState = {
                 q: tableWrapper.dataset.initialQ || '',
+                tdrQ: @json(trim((string) request()->get('tdr_q', ''))),
                 numberOnly: tableWrapper.dataset.initialNumberOnly === '1',
                 customerId: tableWrapper.dataset.initialCustomer || '',
                 technikId: tableWrapper.dataset.initialTechnik || '',
@@ -986,6 +1006,7 @@
                 const params = new URLSearchParams(window.location.search);
 
                 state.q = getUrlValue(params, 'q', getSavedValue('q', serverState.q));
+                state.tdrQ = getUrlValue(params, 'tdr_q', getSavedValue('tdrQ', serverState.tdrQ));
                 state.numberOnly = getUrlBool(params, 'number_only', getSavedBool('numberOnly', serverState.numberOnly));
                 state.customerId = getUrlValue(params, 'customer_id', getSavedValue('customerId', serverState.customerId));
                 state.technikId = getUrlValue(params, 'technik_id', getSavedValue('technikId', serverState.technikId));
@@ -999,6 +1020,8 @@
 
             function applyStateToControls() {
                 syncSearchInputs(state.q);
+                tdrSearchInput.value = state.tdrQ;
+                clearTdrSearch.hidden = !state.tdrQ;
                 checkboxMy.checked = state.onlyMy;
                 checkboxDone.checked = state.onlyActive;
                 checkboxApproved.checked = state.onlyApproved;
@@ -1036,6 +1059,7 @@
                         key: 'filters',
                         value: {
                             q: state.q,
+                            tdrQ: state.tdrQ,
                             numberOnly: state.numberOnly,
                             customerId: state.customerId,
                             technikId: state.technikId,
@@ -1056,6 +1080,7 @@
                 const params = new URLSearchParams();
 
                 if (state.q) params.set('q', state.q);
+                if (state.tdrQ) params.set('tdr_q', state.tdrQ);
                 if (state.numberOnly) params.set('number_only', '1');
                 if (state.customerId) params.set('customer_id', state.customerId);
                 if (state.technikId) params.set('technik_id', state.technikId);
@@ -1077,6 +1102,7 @@
                 params.set('per_page', '50');
 
                 if (state.q) params.set('q', state.q);
+                if (state.tdrQ) params.set('tdr_q', state.tdrQ);
                 if (state.numberOnly) params.set('number_only', '1');
                 if (state.customerId) params.set('customer_id', state.customerId);
                 if (state.technikId) params.set('technik_id', state.technikId);
@@ -1132,6 +1158,7 @@
             function shouldReloadInitialData() {
                 if ([
                     'q',
+                    'tdr_q',
                     'number_only',
                     'customer_id',
                     'technik_id',
@@ -1146,6 +1173,7 @@
                 }
 
                 return state.q !== serverState.q
+                    || state.tdrQ !== serverState.tdrQ
                     || state.numberOnly !== serverState.numberOnly
                     || state.customerId !== serverState.customerId
                     || state.technikId !== serverState.technikId
@@ -1435,6 +1463,19 @@
             });
 
             searchInput.addEventListener('input', () => handleSearchInputChange(searchInput));
+            tdrSearchInput.addEventListener('input', () => {
+                state.tdrQ = tdrSearchInput.value.trim();
+                clearTdrSearch.hidden = !state.tdrQ;
+                window.clearTimeout(tdrSearchDebounce);
+                tdrSearchDebounce = window.setTimeout(() => resetAndReload(), 300);
+            });
+            clearTdrSearch.addEventListener('click', () => {
+                window.clearTimeout(tdrSearchDebounce);
+                state.tdrQ = '';
+                tdrSearchInput.value = '';
+                clearTdrSearch.hidden = true;
+                resetAndReload();
+            });
 
             clearSearchBtn.addEventListener('click', () => {
                 syncSearchInputs('');

@@ -255,3 +255,18 @@ QCTL.QC_CACHE_PKG
 ```
 
 Do not use these PVIEW sources in read-only sync unless Quantum provides a supported way to read or refresh that cache.
+# Inventory export — verified 18/Nov/2026
+
+`PARTS_MASTER` supplies `PNM_AUTO_KEY`, `PN`, `DESCRIPTION`, `QTY_OH`,
+`QTY_RESERVED`, `QTY_AVAILABLE`, `ACTIVE_PART`, `CHARGE` and `UOM_AUTO_KEY`.
+Join `UOM_CODES.UOM_AUTO_KEY` for `UOM_CODE`. Preserve part numbers as text.
+All 22,372 catalog records were exported, including zero quantities and 14
+CHARGE=T records, explicitly labelled rather than silently omitted.
+7,453 records had nonzero QTY_OH. Each of the three quantity fields matched
+the corresponding SUM from STOCK grouped by PNM_AUTO_KEY (zero mismatches).
+At this snapshot STOCK had 14,038 HISTORICAL_FLAG=F rows; 142,426 historical
+rows had zero quantities. All nonzero stock rows used warehouse code `_`.
+Do not infer physical bin or ownership from that warehouse code. Quantity
+totals across different UOMs are reconciliation controls, not a unit count.
+Raw snapshot/queries: `quantum/log/inventory-20261118*` (SELECT only).
+

@@ -172,6 +172,145 @@ class TdrProcessCombinedFormTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_machining_multiple_specs_save_edit_and_print_one_part_label(): void
+    {
+        [$admin, $tdr, $name] = $this->createFormContext();
+        $name->update(['process_sheet_name' => 'MACHINING']);
+        $ids = [];
+        foreach (range(1, 3) as $n) {
+            $spec = Process::create(['process_names_id' => $name->id, 'process' => 'Machining choice '.$n]);
+            ManualProcess::create(['manual_id' => $tdr->workorder->unit->manual_id, 'processes_id' => $spec->id]);
+            $ids[] = $spec->id;
+        }
+        $this->actingAs($admin)->postJson(route('tdr-processes.store'), [
+            'tdrs_id' => $tdr->id,
+            'processes' => [['process_names_id' => $name->id, 'processes' => $ids, 'description' => 'Fig. 6107',
+                'specification_descriptions' => [$ids[0] => 'Alpha Fig. 6107', $ids[1] => 'Beta Fig. 6108', $ids[2] => 'Gamma Fig. 6109']]],
+        ])->assertSuccessful();
+        $row = TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $name->id)->sole();
+        $this->assertEquals($ids, $row->processes);
+        $this->assertSame('Beta Fig. 6108', $row->descriptionForSpecification($ids[1]));
+        $body = $this->get(route('tdr-processes.processesBody', ['tdrId' => $tdr->id]))->assertOk();
+        $tableDom = new \DOMDocument();
+        @$tableDom->loadHTML($body->getContent());
+        $tableXpath = new \DOMXPath($tableDom);
+        $visualRows = $tableXpath->query('//tr[@data-id="'.$row->id.'"]');
+        $this->assertCount(1, $visualRows, 'One saved Machining record must render one table row.');
+        foreach (range(1, 3) as $n) $this->assertStringContainsString('Machining choice '.$n, $visualRows[0]->textContent);
+        $this->assertCount(1, $tableXpath->query('.//*[contains(concat(" ",normalize-space(@class)," ")," load-edit-process ")]', $visualRows[0]));
+        $this->assertCount(1, $tableXpath->query('.//a[contains(@href,"process_id") or contains(@href,"tdr-processes")]', $visualRows[0]));
+        $html = $this->get(route('tdr-processes.show', ['tdr_process' => $row->id, 'process_id' => $ids[0]]))->assertOk();
+        foreach (range(1, 3) as $n) $html->assertSee('Machining choice '.$n);
+        $dom = new \DOMDocument();
+        @$dom->loadHTML($html->getContent());
+        $xpath = new \DOMXPath($dom);
+        $cells = $xpath->query('//div[contains(concat(" ",normalize-space(@class)," ")," process-cell ")]');
+        $this->assertCount(3, $cells);
+        foreach ($cells as $i => $cell) {
+            $this->assertStringContainsString(['Alpha Fig. 6107', 'Beta Fig. 6108', 'Gamma Fig. 6109'][$i], $cell->textContent);
+            $details = $xpath->query('./div', $cell->parentNode);
+            $this->assertSame($i === 0 ? '10-100' : '', trim($details[0]->textContent));
+            $this->assertSame($i === 0 ? 'Combined form component' : '', trim($details[2]->textContent));
+        }
+        $this->putJson(route('tdr-processes.update', $row->id), [
+            'tdrs_id' => $tdr->id,
+            'processes' => [['process_names_id' => $name->id, 'process' => [$ids[0], $ids[2]]]],
+            'description' => 'Fig. 6109',
+            'specification_descriptions' => [$ids[0] => 'Changed Fig. 6200', $ids[2] => '', $ids[1] => 'Removed'],
+        ])->assertSuccessful();
+        $this->assertEquals([$ids[0], $ids[2]], $row->fresh()->processes);
+        $this->assertSame('Changed Fig. 6200', $row->fresh()->descriptionForSpecification($ids[0]));
+        $this->assertSame('', $row->fresh()->descriptionForSpecification($ids[2]));
+        $this->assertArrayNotHasKey($ids[1], $row->fresh()->specification_descriptions);
+        $row->update(['in_traveler' => true, 'traveler_group' => 1]);
+        $this->deleteJson(route('tdr-processes.destroy', $row->id), ['tdrId' => $tdr->id])->assertStatus(422);
+        $this->assertNotNull($row->fresh());
+        $row->update(['in_traveler' => false]);
+        $this->deleteJson(route('tdr-processes.destroy', $row->id), ['tdrId' => $tdr->id])->assertOk()->assertJson(['success' => true]);
+        $this->assertNull($row->fresh());
+    }
+
+    public function test_anodizing_combines_two_rows_with_one_part_identity_and_separate_descriptions(): void
+    {
+        [$admin, $tdr, $name] = $this->createFormContext();
+        $name->update(['process_sheet_name' => 'ANODIZING']);
+        $tdr->update(['serial_number' => 'L161']);
+        $specs = ['MIL-DTL-5541, Class 1A.', 'MIL-A-8625, Type I or IB, Class 2.'];
+        $descriptions = ['pg.6074, fig.6005(5). Where indicated with ****', 'P.6074. Fig 6005. All over except where indicated with ****'];
+        $selections = [];
+        foreach ($specs as $i => $text) {
+            $spec = Process::create(['process_names_id' => $name->id, 'process' => $text]);
+            ManualProcess::create(['manual_id' => $tdr->workorder->unit->manual_id, 'processes_id' => $spec->id]);
+            $row = TdrProcess::create([
+                'tdrs_id' => $tdr->id, 'process_names_id' => $name->id,
+                'processes' => [$spec->id], 'description' => $descriptions[$i], 'sort_order' => $i + 1,
+            ]);
+            $selections[] = ['tdr_process_id' => $row->id, 'process_id' => $spec->id];
+        }
+        $response = $this->actingAs($admin)->post(route('tdr-processes.combinedForm', ['tdrId' => $tdr->id]), [
+            'selections' => json_encode($selections),
+        ])->assertOk();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $cells = $xpath->query('//div[contains(concat(" ",normalize-space(@class)," ")," process-cell ")]');
+        $this->assertCount(2, $cells);
+        foreach ($cells as $i => $cell) {
+            $this->assertStringContainsString($specs[$i], $cell->textContent);
+            $this->assertStringContainsString($descriptions[$i], $cell->textContent);
+            $this->assertStringNotContainsString($descriptions[1 - $i], $cell->textContent);
+            $details = $xpath->query('./div', $cell->parentNode);
+            $this->assertSame($i === 0 ? '10-100' : '', trim($details[0]->textContent));
+            if ($i === 0) {
+                $this->assertStringContainsString($tdr->component->part_number, $details[1]->textContent);
+                $this->assertStringContainsString('SN L161', $details[1]->textContent);
+            } else {
+                $this->assertSame('', trim($details[1]->textContent));
+            }
+            $this->assertSame($i === 0 ? 'Combined form component' : '', trim($details[2]->textContent));
+            $this->assertSame('1', trim($details[4]->textContent));
+            $this->assertDatabaseHas('tdr_processes', ['id' => $selections[$i]['tdr_process_id'], 'description' => $descriptions[$i]]);
+            // Each process is still printable independently, with its own part and S/N.
+            $this->get(route('tdr-processes.show', ['tdr_process' => $selections[$i]['tdr_process_id']]))
+                ->assertOk()->assertSee('SN L161')->assertSee($specs[$i])->assertDontSee($specs[1 - $i]);
+        }
+    }
+
+    public function test_technician_can_edit_descriptions_without_ro_but_assigned_ro_is_locked(): void
+    {
+        [, $tdr, $name] = $this->createFormContext();
+        $technician = $this->createUserWithRole('Technician');
+        $name->update(['process_sheet_name' => 'MACHINING']);
+        $ids = [];
+        foreach (range(1, 2) as $n) {
+            $spec = Process::create(['process_names_id' => $name->id, 'process' => 'Technician specification '.$n]);
+            ManualProcess::create(['manual_id' => $tdr->workorder->unit->manual_id, 'processes_id' => $spec->id]);
+            $ids[] = $spec->id;
+        }
+        $row = TdrProcess::create(['tdrs_id' => $tdr->id, 'process_names_id' => $name->id, 'processes' => $ids]);
+        $this->actingAs($technician);
+        $this->get(route('tdr-processes.edit', $row->id))->assertOk();
+        $this->get(route('tdr-processes.editForm', ['id' => $row->id, 'modal' => 1]))->assertOk();
+        $payload = [
+            'tdrs_id' => $tdr->id,
+            'processes' => [['process_names_id' => $name->id, 'process' => $ids]],
+            'description' => 'Technician shared description',
+            'specification_descriptions' => [$ids[0] => 'Technician first description', $ids[1] => 'Technician second description'],
+        ];
+        $this->putJson(route('tdr-processes.update', $row->id), $payload)->assertOk();
+        $this->assertSame($payload['description'], $row->fresh()->description);
+        $this->assertSame($payload['specification_descriptions'][$ids[0]], $row->fresh()->descriptionForSpecification($ids[0]));
+        $this->assertSame($payload['specification_descriptions'][$ids[1]], $row->fresh()->descriptionForSpecification($ids[1]));
+        $row->update(['repair_order' => 'R-QA-LOCK']);
+        $this->get(route('tdr-processes.edit', $row->id))->assertForbidden();
+        $this->get(route('tdr-processes.editForm', ['id' => $row->id, 'modal' => 1]))->assertForbidden();
+        $payload['description'] = 'Must not save';
+        $payload['specification_descriptions'][$ids[0]] = 'Must not save';
+        $this->putJson(route('tdr-processes.update', $row->id), $payload)->assertForbidden();
+        $this->assertSame('Technician shared description', $row->fresh()->description);
+        $this->assertSame('Technician first description', $row->fresh()->descriptionForSpecification($ids[0]));
+    }
+
     private function createFormContext(): array
     {
         $admin = $this->createUserWithRole('Admin');

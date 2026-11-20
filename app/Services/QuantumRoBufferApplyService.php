@@ -745,6 +745,10 @@ class QuantumRoBufferApplyService
                 ->orderBy('tdr_processes.id')
                 ->get();
 
+            if ($conflict = $this->serialMismatch($line, $fallbackMatches)) {
+                return $conflict;
+            }
+
             if ($fallbackMatches->count() === 1) {
                 $tdrMatches = $fallbackMatches;
             } elseif ($fallbackMatches->count() > 1) {
@@ -837,6 +841,9 @@ class QuantumRoBufferApplyService
                 ->orderBy('tdr_processes.sort_order')
                 ->orderBy('tdr_processes.id')
                 ->get();
+            if ($conflict = $this->serialMismatch($line, $fallbackMatches)) {
+                return $conflict;
+            }
             $fallbackGroups = $this->groupTravelerMatches($fallbackMatches);
 
             if ($fallbackGroups->count() === 1) {
@@ -876,6 +883,23 @@ class QuantumRoBufferApplyService
         return [
             'status' => 'unresolved',
             'message' => "Multiple Traveler {$travelerGroup} targets for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}",
+        ];
+    }
+
+    private function serialMismatch(QuantumRoLine $line, Collection $matches): ?array
+    {
+        $serials = $matches->loadMissing('tdr')->map(fn (TdrProcess $match) => trim((string) $match->tdr?->serial_number))
+            ->filter(fn ($serial) => $this->normalizeSerialNumber($serial) !== '')
+            ->unique()->values();
+
+        if ($serials->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'status' => 'unresolved',
+            'message' => "TDR S/N mismatch: RO {$line->ro_number}, WO {$line->wo_number}, PN {$line->pn}, REF {$line->bom_ref}. Quantum S/N: {$line->serial_number}; TDR S/N: "
+                . $serials->implode(', ') . '. Automatic RO assignment blocked; review serial numbers.',
         ];
     }
 

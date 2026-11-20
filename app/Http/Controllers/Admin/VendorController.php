@@ -22,13 +22,11 @@ class VendorController extends Controller
         $this->authorizeVendorAccess();
 
         try {
-            $request->validate([
+            $data = $request->validate([
                 'name' => 'required|string|max:255|unique:vendors,name'
-            ]);
+            ] + Vendor::contactRules());
 
-            $vendor = Vendor::create([
-                'name' => $request->input('name')
-            ]);
+            $vendor = Vendor::create($data);
 
             return response()->json([
                 'success' => true,
@@ -61,6 +59,7 @@ class VendorController extends Controller
                 'name' => $vendor->name,
                 'is_trusted' => (bool) $vendor->is_trusted,
                 'description' => (string) ($vendor->description ?? ''),
+                ...$vendor->only(Vendor::CONTACT_FIELDS),
                 'media' => $this->serializeMedia($vendor),
             ],
         ]);
@@ -74,12 +73,13 @@ class VendorController extends Controller
             'name' => ['sometimes', 'required', 'string', 'max:255', 'unique:vendors,name,' . $vendor->id],
             'is_trusted' => ['required', 'boolean'],
             'description' => ['nullable', 'string', 'max:5000'],
-        ]);
+        ] + Vendor::contactRules());
 
         $vendor->update(array_filter([
             'name' => array_key_exists('name', $data) ? $data['name'] : null,
             'is_trusted' => (bool) $data['is_trusted'],
-            'description' => $data['description'] ?: null,
+            'description' => $data['description'] ?? null,
+            ...array_intersect_key($data, array_flip(Vendor::CONTACT_FIELDS)),
         ], static fn ($value, $key) => $key !== 'name' || $value !== null, ARRAY_FILTER_USE_BOTH));
 
         return response()->json([
@@ -89,6 +89,7 @@ class VendorController extends Controller
                 'name' => $vendor->name,
                 'is_trusted' => (bool) $vendor->is_trusted,
                 'description' => (string) ($vendor->description ?? ''),
+                ...$vendor->only(Vendor::CONTACT_FIELDS),
                 'media_count' => $vendor->getMedia('vendor')->count(),
             ],
         ]);

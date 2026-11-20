@@ -31,7 +31,7 @@
             }
             continue;
         }
-        if ($_isNdtWithPlus) {
+        if ($_isNdtWithPlus || \App\Models\ProcessName::isMachiningPrintedForm($_tp->processName)) {
             if ((bool) $_tp->in_traveler) {
                 $travelerVisualRowCount++;
             }
@@ -267,13 +267,32 @@
         border-radius: .35rem;
         box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
         margin-top: .35rem;
-        max-height: min(240px, 45vh);
         min-height: 32px;
-        overflow-y: auto;
         padding: .25rem .4rem;
         position: static;
         width: 100%;
     }
+    .tdr-process-picker-toolbar { display: flex; gap: .5rem; margin-bottom: .5rem; }
+    .tdr-process-picker-toolbar .form-control { min-width: 0; }
+    .tdr-process-picker-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+    .tdr-process-inline-options:not(.show-descriptions) .tdr-process-picker-descriptions { display: none; }
+    .tdr-process-inline-options.show-descriptions .tdr-process-picker-list,
+    .tdr-process-inline-options.show-descriptions input[type="search"] { display: none; }
+    .tdr-process-picker-list, .tdr-process-picker-descriptions {
+        min-width: 0;
+        max-height: min(320px, 40vh);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        text-align: left;
+    }
+    .tdr-process-picker-description {
+        display: grid;
+        grid-template-columns: var(--machining-spec-width, 35%) minmax(0, 1fr);
+        gap: 8px;
+        margin-bottom: .65rem;
+        align-items: start;
+    }
+    .tdr-process-picker-description > span { display: block; margin-bottom: .25rem; white-space: pre-line; }
     .tdr-process-inline-process-cell {
         position: relative;
     }
@@ -363,6 +382,7 @@
                     @php
                         $processData = \App\Models\TdrProcess::normalizeStoredProcessIds($tdrProcessRow->processes);
                         $processName = $tdrProcessRow->processName ? $tdrProcessRow->processName->name : 'N/A';
+                        $isMachining = \App\Models\ProcessName::isMachiningPrintedForm($tdrProcessRow->processName);
                         $isEc = ($ecProcessNameId !== null && (int)$tdrProcessRow->process_names_id === (int)$ecProcessNameId);
                         $hasMachiningOrRil = $tdrProcesses->contains(fn($p) => in_array((int)$p->process_names_id, $ecEligibleProcessNameIds ?? []));
                         $isStandaloneEc = $isEc && (
@@ -453,12 +473,12 @@
                             </td>
                             @endif
                         </tr>
-                    @elseif($isNdtWithPlus)
+                    @elseif($isNdtWithPlus || $isMachining)
                         @php $processVisualRowNumber++; @endphp
                         <tr data-id="{{ $tdrProcessRow->id }}" data-fig-traveler-group="{{ $inTr ? (int) ($tdrProcessRow->traveler_group ?: 1) : 0 }}" class="{{ trim($trClass) }}">
                             <td class="process-row-number-cell">{{ $processVisualRowNumber }}</td>
-                            <td class="text-center">{{ implode(' / ', $combinedProcessNames) }}</td>
-                            <td class="ps-2">
+                            <td class="text-center">{{ $isMachining ? $processName : implode(' / ', $combinedProcessNames) }}</td>
+                            <td class="ps-2" @if($isMachining) colspan="2" @endif>
                                 @php
                                     $allProcesses = [];
                                     if (is_array($processData) && !empty($processData)) {
@@ -468,9 +488,21 @@
                                         }
                                     }
                                 @endphp
-                                <span class="process-cell-text">{{ !empty($allProcesses) ? implode(' / ', $allProcesses) : 'No processes' }}@if($tdrProcessRow->ec) ( EC ) @endif</span>
+                                @if($isMachining)
+                                    @forelse($processData as $specificationId)
+                                        <div class="machining-specification-pair" style="display:grid;grid-template-columns:var(--machining-spec-width, 35%) minmax(0,1fr);align-items:stretch">
+                                            <div class="process-cell-text p-2">{{ $proces->firstWhere('id', $specificationId)?->process }}</div>
+                                            <div class="process-description-cell p-2 border-start">{{ $tdrProcessRow->descriptionForSpecification((int) $specificationId) }}</div>
+                                        </div>
+                                    @empty
+                                        <span class="process-cell-text">No processes</span>
+                                    @endforelse
+                                    @if($tdrProcessRow->ec) ( EC ) @endif
+                                @else
+                                    <span class="process-cell-text">{{ !empty($allProcesses) ? implode(' / ', $allProcesses) : 'No processes' }}@if($tdrProcessRow->ec) ( EC ) @endif</span>
+                                @endif
                             </td>
-                            <td class="text-center process-description-cell">{{ $tdrProcessRow->description ?? '' }}</td>
+                            @unless($isMachining)<td class="text-center process-description-cell">{{ $tdrProcessRow->description ?? '' }}</td>@endunless
                             @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$tdrProcessRow->id]); $travelerCheckboxRendered[$tdrProcessRow->id] = true; @endphp
                             @include('admin.tdr-processes.partials.processes-body-traveler-checkbox', ['showTravelerCheckbox' => $showTravelerCheckbox])
                             <td class="text-center process-action-cell">
@@ -594,9 +626,14 @@
                     <select class="form-select form-select-sm" data-inline-process-name>
                         <option value="">---</option>
                         @foreach(($processNames ?? collect()) as $processName)
-                            <option value="{{ $processName->id }}">{{ $processName->name }}</option>
+                            <option value="{{ $processName->id }}" data-machining="{{ \App\Models\ProcessName::isMachiningPrintedForm($processName) ? '1' : '0' }}">{{ $processName->name }}</option>
                         @endforeach
                     </select>
+                    @if(auth()->user()->roleIs(['Admin', 'Manager']) && $current_tdr->component?->manual_id)
+                        <button type="button" class="btn btn-outline-info btn-sm mt-2" data-tdr-process-image
+                                data-url-template="{{ route('process-print-attachments.index', ['processName' => '__PROCESS__', 'tdr_id' => $current_tdr->id]) }}"
+                                title="Image for this part’s manual, selected process and P/N">Process image</button>
+                    @endif
                 </td>
                 <td class="tdr-process-inline-process-cell">
                     <div class="tdr-process-inline-options d-none" data-inline-process-options></div>

@@ -1,6 +1,7 @@
 @extends('admin.master')
 
 @section('content')
+    @include('admin.tdr-processes.partials.edit-picker-styles')
     <style>
         /* Стили для Select2 (темная и светлая темы) */
         html[data-bs-theme="dark"] .select2-selection--single {
@@ -108,7 +109,7 @@
         <div class="card bg-gradient">
             <div class="card-header">
                 <div class="d-flex justify-content-between">
-                    <h4 class="text-primary">{{ __('Edit Part Processes') }}</h4>
+                    <h4 class="text-primary">{{ __('Edit Part Processes') }} — {{ $current_tdr_processes->processName?->name }}</h4>
                     <h4 class="pe-3">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
                 </div>
                 <div class="d-flex justify-content-between">
@@ -138,18 +139,8 @@
                     <div id="processes-container" data-manual-id="{{ $current_tdr->workorder->unit->manual_id ?? '' }}">
                         <div class="process-row mb-3">
                             <div class="row g-3">
-                                <div class="col-12 col-md-3">
-                                    <label for="process_names">Process Name:</label>
-                                    <select name="processes[0][process_names_id]" class="form-control select2-process" required>
-                                        <option value=""></option>
-                                        @foreach ($processNames as $processName)
-                                            <option value="{{ $processName->id }}" {{ $current_tdr_processes->process_names_id == $processName->id ? 'selected' : '' }}>
-                                                {{ $processName->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-6">
+                                <input type="hidden" name="processes[0][process_names_id]" data-edit-process-name data-process-name="{{ $current_tdr_processes->processName?->name }}" value="{{ $current_tdr_processes->process_names_id }}">
+                            <div class="col-12 process-specification-column">
                                     <label for="process">Processes (Specification):</label>
                                     <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal" data-bs-target="#addProcessModal">
                                         <img src="{{ asset('img/plus.png') }}" alt="+" style="width: 20px;">
@@ -198,7 +189,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-12 col-md-3">
+                                <div class="col-12 process-extra-fields">
 {{--                                    <label for="ec">EC:</label>--}}
                                     <div class="form-check mt-2" id="ec-checkbox-container" style="display: none;">
                                         <input type="checkbox" name="processes[0][ec]" value="1" class="form-check-input" id="ec_edit"
@@ -218,7 +209,7 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-3 process-description-field">
                         <label for="description" class="form-label">{{ __('Description') }}</label>
                         <textarea class="form-control" id="description" name="description" rows="6" maxlength="255" placeholder="{{ __('Enter Description') }}">{{ old('description', $current_tdr_processes->description) }}</textarea>
                     </div>
@@ -266,7 +257,8 @@
                 ecEligibleProcessNameIds: @json($ecEligibleProcessNameIds ?? []),
                 processNamesData: @json($processNames->keyBy('id')),
         machiningEcProcessNameIds: @json(\App\Models\ProcessName::identityIds('Machining (EC)')),
-                currentProcesses: @json(\App\Models\TdrProcess::normalizeStoredProcessIds($current_tdr_processes->processes))
+                currentProcesses: @json(\App\Models\TdrProcess::normalizeStoredProcessIds($current_tdr_processes->processes)),
+                specificationDescriptions: @json($current_tdr_processes->specification_descriptions ?? [])
             };
             if (window.TdrProcessEditForm) TdrProcessEditForm.init(config);
         })();

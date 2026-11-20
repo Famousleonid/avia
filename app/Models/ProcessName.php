@@ -25,11 +25,13 @@ class ProcessName extends Model implements \Spatie\MediaLibrary\HasMedia
         return mb_strtoupper(trim($partNumber));
     }
 
-    public function printAttachmentFor(string $partNumber): ?\Spatie\MediaLibrary\MediaCollections\Models\Media
+    public function printAttachmentFor(string $partNumber, ?int $manualId = null): ?\Spatie\MediaLibrary\MediaCollections\Models\Media
     {
         $key = self::printPartKey($partNumber);
-        return $key === '' ? null : $this->getMedia(self::PRINT_ATTACHMENT_COLLECTION)
-            ->first(fn ($media) => $media->getCustomProperty('part_number_key') === $key);
+        // Unassigned legacy images stay available for manual assignment, never as a fallback.
+        return $key === '' || ! $manualId ? null : $this->getMedia(self::PRINT_ATTACHMENT_COLLECTION)
+            ->first(fn ($media) => (int) $media->getCustomProperty('manual_id') === $manualId
+                && self::printPartKey((string) $media->getCustomProperty('part_number')) === $key);
     }
     use HasFactory;
     use LogsActivity;

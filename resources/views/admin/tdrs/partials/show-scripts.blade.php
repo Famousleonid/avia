@@ -7,6 +7,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ asset('js/tdr-processes/sortable-handler.js') }}?v={{ filemtime(public_path('js/tdr-processes/sortable-handler.js')) }}"></script>
 <script src="{{ asset('js/tdr-processes/form-link-handler.js') }}"></script>
+@if(auth()->user()->roleIs(['Admin', 'Manager']))
+<script src="{{ asset('js/process-print-attachments.js') }}?v={{ filemtime(public_path('js/process-print-attachments.js')) }}"></script>
+@endif
 <script src="{{ asset('js/tdr-processes/combined-form-handler.js') }}?v={{ filemtime(public_path('js/tdr-processes/combined-form-handler.js')) }}"></script>
 <script src="{{ asset('js/tdr-processes/edit-process/edit-process.js') }}"></script>
 <script src="{{ asset('js/delete-confirm-handler.js') }}"></script>

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Code;
 use App\Models\Condition;
 use App\Models\Necessary;
+use App\Models\StdProcess;
 use App\Models\Tdr;
 use App\Models\Workorder;
 use App\Models\WorkorderUnitInspection;
@@ -19,7 +20,7 @@ use Illuminate\Support\Facades\Log;
  * count(build()).
  *
  * Order of lines: unit inspections → null-component conditions (+ Missing) →
- * Order New component pairs grouped by REASON → component rows with defect reasons.
+ * individual component rows in ascending IPL order, with IPL before the reason.
  *
  * NB: for Order New rows the reason is taken from the CODE (the field edited in
  * the "Ordered Parts" modal), not from conditions. "Customer Request" is not a
@@ -38,8 +39,7 @@ class TdrInspectionLinesBuilder
         $code = Code::missing();
 
         $nullComponentConditions = []; // component_id == null
-        $groupedByConditions = [];     // component_id !== null, necessaries_id == Order New
-        $necessaryComponents = [];     // component_id !== null, necessaries_id != Order New
+        $componentLines = [];
         $hasMissingComponents = false;
 
         $missingConditionName = Condition::NAME_PARTS_MISSING;
@@ -82,7 +82,10 @@ class TdrInspectionLinesBuilder
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        foreach ($current_wo->tdrs as $tdr) {
+        // Sort the in-memory print collection only; never change saved TDR positions.
+        $printTdrs = $current_wo->tdrs->sort(fn ($left, $right) =>
+            StdProcess::compareIplValues($left->component?->ipl_num, $right->component?->ipl_num));
+        foreach ($printTdrs as $tdr) {
             // Manufacture has an ordering row and a process row for the same parts.
             // Print the ordering row once, but retain an unpaired process row.
             if ($tdr->tdr_type === Tdr::TYPE_MANUFACTURE_REPAIR && filled($tdr->manufacture_pair_id)
@@ -128,51 +131,37 @@ class TdrInspectionLinesBuilder
                     ]);
                 }
             } elseif ($necessary && $tdr->component_id !== null && $tdr->necessaries_id == $necessary->id) {
-                // Order New: group by REASON (from the code). Customer Request is not
-                // a scrap reason, so its line omits "(scrap)".
+                // One part per line: reason follows the part so all IPLs can be sorted.
                 $component = $tdr->component;
                 $reason = $tdr->codes;
                 if ($component && $reason) {
                     $reasonName = $reason->name;
                     $isManufacture = strcasecmp((string) $reasonName, 'Manufacture') === 0;
-                    $reasonPrefix = ($isManufacture || strcasecmp((string) $reasonName, 'Customer Request') === 0)
-                        ? $reasonName . ': '
-                        : $reasonName . ' (scrap): ';
+                    $reasonSuffix = ($isManufacture || strcasecmp((string) $reasonName, 'Customer Request') === 0)
+                        ? $reasonName
+                        : $reasonName . ' (scrap)';
 
                     if (! empty($tdr->description) && !($isManufacture
                         && strcasecmp(trim($tdr->description), trim($component->name)) === 0)) {
                         $componentString = sprintf(
-                            "(%s%s)<b> %s </b>: ( %s)",
+                            "(%s%s) <b>%s</b> - %s ( %s )",
                             strtoupper($component->ipl_num),
                             $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs',
                             strtoupper($component->name),
+                            $reasonSuffix,
                             strtoupper($tdr->description),
                         );
                     } else {
                         $componentString = sprintf(
-                            "(%s%s)<b> %s </b> ",
+                            "(%s%s) <b>%s</b> - %s",
                             strtoupper($component->ipl_num),
                             $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs',
                             strtoupper($component->name),
+                            $reasonSuffix,
                         );
                     }
 
-                    if (! isset($groupedByConditions[$reasonName])) {
-                        $groupedByConditions[$reasonName] = [];
-                    }
-
-                    $lastKey = count($groupedByConditions[$reasonName]) - 1;
-                    $lastString = $lastKey >= 0 ? $groupedByConditions[$reasonName][$lastKey] : '';
-
-                    if (strlen($lastString . ', ' . $componentString) <= 120) {
-                        if ($lastKey >= 0) {
-                            $groupedByConditions[$reasonName][$lastKey] .= ', ' . $componentString;
-                        } else {
-                            $groupedByConditions[$reasonName][] = $reasonPrefix . $componentString;
-                        }
-                    } else {
-                        $groupedByConditions[$reasonName][] = $reasonPrefix . $componentString;
-                    }
+                    $componentLines[] = $componentString;
                 }
             } elseif ($necessary && $tdr->component_id !== null && $tdr->necessaries_id !== $necessary->id) {
                 $component = $tdr->component;
@@ -186,7 +175,7 @@ class TdrInspectionLinesBuilder
                         && strcasecmp($descriptionText, $componentName) !== 0;
 
                     if ($showDescription) {
-                        $necessaryComponents[] = sprintf(
+                        $componentLines[] = sprintf(
                             "(%s) <b>%s</b> - %s ( %s )",
                             strtoupper($component->ipl_num),
                             strtoupper($component->name),
@@ -194,7 +183,7 @@ class TdrInspectionLinesBuilder
                             strtoupper($description),
                         );
                     } else {
-                        $necessaryComponents[] = sprintf(
+                        $componentLines[] = sprintf(
                             "(%s) <b>%s</b> - %s",
                             strtoupper($component->ipl_num),
                             strtoupper($component->name),
@@ -219,15 +208,7 @@ class TdrInspectionLinesBuilder
             $tdrInspections = array_merge($tdrInspections, $nullComponentConditions);
         }
 
-        foreach ($groupedByConditions as $components) {
-            foreach ($components as $componentLine) {
-                $tdrInspections[] = $componentLine;
-            }
-        }
-
-        if (! empty($necessaryComponents)) {
-            $tdrInspections = array_merge($tdrInspections, $necessaryComponents);
-        }
+        $tdrInspections = array_merge($tdrInspections, $componentLines);
 
         return $tdrInspections;
     }

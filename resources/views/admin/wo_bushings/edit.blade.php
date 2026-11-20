@@ -290,7 +290,7 @@
                                                 @foreach($bushingGroup as $bushing)
                                                     @php
                                                         $existing = $bushDataByComponent->get((int) $bushing->id);
-                                                        $rowQty = $existing['qty'] ?? max(1, $remainingQty);
+                                                        $rowQty = $existing !== null ? ($existing['qty'] ?? max(1, $remainingQty)) : '';
                                                     @endphp
                                                     <div>
                                                         <input type="number"
@@ -299,6 +299,7 @@
                                                                min="1"
                                                                max="{{ max(1, $remainingQty) }}"
                                                                value="{{ $rowQty }}"
+                                                               @disabled($existing === null)
                                                                title="{{ __('Shared Original/Oversize quantity; split between selected P/Ns if needed.') }}"
                                                                data-part-qty="{{ max(1, $remainingQty) }}">
                                                     </div>
@@ -547,8 +548,11 @@
 
                     if (qty) {
                         qty.disabled = !checkbox.checked;
-                        if (checkbox.checked && (!qty.value || parseInt(qty.value, 10) < 1)) {
-                            qty.value = qty.getAttribute('data-part-qty') || '1';
+                        if (!checkbox.checked) {
+                            if (qty.value) qty.dataset.deselectedQty = qty.value;
+                            qty.value = '';
+                        } else if (!qty.value || parseInt(qty.value, 10) < 1) {
+                            qty.value = qty.dataset.deselectedQty || qty.getAttribute('data-part-qty') || '1';
                         }
                     }
                     if (doNotOrder) doNotOrder.disabled = !checkbox.checked;
@@ -635,7 +639,7 @@
                     row.querySelectorAll('.component-checkbox').forEach(function(selected) { selected.checked = false; });
                     row.querySelectorAll('.bushing-do-not-order').forEach(function(noOrder) { noOrder.checked = false; });
                     row.querySelectorAll('.bushing-need-processes').forEach(function(need) { need.checked = false; delete need.dataset.deselectedProcesses; });
-                    row.querySelectorAll('.bushing-qty-input').forEach(function(qty) { qty.value = qty.getAttribute('data-part-qty') || '1'; });
+                    row.querySelectorAll('.bushing-qty-input').forEach(function(qty) { qty.value = ''; delete qty.dataset.deselectedQty; });
                     row.querySelectorAll('.bushing-process-control, .bushing-code-select').forEach(function(control) { control.value = ''; });
                     syncRow(row);
                 });

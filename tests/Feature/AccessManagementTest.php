@@ -13,6 +13,31 @@ class AccessManagementTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
+    public function test_process_vendor_access_is_managed_explicitly_and_can_be_revoked(): void
+    {
+        $as = function ($user) { $this->flushSession(); return $this->actingAs($user); };
+        $admin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $as($admin)->get(route('admin.access.index'))->assertOk()
+            ->assertSee('data-access-feature="process_vendor"', false);
+        foreach (['Admin', 'Manager', 'Shipping'] as $role) {
+            $user = $this->createUserWithRole($role, ['is_admin' => false]);
+            $this->assertFalse(Gate::forUser($user)->allows('feature.process_vendor'));
+            $as($user)->get(route('process-vendor.index'))->assertForbidden();
+            $as($admin)->post(route('admin.access.store'), [
+                'feature_key' => 'process_vendor', 'user_ids' => [$user->id],
+            ])->assertRedirect(route('admin.access.index'));
+            $this->assertTrue(Gate::forUser($user->fresh())->allows('feature.process_vendor'));
+            $as($user->fresh())->get(route('process-vendor.index'))->assertOk()
+                ->assertSee('href="'.route('process-vendor.index').'"', false);
+            $access = UserFeatureAccess::where('user_id', $user->id)->where('feature_key', 'process_vendor')->firstOrFail();
+            $as($admin)->delete(route('admin.access.destroy', $access))->assertRedirect(route('admin.access.index'));
+            $this->assertFalse(Gate::forUser($user->fresh())->allows('feature.process_vendor'));
+            $as($user->fresh())->getJson(route('process-vendor.queue'))->assertForbidden();
+            $this->postJson(route('process-vendor.orders.store'), [])->assertForbidden();
+        }
+        $this->assertTrue(Gate::forUser($admin)->allows('feature.process_vendor'));
+    }
+
     public function test_first_save_returns_to_the_same_feature_with_the_user_in_allowed_list(): void
     {
         $admin = $this->createUserWithRole('Admin', ['is_admin' => true]);

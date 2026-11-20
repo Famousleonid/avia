@@ -254,14 +254,19 @@
                 }
 
                 const label = h(String(event || 'update').toUpperCase());
-                const text = event === 'assigned' ? '' : h(n?.text ?? '');
+                const isShippingUpdate = event === 'shipping_log_updated';
+                const messageText = String(n?.text ?? '');
+                const text = event === 'assigned' ? '' : h(isShippingUpdate
+                    ? messageText.replace(/\s+Fields:[\s\S]*$/i, '').trim()
+                    : messageText);
+                const customer = isShippingUpdate ? h(ui?.customer?.name ?? '') : '';
 
                 return `
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span class="badge text-bg-secondary">${label}</span>
                         ${woLabel ? `<span class="text-warning fw-semibold">${woLabel}</span>` : ``}
                     </div>
-                    ${text ? `<div class="small mt-1">${text}</div>` : ``}
+                    ${text || customer ? `<div class="small mt-1">${text}${customer ? ` <span class="text-info">${customer}</span>` : ''}</div>` : ``}
                 `;
             }
 
@@ -333,11 +338,11 @@
 
         function buildMetaLine(n) {
             const fromName = String(n?.from_name || 'System').trim() || 'System';
-            const toName = String(n?.to_name || '').trim();
+            const unitPartNumber = String(n?.ui?.workorder?.unit_part_number || '').trim();
 
             return `
                 <span>From: ${escapeHtml(fromName)}</span>
-                ${toName ? `<span class="text-muted mx-1">to</span><span>${escapeHtml(toName)}</span>` : ``}
+                ${unitPartNumber ? `<span class="ms-2">P/N: ${escapeHtml(unitPartNumber)}</span>` : ``}
             `;
         }
 

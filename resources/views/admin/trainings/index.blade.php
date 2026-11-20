@@ -34,6 +34,21 @@
             white-space: nowrap;
         }
 
+        .training-component-pn {
+            position: relative;
+            padding-inline: 1.4rem;
+            text-align: center;
+        }
+        .training-all-approved {
+            position: absolute;
+            right: .1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #28a745;
+            line-height: 1;
+            -webkit-text-stroke: .65px currentColor;
+        }
+
         .actions-cell .btn {
             padding: .25rem .5rem;
             line-height: 1.1;
@@ -185,6 +200,34 @@
         }
         .unit-training-modal .training-date-grid > div { width: auto; padding: 0; min-width: 0; }
         .training-hours { text-align: center; font-variant-numeric: tabular-nums; }
+        .training-approved-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 24px;
+            vertical-align: middle;
+            border: 1px solid #35a869;
+            border-radius: 5px;
+            background: rgba(46, 125, 79, .22);
+            color: #65df91;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .unit-training-modal .unapprove-training-btn {
+            width: 22px;
+            height: 24px;
+            padding: 0;
+            font-size: 12px;
+            line-height: 1;
+            vertical-align: middle;
+        }
+        .unit-training-modal .approve-training-btn {
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            vertical-align: middle;
+        }
         .training-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
         .training-page-heading { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; white-space: nowrap; font-size: 1rem; font-weight: 400; min-width: 0; overflow-x: auto; margin-bottom: 12px; }
         .training-page-heading h5,
@@ -395,7 +438,14 @@
                             </td>
 
                             <td class="text-center">
-                                {{ $trainingList['first_training']->manual->unit_name_training ?? 'N/A' }}
+                                <div class="training-component-pn">
+                                    {{ $trainingList['first_training']->manual->unit_name_training ?? 'N/A' }}
+                                    @if($trainingList['trainings']->isNotEmpty() && $trainingList['trainings']->every(fn ($training) => $training->isApproved()))
+                                        <i class="bi bi-check-lg training-all-approved" role="img"
+                                           aria-label="{{ __('All training dates approved') }}"
+                                           title="{{ __('All training dates approved') }}"></i>
+                                    @endif
+                                </div>
                             </td>
 
                             <td class="text-center">
@@ -561,8 +611,7 @@
                                 </div>
                                 <div class="col-auto">
                                     @if($training->isApproved())
-                                        <span class="badge"
-                                              style="background: rgba(46, 125, 79, 0.18); color: #4caf7d; border: 1px solid #2e7d4f;"
+                                        <span class="training-approved-mark"
                                               title="{{ __('Approved by :name, :date', ['name' => $training->approvedBy->selection_name ?? '?', 'date' => $training->approved_at?->format('d/M/Y')]) }}">
                                             ✓
                                         </span>
@@ -578,7 +627,6 @@
                                         <button type="button"
                                                 class="btn btn-outline-success btn-sm approve-training-btn"
                                                 data-training-id="{{ $training->id }}" title="{{ __('Approve') }}" aria-label="{{ __('Approve') }}">
-                                            <i class="bi bi-check-lg"></i>
                                         </button>
                                     @endif
                                 </div>
@@ -1091,7 +1139,7 @@
                     const oldRow = document.querySelector(selector);
                     const newRow = doc.querySelector(selector);
                     if (oldRow && newRow) {
-                        [2, 3, 4].forEach(index => { oldRow.cells[index].innerHTML = newRow.cells[index].innerHTML; });
+                        [1, 2, 3, 4].forEach(index => { oldRow.cells[index].innerHTML = newRow.cells[index].innerHTML; });
                         oldRow.dataset.isDue = newRow.dataset.isDue;
                     }
                 }

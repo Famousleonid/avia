@@ -140,7 +140,7 @@
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center position-relative">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
                         <h4 class="text-primary mb-0">{{ __('Add Part Processes') }}</h4>
                         <div class="mt-2">
@@ -151,7 +151,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="position-absolute start-50 translate-middle-x d-flex gap-2">
+                    <div class="d-flex flex-wrap gap-2">
                         <button class="btn btn-outline-success" type="button" style="width: 120px" id="add-process">
                             Add Process
                         </button>
@@ -327,6 +327,32 @@
         </div>
     </div>
 
+    @if(auth()->user()->roleIs(['Admin', 'Manager']) && $current_tdr->component?->manual_id)
+        <script src="{{ asset('js/process-print-attachments.js') }}?v={{ filemtime(public_path('js/process-print-attachments.js')) }}"></script>
+        <script>
+        (() => {
+            const container = document.getElementById('processes-container');
+            const urlTemplate = @json(route('process-print-attachments.index', ['processName' => '__PROCESS__', 'tdr_id' => $current_tdr->id]));
+            function addImageButtons() {
+                container.querySelectorAll('.process-row').forEach(row => {
+                    if (row.querySelector('[data-tdr-process-image]')) return;
+                    const select = row.querySelector('.select2-process');
+                    if (!select) return;
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'btn btn-outline-info btn-sm mt-2';
+                    button.setAttribute('data-tdr-process-image', '');
+                    button.dataset.urlTemplate = urlTemplate;
+                    button.textContent = 'Process image';
+                    button.title = 'Image for this part’s manual, selected process and P/N';
+                    select.parentElement.append(button);
+                });
+            }
+            addImageButtons();
+            new MutationObserver(addImageButtons).observe(container, {childList:true, subtree:true});
+        })();
+        </script>
+    @endif
     <script>
         var CREATE_PROCESS_IN_MODAL = window.location.search.indexOf('modal=1') >= 0;
         if (CREATE_PROCESS_IN_MODAL) {

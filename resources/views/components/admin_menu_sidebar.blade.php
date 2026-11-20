@@ -123,6 +123,14 @@
         </a>
     </li>
 
+    @can('feature.stock')
+        <li class="nav-item">
+            <a class="nav-link press-spinner {{ request()->routeIs('stock.*') ? 'active' : '' }}" href="{{ route('stock.index') }}">
+                <i class="bi bi-box-seam me-2"></i> <span>Stock</span>
+            </a>
+        </li>
+    @endcan
+
     @can('feature.marketing')
         <li class="nav-item">
             <a class="nav-link press-spinner {{ request()->routeIs('marketing.*') ? 'active' : '' }}" href="{{ route('marketing.index') }}">
@@ -329,6 +337,16 @@
             </li>
         @endif
 
+
+    @can('feature.process_vendor')
+        @if(Route::has('process-vendor.index'))
+        <li class="nav-item press-spinner">
+            <a href="{{ route('process-vendor.index') }}" class="nav-link {{ request()->routeIs('process-vendor.*') ? 'active' : '' }}">
+                <i class="bi bi-box-seam me-2"></i> <span>Process Vendor</span>
+            </a>
+        </li>
+        @endif
+    @endcan
 
     @can('feature.vendor_tracking')
         <li class="nav-item press-spinner">

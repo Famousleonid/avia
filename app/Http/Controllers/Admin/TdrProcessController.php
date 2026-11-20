@@ -349,6 +349,10 @@ class TdrProcessController extends Controller
         }
 
         // Если processesData пустой, возвращаем ошибку
+        validator(['rows' => $processesData], [
+            'rows.*.specification_descriptions' => 'nullable|array',
+            'rows.*.specification_descriptions.*' => 'nullable|string|max:255',
+        ])->validate();
         if (empty($processesData)) {
             Log::warning('No processes selected', ['tdrs_id' => $tdrId]);
             return response()->json(['error' => 'No processes selected.'], 400);
@@ -374,16 +378,17 @@ class TdrProcessController extends Controller
                 return response()->json(['error' => 'Selected process specification is missing a process name.'], 422);
             }
 
-            $requirements = $this->descriptionRequirementsForTdrProcess($tdr, $selectedProcessIds);
-            $description = (string) ($data['description'] ?? '');
             $missing = [];
-
-            if ($requirements['requires_fig'] && stripos($description, 'FIG') === false) {
-                $missing[] = 'FIG';
+            foreach ($selectedProcessIds as $selectedId) {
+                $requirements = $this->descriptionRequirementsForTdrProcess($tdr, [$selectedId]);
+                $individualDescriptions = $data['specification_descriptions'] ?? [];
+                $description = array_key_exists($selectedId, $individualDescriptions)
+                    ? (string) $individualDescriptions[$selectedId]
+                    : (string) ($data['description'] ?? '');
+                if ($requirements['requires_fig'] && stripos($description, 'FIG') === false) $missing[] = 'FIG';
+                if ($requirements['requires_zone'] && stripos($description, 'ZONE') === false) $missing[] = 'ZONE';
             }
-            if ($requirements['requires_zone'] && stripos($description, 'ZONE') === false) {
-                $missing[] = 'ZONE';
-            }
+            $missing = array_values(array_unique($missing));
 
             if ($missing !== []) {
                 $missingDescriptionRequirements[] = [
@@ -474,6 +479,7 @@ class TdrProcessController extends Controller
                 'process_names_id' => $data['process_names_id'],
                 'plus_process' => $data['plus_process'] ?? null, // Дополнительные NDT process_names_id через запятую
                 'processes' => $selectedProcessIds, // массив ID для cast JSON
+                'specification_descriptions' => TdrProcess::selectedSpecificationDescriptions($selectedProcessIds, $data['specification_descriptions'] ?? []),
                 'sort_order' => $maxSortOrder + $sortOrderCounter + 1, // Устанавливаем sort_order в конец списка
                 'date_start' => null,
                 'date_finish' => null,
@@ -598,6 +604,9 @@ class TdrProcessController extends Controller
         abort_if($rows->isEmpty(), 404);
         return view('admin.tdr-processes.attachments', [
             'current_tdr' => $tdr,
+            'partPrintAttachment' => isset($data['row'])
+                ? app(\App\Services\ProcessPrintAttachment::class)->forForm($rows->first()->processName, $rows) : null,
+            'attachmentProcessName' => isset($data['row']) ? $rows->first()->processName : null,
             'travelerImages' => isset($data['traveler_group']) ? \App\Services\TravelerTemplateImages::forProcesses($tdr, $rows) : collect(),
             'figPagesHtml' => $this->figPagesHtmlForRows($rows, $tdr->workorder),
         ]);
@@ -1109,7 +1118,7 @@ class TdrProcessController extends Controller
                 ->get();
 
             // Если передан конкретный process_id (элемент из JSON-массива), фильтруем JSON «processes» у текущей записи
-            if ($specificProcessId !== null) {
+            if ($specificProcessId !== null && !ProcessName::isMachiningPrintedForm($process_name)) {
                 $currentProcesses = TdrProcess::normalizeStoredProcessIds($current_tdrs_process->processes);
                 $currentProcesses = array_values(array_filter($currentProcesses, function ($pid) use ($specificProcessId) {
                     return (int) $pid === (int) $specificProcessId;
@@ -1951,6 +1960,8 @@ class TdrProcessController extends Controller
             'processes.*.ec' => 'nullable|boolean',
             'processes.*.plus_process' => 'nullable|string', // Дополнительные NDT process_names_id через запятую
             'description' => 'nullable|string|max:255', // Валидация для description
+            'specification_descriptions' => 'nullable|array',
+            'specification_descriptions.*' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:255', // Валидация для notes
         ]);
 
@@ -2038,6 +2049,12 @@ class TdrProcessController extends Controller
         }
 
         // Обновляем запись
+        $dataToUpdate['specification_descriptions'] = TdrProcess::selectedSpecificationDescriptions(
+            $processesArray,
+            $request->has('specification_descriptions')
+                ? ($validated['specification_descriptions'] ?? [])
+                : ($current_tdr_processes->specification_descriptions ?? [])
+        );
         $current_tdr_processes->update($dataToUpdate);
 
         // Обработка EC записи при обновлении EC-eligible процесса (Machining, RIL)
@@ -2130,8 +2147,11 @@ class TdrProcessController extends Controller
             return $jsonResponse();
         }
 
-        // Если processes содержит только одно значение, удаляем всю запись
-        if (count($processData) === 1) {
+        // Machining is one visual row containing several specifications.
+        // Its row-level Delete has no individual specification to remove.
+        $deleteMachiningRow = ! $request->filled('process')
+            && ProcessName::isMachiningPrintedForm($tdrProcess->processName);
+        if (count($processData) === 1 || $deleteMachiningRow) {
             $tdrProcess->delete();
             if ($isEcEligible && $processesToRemoveFromEC) {
                 $this->handleEcProcessOnEcEligibleDelete($tdrId, $processesToRemoveFromEC);

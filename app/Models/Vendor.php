@@ -14,6 +14,20 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Vendor extends Model implements HasMedia
 {
+    public const CONTACT_FIELDS = ['address', 'contact_name', 'phone', 'email', 'vendor_number', 'ship_via', 'terms'];
+
+    public static function contactRules(): array
+    {
+        return [
+            'address' => ['nullable', 'string', 'max:1500'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:80'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'vendor_number' => ['nullable', 'string', 'max:100'],
+            'ship_via' => ['nullable', 'string', 'max:100'],
+            'terms' => ['nullable', 'string', 'max:100'],
+        ];
+    }
     use HasFactory;
     use InteractsWithMedia;
     use HasMediaHelpers;
@@ -23,6 +37,7 @@ class Vendor extends Model implements HasMedia
         'name',
         'is_trusted',
         'description',
+        'address', 'contact_name', 'phone', 'email', 'vendor_number', 'ship_via', 'terms',
     ];
 
     protected $casts = [
@@ -33,7 +48,7 @@ class Vendor extends Model implements HasMedia
     {
         return LogOptions::defaults()
             ->useLogName('vendor')
-            ->logOnly(['name', 'is_trusted', 'description'])
+            ->logOnly(array_merge(['name', 'is_trusted', 'description'], self::CONTACT_FIELDS))
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

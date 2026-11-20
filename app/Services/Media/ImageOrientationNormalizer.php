@@ -85,7 +85,7 @@ class ImageOrientationNormalizer
      * @param \GdImage|resource $image
      * @return \GdImage|resource|false
      */
-    private function applyOrientation($image, int $orientation)
+    public function applyOrientation($image, int $orientation)
     {
         $rotation = null;
         $flipHorizontal = false;

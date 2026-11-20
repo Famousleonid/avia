@@ -233,6 +233,24 @@
         </td>
         @endrole
     </tr>
+    @if(isset($matchedTdrs) && $matchedTdrs->has($workorder->id))
+        <tr class="wo-matched-parts" data-workorder-parts="{{ $workorder->id }}">
+            <td colspan="{{ $colspan }}" class="text-start">
+                <div class="small text-muted mb-1">Matching TDR parts</div>
+                @foreach($matchedTdrs->get($workorder->id) as $matchedTdr)
+                    <div class="d-flex flex-wrap align-items-baseline gap-2 py-1" data-matched-tdr="{{ $matchedTdr->id }}">
+                        <a href="{{ route('tdrs.show', $workorder->id) }}" data-spinner class="text-info">P/N: {{ $matchedTdr->component?->part_number ?: '—' }}</a>
+                        <span>{{ $matchedTdr->component?->name ?: '—' }}</span>
+                        <span>S/N: {{ $matchedTdr->serial_number ?: '—' }}</span>
+                        <span>IPL: {{ $matchedTdr->component?->ipl_num ?: '—' }}</span>
+                        @if($matchedTdr->component?->assy_part_number || $matchedTdr->assy_serial_number)
+                            <span class="text-muted">Assembly P/N: {{ $matchedTdr->component?->assy_part_number ?: '—' }} · S/N: {{ $matchedTdr->assy_serial_number ?: '—' }}</span>
+                        @endif
+                    </div>
+                @endforeach
+            </td>
+        </tr>
+    @endif
 @empty
     <tr class="wo-empty-row">
         <td colspan="{{ $colspan }}" class="text-center text-muted py-4">

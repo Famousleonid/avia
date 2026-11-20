@@ -25,6 +25,7 @@ class Workorder extends Model implements HasMedia
         'arrival_box_status','arrival_box_notes','arrival_box_recorded_by','arrival_box_recorded_at','torque_values','sales_invoice_amount','sales_invoice_date',];
 
     protected $casts = [
+        'notes_appearance' => 'array',
         'expected_completion_date' => 'date',
         'approve_at' => 'datetime',
         'done_at' => 'date',

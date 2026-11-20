@@ -536,7 +536,7 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertNull($target->repair_order);
     }
 
-    public function test_detail_part_falls_back_to_single_wo_pn_ref_target_when_quantum_serial_does_not_match(): void
+    public function test_detail_part_blocks_single_wo_pn_ref_target_when_quantum_serial_does_not_match(): void
     {
         $workorder = $this->createWorkorder();
         $vendor = Vendor::query()->create(['name' => 'Quantum Serial Fallback Vendor']);
@@ -578,13 +578,29 @@ class QuantumRoBufferApplyServiceTest extends TestCase
 
         $stats = app(QuantumRoBufferApplyService::class)->apply(1);
 
-        $this->assertSame(1, $stats['applied']);
-        $this->assertSame(0, $stats['unresolved']);
+        $this->assertSame(0, $stats['applied']);
+        $this->assertSame(1, $stats['unresolved']);
         $line->refresh();
         $target->refresh();
-        $this->assertSame('applied', $line->apply_status);
-        $this->assertSame($target->id, $line->applied_target_id);
-        $this->assertSame($line->ro_number, $target->repair_order);
+        $this->assertSame('unresolved', $line->apply_status);
+        $this->assertStringContainsString('Quantum S/N: NN; TDR S/N: EXC286506', $line->apply_message);
+        $html = view('admin.mains.partials.quantum-ro-lines', [
+            'workorder' => $workorder, 'lines' => collect([$line]),
+            'matrix' => ['columns' => [], 'rows' => []],
+        ])->render();
+        $this->assertStringContainsString('role="alert"', $html);
+        $this->assertStringContainsString('Quantum S/N: NN; TDR S/N: EXC286506', $html);
+        $this->assertNull($line->applied_target_id);
+        $this->assertNull($target->repair_order);
+        $this->assertNull($target->vendor_id);
+        $this->assertNull($target->date_start);
+        $this->assertNull($target->date_finish);
+
+        // A corrected source serial is retried normally; case/spacing are normalized.
+        $line->update(['serial_number' => ' exc286506 ']);
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+        $this->assertSame(1, $stats['applied']);
+        $this->assertSame($line->ro_number, $target->fresh()->repair_order);
     }
 
     public function test_detail_part_does_not_fall_back_when_quantum_serial_matches_none_of_multiple_wo_pn_ref_targets(): void
@@ -637,7 +653,7 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame(1, $stats['unresolved']);
         $line->refresh();
         $this->assertSame('unresolved', $line->apply_status);
-        $this->assertStringContainsString('Multiple TDR process targets', (string) $line->apply_message);
+        $this->assertStringContainsString('TDR S/N mismatch', (string) $line->apply_message);
         $targets->each(function (TdrProcess $target): void {
             $target->refresh();
             $this->assertNull($target->repair_order);
@@ -887,7 +903,7 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         }
     }
 
-    public function test_traveler_falls_back_to_single_group_when_quantum_serial_does_not_match(): void
+    public function test_traveler_blocks_single_group_when_quantum_serial_does_not_match(): void
     {
         $workorder = $this->createWorkorder();
         $vendor = Vendor::query()->create(['name' => 'Quantum Traveler Serial Fallback Vendor']);
@@ -936,13 +952,16 @@ class QuantumRoBufferApplyServiceTest extends TestCase
 
         $stats = app(QuantumRoBufferApplyService::class)->apply(1);
 
-        $this->assertSame(1, $stats['applied']);
-        $this->assertSame(0, $stats['unresolved']);
+        $this->assertSame(0, $stats['applied']);
+        $this->assertSame(1, $stats['unresolved']);
         $line->refresh();
-        $this->assertSame($targets->first()->id, $line->applied_target_id);
+        $this->assertNull($line->applied_target_id);
+        $this->assertStringContainsString('Quantum S/N: NSN; TDR S/N: L0394', $line->apply_message);
         $targets->each(function (TdrProcess $target) use ($line): void {
             $target->refresh();
-            $this->assertSame($line->ro_number, $target->repair_order);
+            $this->assertNull($target->repair_order);
+            $this->assertNull($target->date_start);
+            $this->assertNull($target->date_finish);
         });
     }
 
