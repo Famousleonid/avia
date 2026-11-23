@@ -30,12 +30,13 @@ class WorkorderStatusController extends Controller
     public function index(Request $request, WorkorderStatus $status)
     {
         abort_unless($request->user()?->roleIs(['Admin', 'Manager']), 403);
+        $json = $request->wantsJson();
         $saved = UserUiSetting::where('user_id', $request->user()->id)
             ->where('scope', 'wo-status')->where('key', 'state')->value('value');
         $saved = is_array($saved) ? $saved : [];
         $savedFilters = is_array($saved['filters'] ?? null) ? $saved['filters'] : [];
         // Restore on the server so the first screen already contains the user's results.
-        if (!$request->wantsJson() && !$request->hasAny(['customer_id', 'workorder_id', 'number', 'state', 'page'])) {
+        if (!$json && !$request->hasAny(['customer_id', 'workorder_id', 'number', 'state'])) {
             $customer = $savedFilters['customer_id'] ?? null;
             $request->merge([
                 'customer_id' => is_scalar($customer) && Customer::whereKey($customer)->exists() ? $customer : null,
@@ -67,20 +68,17 @@ class WorkorderStatusController extends Controller
             'number' => preg_replace('/\D/', '', is_scalar($savedFilters['number'] ?? null) ? (string) $savedFilters['number'] : ''),
             'state' => $this->normalizeStates($savedFilters['state'] ?? 'active'),
         ];
-        $uiState = !$request->wantsJson() && $matchesSaved ? $saved : [];
+        $uiState = !$json && $matchesSaved ? $saved : [];
         $uiState['filters'] = $activeFilters;
-        $pagesLoaded = max(1, min(125, (int) ($uiState['pages'] ?? 1)));
-        $workorders = $query->with(['customer', 'unit.manual'])->orderByDesc('number')->orderByDesc('id')->paginate(8)
+        unset($uiState['pages'], $uiState['lastWorkorder']);
+        $uiState['scroll'] = ['left' => (int) ($uiState['scroll']['left'] ?? 0)];
+        $page = $json ? (int) ($filters['page'] ?? 1) : 1;
+        $workorders = $query->with(['customer', 'unit.manual'])->orderByDesc('number')->orderByDesc('id')
+            ->paginate(8, ['*'], 'page', $page)
             ->appends(array_filter($activeFilters, fn ($value) => $value !== ''));
         $nextUrl = $workorders->nextPageUrl();
-        if (!$request->wantsJson() && $pagesLoaded > 1) {
-            $pagesLoaded = min($pagesLoaded, max(1, $workorders->lastPage()));
-            $workorders->setCollection((clone $query)->reorder()->orderByDesc('number')->orderByDesc('id')->offset(0)->limit($pagesLoaded * 8)->get());
-            $nextUrl = $pagesLoaded < $workorders->lastPage() ? $workorders->url($pagesLoaded + 1) : null;
-        }
-        $uiState['pages'] = $pagesLoaded;
         $cards = $workorders->getCollection()->map(fn ($wo) => $status->forWorkorder($wo));
-        if ($request->wantsJson()) {
+        if ($json) {
             return response()->json([
                 'html' => view('admin.workorders.partials.status-cards', compact('cards'))->render(),
                 'next' => $nextUrl,

@@ -18,8 +18,6 @@
   }
   const form = text.form, editor = document.createElement('div');
   editor.className = 'form-control wo-notes-editor'; editor.contentEditable = 'true'; editor.setAttribute('role','textbox'); editor.setAttribute('aria-label','Workorder Notes'); editor.setAttribute('aria-multiline','true');
-  // Explicit properties also work when an older cached stylesheet is loaded.
-  Object.assign(editor.style,{whiteSpace:'pre-wrap',overflowWrap:'anywhere',minHeight:'8.5rem',maxHeight:'40vh',overflowY:'auto'});
   text.hidden = true; text.after(editor); form.classList.remove('js-ajax');
   let appearance = {}; try { appearance = JSON.parse(box.dataset.appearance || '{}'); } catch (_) {}
   const sizes = [12,14,16,18,20,24];

@@ -111,6 +111,13 @@ return [
         'allow_is_admin' => false,
     ],
 
+    'library.work_stages' => [
+        'label' => 'Tasks & Work Stages',
+        'group' => 'Library',
+        'managed' => true,
+        'roles' => ['Admin'],
+    ],
+
     'library.type_of_business' => [
         'label' => 'Type of Business',
         'group' => 'Library',

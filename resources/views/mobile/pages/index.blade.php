@@ -173,11 +173,11 @@
             @if($workorders->count())
                 @foreach($workorders as $workorder)
                     <a href="#"
-                       class="wo-item js-wo-item {{ $workorder->isDone() ? 'text-secondary' : 'text-info' }}"
+                       class="wo-item js-wo-item {{ $workorder->isDoneInList() ? 'text-secondary' : 'text-info' }}"
                        data-id="{{ $workorder->id }}"
                        data-number="{{ $workorder->number }}"
                        data-own="{{ $workorder->user_id == $userId ? 1 : 0 }}"
-                       data-done="{{ $workorder->isDone() ? 1 : 0 }}"
+                       data-done="{{ $workorder->isDoneInList() ? 1 : 0 }}"
                        data-draft="{{ $workorder->is_draft ? 1 : 0 }}">
                         {{ $workorder->number }}
 

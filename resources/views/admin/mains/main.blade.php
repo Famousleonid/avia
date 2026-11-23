@@ -17,19 +17,23 @@
             if (tab !== 'overview' && Number.isFinite(width) && width > 0) {
                 document.documentElement.style.setProperty('--initial-main-tab-panel-width', Math.max(520, width) + 'px');
             }
-            const groups = @json($general_tasks->pluck('id')->map(fn ($id) => (string) $id)->values());
-            const taskGroups = @json($tasks->pluck('general_task_id', 'id'));
-            const group = String(target?.get('general_task') || taskGroups[target?.get('task')] || @json($initialGeneralTask));
-            document.documentElement.dataset.mainGt = groups.includes(group) ? group : @json($initialGeneralTask);
+            @if($showTasks)
+                const groups = @json($general_tasks->pluck('id')->map(fn ($id) => (string) $id)->values());
+                const taskGroups = @json($tasks->pluck('general_task_id', 'id'));
+                const group = String(target?.get('general_task') || taskGroups[target?.get('task')] || @json($initialGeneralTask));
+                document.documentElement.dataset.mainGt = groups.includes(group) ? group : @json($initialGeneralTask);
+            @endif
             document.documentElement.dataset.mainShowAll = settings.avia_show_all_right === true || settings.avia_show_all_right === '1' ? '1' : '0';
         })();
     </script>
     <style>
-        .js-gt-pane { display: none !important; }
-        @foreach($general_tasks as $gt)
-        html[data-main-gt="{{ $gt->id }}"] .js-gt-pane[data-gt-id="{{ $gt->id }}"] { display: flex !important; }
-        html[data-main-gt="{{ $gt->id }}"] .js-gt-btn[data-gt-id="{{ $gt->id }}"] { box-shadow: 0 0 0 1px currentColor; }
-        @endforeach
+        @if($showTasks)
+            .js-gt-pane { display: none !important; }
+            @foreach($general_tasks as $gt)
+            html[data-main-gt="{{ $gt->id }}"] .js-gt-pane[data-gt-id="{{ $gt->id }}"] { display: flex !important; }
+            html[data-main-gt="{{ $gt->id }}"] .js-gt-btn[data-gt-id="{{ $gt->id }}"] { box-shadow: 0 0 0 1px currentColor; }
+            @endforeach
+        @endif
         html[data-main-show-all="0"] [data-main-tabs] tr[data-closed="1"]:not([data-std-row="1"]) { display: none; }
     </style>
 
@@ -536,7 +540,7 @@
                 <div class="main-tabs-shell gradient-pane border-info" data-main-tabs data-wo-id="{{ (int)($current_workorder->id ?? 0) }}">
                     <div class="main-tabs-nav" role="tablist" aria-label="Main workorder sections">
                         <button type="button" class="main-tab-btn" data-main-tab="overview" role="tab">All</button>
-                        <button type="button" class="main-tab-btn" data-main-tab="tasks" role="tab">Tasks / Notes</button>
+                        <button type="button" class="main-tab-btn" data-main-tab="tasks" role="tab">{{ $showTasks ? 'Tasks / Notes' : 'Notes' }}</button>
                         <button type="button" class="main-tab-btn" data-main-tab="std" role="tab">STD Processes</button>
                         <button type="button" class="main-tab-btn" data-main-tab="parts" role="tab">Parts / Processes</button>
                         <button type="button" class="main-tab-btn" data-main-tab="bushings" role="tab">Bushing / Processes</button>
@@ -568,11 +572,12 @@
                         <div class="left-pane d-flex flex-column gap-2 h-100">
 
                             {{-- Tables --}}
-                            <div class="d-flex flex-column flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}">
+                            <div class="d-flex flex-column flex-grow-1 min-h-0 main-left-content">
 
 <div class="main-gt-scroll-area border border-secondary rounded flex-grow-1 min-h-0">
 <div class="d-flex flex-column gap-3 main-gt-scroll-inner min-h-0">
-<div class="main-tasks-notes-window border border-info rounded flex-shrink-0">
+<div class="main-tasks-notes-window border border-info rounded {{ $showTasks ? 'flex-shrink-0' : 'main-notes-only' }}">
+                                            @if($showTasks)
                                                 {{-- GeneralTask buttons --}}
                                                 <div class="d-flex gap-2 main-gt-buttons">
                                                     @foreach($general_tasks as $menuGt)
@@ -587,31 +592,30 @@
 @foreach($general_tasks as $gt)
 @php
 $gtTasks = ($tasksByGeneral[$gt->id] ?? collect());
-$showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
+$showStartCol = $canManageTasks && $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
 @endphp
 <div class="js-gt-pane flex-column" data-gt-id="{{ $gt->id }}">
                                             <div class="table-responsive main-tasks-block">
                                             <table
-                                                class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table dir-table mt-1">
+                                                class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table dir-table mt-1 {{ $canManageTasks ? '' : 'main-submission-tasks' }}">
                                                 <colgroup>
-                                                    <col class="col-ignore">
-                                                    <col class="col-tech">
+                                                    @if($canManageTasks)
+                                                        <col class="col-tech">
+                                                    @endif
                                                     <col class="col-task">
                                                     @if($showStartCol)
                                                         <col class="col-start">
                                                     @endif
                                                     <col class="col-finish">
                                                 </colgroup>
+                                                @unless($canManageTasks)
+                                                    <thead><tr><th scope="col">Task</th><th scope="col">Date submitted</th></tr></thead>
+                                                @endunless
                                                 <tbody>
-                                                @forelse(($tasksByGeneral[$gt->id] ?? collect()) as $task)
+                                                @forelse($gtTasks as $task)
                                                     @php
-                                                        $restrictedDateTaskIds = config('mains.restricted_date_task_ids', []);
-
-                                                        $isRestrictedByConfig = in_array($task->id, $restrictedDateTaskIds, true);
-                                                        $canEditRestrictedDates = auth()->check() && auth()->user()->hasAnyRole('Admin|Manager');
                                                         $isApprovedTask = $task->name === 'Approved';
-
-                                                        $lockDates = $isApprovedTask || ($isRestrictedByConfig && !$canEditRestrictedDates);
+                                                        $lockDates = $isApprovedTask;
 
                                                         $main   = $mainsByTask[$task->id] ?? null;
                                                         $action = $main ? route('mains.update', $main->id) : route('mains.store');
@@ -620,47 +624,9 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                                                     @endphp
 
                                                     <tr class="align-middle" data-main-task-id="{{ (int) $task->id }}">
-                                                        {{-- чекбокс ignore --}}
-                                                        <td class="text-center align-middle task-ignore-cell">
-
-                                                            <form method="POST"
-                                                                  action="{{ $action }}"
-                                                                  class="js-row-form js-main-inline-ajax js-ajax"
-                                                                  data-gt-id="{{ $gt->id }}"
-                                                                  data-no-spinner
-                                                                  data-success="Ignore state saved">
-                                                                @csrf
-                                                                @if($main)
-                                                                    @method('PATCH')
-                                                                @endif
-
-                                                                @unless($main)
-                                                                    <input type="hidden" name="workorder_id"
-                                                                           value="{{ $current_workorder->id }}">
-                                                                    <input type="hidden" name="task_id"
-                                                                           value="{{ $task->id }}">
-                                                                @endunless
-
-                                                                {{-- hidden всегда 0, а JS (applyIgnoreState) перепишет на 1/0 при клике --}}
-                                                                <input type="hidden"
-                                                                       name="ignore_row"
-                                                                       value="0"
-                                                                       class="js-ignore-hidden">
-                                                                @if(!$lockDates)
-                                                                    <input
-                                                                        class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
-                                                                        type="checkbox"
-                                                                        name="ignore_row"
-                                                                        value="1"
-                                                                        {{ $isIgnored ? 'checked' : '' }}
-                                                                        title="Ignore this row">
-                                                                @endif
-                                                            </form>
-
-                                                        </td>
-
+                                                        @if($canManageTasks)
                                                         {{-- user who last changed a date (including clearing it) --}}
-                                                        <td class="task-tech-cell js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }} js-last-user"
+                                                        <td class="task-tech-cell {{ $isIgnored ? 'is-ignored' : '' }} js-last-user"
                                                             data-tippy-content="
                                                                 <span style='color:#adb5bd'>Date updated by:</span>
                                                                 <span style='color:#0dcaf0;font-weight:500'>
@@ -670,16 +636,17 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
 
                                                         </td>
 
+                                                        @endif
                                                         {{-- task --}}
-                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}"
-                                                            title="{{ $main?->task?->name ?? $task->name }}">
-                                                             <span class="text-truncate d-block w-100">
-                                                             {{ $main?->task?->name ?? $task->name }}</span>
+                                                        <td @class(['is-ignored' => $isIgnored])
+                                                            title="{{ $task->name }}">
+                                                             <span class="{{ $canManageTasks ? 'text-truncate' : 'text-wrap' }} d-block w-100">
+                                                             {{ $task->name }}</span>
                                                         </td>
 
                                                         {{-- START (если он вообще есть у таска) --}}
                                                         @if($showStartCol)
-                                                            <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">
+                                                            <td @class(['is-ignored' => $isIgnored])>
                                                                 @if($task->task_has_start_date)
                                                                     <form method="POST"
                                                                           action="{{ $action }}"
@@ -701,16 +668,17 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                                                                         <div class="position-relative">
                                                                             <input type="text"
                                                                                    name="date_start"
-                                                                                   class="form-control form-control-sm js-start finish-input
+                                                                                   class="form-control form-control-sm finish-input
                                                                                           {{ $isIgnored ? 'is-ignored' : '' }}
                                                                                           {{ ($isIgnored || $lockDates) ? 'fp-locked' : '' }}"
                                                                                    value="{{ optional($main?->date_start)->format('Y-m-d') }}"
                                                                                    placeholder="..."
                                                                                    data-fp
-                                                                                   @if($isIgnored || $lockDates) disabled @endif>
+                                                                                   @if($isIgnored || $lockDates) disabled @endif
+                                                                                   @if($lockDates) data-fp-locked @endif>
                                                                             @if($isIgnored || $lockDates)
                                                                                 <span class="lock-icon text-warning"
-                                                                                      data-tippy-content="{{ $lockDates ? 'Only Admin/Manager can edit this date' : 'Row ignored' }}">
+                                                                                      data-tippy-content="{{ $isApprovedTask ? 'Edit in the Workorder section' : 'This row is ignored' }}">
                                                                                   <i class="bi bi-lock-fill"></i>
                                                                             </span>
                                                                             @endif
@@ -725,7 +693,7 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
 
 
                                                         {{-- FINISH --}}
-                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">
+                                                        <td @class(['is-ignored' => $isIgnored])>
                                                             <div class="position-relative d-inline-block w-100">
                                                                 <form method="POST"
                                                                       action="{{ $action }}"
@@ -749,7 +717,8 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
 
                                                                     <input type="text"
                                                                            name="date_finish"
-                                                                           class="form-control form-control-sm js-finish finish-input
+                                                                           @unless($canManageTasks) aria-label="Date submitted" @endunless
+                                                                           class="form-control form-control-sm finish-input
                                                                                {{ $isIgnored ? 'is-ignored' : '' }}
                                                                                {{ ($isIgnored || $lockDates) ? 'fp-locked' : '' }}"
                                                                            value="{{ optional($main?->date_finish)->format('Y-m-d') }}"
@@ -757,11 +726,11 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                                                                            data-fp
 
                                                                            @if($isIgnored || $lockDates) disabled @endif
-                                                                           @if($isApprovedTask) data-fp-locked @endif>
+                                                                           @if($lockDates) data-fp-locked @endif>
 
                                                                     @if($isIgnored || $lockDates)
                                                                         <span class="lock-icon text-warning"
-                                                                              data-tippy-content="{{ $isApprovedTask ? 'Edit in the Workorder section' : 'Only the manager can edit' }}">
+                                                                              data-tippy-content="{{ $isApprovedTask ? 'Edit in the Workorder section' : 'This row is ignored' }}">
                                                                               <i class="bi bi-lock-fill"></i>
                                                                         </span>
                                                                     @endif
@@ -773,7 +742,7 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
 
                                                 @empty
                                                     <tr>
-                                                        <td colspan="{{ $showStartCol ? 5 : 4 }}"
+                                                        <td colspan="{{ $canManageTasks ? ($showStartCol ? 4 : 3) : 2 }}"
                                                             class="text-center text-muted small py-3">
                                                             No tasks
                                                         </td>
@@ -784,6 +753,7 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                                             </div>
 </div>
 @endforeach
+                                            @endif
                                             {{-- Workorder Notes --}}
 
                                             @php
@@ -821,20 +791,19 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                                                            title="Unsaved"></i>
                                                         <span
                                                             class="text-muted small d-none js-notes-saving">Saving...</span>
-                                                        @hasanyrole('Admin|Manager')
-                                                        {{-- кнопка логов --}}
+                                                        @if($canManageTasks)
                                                         <button type="button"
                                                                 class="btn btn-outline-info btn-sm js-open-wo-notes-log"
                                                                 data-url="{{ route('workorders.notes.logs', $current_workorder) }}"
                                                                 title="Notes log">
                                                             <i class="bi bi-clock-history"></i>
                                                         </button>
-                                                        @endhasanyrole
+                                                        @endif
                                                     </div>
                                                 </div>
 
                                                 {{-- Body --}}
-                                                <div class="p-2 pt-1">
+                                                <div class="wo-notes-body p-2 pt-1">
                                                     <form method="POST"
                                                           action="{{ route('workorders.notes.update', $current_workorder) }}"
                                                           class="js-ajax"
@@ -1519,7 +1488,7 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
     </div>
 
     @unless($isDraftMain)
-    {{-- modal log notes --}}
+    @if($canManageTasks)
     <div class="modal fade" id="woNotesLogModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content bg-dark text-light border-secondary">
@@ -1554,6 +1523,7 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
             </div>
         </div>
     </div>
+    @endif
 
     {{-- Форма для delete через модалку (mains / tdrprocesses) --}}
     <form id="deleteForm" method="POST" class="d-none">
@@ -1713,11 +1683,10 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
     {{--  Общие --}}
     @include('admin.mains.partials.js.mains-common')
 
-    {{--  GeneralTask, Task, date, ignore_row --}}
-    @include('admin.mains.partials.js.mains-general-tasks')
-
-    {{-- Photo and Logs --}}
-
+    <script src="{{ asset('js/mains/process-dates.js') }}?v={{ filemtime(public_path('js/mains/process-dates.js')) }}"></script>
+    @if($showTasks)
+        <script src="{{ asset('js/mains/general-tasks.js') }}?v={{ filemtime(public_path('js/mains/general-tasks.js')) }}"></script>
+    @endif
 
     {{-- Parts / PO / TDRS / Training --}}
     @include('admin.mains.partials.js.mains-parts-training')
@@ -1725,10 +1694,7 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             (function initMainTabs() {
-                const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
-                @if(auth()->user()?->roleIs(['Admin', 'Manager', 'Technician', 'Team Leader']))
-                    allowedTabs.push('ro');
-                @endif
+                const allowedTabs = @json($mainTabs);
                 const shell = document.querySelector('[data-main-tabs]');
                 if (!shell) return;
 
@@ -1905,8 +1871,10 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
 
                     const tab = params.get('tab') || 'overview';
                     activateMainTab(tab, { save: false });
+                    const requestedHash = window.location.hash;
 
-                    window.setTimeout(() => {
+                    window.setTimeout(async () => {
+                        if (window.location.hash !== requestedHash) return;
                         const field = params.get('field') || '';
                         const esc = (value) => window.CSS?.escape ? CSS.escape(value) : String(value).replace(/"/g, '\\"');
                         let target = null;
@@ -2068,11 +2036,9 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                 }
             }, true);
 
-            document.addEventListener('click', async (e) => {
-                const btn = e.target.closest('.js-open-wo-notes-log');
-                if (!btn) return;
-
-                const url = btn.getAttribute('data-url');
+            @if($canManageTasks)
+            document.querySelector('.js-open-wo-notes-log')?.addEventListener('click', async (e) => {
+                const url = e.currentTarget.dataset.url;
                 const tbody = document.getElementById('woNotesLogTbody');
                 if (!url || !tbody) return;
 
@@ -2103,7 +2069,16 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                 } catch (err) {
                     tbody.innerHTML = `<tr><td colspan="4" class="text-danger small">Error loading logs</td></tr>`;
                 }
-            }, true);
+            });
+            function escapeHtml(value) {
+                return String(value ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+            @endif
 
             // WO bushing accordion: после раскрытия полосы прокручиваем ВНЕШНИЙ скролл-контейнер к низу
             // раскрытого блока (там, где даты), чтобы не крутить колесо вручную.
@@ -2136,17 +2111,6 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                 setTimeout(scrollToBottom, 120);
                 setTimeout(scrollToBottom, 260);
             }, true);
-
-// маленький helper
-            function escapeHtml(s) {
-                return String(s ?? '')
-                    .replaceAll('&', '&amp;')
-                    .replaceAll('<', '&lt;')
-                    .replaceAll('>', '&gt;')
-                    .replaceAll('"', '&quot;')
-                    .replaceAll("'", '&#039;');
-            }
-
 
         });
     </script>
@@ -2238,7 +2202,6 @@ $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
             });
         });
     </script>
-    {{-- TODO(remove): Remove this note after verifying window.ajaxSubmit covers all js-ajax + js-main-inline-ajax flows. --}}
     @endunless
 
 @endsection

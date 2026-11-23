@@ -25,11 +25,6 @@ return [
         'Approved',
     ],
 
-    'roles_hide_submitted_final_inspection_from_active' => [
-        'Technician',
-        'Team Leader',
-    ],
-
     'roles_hide_task_names_in_mains' => [
         'Technician',
         'Team Leader',
@@ -39,10 +34,6 @@ return [
         'Approved',
         'Completed',
         'WO Submitted for Quote',
-    ],
-
-    'completed_task_names' => [
-        'Completed',
     ],
 
     'submitted_final_inspection_task_names' => [

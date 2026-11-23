@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DirectoryController;
 use App\Http\Controllers\Admin\ExtraProcessController;
 use App\Http\Controllers\Admin\GeneralTaskController;
+use App\Http\Controllers\Admin\LibraryWorkStageController;
 use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\LibraryCountryController;
 use App\Http\Controllers\Admin\LibraryMarketingCompanyTypeController;
@@ -328,9 +329,11 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::delete('/marketing/notes/{note}', [MarketingController::class, 'destroyNote'])->name('marketing.notes.destroy');
     });
     Route::resource('/users', UserController::class);
-    Route::resource('/mains',  MainController::class)->except(['show']);
+    Route::resource('/mains', MainController::class)->only(['store', 'update']);
     Route::get('/mains/resolve-workorder-number', [MainController::class, 'resolveWorkorderNumber'])->name('mains.resolve-workorder-number');
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
+    Route::get('/mains/{workorder}/task-history/{task}', [MainController::class, 'taskHistory'])
+        ->whereNumber('task')->name('mains.task-history');
     Route::get('/mains/{workorder}/photos', [MainController::class, 'photos'])->name('mains.photos');
     Route::get('/mains/{workorder}/bushing-guide', [\App\Http\Controllers\Admin\ManualBushingGuideController::class, 'show'])->name('bushing-guide.show');
     Route::put('/mains/{workorder}/bushing-guide', [\App\Http\Controllers\Admin\ManualBushingGuideController::class, 'update'])->name('bushing-guide.update');
@@ -340,8 +343,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/repair-order', [MainController::class, 'updateWoBushingProcessGroupRepairOrder'])->name('mains.wo_bushing_group.repair_order');
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/dates', [MainController::class, 'updateWoBushingProcessGroupDates'])->name('mains.wo_bushing_group.dates');
 
-  //  Route::patch('/mains/general-task/{workorder}/{generalTask}', [MainController::class, 'updateGeneralTaskDates'])->name('mains.updateGeneralTaskDates');
-    Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
     Route::get('/workorders/quick-open-search', [WorkorderController::class, 'quickOpenSearch'])->name('workorders.quick-open-search');
     Route::get('/workorders/draft-matches', [WorkorderController::class, 'draftMatches'])->name('workorders.draft-matches');
     Route::get('/workorders/{workorder}/scope-options', [\App\Http\Controllers\Admin\WorkorderScopeController::class, 'options'])->name('workorders.scope-options');
@@ -354,7 +355,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('/workorders/{id}/photos', [WorkorderController::class, 'photos'])->name('workorders.photos');
         Route::get('/workorders/download/{id}/all', [WorkorderController::class, 'downloadAllGrouped'])->name('workorders.downloadAllGrouped');
         Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
-        Route::post('/admin/workorders/recalc-stages', [\App\Http\Controllers\Admin\WorkorderController::class, 'recalcStages'])->name('workorders.recalcStages');
         Route::patch('/workorders/{workorder}/notes', [WorkorderController::class, 'updateNotes'])->name('workorders.notes.update');
         Route::patch('/workorders/{workorder}/notes/appearance', [WorkorderController::class, 'updateNotesAppearance'])->name('workorders.notes.appearance');
         Route::get('/workorders/{workorder}/notes/logs', [WorkorderController::class, 'notesLogs'])->name('workorders.notes.logs');
@@ -663,8 +663,15 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
 
     Route::resource('/customers',  CustomerController::class);
-    Route::resource('/tasks',  TaskController::class);
-    Route::resource('/general-tasks',  GeneralTaskController::class);
+    Route::middleware('can:feature.library.work_stages')->group(function () {
+        Route::patch('/tasks/{task}/archive', [TaskController::class, 'archive'])->name('tasks.archive');
+        Route::patch('/tasks/{task}/restore', [TaskController::class, 'restore'])->name('tasks.restore');
+        Route::resource('/tasks', TaskController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('/general-tasks', GeneralTaskController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('/library/work-stages', LibraryWorkStageController::class)
+            ->parameters(['work-stages' => 'workStage'])->names('library.work-stages')
+            ->only(['index', 'store', 'update', 'destroy']);
+    });
     Route::resource('/library/countries', LibraryCountryController::class)
         ->names('library.countries')
         ->except(['create', 'edit', 'show']);

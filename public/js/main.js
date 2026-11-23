@@ -659,6 +659,7 @@ window.notifyWarn    = (msg, ms) => window.notify(msg, 'warning', ms ?? 6000);
 
 window.confirmDialog = function ({
                                      title = 'Confirm',
+                                     titleDanger = false,
                                      message = 'Are you sure?',
                                      highlightText = '',
                                      discardText = '',
@@ -705,6 +706,7 @@ window.confirmDialog = function ({
         }
         discardBtn.hidden = !discardText; discardBtn.textContent = discardText;
         titleEl.textContent = title;
+        titleEl.classList.toggle('text-danger', titleDanger);
         bodyEl.textContent = message;
         if (highlightText && message.includes(highlightText)) {
             const index = message.indexOf(highlightText);
@@ -1232,17 +1234,10 @@ window.hapticTap = function (pattern = 10) {
         const url = form?.getAttribute?.('action');
         if (!url) return;
 
-        // Capture-phase autosave runs before the bubbling ignore-row handler.
-        // Read the checkbox directly instead of submitting its stale hidden fallback.
-        const ignoreCheckbox = form.querySelector('input[type="checkbox"][name="ignore_row"]');
-        if (ignoreCheckbox && !ignoreCheckbox.disabled) {
-            form.querySelectorAll('input[type="hidden"][name="ignore_row"]').forEach(input => {
-                input.value = ignoreCheckbox.checked ? '1' : '0';
-            });
-        }
         const fd = new FormData(form);
-        if (ignoreCheckbox && !ignoreCheckbox.disabled) {
-            fd.set('ignore_row', ignoreCheckbox.checked ? '1' : '0');
+        const stdIgnoreCheckbox = form.querySelector('.js-std-ignore-row');
+        if (stdIgnoreCheckbox && !stdIgnoreCheckbox.disabled) {
+            fd.set('ignore_row', stdIgnoreCheckbox.checked ? '1' : '0');
         }
         form.classList.add('is-saving');
 
@@ -1259,6 +1254,26 @@ window.hapticTap = function (pattern = 10) {
             });
 
             const data = await res.json().catch(() => ({}));
+
+            if (res.status === 422 && data?.training_required === true) {
+                // Restore the saved date without firing another submit or showing success.
+                const input = form.querySelector('input[name="date_finish"]');
+                if (input) {
+                    const original = input.dataset.original ?? input.defaultValue ?? '';
+                    if (input._flatpickr) input._flatpickr.setDate(original || null, false, 'Y-m-d');
+                    else input.value = original;
+                    input.classList.toggle('has-finish', original !== '');
+                    input._flatpickr?.altInput?.classList.toggle('has-finish', original !== '');
+                }
+                if (typeof window.confirmDialog !== 'function') {
+                    window.showNotification?.(data.message, 'error');
+                    return;
+                }
+                const go = await window.confirmDialog({title: 'Training required', titleDanger: true, message: data.message,
+                    okText: data.training_url ? 'Create training' : 'OK', cancelText: 'Stay here'});
+                if (go && data.training_url) window.location.assign(data.training_url);
+                return;
+            }
 
             // ✅ ошибки
             if (res.status === 422 || data?.success === false) {

@@ -299,116 +299,24 @@ class Workorder extends Model implements HasMedia
             ->dontSubmitEmptyLogs();        // не создавать пустые записи
     }
 
-    public function getDoneMainRecord()
-    {
-        $mains = $this->relationLoaded('main')
-            ? $this->main
-            : $this->main()->with('task')->get();
-
-        return $mains
-            ->filter(function ($m) {
-                return !$m->ignore_row                              // не игнорированная строка
-                    && $m->task                                     // есть связанная задача
-                    && $m->task->name === 'Completed'              // или 'Complete' — как у тебя в БД
-                    && $m->date_finish !== null;                   // завершена
-            })
-            ->sortByDesc('date_finish')    // на всякий случай — самая поздняя дата
-            ->first();
-    }
-
     public function isDone(): bool
     {
-        return (bool) $this->getDoneMainRecord();
+        return $this->done_at !== null;
+    }
+
+    public function isDoneInList(): bool
+    {
+        return $this->isDone() || (bool) ($this->getAttributes()['final_inspection_submitted'] ?? false);
     }
 
     public function doneDate()
     {
-        $done = $this->getDoneMainRecord();
-        return $done ? $done->date_finish : null;
-    }
-
-    public function generalTaskStatuses()
-    {
-        return $this->hasMany(\App\Models\WorkorderGeneralTaskStatus::class);
+        return $this->done_at;
     }
 
     public function toolEntries(): HasMany
     {
         return $this->hasMany(WorkorderTool::class);
-    }
-
-    public function syncDoneByCompletedTask(): void
-    {
-        // 1) находим id задачи Completed (один раз на вызов; при 20 tasks это ок)
-        $completedTaskId = \App\Models\Task::where('name', 'Completed')->value('id');
-
-        if (!$completedTaskId) {
-            // если нет задачи — считаем не done
-            $this->done_at = null;
-            $this->done_user_id = null;
-            $this->saveQuietly();
-            return;
-        }
-
-        // 2) берем main запись по этой задаче
-        $main = \App\Models\Main::where('workorder_id', $this->id)
-            ->where('task_id', $completedTaskId)
-            ->first();
-
-        // DONE только если date_finish есть и строка не игнорируется
-        if ($main && !$main->ignore_row && !empty($main->date_finish)) {
-            $this->done_at = $main->date_finish;
-            $this->done_user_id = $main->user_id;
-        } else {
-            $this->done_at = null;
-            $this->done_user_id = null;
-        }
-
-        $this->saveQuietly();
-    }
-
-    public function recalcGeneralTaskStatuses(?int $onlyGeneralTaskId = null): void
-    {
-        $tasksQuery = \App\Models\Task::query()->select('id', 'name', 'general_task_id');
-
-        if ($onlyGeneralTaskId) {
-            $tasksQuery->where('general_task_id', $onlyGeneralTaskId);
-        }
-
-        $tasksByGeneral = $tasksQuery->get()->groupBy('general_task_id');
-        $mainsByTask = \App\Models\Main::where('workorder_id', $this->id)
-            ->whereNotNull('task_id')
-            ->get()
-            ->keyBy('task_id');
-
-        $now = now();
-        $userId = auth()->id();
-
-        foreach ($tasksByGeneral as $gtId => $gtTasks) {
-            $isDone = $gtTasks->isNotEmpty()
-                && $gtTasks->pluck('id')->every(function ($taskId) use ($mainsByTask): bool {
-                    $main = $mainsByTask->get($taskId);
-
-                    if (! $main) {
-                        return false;
-                    }
-
-                    if ($main->ignore_row) {
-                        return true;
-                    }
-
-                    return ! empty($main->date_finish);
-                });
-
-            \App\Models\WorkorderGeneralTaskStatus::updateOrCreate(
-                ['workorder_id' => $this->id, 'general_task_id' => $gtId],
-                [
-                    'is_done' => $isDone,
-                    'done_at' => $isDone ? $now : null,
-                    'done_user_id' => $isDone ? $userId : null,
-                ]
-            );
-        }
     }
 
     protected static function booted(): void
@@ -455,13 +363,7 @@ class Workorder extends Model implements HasMedia
         return $query->withoutGlobalScope('exclude_drafts');
     }
 
-    /**
-     * Workorders that have not been closed by the Completed task.
-     *
-     * The Completed task date is synchronized into workorders.done_at by
-     * syncDoneByCompletedTask(), so list queries can use the direct WO field
-     * without joining the workflow tables each time.
-     */
+    /** Workorders with no saved completion date. */
     public function scopeNotCompleted(Builder $query): Builder
     {
         return $query->whereNull($query->qualifyColumn('done_at'));

@@ -91,7 +91,7 @@
         }
 
         .col-ec {
-            width: 50px;
+            width: 56px;
             font-size: 0.9rem;
         }
 
@@ -163,43 +163,43 @@
             padding-left: 10px;
             padding-right: 10px;
         }
-        .col-stages {
-            width: 92px;
-            font-size: 0.8rem;
-            font-weight: normal;
+        #show-workorder .col-stages {
+            width: var(--wo-stage-width);
         }
 
-        .stage-strip {
-            display: inline-flex;
-            align-items: center;
-            gap: 0;
-            max-width: 100%;
+        #show-workorder .col-stages,
+        #show-workorder .wo-stage {
+            padding-inline: 10px;
         }
 
-        .stage-strip-segments {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
+        .wo-stage-sizing {
+            position: absolute;
+            inset: 0 auto auto 0;
+            display: grid;
+            width: max-content;
+            padding-inline: inherit;
+            visibility: hidden;
+            pointer-events: none;
         }
 
-        .stage-seg {
-            width: 10px;
-            height: 8px;
-            border-radius: 2px;
-            display: inline-block;
-            border: 1px solid rgba(255, 255, 255, .25);
+        .wo-stage-filter-trigger {
+            font: inherit;
+            width: 100%;
+            min-height: 32px;
+            white-space: nowrap;
         }
 
-        .stage-seg.done {
-            background: #198754; /* green */
+        .wo-stage-filter-menu {
+            position: fixed;
+            z-index: 5001;
+            max-width: calc(100vw - 16px);
+            max-height: calc(100dvh - 16px);
+            overflow: auto;
         }
 
-        .stage-seg.todo {
-            background: #f59e0b; /* amber (in progress) */
-        }
-
-        .stage-seg.empty {
-            background: #6c757d; /* gray (not started) */
+        .wo-stage-filter-menu label {
+            cursor: pointer;
+            white-space: normal;
         }
 
         .table thead th {
@@ -398,7 +398,7 @@
         #show-workorder.table-panel > tbody > tr > td,
         #show-workorder.table-panel > tbody > tr > th {
             background: var(--wo-table-row-bg) !important;
-            color: var(--wo-table-text-color);
+            color: var(--work-stage-display-color, var(--wo-table-text-color));
         }
 
         .approve-inline {
@@ -457,16 +457,6 @@
                              title="Add new workorder">
                     </a>
                 @endcan
-                @role('Admin')
-                <form method="POST" action="{{ route('workorders.recalcStages') }}" class="ms-2"
-                      data-app-confirm="Recalculate stages for ALL workorders?">
-                    @csrf
-                    <button type="submit" class="btn btn-outline-warning btn-sm">
-                        <i class="bi bi-arrow-repeat me-1"></i>
-                    </button>
-                </form>
-                @endrole
-
                 @roles('Admin|Manager')
                 <div class="d-flex gap-2 ms-3">
                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="printSection('printArea')">
@@ -595,6 +585,7 @@
             data-initial-only-my="{{ request()->boolean('only_my', false) ? '1' : '0' }}"
             data-initial-only-active="{{ request()->boolean('only_active', false) ? '1' : '0' }}"
             data-initial-only-approved="{{ request()->boolean('only_approved', false) ? '1' : '0' }}"
+            data-initial-stages="{{ $selectedStages->implode(',') }}"
             data-initial-show-drafts="{{ request()->boolean('show_drafts', false) ? '1' : '0' }}"
             data-initial-sort="{{ $initialSort }}"
             data-initial-direction="{{ $initialDirection }}"
@@ -609,9 +600,21 @@
                     <th class="text-center text-primary col-ec no-print sortable" data-sort-key="ec">
                         EC <i class="bi bi-chevron-expand ms-1"></i>
                     </th>
-                    @hasanyrole('Admin|Manager')
-                    <th class="text-center text-primary col-stages no-print">Stages</th>
-                    @endhasanyrole
+                    @if($showStages)
+                        <th scope="col" class="text-center text-primary col-stages no-print">
+                            <button type="button" id="woStageFilterTrigger"
+                                    class="btn btn-link btn-sm text-primary text-decoration-none wo-stage-filter-trigger p-0"
+                                    aria-expanded="false" aria-controls="woStageFilterMenu">
+                                Stages<span id="woStageFilterCount"></span> <i class="bi bi-funnel" aria-hidden="true"></i>
+                            </button>
+                            <span class="wo-stage-sizing" aria-hidden="true">
+                                <span>Stages ({{ $stageLabels->count() }}) <i class="bi bi-funnel"></i></span>
+                                @foreach($stageLabels as $label)
+                                    <span>{{ $label }}</span>
+                                @endforeach
+                            </span>
+                        </th>
+                    @endif
                     <th class="text-center text-primary">Component</th>
                     <th class="text-center text-primary">Description</th>
                     <th class="text-center text-primary col-SN">Serial No.</th>
@@ -624,7 +627,7 @@
                     </th>
                     <th class="text-center text-primary col-date">Open Date</th>
                     <th class="text-center text-primary col-PO">Customer PO</th>
-                    @hasanyrole('Admin|Manager') <th class="text-center text-primary col-edit no-print">Edit</th> @endhasanyrole
+                    @if($showStages) <th class="text-center text-primary col-edit no-print">Edit</th> @endif
                     <th class="text-center text-primary sortable no-print" data-sort-key="technik">
                         Technik <i class="bi bi-chevron-expand ms-1"></i>
                     </th>
@@ -637,8 +640,8 @@
                     @include('admin.workorders.partials.rows', [
                         'workorders' => $workorders,
                         'ecStatuses' => $ecStatuses,
-                        'generalTasks' => $generalTasks,
-                        'tasksByGeneral' => $tasksByGeneral,
+                        'showStages' => $showStages,
+                        'stagesByWorkorder' => $stagesByWorkorder,
                     ])
                 </tbody>
             </table>
@@ -654,6 +657,21 @@
             </div>
         </div>
     </div>
+
+    @if($showStages)
+        <div id="woStageFilterMenu" class="dropdown-menu wo-stage-filter-menu p-2" role="group"
+             aria-labelledby="woStageFilterTrigger" hidden>
+            @foreach($stageLabels as $key => $label)
+                <label class="dropdown-item d-flex align-items-center gap-2 rounded">
+                    <input class="form-check-input flex-shrink-0 m-0" type="checkbox" value="{{ $key }}"
+                           @checked($selectedStages->contains($key))>
+                    <span>{{ $label }}</span>
+                </label>
+            @endforeach
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item rounded" data-clear-stages>Clear stage filter</button>
+        </div>
+    @endif
 
     @include('components.delete')
 
@@ -686,6 +704,16 @@
             };
             fitCustomerPo();
             document.fonts.ready.then(fitCustomerPo);
+            const stageSizing = woTable.querySelector('.wo-stage-sizing');
+            if (stageSizing) {
+                const fitStages = () => {
+                    const borderWidth = 2;
+                    const width = Math.ceil(stageSizing.getBoundingClientRect().width) + borderWidth;
+                    woTable.style.setProperty('--wo-stage-width', `${width}px`);
+                };
+                fitStages();
+                document.fonts.ready.then(fitStages);
+            }
             const loadStatus = document.getElementById('workordersLoadStatus');
             const visibleCounter = document.getElementById('woVisible');
             const totalCounter = document.getElementById('woTotal');
@@ -702,6 +730,11 @@
             const checkboxDone = document.getElementById('woDone');
             const checkboxApproved = document.getElementById('approvedCheckbox');
             const checkboxDraft = document.getElementById('draftCheckbox');
+            const stageFilterTrigger = document.getElementById('woStageFilterTrigger');
+            const stageFilterMenu = document.getElementById('woStageFilterMenu');
+            const stageChecks = Array.from(stageFilterMenu?.querySelectorAll('input[type="checkbox"]') || []);
+            const stageFilterCount = document.getElementById('woStageFilterCount');
+            const clearStages = stageFilterMenu?.querySelector('[data-clear-stages]');
 
             const customerFilter = document.getElementById('customerFilter');
             const technikFilter = document.getElementById('technikFilter');
@@ -728,6 +761,7 @@
                 onlyMy: true,
                 onlyActive: false,
                 onlyApproved: false,
+                stages: '',
                 showDrafts: false,
                 sort: tableWrapper.dataset.initialSort || 'number',
                 direction: tableWrapper.dataset.initialDirection || 'desc',
@@ -749,9 +783,8 @@
                 onlyMy: tableWrapper.dataset.initialOnlyMy === '1',
                 onlyActive: tableWrapper.dataset.initialOnlyActive === '1',
                 onlyApproved: tableWrapper.dataset.initialOnlyApproved === '1',
+                stages: tableWrapper.dataset.initialStages || '',
                 showDrafts: tableWrapper.dataset.initialShowDrafts === '1',
-                sort: tableWrapper.dataset.initialSort || 'number',
-                direction: tableWrapper.dataset.initialDirection || 'desc',
             };
             const initialUrlParams = new URLSearchParams(window.location.search);
 
@@ -1013,9 +1046,9 @@
                 state.onlyMy = getUrlBool(params, 'only_my', getSavedBool('onlyMy', serverState.onlyMy));
                 state.onlyActive = getUrlBool(params, 'only_active', getSavedBool('onlyActive', serverState.onlyActive));
                 state.onlyApproved = getUrlBool(params, 'only_approved', getSavedBool('onlyApproved', serverState.onlyApproved));
+                const stages = getUrlValue(params, 'stages', getSavedValue('stages', serverState.stages)).split(',');
+                state.stages = stageChecks.map(input => input.value).filter(key => stages.includes(key)).join(',');
                 state.showDrafts = getUrlBool(params, 'show_drafts', getSavedBool('showDrafts', serverState.showDrafts));
-                state.sort = getUrlValue(params, 'sort', getSavedValue('sort', serverState.sort));
-                state.direction = getUrlValue(params, 'direction', getSavedValue('direction', serverState.direction));
             }
 
             function applyStateToControls() {
@@ -1025,6 +1058,7 @@
                 checkboxMy.checked = state.onlyMy;
                 checkboxDone.checked = state.onlyActive;
                 checkboxApproved.checked = state.onlyApproved;
+                updateStageControls();
 
                 if (checkboxDraft) {
                     checkboxDraft.checked = state.showDrafts;
@@ -1066,9 +1100,8 @@
                             onlyMy: state.onlyMy,
                             onlyActive: state.onlyActive,
                             onlyApproved: state.onlyApproved,
+                            stages: state.stages,
                             showDrafts: state.showDrafts,
-                            sort: state.sort,
-                            direction: state.direction,
                         },
                     }),
                 }).catch(error => {
@@ -1087,6 +1120,7 @@
                 params.set('only_my', state.onlyMy ? '1' : '0');
                 if (state.onlyActive) params.set('only_active', '1');
                 if (state.onlyApproved) params.set('only_approved', '1');
+                if (state.stages) params.set('stages', state.stages);
                 if (state.showDrafts) params.set('show_drafts', '1');
                 if (state.sort && state.sort !== 'number') params.set('sort', state.sort);
                 if (state.direction && state.direction !== 'desc') params.set('direction', state.direction);
@@ -1109,6 +1143,7 @@
                 params.set('only_my', state.onlyMy ? '1' : '0');
                 if (state.onlyActive) params.set('only_active', '1');
                 if (state.onlyApproved) params.set('only_approved', '1');
+                if (state.stages) params.set('stages', state.stages);
                 if (state.showDrafts) params.set('show_drafts', '1');
                 if (state.sort) params.set('sort', state.sort);
                 if (state.direction) params.set('direction', state.direction);
@@ -1166,8 +1201,6 @@
                     'only_active',
                     'only_approved',
                     'show_drafts',
-                    'sort',
-                    'direction',
                 ].some((key) => initialUrlParams.has(key))) {
                     return true;
                 }
@@ -1180,9 +1213,8 @@
                     || state.onlyMy !== serverState.onlyMy
                     || state.onlyActive !== serverState.onlyActive
                     || state.onlyApproved !== serverState.onlyApproved
-                    || state.showDrafts !== serverState.showDrafts
-                    || state.sort !== serverState.sort
-                    || state.direction !== serverState.direction;
+                    || state.stages !== serverState.stages
+                    || state.showDrafts !== serverState.showDrafts;
             }
 
             async function fetchChunk({ reset = false } = {}) {
@@ -1193,12 +1225,7 @@
                     state.loading = false;
                 }
 
-                if (reset) {
-                    state.cursor = '';
-                    state.hasMore = true;
-                    tbody.innerHTML = '';
-                    updateCounters();
-                } else if (!state.hasMore) {
+                if (!reset && !state.hasMore) {
                     return;
                 }
 
@@ -1263,6 +1290,7 @@
                         return;
                     }
 
+                    if (reset) state.hasMore = false;
                     console.error(error);
                     setLoadStatus(error.message || 'Failed to load workorders.');
                     if (typeof window.showNotification === 'function') {
@@ -1351,10 +1379,15 @@
                     const row = link.closest('tr');
                     if (row) {
                         row.dataset.approved = data.approved ? '1' : '0';
+                        const stage = row.querySelector('.wo-stage');
+                        if (stage && Object.prototype.hasOwnProperty.call(data, 'work_stage')) {
+                            stage.textContent = data.work_stage ?? '';
+                            stage.style.setProperty('--work-stage-color', data.work_stage_color ?? '');
+                        }
                     }
                 }
 
-                if (state.onlyApproved && !data.approved) {
+                if (state.stages || (state.onlyApproved && !data.approved)) {
                     await resetAndReload();
                 }
 
@@ -1434,6 +1467,65 @@
                 return Array.from(tbody.querySelectorAll('tr[data-id]'))
                     .map(row => row.dataset.id)
                     .filter(Boolean);
+            }
+
+            function updateStageControls() {
+                if (!stageFilterTrigger) return;
+                const selected = state.stages ? state.stages.split(',') : [];
+                stageChecks.forEach(input => { input.checked = selected.includes(input.value); });
+                stageFilterCount.textContent = selected.length ? ` (${selected.length})` : '';
+                clearStages.disabled = selected.length === 0;
+            }
+
+            if (stageFilterTrigger) {
+                document.body.append(stageFilterMenu);
+
+                const closeStageFilter = () => {
+                    stageFilterMenu.classList.remove('show');
+                    stageFilterMenu.hidden = true;
+                    stageFilterTrigger.setAttribute('aria-expanded', 'false');
+                };
+                const applyStageFilter = selection => {
+                    state.stages = selection;
+                    updateStageControls();
+                    resetAndReload();
+                };
+
+                stageFilterTrigger.addEventListener('click', () => {
+                    if (!stageFilterMenu.hidden) {
+                        closeStageFilter();
+                        return;
+                    }
+                    stageFilterMenu.hidden = false;
+                    stageFilterMenu.classList.add('show');
+                    const anchor = stageFilterTrigger.getBoundingClientRect();
+                    const menu = stageFilterMenu.getBoundingClientRect();
+                    const below = anchor.bottom + menu.height + 12 <= window.innerHeight;
+                    stageFilterMenu.style.left = `${Math.max(8, Math.min(anchor.left, window.innerWidth - menu.width - 8))}px`;
+                    stageFilterMenu.style.top = `${Math.max(8, below ? anchor.bottom + 4 : anchor.top - menu.height - 4)}px`;
+                    stageFilterTrigger.setAttribute('aria-expanded', 'true');
+                    (stageChecks.find(input => input.checked) || stageChecks[0])?.focus({ preventScroll: true });
+                });
+                stageFilterMenu.addEventListener('change', () => applyStageFilter(
+                    stageChecks.filter(input => input.checked).map(input => input.value).join(',')
+                ));
+                clearStages.addEventListener('click', () => {
+                    applyStageFilter('');
+                    stageChecks[0]?.focus({ preventScroll: true });
+                });
+                document.addEventListener('click', event => {
+                    if (!stageFilterMenu.hidden && !stageFilterMenu.contains(event.target) && !stageFilterTrigger.contains(event.target)) {
+                        closeStageFilter();
+                    }
+                });
+                document.addEventListener('keydown', event => {
+                    if (event.key === 'Escape' && !stageFilterMenu.hidden) {
+                        closeStageFilter();
+                        stageFilterTrigger.focus({ preventScroll: true });
+                    }
+                });
+                window.addEventListener('resize', closeStageFilter);
+                tableWrapper.addEventListener('scroll', closeStageFilter);
             }
 
             readStoredState();

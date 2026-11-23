@@ -286,14 +286,15 @@ class TrainingController extends Controller
         // Получаем юниты, которые:
         // 1. Не добавлены для текущего пользователя
         // 2. Имеют unit_name_training не NULL И не пустую строку
-        $manuals = Manual::whereNotIn('id', $addedCmmIds)
+        $manuals = Manual::where(fn ($query) => $query->whereNotIn('id', $addedCmmIds)
+                ->when($request->filled('manual_id'), fn ($query) => $query->orWhere('id', (int) $request->input('manual_id'))))
             ->where(function ($query) {
                 $query->whereNotNull('unit_name_training')
                     ->where('unit_name_training', '<>', '');
             })
             ->get();
 
-        $addedManuals = Manual::whereIn('id', $addedCmmIds)->whereNotNull('unit_name_training')
+        $addedManuals = Manual::whereIn('id', $addedCmmIds)->whereNotIn('id', $manuals->modelKeys())->whereNotNull('unit_name_training')
             ->where('unit_name_training', '<>', '')->get();
 
         $unitAvailability = app(\App\Services\TrainingUnitAvailability::class)->forManuals($manuals->pluck('id')->merge($addedManuals->pluck('id')));

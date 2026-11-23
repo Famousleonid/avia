@@ -88,7 +88,6 @@ class SeedLoadWorkorders extends Command
                 ['components', $manualGraph['components']->count()],
                 ['workorders', $workorderSummary['workorders']],
                 ['mains', $workorderSummary['mains']],
-                ['general task statuses', $workorderSummary['statuses']],
                 ['tdrs', $workorderSummary['tdrs']],
                 ['tdr processes', $workorderSummary['tdrProcesses']],
             ]
@@ -429,23 +428,21 @@ class SeedLoadWorkorders extends Command
             ->orderBy('id')
             ->get();
 
-        [$mainCount, $statusCount] = $this->createMainsAndStatuses($workorders, $meta, $refs);
+        $mainCount = $this->createMains($workorders, $meta, $refs);
         [$tdrCount, $tdrProcessCount] = $this->createTdrGraph($workorders, $meta, $refs, $componentRows, $processPool, $prefix);
 
         return [
             'workorders' => $workorders->count(),
             'mains' => $mainCount,
-            'statuses' => $statusCount,
             'tdrs' => $tdrCount,
             'tdrProcesses' => $tdrProcessCount,
         ];
     }
 
-    private function createMainsAndStatuses(Collection $workorders, array $meta, array $refs): array
+    private function createMains(Collection $workorders, array $meta, array $refs): int
     {
         $now = now();
         $mainRecords = [];
-        $statusRecords = [];
 
         $groups = $refs['general_tasks']
             ->map(function ($generalTask) use ($refs) {
@@ -466,7 +463,6 @@ class SeedLoadWorkorders extends Command
             }
             $openAt = $workorderMeta['open_at'];
             $selectedGroups = $groups->shuffle()->take(min(rand(3, 5), $groups->count()));
-            $statusByGeneral = [];
 
             foreach ($selectedGroups as $group) {
                 $task = $group['tasks']->first(fn ($item) => !in_array($item->name, ['Approved', 'Completed'], true))
@@ -498,8 +494,6 @@ class SeedLoadWorkorders extends Command
                 }
 
                 $mainRecords[] = $mainRecord;
-
-                $statusByGeneral[$group['id']] = $ignoreRow || $finishedAt !== null;
             }
 
             if ($refs['approved_task'] && $workorderMeta['approved_at']) {
@@ -519,7 +513,6 @@ class SeedLoadWorkorders extends Command
                     $approvedRecord['ignore_row'] = false;
                 }
                 $mainRecords[] = $approvedRecord;
-                $statusByGeneral[$task->general_task_id] = true;
             }
 
             if ($refs['completed_task'] && $workorderMeta['done_at']) {
@@ -539,19 +532,6 @@ class SeedLoadWorkorders extends Command
                     $completedRecord['ignore_row'] = false;
                 }
                 $mainRecords[] = $completedRecord;
-                $statusByGeneral[$task->general_task_id] = true;
-            }
-
-            foreach ($statusByGeneral as $generalTaskId => $isDone) {
-                $statusRecords[] = [
-                    'workorder_id' => $workorder->id,
-                    'general_task_id' => $generalTaskId,
-                    'is_done' => $isDone,
-                    'done_at' => $isDone ? ($workorderMeta['done_at'] ?? $workorderMeta['approved_at'] ?? $workorderMeta['open_at']) : null,
-                    'done_user_id' => $isDone ? $workorderMeta['user_id'] : null,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
             }
         }
 
@@ -559,11 +539,7 @@ class SeedLoadWorkorders extends Command
             DB::table('mains')->insert($chunk);
         }
 
-        foreach (array_chunk($statusRecords, 1000) as $chunk) {
-            DB::table('workorder_general_task_statuses')->insert($chunk);
-        }
-
-        return [count($mainRecords), count($statusRecords)];
+        return count($mainRecords);
     }
 
     private function createTdrGraph(Collection $workorders, array $meta, array $refs, Collection $componentsByManual, Collection $processPool, string $prefix): array
@@ -725,7 +701,6 @@ class SeedLoadWorkorders extends Command
 
         DB::table('tdr_processes')->whereIn('tdrs_id', $tdrIds)->delete();
         DB::table('tdrs')->whereIn('id', $tdrIds)->delete();
-        DB::table('workorder_general_task_statuses')->whereIn('workorder_id', $workorderIds)->delete();
         DB::table('mains')->whereIn('workorder_id', $workorderIds)->delete();
         DB::table('workorders')->whereIn('id', $workorderIds)->delete();
         DB::table('manual_processes')->whereIn('manual_id', $manualIds)->delete();

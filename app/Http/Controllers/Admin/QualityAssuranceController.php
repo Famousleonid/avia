@@ -10,7 +10,6 @@ use App\Models\Instruction;
 use App\Models\LogCard;
 use App\Models\Manual;
 use App\Models\Necessary;
-use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\Transfer;
 use App\Models\Unit;
@@ -1192,11 +1191,9 @@ class QualityAssuranceController extends Controller
 
     private function buildCheckPayload(array $qaRow, Workorder $workorder): array
     {
-        $messages = collect($qaRow['all_messages'] ?? []);
         $processCounts = $qaRow['processes']['counts'] ?? [];
         $submittedRows = collect($qaRow['submitted_inspections']['pending'] ?? []);
         $stdProcessRows = collect($this->buildStdProcessPayload($workorder));
-        $completedTaskUrl = $this->completedTaskUrl($workorder);
         $requiresStdProcesses = $this->isOverhaulWorkorder($workorder);
 
         return [
@@ -1219,10 +1216,9 @@ class QualityAssuranceController extends Controller
                 'target' => 'qaRepairBlock',
             ],
             [
-                'label' => 'Completed task finished',
-                'ok' => ! $messages->contains('Completed task not finished'),
+                'label' => 'Workorder completion date',
+                'ok' => $workorder->isDone(),
                 'target' => 'qaRepairBlock',
-                'url' => $completedTaskUrl,
             ],
             [
                 'label' => 'STD processes complete',
@@ -1436,31 +1432,6 @@ class QualityAssuranceController extends Controller
     private function isOverhaulWorkorder(Workorder $workorder): bool
     {
         return strcasecmp((string) ($workorder->instruction?->name ?? ''), 'Overhaul') === 0;
-    }
-
-    private function completedTaskUrl(Workorder $workorder): string
-    {
-        $mainRows = $workorder->relationLoaded('main')
-            ? $workorder->main
-            : $workorder->main()->with('task')->get();
-
-        $completedMain = $mainRows
-            ->filter(fn ($main) => strcasecmp((string) ($main->task?->name ?? ''), 'Completed') === 0)
-            ->sortBy(fn ($main) => $main->task?->sort_order ?? $main->task_id ?? 999999)
-            ->first();
-        $completedTask = $completedMain
-            ? null
-            : Task::query()
-                ->where('name', 'Completed')
-                ->orderBy('id')
-                ->first(['id', 'general_task_id']);
-
-        return $this->mainTargetUrl($workorder, [
-            'tab' => 'tasks',
-            'general_task' => $completedMain?->general_task_id ?? $completedTask?->general_task_id,
-            'task' => $completedMain?->task_id ?? $completedTask?->id,
-            'field' => 'date_finish',
-        ]);
     }
 
     private function mainTaskTargetUrl(?Workorder $workorder, array $target, string $field): string

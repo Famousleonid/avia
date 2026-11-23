@@ -275,12 +275,12 @@ class MainQuantumRoTest extends TestCase
             $allowed = in_array($role, ['Admin', 'Manager', 'Technician', 'Team Leader'], true);
             $this->getJson(route('mains.quantum-ro-lines', $wo))->assertStatus($allowed ? 200 : 403);
             $page = $this->get(route('mains.show', $wo))->assertOk();
+            $page->assertViewHas('mainTabs', fn ($tabs) => in_array('ro', $tabs, true) === $allowed);
             if ($allowed) {
-                $page->assertSee('id="main-ro-panel"', false)->assertSee("allowedTabs.push('ro')", false);
+                $page->assertSee('id="main-ro-panel"', false)->assertSee('data-main-tab="ro" role="tab"', false);
             } else {
                 $page->assertDontSee('id="main-ro-panel"', false)
-                    ->assertDontSee('data-main-tab="ro" role="tab"', false)
-                    ->assertDontSee("allowedTabs.push('ro')", false);
+                    ->assertDontSee('data-main-tab="ro" role="tab"', false);
             }
         }
     }

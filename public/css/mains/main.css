@@ -264,6 +264,9 @@
         color: var(--main-tab-text);
     }
 
+    html[data-main-tab="tasks"] .main-tabs-toolbar { display: none; }
+    html[data-main-tab="tasks"] .main-tabs-nav { padding-right: .45rem; }
+
     .main-tab-btn {
         flex: 0 0 auto;
         min-height: 2rem;
@@ -561,7 +564,7 @@
     }
 
     /* flex-basis 0% — иначе блок не сжимается ниже высоты контента и не появляется overflow/scroll */
-    .js-gt-container,
+    .main-left-content,
     .js-gt-pane {
         flex: 1 1 0% !important;
         min-height: 0;
@@ -590,11 +593,20 @@
     }
 
     /* col widths (from your <colgroup>) */
-    .tasks-table col.col-ignore {width: 30px;}
     .tasks-table col.col-tech {width: 13%;}
     .tasks-table col.col-start {width: var(--main-date-col-width);}
     .tasks-table col.col-finish {width: var(--main-date-col-width);}
     .tasks-table col.col-task {width: auto;}
+
+    .main-submission-tasks col.col-finish { width: min(var(--main-date-col-width), 50%); }
+    .main-submission-tasks thead th { white-space: normal !important; }
+    .main-submission-tasks .text-wrap { overflow-wrap: anywhere; }
+
+    @media (max-width: 575px) {
+        html[data-main-tab="overview"] .main-submission-tasks :is(colgroup, thead) { display: none; }
+        html[data-main-tab="overview"] .main-submission-tasks,
+        html[data-main-tab="overview"] .main-submission-tasks :is(tbody, tr, td) { display: block; }
+    }
 
     .tasks-table .task-tech-cell {
         font-size: 0.9em;
@@ -1086,7 +1098,6 @@
         pointer-events: none;
     }
 
-    .tasks-table .form-check-input,
     .table.table-dark .form-check-input {
         margin-top: 0;
         flex: 0 0 auto;
@@ -1115,39 +1126,6 @@
 
     .is-ignored-row {
         opacity: 0.5;
-    }
-
-    .row-ignored > td {
-        opacity: 0.5;
-    }
-
-    .row-ignored > td.task-ignore-cell {
-        opacity: 1;
-    }
-
-    .task-ignore-cell .form-check-input {
-        cursor: pointer !important;
-        opacity: 1 !important;
-    }
-
-    .row-ignored input,
-    .row-ignored .form-control,
-    .row-ignored .finish-input,
-    .row-ignored .flatpickr-input,
-    .row-ignored .fp-alt {
-        cursor: not-allowed !important;
-    }
-
-    /* For ignored task rows: keep hover active on disabled/readonly date inputs
-       so the "not-allowed" cursor is visible (red prohibition icon). */
-    .row-ignored .js-start,
-    .row-ignored .js-finish,
-    .row-ignored .fp-alt {
-        pointer-events: auto !important;
-    }
-
-    .row-ignored .task-ignore-cell .form-check-input {
-        cursor: pointer !important;
     }
 
     .table .form-control.is-invalid,
@@ -1226,6 +1204,18 @@
         background: var(--main-pane-soft-bg);
     }
 
+    .main-tasks-notes-window.main-notes-only {
+        flex: 0 1 50%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    html[data-main-tab="tasks"] .main-notes-only {
+        flex: 1 1 0%;
+        max-height: none;
+    }
+
     .main-tasks-notes-window .main-gt-buttons {
         padding: .45rem .5rem .5rem;
         border-bottom: 1px solid var(--main-pane-border);
@@ -1244,6 +1234,18 @@
         border-top: 1px solid var(--main-pane-border);
         border-radius: 0;
     }
+
+    .main-notes-only .wo-notes-box,
+    .main-notes-only .wo-notes-body,
+    .main-notes-only form {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-height: 0;
+    }
+
+    .main-notes-only .wo-notes-box { border-top: 0; }
+    .main-notes-only .wo-notes-head { flex-shrink: 0; }
 
     .wo-notes-head{
         display:flex;
@@ -1292,9 +1294,16 @@
     @media (prefers-reduced-motion: reduce) { .wo-notes-tools { transition: none; } }
     .main-notes-block .wo-notes-editor {
         min-width: 0; width: 100%; white-space: pre-wrap; overflow-wrap: anywhere;
+        min-height: 8.5rem; max-height: 40vh; overflow-y: auto;
         background: var(--main-pane-control-bg) !important;
         color: var(--main-pane-control-text); font-size: .85rem;
         border-color: var(--main-pane-border-soft);
+    }
+    .main-notes-only :is(.wo-notes-textarea, .wo-notes-editor) {
+        flex: 1 1 0%;
+        min-height: 0;
+        max-height: none;
+        resize: none;
     }
     .wo-notes-format .wo-notes-title { white-space: nowrap; }
     .wo-notes-size { width: 76px; height: 26px; padding-top: 1px; padding-bottom: 1px; font-size: 12px; }

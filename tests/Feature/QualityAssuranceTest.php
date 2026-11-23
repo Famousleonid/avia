@@ -1707,23 +1707,21 @@ class QualityAssuranceTest extends TestCase
             ->firstWhere('label', 'Submitted WO');
         $missingRoCheck = collect($response->json('workorder.checks'))
             ->firstWhere('label', 'Missing RO');
-        $completedTaskCheck = collect($response->json('workorder.checks'))
-            ->firstWhere('label', 'Completed task finished');
+        $completionCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'Workorder completion date');
         $stdProcessesCheck = collect($response->json('workorder.checks'))
             ->firstWhere('label', 'STD processes complete');
 
         $this->assertNotNull($incompleteCheck);
         $this->assertNotNull($submittedCheck);
         $this->assertNotNull($missingRoCheck);
-        $this->assertNotNull($completedTaskCheck);
+        $this->assertNotNull($completionCheck);
         $this->assertNotNull($stdProcessesCheck);
         $this->assertFalse($incompleteCheck['ok']);
         $this->assertSame('qaSubmittedInspectionCards', $submittedCheck['target']);
         $this->assertFalse($missingRoCheck['ok']);
-        $this->assertFalse($completedTaskCheck['ok']);
-        $this->assertStringContainsString('tab=tasks', $completedTaskCheck['url']);
-        $this->assertStringContainsString('general_task='.$completedGeneralTask->id, $completedTaskCheck['url']);
-        $this->assertStringContainsString('task='.$completedTask->id, $completedTaskCheck['url']);
+        $this->assertFalse($completionCheck['ok']);
+        $this->assertArrayNotHasKey('url', $completionCheck);
         $this->assertFalse($stdProcessesCheck['ok']);
         $this->assertSame('qaStdProcessBlock', $stdProcessesCheck['target']);
         $finalInspectionRow = collect($response->json('workorder.submitted'))
@@ -1835,12 +1833,13 @@ class QualityAssuranceTest extends TestCase
         $this->assertSame([], $response->json('workorder.std_processes'));
     }
 
-    public function test_quality_main_links_target_general_task_when_main_row_is_missing(): void
+    public function test_quality_inspection_link_targets_task_and_completion_reads_workorder_date(): void
     {
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
         ]);
         $workorder = $this->createWorkorder(['number' => 988804]);
+        $workorder->forceFill(['done_at' => '2026-05-05'])->save();
 
         $finalInspectionGeneralTask = GeneralTask::query()->create([
             'name' => 'Final Test',
@@ -1852,16 +1851,6 @@ class QualityAssuranceTest extends TestCase
             'task_has_start_date' => false,
         ]);
 
-        $completeGeneralTask = GeneralTask::query()->create([
-            'name' => 'Complete',
-            'sort_order' => 60,
-        ]);
-        $completedTask = Task::query()->create([
-            'name' => 'Completed',
-            'general_task_id' => $completeGeneralTask->id,
-            'task_has_start_date' => false,
-        ]);
-
         $response = $this->actingAs($manager)->getJson(route('quality.workorder', [
             'q' => '988804',
         ]));
@@ -1870,18 +1859,17 @@ class QualityAssuranceTest extends TestCase
 
         $finalInspectionRow = collect($response->json('workorder.submitted'))
             ->firstWhere('missing_inspection', 'Final inspection');
-        $completedTaskCheck = collect($response->json('workorder.checks'))
-            ->firstWhere('label', 'Completed task finished');
+        $completionCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'Workorder completion date');
 
         $this->assertNotNull($finalInspectionRow);
         $this->assertStringContainsString('tab=tasks', $finalInspectionRow['inspection_url']);
         $this->assertStringContainsString('general_task='.$finalInspectionGeneralTask->id, $finalInspectionRow['inspection_url']);
         $this->assertStringContainsString('task='.$finalInspectionTask->id, $finalInspectionRow['inspection_url']);
 
-        $this->assertNotNull($completedTaskCheck);
-        $this->assertStringContainsString('tab=tasks', $completedTaskCheck['url']);
-        $this->assertStringContainsString('general_task='.$completeGeneralTask->id, $completedTaskCheck['url']);
-        $this->assertStringContainsString('task='.$completedTask->id, $completedTaskCheck['url']);
+        $this->assertNotNull($completionCheck);
+        $this->assertTrue($completionCheck['ok']);
+        $this->assertArrayNotHasKey('url', $completionCheck);
     }
 
     public function test_manager_can_update_quality_top_workorder_fields(): void

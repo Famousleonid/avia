@@ -1,8 +1,5 @@
 @php
-    $colspan = 13;
-    if (auth()->user()->hasAnyRole('Admin|Manager')) {
-        $colspan++;
-    }
+    $colspan = $showStages ? 14 : 12;
     if (auth()->user()->roleIs('Admin')) {
         $colspan++;
     }
@@ -10,7 +7,7 @@
 
 @forelse ($workorders as $workorder)
     @php
-        $isDone = $workorder->isDone();
+        $isDone = $workorder->isDoneInList();
         $ec = $ecStatuses[$workorder->id] ?? null;
         $ecState = $ec['state'] ?? 'none';
 
@@ -105,37 +102,10 @@
             @endif
         </td>
 
-        @hasanyrole('Admin|Manager')
-        <td class="text-center no-print">
-            @php
-                $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
-                $mainsByTask = $workorder->main
-                    ? $workorder->main->whereNotNull('task_id')->keyBy('task_id')
-                    : collect();
-            @endphp
-
-            <div class="stage-strip">
-                <span class="stage-strip-segments" aria-hidden="true">
-                @foreach($generalTasks as $gt)
-                        @php
-                            $st = $byGt->get($gt->id);
-                            $gtTasks = $tasksByGeneral->get($gt->id, collect());
-                            $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
-
-                            if (!$started) {
-                                $class = 'empty';
-                            } elseif ($st && $st->is_done) {
-                                $class = 'done';
-                            } else {
-                                $class = 'todo';
-                            }
-                        @endphp
-                        <span class="stage-seg {{ $class }}"></span>
-                    @endforeach
-                </span>
-            </div>
-        </td>
-        @endhasanyrole
+        @if($showStages)
+            @php($stage = $stagesByWorkorder->get($workorder->id))
+            <td class="wo-stage no-print text-start work-stage-color"@if($stage?->text_color) style="--work-stage-color: {{ $stage->text_color }}"@endif>{{ $stage?->name }}</td>
+        @endif
 
         <td class="text-center">{{ data_get($workorder, 'unit.part_number', '-') }}</td>
 

@@ -74,6 +74,10 @@ document.addEventListener('DOMContentLoaded', () => {
         busy = true;
         try {
             const url = new URL(opener.href); url.searchParams.set('modal', '1');
+            if (opener.dataset.requestedManual) {
+                url.searchParams.set('manual_id', opener.dataset.requestedManual);
+                delete opener.dataset.requestedManual;
+            }
             const response = await fetch(url, {headers: {'Accept': 'text/html'}});
             if (!response.ok || response.redirected) throw new Error('Could not load Add Component. Please refresh the page.');
             modal.querySelector('.modal-content').getAnimations().forEach(animation => animation.cancel());

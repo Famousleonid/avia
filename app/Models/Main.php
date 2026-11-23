@@ -101,6 +101,7 @@ class Main extends Model
      * @param  bool        $ignoreRow Текущее значение ignore_row (после клика)
      * @param  bool        $hasStart  Поле date_start в запросе ($request->has('date_start'))
      * @param  bool        $hasFinish Поле date_finish в запросе ($request->has('date_finish'))
+     * @param  bool        $finishOnly Validate only the submission date and preserve any stored start date.
      *                             Пустая строка при update = явная очистка поля.
      *
      * @return array{date_start: Carbon|null, date_finish: Carbon|null}
@@ -111,15 +112,16 @@ class Main extends Model
         ?self $existing,
         bool $ignoreRow,
         bool $hasStart,
-        bool $hasFinish
+        bool $hasFinish,
+        bool $finishOnly = false
     ): array {
 
         $requiresStart = (bool) ($task->task_has_start_date ?? false);
 
-        // Если start не нужен — всегда null (и никакие проверки start/finish не нужны)
-        if (!$requiresStart) {
+        // Submission-only edits keep any existing start date untouched.
+        if (!$requiresStart || $finishOnly) {
             return [
-                'date_start'  => null,
+                'date_start'  => $finishOnly ? $existing?->date_start : null,
                 'date_finish' => self::resolveDateField(
                     $data['date_finish'] ?? null,
                     $hasFinish,

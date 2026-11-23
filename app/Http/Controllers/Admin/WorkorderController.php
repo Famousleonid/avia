@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use App\Models\GeneralTask;
 use App\Models\Instruction;
 use App\Models\Main;
 use App\Models\Manual;
@@ -18,6 +17,7 @@ use App\Models\Workorder;
 use App\Models\TdrProcess;
 use App\Services\Workorders\DraftWorkorderMatchService;
 use App\Services\Workorders\WorkorderVisibilityService;
+use App\Services\Workorders\WorkStageService;
 use App\Services\WorkorderScopeService;
 use App\Services\WorkorderStdListProcessesService;
 use App\Services\WorkorderStdProcessItemsService;
@@ -41,8 +41,10 @@ class WorkorderController extends Controller
 {
     private const QUICK_OPEN_SEARCH_EMAIL = 'vkyushkevich@yahoo.ca';
 
-    public function __construct(private WorkorderVisibilityService $workorderVisibility)
-    {
+    public function __construct(
+        private WorkorderVisibilityService $workorderVisibility,
+        private WorkStageService $workStages,
+    ) {
     }
 
     public function logs(Request $request)
@@ -280,8 +282,8 @@ class WorkorderController extends Controller
                     'workorders' => $payload['workorders']->items(),
                     'ecStatuses' => $payload['ecStatuses'],
                     'matchedTdrs' => $payload['matchedTdrs'],
-                    'generalTasks' => $payload['generalTasks'],
-                    'tasksByGeneral' => $payload['tasksByGeneral'],
+                    'showStages' => $payload['showStages'],
+                    'stagesByWorkorder' => $payload['stagesByWorkorder'],
                 ])->render(),
                 'next_cursor' => $payload['nextCursor'],
                 'has_more' => $payload['hasMore'],
@@ -306,8 +308,10 @@ class WorkorderController extends Controller
             'workorders' => $payload['workorders']->items(),
             'customers' => $customers,
             'users' => $users,
-            'generalTasks' => $payload['generalTasks'],
-            'tasksByGeneral' => $payload['tasksByGeneral'],
+            'showStages' => $payload['showStages'],
+            'stageLabels' => $payload['stageLabels'],
+            'selectedStages' => $payload['selectedStages'],
+            'stagesByWorkorder' => $payload['stagesByWorkorder'],
             'ecStatuses' => $payload['ecStatuses'],
             'matchedTdrs' => $payload['matchedTdrs'],
             'nextCursor' => $payload['nextCursor'],
@@ -385,6 +389,12 @@ class WorkorderController extends Controller
     private function buildWorkorderIndexPayload(Request $request): array
     {
         $filters = $this->normalizeWorkorderIndexFilters($request);
+        $showStages = $request->user()->roleIs(['Admin', 'Manager']);
+        $stageCatalog = $showStages ? $this->workStages->workflowStages() : collect();
+        $requestedStages = $request->query('stages');
+        $selectedStages = is_string($requestedStages)
+            ? $stageCatalog->keys()->intersect(explode(',', $requestedStages))->values()
+            : collect();
 
         $overallQuery = Workorder::query()->withDrafts();
         $this->applyWorkorderRoleVisibility($overallQuery);
@@ -393,21 +403,31 @@ class WorkorderController extends Controller
         $filteredCountQuery = Workorder::query()->withDrafts();
         $this->applyWorkorderRoleVisibility($filteredCountQuery);
         $this->applyWorkorderIndexFilters($filteredCountQuery, $filters);
-        $totalCount = (clone $filteredCountQuery)->count();
+        $matchingStages = null;
+        if ($selectedStages->isNotEmpty()) {
+            $candidates = (clone $filteredCountQuery)->get(['workorders.id', 'workorders.approve_at']);
+            $matchingStages = $this->workStages->keysForWorkorders($candidates)
+                ->filter(fn (?string $stage) => $stage !== null && $selectedStages->contains($stage));
+        }
+        $totalCount = $matchingStages?->count() ?? (clone $filteredCountQuery)->count();
 
         $query = Workorder::query()
             ->withDrafts()
             ->with([
-                'main.task',
                 'unit.manual',
                 'customer',
                 'instruction',
                 'user',
-                'generalTaskStatuses',
             ]);
+        if (!$filters['only_active']) {
+            $this->workorderVisibility->addListCompletion($query, $request->user());
+        }
 
         $this->applyWorkorderRoleVisibility($query);
         $this->applyWorkorderIndexFilters($query, $filters);
+        if ($matchingStages !== null) {
+            $query->whereIntegerInRaw('workorders.id', $matchingStages->keys()->all());
+        }
         $this->applyWorkorderIndexSorting($query, $filters);
 
         $workorders = $query->cursorPaginate(
@@ -425,22 +445,19 @@ class WorkorderController extends Controller
             $matchedTdrs = $parts->orderBy('id')->get()->groupBy('workorder_id');
         }
 
-        $generalTasks = $this->workorderVisibility->visibleGeneralTasksFor($request->user());
-
-        $tasksByGeneral = Task::query()
-            ->select('id', 'name', 'general_task_id')
-            ->whereIn('general_task_id', $generalTasks->pluck('id'))
-            ->orderBy('general_task_id')
-            ->orderBy('name')
-            ->get()
-            ->groupBy('general_task_id');
+        $items = collect($workorders->items());
+        $stageKeys = $matchingStages !== null
+            ? $matchingStages->only($items->pluck('id')->all())
+            : ($showStages ? $this->workStages->keysForWorkorders($items) : collect());
 
         return [
             'workorders' => $workorders,
             'matchedTdrs' => $matchedTdrs,
-            'ecStatuses' => $this->buildEcStatuses(collect($workorders->items())),
-            'generalTasks' => $generalTasks,
-            'tasksByGeneral' => $tasksByGeneral,
+            'ecStatuses' => $this->buildEcStatuses($items),
+            'showStages' => $showStages,
+            'stageLabels' => $stageCatalog->pluck('name', 'workflow_key'),
+            'selectedStages' => $selectedStages,
+            'stagesByWorkorder' => $stageKeys->map(fn (?string $key) => $key === null ? null : $stageCatalog->get($key)),
             'nextCursor' => $workorders->nextCursor()?->encode(),
             'hasMore' => $workorders->hasMorePages(),
             'totalCount' => $totalCount,
@@ -1264,58 +1281,33 @@ class WorkorderController extends Controller
 
         $user = Auth::user();
 
-        $approvedTask = Task::where('name', 'Approved')->first();
-        if (!$approvedTask) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Task "Approved" not found',
-            ], 422);
-        }
-
-        $waitingTaskId = $approvedTask->id;
-        $generalTaskId = $approvedTask->general_task_id;
-
-        // если дату стерли => null
         $approveDate = $request->input('approve_date');
         $newApproveAt = $approveDate ? Carbon::createFromFormat('Y-m-d', $approveDate)->startOfDay() : null;
 
-        // main по Approved
-        $mainQuery = Main::where('workorder_id', $workorder->id)
-            ->where('task_id', $waitingTaskId);
-
-        if (is_null($newApproveAt)) {
-            // снять аппрув
-            $workorder->approve_at = null;
-            $workorder->approve_name = null;
-            $workorder->save();
-
-            if ($main = $mainQuery->first()) {
-                $main->date_finish = null;
-                // Clearing the approval date is a date edit too: keep its author.
-                $main->user_id = $user->id;
-                $main->save();
-            }
-        } else {
-            // поставить/изменить аппрув
+        $workorder = DB::transaction(function () use ($workorder, $newApproveAt, $user): Workorder {
+            $workorder = Workorder::lockForUpdate()->findOrFail($workorder->id);
             $workorder->approve_at = $newApproveAt;
-            $workorder->approve_name = $user->name; // всегда текущий юзер
+            $workorder->approve_name = $newApproveAt ? $user->name : null;
             $workorder->save();
 
-            $main = $mainQuery->first();
-            if (!$main) {
-                $main = new Main();
-                $main->workorder_id = $workorder->id;
-                $main->task_id = $waitingTaskId;
-                $main->general_task_id = $generalTaskId; // важно
+            $approvedTask = Task::active()->where('name', 'Approved')->orderBy('id')->first();
+            if ($approvedTask) {
+                $main = $workorder->main()->firstOrNew(
+                    ['task_id' => $approvedTask->id],
+                    ['general_task_id' => $approvedTask->general_task_id],
+                );
+                if ($main->exists || $newApproveAt !== null) {
+                    $main->user_id = $user->id;
+                    $main->date_finish = $newApproveAt;
+                    $workorder->main()->save($main);
+                }
             }
 
-            $main->user_id = $user->id;
-            $main->date_finish = $newApproveAt;
-            $main->save();
-        }
+            return $workorder;
+        });
 
-        $workorder->recalcGeneralTaskStatuses($generalTaskId);
-        $workorder->syncDoneByCompletedTask();
+        $stageKey = $this->workStages->keysForWorkorders(collect([$workorder]))->get($workorder->id);
+        $stage = $stageKey === null ? null : $this->workStages->workflowStages()->get($stageKey);
 
         return response()->json([
             'ok' => true,
@@ -1323,6 +1315,8 @@ class WorkorderController extends Controller
             'approve_at_iso' => $workorder->approve_at ? $workorder->approve_at->format('Y-m-d') : null,
             'approve_at_human' => $workorder->approve_at ? $workorder->approve_at->format('d.m.Y') : null,
             'approve_name' => $workorder->approve_name,
+            'work_stage' => $stage?->name,
+            'work_stage_color' => $stage?->text_color,
         ]);
     }
 
@@ -1553,22 +1547,6 @@ class WorkorderController extends Controller
             Log::error("PDF list failed for workorder $id: {$e->getMessage()}");
             return response()->json(['error' => 'Server error'], 500);
         }
-    }
-
-    public function recalcStages()
-    {
-
-        abort_unless(auth()->user()->hasAnyRole('Admin|Manager'), 403);
-
-        $generalTasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
-        $workorders = Workorder::select('id')->get();
-
-        foreach ($workorders as $wo) {
-            $wo->recalcGeneralTaskStatuses();
-            $wo->syncDoneByCompletedTask();
-        }
-
-        return back()->with('success', 'Stages recalculated for all workorders.');
     }
 
     public function checkNumber(Request $request)

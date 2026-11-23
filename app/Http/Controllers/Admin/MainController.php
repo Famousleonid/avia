@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Component;
+use App\Models\GeneralTask;
 use App\Models\MachiningWorkStep;
 use App\Models\Main;
 use App\Models\Manual;
@@ -23,21 +24,14 @@ use App\Services\Workorders\WorkorderVisibilityService;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Spatie\Activitylog\Models\Activity;
 
 
 class MainController extends Controller
 {
     public function __construct(private WorkorderVisibilityService $workorderVisibility)
     {
-    }
-
-    public function index()
-    {
-        return 1;
     }
 
     public function resolveWorkorderNumber(Request $request)
@@ -140,15 +134,30 @@ class MainController extends Controller
 
     public function store(Request $request)
     {
+        $user = $request->user();
+        $finishOnly = $this->workorderVisibility->usesSubmissionDatesOnly($user);
+        abort_unless($finishOnly || $user->roleIs(['Admin', 'Manager']), 403);
+        abort_if($request->has('ignore_row'), 403, 'Only task dates can be edited here.');
+        $hasStart = $request->has('date_start');
+        $hasFinish = $request->has('date_finish');
+        if ($finishOnly) {
+            abort_unless($hasFinish && !$hasStart, 403);
+        }
+        abort_unless($hasStart || $hasFinish, 422, 'A task date is required.');
+
         $data = $request->validate([
             'workorder_id' => ['required', 'exists:workorders,id'],
             'task_id'      => ['required', 'exists:tasks,id'],
             'date_start'   => ['nullable', 'date'],
             'date_finish'  => ['nullable', 'date'],
-            'ignore_row'   => ['nullable', 'boolean'],
         ]);
 
         $task = Task::with('generalTask')->findOrFail($data['task_id']);
+        abort_unless($this->workorderVisibility->canEditDesktopTask($user, $task), 403);
+        abort_if($task->archived_at !== null, 409, 'This task is archived.');
+        if ($finishOnly) {
+            abort_unless(Workorder::whereKey($data['workorder_id'])->exists(), 403);
+        }
 
         if ($task->name === 'Approved') {
             if ($request->ajax() || $request->expectsJson()) {
@@ -165,18 +174,15 @@ class MainController extends Controller
             ]);
         }
 
-        if ($denied = $this->denyRestrictedTaskEdit($request, $task)) {
-            return $denied;
-        }
-
-        $ignoreRow = $request->boolean('ignore_row');
-        $hasStart  = $request->has('date_start');
-        $hasFinish = $request->has('date_finish');
-
         $main = Main::query()
             ->where('workorder_id', $data['workorder_id'])
             ->where('task_id', $task->id)
             ->first();
+        abort_if($main?->ignore_row, 403, 'This task row was ignored.');
+
+        app(\App\Services\Workorders\SubmissionTrainingGuard::class)->check(
+            $user, Workorder::findOrFail($data['workorder_id']), $task, $data
+        );
 
         $beforeStart = optional($main?->date_start)->format('Y-m-d');
         $beforeFinish = optional($main?->date_finish)->format('Y-m-d');
@@ -185,9 +191,10 @@ class MainController extends Controller
             $data,
             $task,
             $main,
-            $ignoreRow,
+            false,
             $hasStart,
-            $hasFinish
+            $hasFinish,
+            $finishOnly
         );
 
         if (!$main) {
@@ -206,34 +213,17 @@ class MainController extends Controller
 
         $main->date_start       = $resolved['date_start'];
         $main->date_finish      = $resolved['date_finish'];
-        $main->ignore_row       = $ignoreRow;
         $main->save();
 
-        $wo = $main->workorder ?: Workorder::find($main->workorder_id);
-
-        if ($wo) {
-            $wo->recalcGeneralTaskStatuses($main->general_task_id);
-            $wo->syncDoneByCompletedTask();
-        }
-
         if ($request->ajax() || $request->expectsJson()) {
-            $updatedAt = now()->format('d ') . Str::lower(now()->format('M')) . now()->format(' Y');
-            $ignoreMessage = $main->ignore_row
-                ? "Row ignored ({$task->name}) {$updatedAt}"
-                : "Row restored ({$task->name}) {$updatedAt}";
-
             return response()->json([
                 'success' => true,
-                'message' => $request->has('ignore_row') ? $ignoreMessage : 'Record saved.',
+                'message' => 'Record saved.',
                 'main_id' => $main->id,
                 'date_start' => optional($main->date_start)?->format('Y-m-d'),
                 'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
-                'ignore_row' => (bool) $main->ignore_row,
                 'user_name' => $main->user?->selection_name ?? '',
-                'general_task_all_finished' => $this->isGeneralTaskAllFinished(
-                    (int) $main->workorder_id,
-                    (int) $main->general_task_id
-                ),
+                'general_task_all_finished' => $this->isGeneralTaskAllFinished($main, $user),
             ]);
         }
 
@@ -257,49 +247,58 @@ class MainController extends Controller
             'manual_id' => (int)($current_workorder->unit?->manual_id ?? 0),
         ]);
 
-        if (! $current_workorder->is_draft) {
-            $this->syncWaitingApproveMain($current_workorder);
-        }
-
         $users = User::query()->withoutReviewAccounts()->get()
             ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
             ->values();
 
-        $general_tasks = $this->workorderVisibility->visibleGeneralTasksFor($request->user());
-
-        $allTasks = Task::whereIn('general_task_id', $general_tasks->pluck('id'))
-            ->orderBy('general_task_id')
-            ->orderBy('name')
-            ->get();
-
-        $tasks = $this->workorderVisibility->filterVisibleMainsTasks($allTasks, $request->user());
-
+        $user = $request->user();
+        $canManageTasks = $user->roleIs(['Admin', 'Manager']);
+        $general_tasks = $current_workorder->is_draft ? collect() : $this->workorderVisibility->desktopGeneralTasksFor($user);
+        $tasks = $this->workorderVisibility->desktopTasksFor($user, $general_tasks);
         $tasksByGeneral = $tasks->groupBy('general_task_id');
-        $allTasksByGeneral = $allTasks->groupBy('general_task_id');
+        if (!$canManageTasks) {
+            $general_tasks = $general_tasks->whereIn('id', $tasksByGeneral->keys())->values();
+        }
+        $showTasks = $general_tasks->isNotEmpty();
 
         // Only this WO's UI state is needed before the first paint.
         $woId = (string) $current_workorder->id;
+        // Keep the existing tab key so saved choices and QA links still work.
         $mainTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
-        if ($request->user()?->roleIs(['Admin', 'Manager'])) $mainTabs[] = 'ro';
+        if ($user->roleIs(['Admin', 'Manager', 'Technician', 'Team Leader'])) $mainTabs[] = 'ro';
+        $settingsKeys = ["activeTab:{$woId}", 'avia_show_all_right', 'notesFormattingOpen'];
+        if ($showTasks) $settingsKeys[] = "generalTaskTab:{$woId}";
         $mainUiSettings = \App\Models\UserUiSetting::query()
-            ->where('user_id', $request->user()->id)->where('scope', 'mains.show')
-            ->whereIn('key', array_merge(["activeTab:{$woId}", "generalTaskTab:{$woId}", 'avia_show_all_right', 'notesFormattingOpen'],
+            ->where('user_id', $user->id)->where('scope', 'mains.show')
+            ->whereIn('key', array_merge($settingsKeys,
                 array_map(fn ($tab) => "panelWidth:{$woId}:{$tab}", $mainTabs)))
             ->pluck('value', 'key')->all();
         $userUiSettingsInitial = ['mains.show' => (object) $mainUiSettings];
         $initialMainTab = $mainUiSettings["activeTab:{$woId}"] ?? 'overview';
         if (!in_array($initialMainTab, $mainTabs, true)) $initialMainTab = 'overview';
-        $initialGeneralTask = (string) ($mainUiSettings["generalTaskTab:{$woId}"] ?? '');
-        if (!$general_tasks->contains(fn ($gt) => (string) $gt->id === $initialGeneralTask)) {
-            $initialGeneralTask = (string) ($general_tasks->first()?->id ?? '');
+        $mainsByTask = collect();
+        $initialGeneralTask = '';
+        $gtAllFinished = [];
+
+        if ($showTasks) {
+            if ($canManageTasks && $tasks->contains('name', 'Approved')) {
+                $this->syncWaitingApproveMain($current_workorder);
+            }
+            $mainsByTask = Main::query()->when($canManageTasks, fn ($query) => $query->with('user'))
+                ->where('workorder_id', $current_workorder->id)
+                ->whereIn('task_id', $tasks->pluck('id'))
+                ->get()
+                ->keyBy('task_id');
+
+            $initialGeneralTask = (string) ($mainUiSettings["generalTaskTab:{$woId}"] ?? '');
+            if (!$general_tasks->contains(fn ($gt) => (string) $gt->id === $initialGeneralTask)) {
+                $initialGeneralTask = (string) ($general_tasks->first()?->id ?? '');
+            }
+
+            foreach ($tasksByGeneral as $generalTaskId => $stageTasks) {
+                $gtAllFinished[$generalTaskId] = GeneralTask::tasksFinished($stageTasks, $mainsByTask);
+            }
         }
-
-        // mains by task
-        $mains = Main::with(['user', 'task'])
-            ->where('workorder_id', $current_workorder->id)
-            ->get();
-
-        $mainsByTask = $mains->keyBy('task_id');
 
         // Components & TDRs
         $components = collect();
@@ -372,7 +371,6 @@ class MainController extends Controller
         $documentCount = $current_workorder->media()->where('collection_name', 'pdfs')->count();
 
         // Training
-        $user = Auth::user();
         $user_wo = $current_workorder->user_id;
         $manual_id = $current_workorder->unit->manual_id ?? null;
         $bushingGuide = \App\Models\ManualBushingGuide::forManual($manual_id);
@@ -387,36 +385,6 @@ class MainController extends Controller
                 ->where('form_type', $form_type)
                 ->orderBy('date_training', 'desc')
                 ->first();
-        }
-
-        // General mains (task_id null)
-        $generalMains = Main::with('user')
-            ->where('workorder_id', $current_workorder->id)
-            ->whereNull('task_id')
-            ->get()
-            ->keyBy('general_task_id');
-
-        // calculate finished by general task
-        $gtAllFinished = [];
-
-        foreach ($general_tasks as $gt) {
-            // Visibility changes which rows the user sees, not which rows are
-            // required to complete the stage.
-            $taskIds = ($allTasksByGeneral[$gt->id] ?? collect())->pluck('id');
-
-            if ($taskIds->isEmpty()) {
-                $gtAllFinished[$gt->id] = false;
-                continue;
-            }
-
-            $gtAllFinished[$gt->id] = $taskIds->every(function ($taskId) use ($mainsByTask) {
-                $main = $mainsByTask->get($taskId);
-
-                if (!$main) return false;
-                if ($main->ignore_row) return true;
-
-                return !empty($main->date_finish);
-            });
         }
 
         $historyLimit = 10;
@@ -670,10 +638,9 @@ class MainController extends Controller
         }
 
         return view('admin.mains.main', compact(
-            'userUiSettingsInitial', 'mainUiSettings', 'mainTabs', 'initialMainTab', 'initialGeneralTask',
+            'userUiSettingsInitial', 'mainUiSettings', 'mainTabs', 'initialMainTab', 'initialGeneralTask', 'showTasks', 'canManageTasks',
             'users',
             'current_workorder',
-            'mains',
             'general_tasks',
             'tasks',
             'tasksByGeneral',
@@ -688,7 +655,6 @@ class MainController extends Controller
             'bushingGuide',
             'manualDrawingCount',
             'user',
-            'generalMains',
             'mainsByTask',
             'gtAllFinished',
             'photoTotalCount',
@@ -702,6 +668,13 @@ class MainController extends Controller
             'bushingProcessGroupedRows',
             'bushingProcessSections',
         ));
+    }
+
+    public function taskHistory(Request $request, Workorder $workorder, int $task)
+    {
+        abort_unless($request->user()->roleIs(['Admin', 'Manager']), 403);
+        // Retain the old URL for cached clients, but never display retired WO dates.
+        abort(404);
     }
 
     /**
@@ -822,7 +795,7 @@ class MainController extends Controller
 
         if (
             $main->exists &&
-            $main->date_finish === $workorder->approve_at->toDateString()
+            $main->date_finish?->toDateString() === $workorder->approve_at->toDateString()
         ) {
             return; // уже синхронизировано → выходим
         }
@@ -843,53 +816,35 @@ class MainController extends Controller
         $main->save();
     }
 
-    public function edit($id)
-    {
-        return 1;
-    }
-
-    /**
-     * Server-side twin of the UI locks (config/mains.php
-     * restricted_date_task_ids): the blade only disables the inputs, so
-     * without this check a direct POST could edit manager-only task dates.
-     * Returns a response to short-circuit with, or null when allowed.
-     */
-    private function denyRestrictedTaskEdit(Request $request, Task $task)
-    {
-        $restricted = in_array(
-            (int) $task->id,
-            array_map('intval', config('mains.restricted_date_task_ids', [])),
-            true
-        );
-        if (! $restricted || (auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'))) {
-            return null;
-        }
-
-        $message = 'Only Admin/Manager can edit this task.';
-        if ($request->ajax() || $request->expectsJson()) {
-            return response()->json([
-                'message' => $message,
-                'errors' => ['date_finish' => [$message]],
-            ], 422);
-        }
-
-        return back()->withErrors(['date_finish' => $message]);
-    }
-
     public function update(Request $request, Main $main)
     {
-        $oldIgnore = (int) $main->ignore_row;
+        $user = $request->user();
+        $finishOnly = $this->workorderVisibility->usesSubmissionDatesOnly($user);
+        abort_unless($finishOnly || $user->roleIs(['Admin', 'Manager']), 403);
+        abort_if($request->has('ignore_row'), 403, 'Only task dates can be edited here.');
+        $hasStart = $request->has('date_start');
+        $hasFinish = $request->has('date_finish');
 
         $main->loadMissing(['task.generalTask']);
         $task = $main->task;
+        abort_unless($this->workorderVisibility->canEditDesktopTask($user, $task), 403);
+        abort_if($task?->archived_at !== null, 409, 'This task is archived.');
+        abort_if($main->ignore_row, 403, 'This task row was ignored.');
+        if ($finishOnly) {
+            abort_unless($hasFinish && !$hasStart && $main->workorder()->exists(), 403);
+        }
+        abort_unless($hasStart || $hasFinish, 422, 'A task date is required.');
 
         $data = $request->validate([
             'date_start'  => ['nullable', 'date'],
             'date_finish' => ['nullable', 'date'],
-            'ignore_row'  => ['nullable', 'boolean'],
         ]);
 
         $taskName = $main->task?->name;
+
+        app(\App\Services\Workorders\SubmissionTrainingGuard::class)->check(
+            $user, $main->workorder, $task, $data
+        );
 
         if ($taskName === 'Approved') {
             if ($request->ajax() || $request->expectsJson()) {
@@ -906,50 +861,17 @@ class MainController extends Controller
             ]);
         }
 
-        if ($task && ($denied = $this->denyRestrictedTaskEdit($request, $task))) {
-            return $denied;
-        }
-
-        $isRestrictedFinish = in_array($taskName, ['Approved', 'Completed'], true);
-
-        $ignoreRow = $request->boolean('ignore_row');
-        $hasStart  = $request->has('date_start');
-        $hasFinish = $request->has('date_finish');
         $beforeStart = optional($main->date_start)->format('Y-m-d');
         $beforeFinish = optional($main->date_finish)->format('Y-m-d');
-
-        if ($isRestrictedFinish && !auth()->user()->hasAnyRole('Admin|Manager')) {
-            unset($data['date_finish']);
-            $hasFinish = false;
-        }
-
-        if (!$hasStart && !$hasFinish && $oldIgnore === (int) $ignoreRow) {
-            if ($request->ajax() || $request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'No changes.',
-                    'main_id' => $main->id,
-                    'date_start' => optional($main->date_start)?->format('Y-m-d'),
-                    'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
-                    'ignore_row' => (bool) $main->ignore_row,
-                    'user_name' => $main->user?->selection_name ?? '',
-                    'general_task_all_finished' => $this->isGeneralTaskAllFinished(
-                        (int) $main->workorder_id,
-                        (int) $main->general_task_id
-                    ),
-                ]);
-            }
-
-            return back();
-        }
 
         $resolved = Main::validateAndResolveDates(
             $data,
             $task,
             $main,
-            $ignoreRow,
+            false,
             $hasStart,
-            $hasFinish
+            $hasFinish,
+            $finishOnly
         );
 
         if ($hasStart) {
@@ -966,74 +888,48 @@ class MainController extends Controller
             || ($hasFinish && $beforeFinish !== $afterFinish);
 
         if ($dateWasChanged) {
-            // user_id belongs only to the latest real date edit. Ignore changes
-            // must not replace it; clearing a date is still a date edit.
+            // Clearing a date counts as a date edit.
             $main->user_id = auth()->id();
         }
-        $main->ignore_row = $ignoreRow;
 
         $main->save();
 
-        $wo = $main->workorder ?: Workorder::find($main->workorder_id);
-
-        if ($wo) {
-            $wo->recalcGeneralTaskStatuses($main->general_task_id);
-            $wo->syncDoneByCompletedTask();
-        }
-
         if ($request->ajax() || $request->expectsJson()) {
-            $taskLabel = $main->task?->name ?? 'Task';
-            $updatedAt = now()->format('d ') . Str::lower(now()->format('M')) . now()->format(' Y');
-            $ignoreMessage = $main->ignore_row
-                ? "Row ignored ({$taskLabel}) {$updatedAt}"
-                : "Row restored ({$taskLabel}) {$updatedAt}";
-
             return response()->json([
                 'success' => true,
-                'message' => $request->has('ignore_row') ? $ignoreMessage : 'Record updated.',
+                'message' => 'Record updated.',
                 'main_id' => $main->id,
                 'date_start' => optional($main->date_start)?->format('Y-m-d'),
                 'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
-                'ignore_row' => (bool) $main->ignore_row,
                 'user_name' => $main->user?->selection_name ?? '',
-                'general_task_all_finished' => $this->isGeneralTaskAllFinished(
-                    (int) $main->workorder_id,
-                    (int) $main->general_task_id
-                ),
+                'general_task_all_finished' => $this->isGeneralTaskAllFinished($main, $user),
             ]);
         }
 
         return back()->with('success', 'Record updated.');
     }
 
-    public function destroy($id)
+    private function isGeneralTaskAllFinished(Main $main, User $user): bool
     {
+        if ($this->workorderVisibility->usesSubmissionDatesOnly($user)) {
+            return $main->date_finish !== null;
+        }
 
-        return redirect()->back();
-    }
+        $tasks = Task::active()
+            ->where('general_task_id', $main->general_task_id)
+            ->get(['id']);
 
-    private function isGeneralTaskAllFinished(int $workorderId, int $generalTaskId): bool
-    {
-        $taskIds = Task::query()
-            ->where('general_task_id', $generalTaskId)
-            ->pluck('id');
-
-        if ($taskIds->isEmpty()) {
+        if ($tasks->isEmpty()) {
             return false;
         }
 
         $mainsByTask = Main::query()
-            ->where('workorder_id', $workorderId)
-            ->whereIn('task_id', $taskIds)
+            ->where('workorder_id', $main->workorder_id)
+            ->whereIn('task_id', $tasks->modelKeys())
             ->get()
             ->keyBy('task_id');
 
-        return $taskIds->every(function ($taskId) use ($mainsByTask) {
-            $main = $mainsByTask->get($taskId);
-            if (!$main) return false;
-            if ($main->ignore_row) return true;
-            return !empty($main->date_finish);
-        });
+        return GeneralTask::tasksFinished($tasks, $mainsByTask);
     }
 
     public function updateWoBushingProcessRepairOrder(Request $request, WoBushingProcess $woBushingProcess)
@@ -1552,17 +1448,4 @@ class MainController extends Controller
     }
 
 
-    public function activity(Main $main)
-    {
-        $logs = Activity::query()
-            ->where('subject_type', Main::class)
-            ->where('subject_id', $main->id)
-            ->latest()
-            ->take(200)
-            ->get();
-
-        $html = view('admin.mains.partials.activity_list', compact('main', 'logs'))->render();
-
-        return response()->json(['html' => $html]);
-    }
 }

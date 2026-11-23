@@ -46,6 +46,7 @@ use App\Services\Media\WorkorderPhotoStorageService;
 use App\Services\MobileReviewAccess;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\WorkorderNotifyService;
+use App\Services\Workorders\WorkorderVisibilityService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -1152,7 +1153,7 @@ class MobileApiController extends Controller
         ], 'Password changed. Sign in again with your new password.');
     }
 
-    public function workorders(Request $request): JsonResponse
+    public function workorders(Request $request, WorkorderVisibilityService $visibility): JsonResponse
     {
         $user = $request->user();
         $scope = (string) $request->query('scope', 'my');
@@ -1161,7 +1162,7 @@ class MobileApiController extends Controller
         $includeDone = $onlyDone || $request->boolean('include_done');
 
         $query = Workorder::withDrafts()
-            ->with(['unit.manual', 'customer', 'instruction', 'user', 'main.task'])
+            ->with(['unit.manual', 'customer', 'instruction', 'user'])
             ->orderByDesc('number');
 
         $this->reviewAccess()->applyWorkorderScope($query, $user);
@@ -1171,6 +1172,11 @@ class MobileApiController extends Controller
             $query->where('is_draft', true);
         } else {
             $query->where('is_draft', false);
+            if ($includeDone) {
+                $visibility->addListCompletion($query, $user);
+            } else {
+                $visibility->applyActiveFilterForUser($query, $user);
+            }
             if ($scope !== 'all' && $scope !== 'done') {
                 $query->where('user_id', $user->id);
             }
@@ -1181,16 +1187,7 @@ class MobileApiController extends Controller
         }
 
         $items = $query->get()
-            ->filter(static function (Workorder $wo) use ($scope, $includeDone, $onlyDone) {
-                if ($scope === 'draft') {
-                    return true;
-                }
-                if ($onlyDone) {
-                    return $wo->isDone();
-                }
-
-                return $includeDone || ! $wo->isDone();
-            })
+            ->filter(fn (Workorder $wo) => $scope === 'draft' || !$onlyDone || $wo->isDoneInList())
             ->map(fn (Workorder $wo) => $this->workorderListPayload($wo, $user))
             ->values();
 
@@ -1423,23 +1420,20 @@ class MobileApiController extends Controller
 
     public function tasks(Request $request, int $workorderId): JsonResponse
     {
-        $workorder = $this->findWorkorder($workorderId, ['generalTaskStatuses']);
+        $workorder = $this->findWorkorder($workorderId);
         $generalTasks = $this->mobileVisibleGeneralTasks($request->user());
-        $tasks = Task::query()
+        $allTasks = Task::active()
             ->whereIn('general_task_id', $generalTasks->pluck('id'))
-            ->orderBy('general_task_id')
-            ->orderBy('name')
+            ->inDisplayOrder()
             ->get()
-            ->groupBy('general_task_id')
-            ->map(fn ($group) => $this->mobileVisibleTasks($group, $request->user()));
+            ->groupBy('general_task_id');
+        $tasks = $allTasks->map(fn ($group) => $this->mobileVisibleTasks($group, $request->user()));
         $mains = Main::query()
             ->with(['user:id,name,selection_name_order', 'task'])
             ->where('workorder_id', $workorder->id)
             ->get()
             ->keyBy('task_id');
-        $gtDoneMap = $workorder->generalTaskStatuses
-            ->keyBy('general_task_id')
-            ->map(fn ($status) => (bool) $status->is_done);
+        $gtDoneMap = $allTasks->map(fn ($group) => GeneralTask::tasksFinished($group, $mains));
 
         return $this->ok([
             'workorder' => $this->workorderMiniPayload($workorder),
@@ -1473,6 +1467,7 @@ class MobileApiController extends Controller
     public function updateTaskDates(Request $request, int $workorderId, Task $task): JsonResponse
     {
         $workorder = $this->findWorkorder($workorderId);
+        abort_if($task->archived_at !== null, 409, 'This task is archived.');
         $data = $request->validate([
             'date_start' => ['nullable', 'date'],
             'date_finish' => ['nullable', 'date'],
@@ -1493,6 +1488,10 @@ class MobileApiController extends Controller
 
         $beforeStart = optional($main?->date_start)->format('Y-m-d');
         $beforeFinish = optional($main?->date_finish)->format('Y-m-d');
+
+        app(\App\Services\Workorders\SubmissionTrainingGuard::class)->check(
+            $request->user(), $workorder, $task, $data
+        );
 
         $ignoreRow = $request->exists('ignore_row')
             ? $request->boolean('ignore_row')
@@ -1527,8 +1526,6 @@ class MobileApiController extends Controller
         $main->ignore_row = $ignoreRow;
         $main->save();
 
-        $workorder->recalcGeneralTaskStatuses($main->general_task_id);
-        $workorder->syncDoneByCompletedTask();
         $main->load(['user:id,name,selection_name_order', 'task']);
 
         return $this->ok(['main' => $this->mainPayload($main)]);
@@ -2495,6 +2492,7 @@ class MobileApiController extends Controller
     protected function workorderListPayload(Workorder $workorder, User $user): array
     {
         return array_merge($this->workorderMiniPayload($workorder), [
+            'is_done' => $workorder->isDoneInList(),
             'owned_by_current_user' => (int) $workorder->user_id === (int) $user->id,
             'customer' => $workorder->customer ? ['id' => $workorder->customer->id, 'name' => $workorder->customer->name] : null,
             'unit' => $this->unitPayload($workorder->unit),
@@ -2655,7 +2653,7 @@ class MobileApiController extends Controller
      *  the Android contour overrides this with the desktop visibility rules. */
     protected function mobileVisibleGeneralTasks(?User $user): \Illuminate\Support\Collection
     {
-        return GeneralTask::query()->orderBy('sort_order')->orderBy('id')->get();
+        return GeneralTask::inCatalog()->orderBy('sort_order')->orderBy('id')->get();
     }
 
     /** Hook: which tasks of a group the mobile tasks screen returns. */
@@ -2673,10 +2671,12 @@ class MobileApiController extends Controller
             'completed',
             'wosubmittedforquote',
             'wosubmittedforquate',
+            'postdisassemblyinspection',
+            'waitrecords',
+            'inquotation',
+            'finalinspection',
         ], true)
-            // Desktop parity (config/mains.php): the full locked-task list —
-            // Post Disassembly inspection, Quote Sent to Customer,
-            // Final inspection, WO invoiced/paid, etc.
+            // Keep the production locks on older tasks alongside the name-based rules.
             || in_array($task->id, array_map('intval', config('mains.restricted_date_task_ids', [])), true);
         $canEditDates = ! $managerOnly || $user->hasAnyRole('Admin|Manager');
 

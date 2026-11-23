@@ -20,7 +20,7 @@
 
 - app/Http/Controllers/Admin/MainController.php
 - resources/views/admin/mains/main.blade.php
-- resources/views/admin/mains/partials/js/mains-general-tasks.blade.php
+- public/js/mains/process-dates.js
 - public/js/main.js
 
 Миграция не нужна. Обновить открытые страницы. Production не изменялся.

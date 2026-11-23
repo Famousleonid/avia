@@ -15,9 +15,9 @@ class ProjectDateFormatTest extends TestCase
 
     public function test_mains_tasks_date_picker_uses_project_display_format(): void
     {
-        $view = view('admin.mains.partials.js.mains-general-tasks')->render();
+        $script = file_get_contents(public_path('js/mains/process-dates.js'));
 
-        $this->assertStringContainsString('altFormat: "d/M/Y"', $view);
-        $this->assertStringNotContainsString('altFormat: "d.M.y"', $view);
+        $this->assertStringContainsString('altFormat: "d/M/Y"', $script);
+        $this->assertStringNotContainsString('altFormat: "d.M.y"', $script);
     }
 }

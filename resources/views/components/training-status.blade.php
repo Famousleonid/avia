@@ -45,11 +45,18 @@
     $trainingDate = null;
     $monthsDiff = null;
     $isThisMonth = false;
+    $statusColor = 'text-danger';
 
     if ($displayTraining && $displayTraining->date_training) {
         $trainingDate = \Carbon\Carbon::parse($displayTraining->date_training);
         $monthsDiff = $trainingDate->diffInMonths(now());
         $isThisMonth = $trainingDate->isCurrentMonth();
+        $today = today();
+        $statusColor = $trainingDate->copy()->startOfDay()->gte($today->copy()->subMonthsNoOverflow(8))
+            ? 'text-success'
+            : ($trainingDate->copy()->startOfDay()->gte($today->copy()->subMonthsNoOverflow(12))
+                ? 'text-warning'
+                : 'text-danger');
     }
 
     // -----------------------------------------------------
@@ -127,19 +134,13 @@
     </div>
 
     @if($trainingDate)
-        @if($monthsDiff !== null && $monthsDiff <= 12)
-            <div class="training-status-text" style="color: lawngreen;">
+            <div class="training-status-text {{ $statusColor }}">
                 @if($monthsDiff === 0 && $isThisMonth)
                     Last training this month
                 @else
                     Last training {{ $monthsDiff }} month{{ $monthsDiff === 1 ? '' : 's' }} ago
                 @endif
             </div>
-        @else
-            <div class="training-status-text text-success small">
-                Last training {{ $monthsDiff }} months ago
-            </div>
-        @endif
     @else
         <div class="training-status-text text-danger small">
             There are no trainings for: <span class="text-muted">{{ $unit?->part_number }}</span>

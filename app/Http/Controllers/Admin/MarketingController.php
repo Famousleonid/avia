@@ -1255,30 +1255,18 @@ class MarketingController extends Controller
     private function applyMarketingWorkorderStatusCondition($query, string $status): void
     {
         if ($status === 'complete') {
-            $query->whereHas('main', fn ($main) => $this->applyCompletedMainConstraint($main));
+            $query->whereNotNull('workorders.done_at');
             return;
         }
 
         if ($status === 'in_process') {
-            $query->whereNotNull('approve_at')
-                ->whereDoesntHave('main', fn ($main) => $this->applyCompletedMainConstraint($main));
+            $query->whereNotNull('approve_at')->notCompleted();
             return;
         }
 
         if ($status === 'waiting_approval') {
-            $query->whereNull('approve_at')
-                ->whereDoesntHave('main', fn ($main) => $this->applyCompletedMainConstraint($main));
+            $query->whereNull('approve_at')->notCompleted();
         }
-    }
-
-    private function applyCompletedMainConstraint($query): void
-    {
-        $query->where(function ($inner): void {
-            $inner->where('ignore_row', false)
-                ->orWhereNull('ignore_row');
-        })
-            ->whereNotNull('date_finish')
-            ->whereHas('task', fn ($task) => $task->whereIn('name', ['Completed', 'Complete']));
     }
 
     private function matchingMarketingWorkorderStatuses(string $value): array

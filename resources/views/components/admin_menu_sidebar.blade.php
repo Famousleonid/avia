@@ -55,12 +55,14 @@
         && $sidebarUser->can('feature.library.countries');
     $canManageLibraryBusinessTypes = $sidebarUser
         && $sidebarUser->can('feature.library.type_of_business');
+    $canManageWorkStages = $sidebarUser && $sidebarUser->can('feature.library.work_stages');
     $canSeeLegacyLibraryMenu = $sidebarUser
         && $sidebarUser->roleIs(['Admin', 'Manager']);
     $canManageTravelerNotes = $sidebarUser
         && $sidebarUser->can('feature.library.traveler_notes');
     $showLibraryMenu = $canSeeLegacyLibraryMenu
         || $canManageTravelerNotes
+        || $canManageWorkStages
         || $canManageLibraryCountries
         || $canManageLibraryBusinessTypes;
 @endphp
@@ -101,6 +103,9 @@
                 <i class="bi bi-clipboard-data me-2"></i> <span>EC</span>
             </a>
         </li>
+    @endif
+    @if($canManageWorkStages)
+        @include('components.work-stages-menu-link')
     @endif
 @else
     <li class="nav-item">
@@ -190,15 +195,11 @@
 
         <ul class="list-unstyled collapse ms-4" id="menu-lib">
 
+            @if($canManageWorkStages)
+                @include('components.work-stages-menu-link')
+            @endif
+
             @if($libraryAdmin)
-            <li class="nav-item press-spinner">
-                <a href="{{route('general-tasks.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>General Tasks</span></a>
-            </li>
-
-            <li class="nav-item press-spinner">
-                <a href="{{route('tasks.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Tasks</span></a>
-            </li>
-
             <li class="nav-item press-spinner">
                 <a href="{{ route('library.units.index') }}" class="nav-link {{ request()->routeIs('library.units.*') ? 'active' : '' }}"><i class="bi bi-dot"></i><span>Units</span></a>
             </li>

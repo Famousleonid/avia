@@ -7,14 +7,11 @@ use App\Models\CustomerAircraft;
 use App\Models\CustomerContact;
 use App\Models\CustomerInteractionNote;
 use App\Models\CustomerMarketingProfile;
-use App\Models\GeneralTask;
-use App\Models\Main;
 use App\Models\MarketingCompanyType;
 use App\Models\MarketingSegment;
 use App\Models\MarketingWoFile;
 use App\Models\MarketingWoEstimateNotification;
 use App\Models\ProjectSetting;
-use App\Models\Task;
 use App\Models\User;
 use App\Models\UserFeatureAccess;
 use App\Mail\MarketingWoEstimateDateMail;
@@ -580,22 +577,7 @@ class MarketingTest extends TestCase
             'approve_at' => '2026-07-02 08:00:00',
         ]);
 
-        $completedGeneralTask = GeneralTask::query()->create([
-            'name' => 'Marketing completed',
-            'sort_order' => 1,
-        ]);
-        $completedTask = Task::query()->create([
-            'name' => 'Completed',
-            'general_task_id' => $completedGeneralTask->id,
-        ]);
-        Main::query()->create([
-            'user_id' => $admin->id,
-            'workorder_id' => $complete->id,
-            'general_task_id' => $completedGeneralTask->id,
-            'task_id' => $completedTask->id,
-            'date_finish' => '2026-07-05',
-            'ignore_row' => false,
-        ]);
+        $complete->forceFill(['done_at' => '2026-07-05', 'done_user_id' => $admin->id])->save();
 
         $this->createWorkorder([
             'customer_id' => $otherCustomer->id,

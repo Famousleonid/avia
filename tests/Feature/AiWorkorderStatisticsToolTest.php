@@ -123,21 +123,7 @@ class AiWorkorderStatisticsToolTest extends TestCase
         $this->createStatisticsWorkorder($teamLeader->id, $customer->id, $instruction->id);
         $completed = $this->createStatisticsWorkorder($teamLeader->id, $customer->id, $instruction->id);
 
-        $generalTask = GeneralTask::query()->create([
-            'name' => 'Statistics Complete Stage ' . uniqid(),
-            'sort_order' => 999,
-        ]);
-        $completedTask = Task::query()->firstOrCreate(['name' => 'Completed'], [
-            'general_task_id' => $generalTask->id,
-            'task_has_start_date' => false,
-        ]);
-        Main::query()->create([
-            'workorder_id' => $completed->id,
-            'task_id' => $completedTask->id,
-            'general_task_id' => $completedTask->general_task_id,
-            'date_finish' => '2026-02-01',
-            'ignore_row' => false,
-        ]);
+        $completed->forceFill(['done_at' => '2026-02-01'])->save();
 
         $result = app(WorkorderStatisticsTool::class)->run($admin, [
             'mode' => 'summary',

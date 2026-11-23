@@ -89,30 +89,10 @@ class WorkorderStatisticsTool
             $query->whereHas('user.role', fn ($role) => $role->whereIn('name', ['Technician', 'Team Leader']));
         }
 
-        $completedTaskNames = collect(config('workorders.completed_task_names', ['Completed']))
-            ->map(fn ($name): string => trim((string) $name))
-            ->filter()
-            ->values()
-            ->all();
-        if ($completedTaskNames === []) {
-            $completedTaskNames = ['Completed'];
-        }
-
-        if ($status !== 'all') {
-            $completionFilter = function ($main) use ($completedTaskNames): void {
-                $main->whereNotNull('task_id')
-                    ->where(function ($row): void {
-                        $row->where('ignore_row', false)->orWhereNull('ignore_row');
-                    })
-                    ->whereNotNull('date_finish')
-                    ->whereHas('task', fn ($task) => $task->whereIn('name', $completedTaskNames));
-            };
-
-            if ($status === 'active') {
-                $query->whereDoesntHave('main', $completionFilter);
-            } else {
-                $query->whereHas('main', $completionFilter);
-            }
+        if ($status === 'active') {
+            $query->notCompleted();
+        } elseif ($status === 'completed') {
+            $query->whereNotNull('workorders.done_at');
         }
 
         $workorders = $query->get();

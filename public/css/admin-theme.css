@@ -199,6 +199,20 @@ html[data-bs-theme="light"] .tdr-show-back-btn {
     border-color: #173f73 !important;
 }
 
+.work-stage-color {
+    --work-stage-display-color: var(--work-stage-color);
+}
+
+@supports (color: oklch(from #fff min(l, .47) c h)) {
+    html[data-bs-theme="light"] .work-stage-color {
+        --work-stage-display-color: oklch(from var(--work-stage-color) min(l, .47) c h);
+    }
+
+    html[data-bs-theme="dark"] .work-stage-color {
+        --work-stage-display-color: oklch(from var(--work-stage-color) max(l, .76) c h);
+    }
+}
+
 html[data-bs-theme="light"] {
     --dir-bg: #ffffff;
 

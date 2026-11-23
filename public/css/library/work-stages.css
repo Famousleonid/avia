@@ -1,0 +1,136 @@
+.stage-library {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: .75rem;
+    min-width: 0;
+    min-height: 0;
+    padding: .75rem;
+    overflow: auto;
+}
+
+.stage-library-title { margin: 0; }
+
+.stage-library-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.85fr) minmax(22rem, 1fr);
+    align-items: start;
+    gap: .75rem;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.stage-catalog {
+    max-height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--avia-surface);
+    border-color: var(--avia-border);
+}
+
+.stage-catalog-head {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .625rem .75rem;
+    border-bottom: 1px solid var(--avia-border);
+}
+
+.stage-catalog-head h2 { margin: 0; }
+
+.stage-catalog-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+.stage-catalog-table { width: 100%; color: var(--avia-text); }
+.stage-catalog-table th,
+.stage-catalog-table td {
+    padding: .35rem .625rem;
+    vertical-align: middle;
+    border-color: var(--avia-border);
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.stage-catalog-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--avia-surface-raised);
+}
+
+.stage-catalog-table tbody th[scope="row"] { font-weight: 400; }
+.stage-catalog-table .stage-group-row > * { background: var(--avia-panel); }
+.stage-main-col { width: 12%; }
+.stage-number-col { width: 7rem; }
+.stage-color-col { width: 5rem; }
+.stage-actions-col { width: 9.5rem; }
+.stage-catalog-scroll[data-section="work-stages"] .stage-number-col { width: 4.5rem; }
+.stage-catalog-scroll[data-section="work-stages"] .stage-actions-col { width: 5.5rem; }
+.stage-catalog-table .work-stage-color { color: var(--work-stage-display-color, var(--avia-text)); }
+.stage-role-label { margin-inline-start: .5rem; color: var(--bs-info-text-emphasis, var(--avia-text)); font-size: .75rem; font-weight: 400; }
+
+.stage-row-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .25rem;
+}
+
+.stage-row-actions .btn { white-space: nowrap; }
+.stage-row-actions .btn:has(.bi) { min-width: 1.875rem; }
+.stage-color-controls { flex-wrap: nowrap; }
+.stage-row-actions .stage-color-input {
+    width: 1.875rem;
+    height: 1.875rem;
+    padding: .15rem;
+    cursor: pointer;
+}
+.stage-row-actions .btn.stage-color-reset {
+    min-width: 1.5rem;
+    width: 1.5rem;
+    padding-inline: 0;
+}
+.stage-color-reset[hidden] { display: none; }
+.stage-workflow-lock { padding-inline: .35rem; }
+.stage-archive summary { padding: .5rem .625rem; cursor: pointer; color: var(--bs-link-color); }
+.stage-archive tbody td:last-child { width: 1%; }
+.stage-editor-row > td { background: var(--avia-panel); }
+
+.stage-editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: .5rem;
+    padding: .25rem 0;
+}
+
+.stage-editor label:not([hidden]) { display: grid; gap: .25rem; min-width: 0; font-size: .8rem; }
+.stage-editor .stage-edit-name { flex: 1 1 11rem; }
+.stage-editor [data-order-field] { width: 6rem; }
+.stage-editor [data-group-field] { flex: 1 1 9.5rem; }
+.stage-editor .stage-edit-start:not([hidden]) { display: flex; align-items: center; padding: .35rem 0 .35rem 1.5em; margin: 0; }
+.stage-editor-message { flex-basis: 100%; }
+
+@media (max-width: 1050px) {
+    .stage-library-grid { flex: 0 0 auto; grid-template-columns: minmax(0, 1fr); }
+    .stage-catalog { max-height: none; }
+}
+
+@media (max-width: 575px) {
+    .stage-library { padding: .5rem; }
+    .stage-main-col { width: 0; }
+    .stage-catalog-table th,
+    .stage-catalog-table td { padding: .3rem; font-size: .8rem; }
+    .stage-catalog-table tbody tr:not(.stage-group-row) td:first-child:empty { padding: 0; }
+    .stage-number-col,
+    .stage-catalog-scroll[data-section="work-stages"] .stage-number-col { width: 3.75rem; }
+    .stage-actions-col { width: 5.25rem; }
+    .stage-catalog-scroll[data-section="work-stages"] .stage-actions-col { width: 5.25rem; }
+}

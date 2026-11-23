@@ -11,8 +11,10 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Task;
 use App\Models\UserUiSetting;
-use App\Models\WorkorderGeneralTaskStatus;
+use App\Models\Workorder;
+use App\Models\WorkStage;
 use App\Services\Workorders\WorkorderVisibilityService;
+use Illuminate\Support\Facades\Bus;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -525,27 +527,17 @@ class WorkordersIndexTest extends TestCase
     {
         $technician = $this->createUserWithRole('Technician');
         $manager = $this->createUserWithRole('Manager');
+        $teamLeader = $this->createUserWithRole('Team Leader');
 
         $finalStage = GeneralTask::query()->create([
             'name' => 'Final inspection visibility stage',
             'sort_order' => 98,
         ]);
-        $completeStage = GeneralTask::query()->create([
-            'name' => 'Complete visibility stage',
-            'sort_order' => 99,
-        ]);
-
         $submittedTask = Task::query()->create([
             'name' => '2. WO Submitted for Final Inspection',
             'general_task_id' => $finalStage->id,
             'task_has_start_date' => false,
         ]);
-        $completedTask = Task::query()->create([
-            'name' => 'Completed',
-            'general_task_id' => $completeStage->id,
-            'task_has_start_date' => false,
-        ]);
-
         $regular = $this->createWorkorder([
             'user_id' => $technician->id,
             'number' => 108201,
@@ -558,8 +550,17 @@ class WorkordersIndexTest extends TestCase
             'user_id' => $technician->id,
             'number' => 108203,
         ]);
+        $completed->forceFill(['done_at' => '2026-05-05', 'done_user_id' => $manager->id])->save();
 
-        Main::query()->create([
+        $oldTask = Task::create(['name' => 'WO Submitted for Final Inspection', 'general_task_id' => $finalStage->id]);
+        $oldTask->forceFill(['archived_at' => now()])->save();
+        Main::create([
+            'workorder_id' => $submitted->id,
+            'general_task_id' => $finalStage->id,
+            'task_id' => $oldTask->id,
+            'date_finish' => '2026-05-01',
+        ]);
+        $submission = Main::query()->create([
             'workorder_id' => $submitted->id,
             'general_task_id' => $finalStage->id,
             'task_id' => $submittedTask->id,
@@ -567,15 +568,6 @@ class WorkordersIndexTest extends TestCase
             'date_finish' => '2026-05-04',
             'ignore_row' => false,
         ]);
-        Main::query()->create([
-            'workorder_id' => $completed->id,
-            'general_task_id' => $completeStage->id,
-            'task_id' => $completedTask->id,
-            'user_id' => $technician->id,
-            'date_finish' => '2026-05-05',
-            'ignore_row' => false,
-        ]);
-
         $technicianResponse = $this->actingAs($technician)->getJson(route('workorders.index', [
             'fragment' => 1,
             'per_page' => 50,
@@ -587,8 +579,20 @@ class WorkordersIndexTest extends TestCase
         $technicianResponse->assertSee((string) $regular->number);
         $technicianResponse->assertDontSee((string) $submitted->number);
         $technicianResponse->assertDontSee((string) $completed->number);
+        $technicianResponse->assertDontSee('wo-stage no-print');
 
-        $managerResponse = $this->actingAs($manager)->getJson(route('workorders.index', [
+        $this->get(route('workorders.index', ['only_active' => 1]))
+            ->assertOk()
+            ->assertViewHas('showStages', false)
+            ->assertViewHas('stageLabels', fn ($stages) => $stages->isEmpty())
+            ->assertViewHas('workorders', fn ($rows) => collect($rows)->every(
+                fn (Workorder $row) => !$row->relationLoaded('main')
+            ));
+
+        $managerResponse = $this->actingAs($manager)->withSession([
+            'auth.version' => (int) $manager->auth_version,
+            'password_hash_web' => $manager->getAuthPassword(),
+        ])->getJson(route('workorders.index', [
             'fragment' => 1,
             'per_page' => 50,
             'only_active' => 1,
@@ -599,43 +603,206 @@ class WorkordersIndexTest extends TestCase
         $managerResponse->assertSee((string) $regular->number);
         $managerResponse->assertSee((string) $submitted->number);
         $managerResponse->assertDontSee((string) $completed->number);
+        $managerResponse->assertSee('Final Assembly & Test');
+
+        $fragment = route('workorders.index', ['fragment' => 1]);
+        foreach ([$manager, $technician, $teamLeader] as $user) {
+            $response = $this->actingAs($user)->withSession([
+                'auth.version' => $user->auth_version, 'password_hash_web' => $user->getAuthPassword(),
+            ])->getJson($fragment)->assertOk();
+            $html = $response->json('html');
+            $this->assertStringContainsString('<span class="text-muted">108203</span>', $html);
+            $this->assertSame(!$user->roleIs('Manager'), str_contains($html, '<span class="text-muted">108202</span>'));
+        }
+
+        $this->actingAs($manager)->withSession([
+            'auth.version' => $manager->auth_version, 'password_hash_web' => $manager->getAuthPassword(),
+        ])->patchJson(route('mains.update', $submission), ['date_finish' => null])->assertOk();
+        $this->actingAs($teamLeader)->withSession([
+            'auth.version' => $teamLeader->auth_version, 'password_hash_web' => $teamLeader->getAuthPassword(),
+        ])->getJson(route('workorders.index', ['fragment' => 1, 'only_active' => 1]))
+            ->assertOk()->assertJsonPath('total_count', 2)->assertSee((string) $submitted->number);
     }
 
-    public function test_stage_cache_matches_all_tasks_in_complete_stage(): void
+    public function test_saving_or_clearing_an_old_task_preserves_workorder_completion(): void
     {
         $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $wo = $this->createWorkorder(['user_id' => $admin->id]);
+        $wo->forceFill(['done_at' => '2026-05-05', 'done_user_id' => $admin->id])->save();
+        $group = GeneralTask::create(['name' => 'Ordinary task group', 'sort_order' => 10]);
+        $task = Task::create(['name' => 'Ordinary task', 'general_task_id' => $group->id, 'task_has_start_date' => false]);
+
+        $saved = $this->postJson(route('mains.store'), [
+            'workorder_id' => $wo->id, 'task_id' => $task->id, 'date_finish' => '2026-05-06',
+        ])->assertOk();
+        $this->assertSame('2026-05-05', $wo->fresh()->doneDate()->toDateString());
+        $this->patchJson(route('mains.update', $saved->json('main_id')), ['date_finish' => null])->assertOk();
+        $this->assertSame('2026-05-05', $wo->fresh()->doneDate()->toDateString());
+        $this->assertSame($admin->id, (int) $wo->fresh()->done_user_id);
+    }
+
+    public function test_disassembly_requires_a_photo_outside_as_received(): void
+    {
+        Bus::fake();
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $wo = $this->createWorkorder(['user_id' => $admin->id]);
+        $query = ['fragment' => 1, 'q' => $wo->number];
+        $stageCell = '<td class="wo-stage no-print text-start work-stage-color">';
+        $assertStage = function (string $label) use ($query, $stageCell): void {
+            $response = $this->getJson(route('workorders.index', $query))->assertOk();
+            $this->assertTrue(str_contains($response->json('html'), $stageCell.e($label).'</td>'));
+        };
+
+        $assertStage('');
+        $this->post(route('workorders.media.upload', $wo), [
+            'group' => 'received', 'files' => [$this->makeUploadedImage('received.png')],
+        ])->assertOk();
+        $assertStage('');
+        $filtered = route('workorders.index', $query + ['stages' => 'disassembly']);
+        $this->getJson($filtered)->assertOk()->assertJsonPath('total_count', 0);
+
+        $this->post(route('workorders.media.upload', $wo), [
+            'group' => 'damages', 'files' => [$this->makeUploadedImage('damage.png')],
+        ])->assertOk();
+        $assertStage('Disassembly');
+        $this->getJson($filtered)->assertOk()->assertJsonPath('total_count', 1);
+
+        $photo = $wo->media()->where('collection_name', 'damages')->firstOrFail();
+        $this->deleteJson(route('workorders.photo.delete', $photo->id))->assertOk();
+        $assertStage('');
+    }
+
+    public function test_workorder_stage_follows_saved_dates_in_both_directions(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
-        $completeStage = GeneralTask::query()->create([
-            'name' => 'Complete Test Stage ' . uniqid(),
-            'sort_order' => 900,
-        ]);
-        $completedTask = Task::query()->create([
-            'name' => 'Completed',
-            'general_task_id' => $completeStage->id,
-        ]);
-        Task::query()->create([
-            'name' => '1. WO invoiced to Customer',
-            'general_task_id' => $completeStage->id,
-        ]);
-        Task::query()->create([
-            'name' => '2. WO Paid by Customer',
-            'general_task_id' => $completeStage->id,
-        ]);
-        Main::query()->create([
-            'workorder_id' => $workorder->id,
-            'general_task_id' => $completeStage->id,
-            'task_id' => $completedTask->id,
-            'user_id' => $admin->id,
-            'date_finish' => '2026-03-12',
-            'ignore_row' => false,
-        ]);
+        $group = GeneralTask::create(['name' => 'Stage dates', 'sort_order' => 10]);
+        $index = route('workorders.index', ['q' => $workorder->number]);
+        $fragment = route('workorders.index', ['fragment' => 1, 'q' => $workorder->number]);
+        $stages = [
+            'WO Submitted to inspection' => '',
+            'Post Disassembly inspection' => 'Wait Records',
+            'Wait records' => 'In Quotation',
+            'In Quotation' => 'Wait Approval',
+            'Wait Approval' => 'Wait Approval',
+            'approve_at' => 'OVH in Process',
+            '2. WO Submitted for Final Inspection' => 'Final Assembly & Test',
+            'Final Inspection' => 'Final Inspection',
+        ];
+        $assertStage = function (string $label) use ($fragment): void {
+            $response = $this->getJson($fragment)->assertOk();
+            $color = $label === 'OVH in Process' ? ' style="--work-stage-color: #cde1d4"' : '';
+            $this->assertStringContainsString('class="wo-stage no-print text-start work-stage-color"'.$color.'>'.e($label).'</td>', $response->json('html'));
+        };
 
-        $workorder->recalcGeneralTaskStatuses($completeStage->id);
+        $this->get($index)->assertOk()->assertSee('col-stages no-print', false);
+        $assertStage('');
+        $rows = [];
+        foreach ($stages as $name => $label) {
+            if ($name === 'approve_at') {
+                Workorder::whereKey($workorder->id)->update(['approve_at' => '2026-11-20 12:00:00']);
+                $rows[] = null;
+                $assertStage($label);
+                continue;
+            }
 
-        $this->assertFalse((bool) WorkorderGeneralTaskStatus::query()
-            ->where('workorder_id', $workorder->id)
-            ->where('general_task_id', $completeStage->id)
-            ->value('is_done'));
+            $task = Task::create(['name' => $name, 'general_task_id' => $group->id, 'task_has_start_date' => false]);
+            $saved = $this->postJson(route('mains.store'), [
+                'workorder_id' => $workorder->id,
+                'task_id' => $task->id,
+                'date_finish' => '2026-11-20',
+            ])->assertOk();
+            $rows[] = $saved->json('main_id');
+            $assertStage($label);
+        }
+
+        $expected = array_reverse(['', ...array_slice(array_values($stages), 0, -1)]);
+        foreach (array_reverse($rows) as $index => $row) {
+            if ($row === null) {
+                Workorder::whereKey($workorder->id)->update(['approve_at' => null]);
+            } else {
+                $this->patchJson(route('mains.update', $row), ['date_finish' => null])->assertOk();
+            }
+            $assertStage($expected[$index]);
+        }
+    }
+
+    public function test_workorder_stage_uses_catalog_label_and_legacy_dates_until_current_date_is_cleared(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->actingAs($admin);
+        $wo = $this->createWorkorder(['user_id' => $admin->id]);
+        $group = GeneralTask::create(['name' => 'Current inspections', 'sort_order' => 2]);
+        $archived = GeneralTask::create(['name' => 'Legacy Final Test', 'sort_order' => 3]);
+        $old = Task::create(['name' => '1. Final inspection', 'general_task_id' => $archived->id]);
+        $old->forceFill(['archived_at' => now()])->save();
+        $archived->forceFill(['catalog_removed_at' => now()])->save();
+        $final = Task::create(['name' => 'Final Inspection', 'general_task_id' => $group->id]);
+        Main::create([
+            'workorder_id' => $wo->id, 'task_id' => $old->id, 'general_task_id' => $archived->id, 'date_finish' => '2026-11-01',
+        ]);
+        WorkStage::where('workflow_key', 'final_inspection')->update(['name' => 'Quality check complete', 'sort_order' => 0]);
+        $url = route('workorders.index', ['fragment' => 1, 'q' => $wo->number]);
+        $this->getJson($url)->assertOk()->assertSee('Quality check complete');
+
+        $current = Main::create([
+            'workorder_id' => $wo->id, 'task_id' => $final->id, 'general_task_id' => $group->id, 'date_finish' => '2026-11-12',
+        ]);
+        $this->patchJson(route('mains.update', $current), ['date_finish' => null])->assertOk();
+        $emptyStage = $this->getJson($url)->assertOk()->assertDontSee('Quality check complete');
+        $this->assertTrue(str_contains($emptyStage->json('html'), '<td class="wo-stage no-print text-start work-stage-color"></td>'));
+
+        $this->postJson(route('workorders.approve.ajax', $wo), ['approve_date' => '2026-11-04'])
+            ->assertOk()->assertJsonPath('work_stage', 'OVH in Process')->assertJsonPath('work_stage_color', '#cde1d4');
+        $this->postJson(route('workorders.approve.ajax', $wo), ['approve_date' => null])
+            ->assertOk()->assertJsonPath('work_stage', null)->assertJsonPath('work_stage_color', null);
+
+        foreach (['Technician', 'Team Leader'] as $role) {
+            $user = $this->createUserWithRole($role);
+            $this->actingAs($user)->withSession([
+                'auth.version' => $user->auth_version, 'password_hash_web' => $user->getAuthPassword(),
+            ]);
+            $this->get(route('workorders.index'))->assertOk()->assertDontSee('col-stages no-print', false);
+            $this->getJson($url)->assertOk()->assertDontSee('wo-stage no-print');
+        }
+    }
+
+    public function test_stage_filter_selects_multiple_stages_before_workorder_pagination(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $this->actingAs($manager);
+        $approved = $this->createWorkorder(['user_id' => $manager->id, 'approve_at' => '2026-11-19']);
+        $shared = $approved->only(['user_id', 'unit_id', 'customer_id', 'instruction_id']);
+        $inspection = $this->createWorkorder($shared);
+        $group = GeneralTask::create(['name' => 'Inspection test', 'sort_order' => 20]);
+        $task = Task::create(['name' => 'Final Inspection', 'general_task_id' => $group->id]);
+        Main::create([
+            'workorder_id' => $inspection->id, 'general_task_id' => $group->id, 'task_id' => $task->id, 'date_finish' => '2026-11-20',
+        ]);
+        foreach (range(1, 11) as $index) {
+            $this->createWorkorder($shared);
+        }
+
+        $query = ['stages' => 'ovh_in_process,final_inspection,invalid', 'per_page' => 10];
+        $this->get(route('workorders.index', $query))
+            ->assertOk()->assertViewHas('selectedStages', fn ($stages) => $stages->all() === ['ovh_in_process', 'final_inspection']);
+        $this->getJson(route('workorders.index', $query + ['fragment' => 1]))->assertOk()
+            ->assertJsonPath('total_count', 2)
+            ->assertJsonPath('loaded_count', 2)
+            ->assertSee((string) $approved->number)
+            ->assertSee((string) $inspection->number)
+            ->assertDontSee('Disassembly');
+
+        $technician = $this->createUserWithRole('Technician');
+        $this->actingAs($technician)->withSession([
+            'auth.version' => $technician->auth_version, 'password_hash_web' => $technician->getAuthPassword(),
+        ])->getJson(route('workorders.index', $query + ['fragment' => 1]))->assertOk()
+            ->assertJsonPath('total_count', 13)
+            ->assertJsonPath('loaded_count', 10)
+            ->assertDontSee('wo-stage no-print');
     }
 
     public function test_ec_sort_works_with_active_filter(): void

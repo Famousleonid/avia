@@ -19,28 +19,26 @@ class WorkorderActionsTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
-    public function test_creating_main_only_for_ignore_does_not_set_date_user(): void
+    public function test_main_rejects_ignore_only_creation(): void
     {
-        $ignoreEditor = $this->createUserWithRole('Technician');
+        $manager = $this->createUserWithRole('Manager');
         [$workorder, $task] = $this->createDateActorTask();
 
-        $createResponse = $this->actingAs($ignoreEditor)
+        $this->actingAs($manager)
             ->postJson(route('mains.store'), [
                 'workorder_id' => $workorder->id,
                 'task_id' => $task->id,
                 'ignore_row' => true,
             ])
-            ->assertOk()
-            ->assertJsonPath('user_name', '');
+            ->assertForbidden();
 
-        $main = \App\Models\Main::query()->findOrFail($createResponse->json('main_id'));
-        $this->assertNull($main->user_id);
+        $this->assertDatabaseMissing('mains', ['workorder_id' => $workorder->id, 'task_id' => $task->id]);
     }
 
-    public function test_ignore_change_does_not_replace_existing_date_user(): void
+    public function test_main_preserves_previously_ignored_tasks_and_dates(): void
     {
-        $dateEditor = $this->createUserWithRole('Technician');
-        $ignoreEditor = $this->createUserWithRole('Technician');
+        $dateEditor = $this->createUserWithRole('Manager');
+        $manager = $this->createUserWithRole('Manager');
         [$workorder, $task] = $this->createDateActorTask();
 
         $main = \App\Models\Main::query()->create([
@@ -49,21 +47,28 @@ class WorkorderActionsTest extends TestCase
             'task_id' => $task->id,
             'user_id' => $dateEditor->id,
             'date_start' => '2026-09-01',
-            'ignore_row' => false,
+            'ignore_row' => true,
         ]);
 
-        $this->actingAs($ignoreEditor)
-            ->patchJson(route('mains.update', $main), ['ignore_row' => true])
-            ->assertOk()
-            ->assertJsonPath('user_name', $dateEditor->selection_name);
+        $this->actingAs($manager)->get(route('mains.show', $workorder))
+            ->assertOk()->assertSee('This row is ignored')->assertDontSee('task-ignore-cell');
+        $this->patchJson(route('mains.update', $main), ['ignore_row' => false])->assertForbidden();
+        $this->patchJson(route('mains.update', $main), ['date_finish' => '2026-09-02'])->assertForbidden();
+        $this->postJson(route('mains.store'), [
+            'workorder_id' => $workorder->id, 'task_id' => $task->id, 'date_finish' => '2026-09-02',
+        ])->assertForbidden();
 
-        $this->assertSame($dateEditor->id, $main->fresh()->user_id);
+        $main->refresh();
+        $this->assertTrue($main->ignore_row);
+        $this->assertSame($dateEditor->id, $main->user_id);
+        $this->assertSame('2026-09-01', $main->date_start->toDateString());
+        $this->assertNull($main->date_finish);
     }
 
     public function test_user_who_clears_last_dates_remains_as_date_user(): void
     {
-        $previousEditor = $this->createUserWithRole('Technician');
-        $dateClearer = $this->createUserWithRole('Technician');
+        $previousEditor = $this->createUserWithRole('Manager');
+        $dateClearer = $this->createUserWithRole('Manager');
         [$workorder, $task] = $this->createDateActorTask();
 
         $main = \App\Models\Main::query()->create([
@@ -80,7 +85,6 @@ class WorkorderActionsTest extends TestCase
             ->patchJson(route('mains.update', $main), [
                 'date_start' => null,
                 'date_finish' => null,
-                'ignore_row' => false,
             ])
             ->assertOk()
             ->assertJsonPath('date_start', null)
@@ -178,6 +182,7 @@ class WorkorderActionsTest extends TestCase
         $response->assertJsonPath('ok', true);
         $response->assertJsonPath('approved', true);
         $response->assertJsonPath('approve_name', $manager->name);
+        $response->assertJsonPath('work_stage', 'OVH in Process');
 
         $workorder->refresh();
 
@@ -189,94 +194,55 @@ class WorkorderActionsTest extends TestCase
             'general_task_id' => $generalTask->id,
             'user_id' => $manager->id,
         ]);
-        $this->assertDatabaseHas('workorder_general_task_statuses', [
+        $this->assertDatabaseMissing('workorder_general_task_statuses', [
             'workorder_id' => $workorder->id,
             'general_task_id' => $generalTask->id,
-            'is_done' => 1,
         ]);
     }
 
-    public function test_mains_hides_approved_and_completed_tasks_for_technician_and_team_leader(): void
+    public function test_main_task_writes_outside_technician_stages_require_admin_or_manager(): void
     {
-        $workorder = $this->createWorkorder();
-        $generalTask = GeneralTask::query()->create([
-            'name' => 'Mains task visibility',
-            'sort_order' => 1,
-        ]);
-
-        foreach (['Approved', 'Completed', 'Visible technician task'] as $name) {
-            Task::query()->create([
-                'name' => $name,
-                'general_task_id' => $generalTask->id,
-                'task_has_start_date' => false,
-            ]);
-        }
-
-        foreach (['Technician', 'Team Leader'] as $role) {
-            $user = $this->createUserWithRole($role);
-
-            $this->actingAs($user)
-                ->get(route('mains.show', $workorder))
-                ->assertOk()
-                ->assertDontSee('Approved')
-                ->assertDontSee('Completed')
-                ->assertSee('Visible technician task');
-        }
-    }
-
-    public function test_restricted_task_dates_are_enforced_server_side_not_only_in_ui(): void
-    {
-        $workorder = $this->createWorkorder();
-        $generalTask = GeneralTask::query()->create([
-            'name' => 'Restricted dates '.uniqid(),
-            'sort_order' => 1,
-        ]);
-        $task = Task::query()->create([
-            'name' => 'Final inspection',
-            'general_task_id' => $generalTask->id,
-            'task_has_start_date' => false,
-        ]);
-        config(['mains.restricted_date_task_ids' => [$task->id]]);
-
-        // A direct POST (bypassing the disabled UI input) must be rejected.
-        $technician = $this->createUserWithRole('Technician');
-        $this->actingAs($technician)
-            ->postJson(route('mains.store'), [
-                'workorder_id' => $workorder->id,
-                'task_id' => $task->id,
-                'date_finish' => '2026-07-22',
-            ])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('date_finish');
-        $this->assertDatabaseMissing('mains', [
+        [$workorder, $task] = $this->createDateActorTask();
+        $data = [
             'workorder_id' => $workorder->id,
             'task_id' => $task->id,
-        ]);
+            'date_start' => '2026-07-21',
+            'date_finish' => '2026-07-22',
+        ];
 
-        // Managers keep the desktop behaviour.
-        $manager = $this->createUserWithRole('Manager');
-        $this->actingAs($manager)
-            ->postJson(route('mains.store'), [
-                'workorder_id' => $workorder->id,
-                'task_id' => $task->id,
-                'date_finish' => '2026-07-22',
-            ])
+        foreach (['Technician', 'Team Leader'] as $role) {
+            $user = $this->createUserWithRole($role)->refresh();
+            $this->actingAs($user)->withSession(['auth.version' => $user->auth_version, 'password_hash_web' => $user->getAuthPassword()])
+                ->postJson(route('mains.store'), $data)
+                ->assertForbidden();
+        }
+        $this->assertDatabaseMissing('mains', ['workorder_id' => $workorder->id, 'task_id' => $task->id]);
+
+        $manager = $this->createUserWithRole('Manager')->refresh();
+        $this->actingAs($manager)->withSession(['auth.version' => $manager->auth_version, 'password_hash_web' => $manager->getAuthPassword()])
+            ->postJson(route('mains.store'), $data)
             ->assertOk();
         $main = \App\Models\Main::query()
             ->where('workorder_id', $workorder->id)
             ->where('task_id', $task->id)
             ->firstOrFail();
 
-        // The update route is guarded the same way.
-        $this->actingAs($technician)
-            ->patchJson(route('mains.update', $main->id), [
-                'date_finish' => '2026-07-23',
-            ])
-            ->assertStatus(422);
+        foreach (['Technician', 'Team Leader'] as $role) {
+            $user = $this->createUserWithRole($role)->refresh();
+            $this->actingAs($user)->withSession(['auth.version' => $user->auth_version, 'password_hash_web' => $user->getAuthPassword()])
+                ->patchJson(route('mains.update', $main), ['date_finish' => '2026-07-23'])
+                ->assertForbidden();
+        }
         $this->assertSame('2026-07-22', $main->fresh()->date_finish?->format('Y-m-d'));
+
+        $admin = $this->createUserWithRole('Admin')->refresh();
+        $this->actingAs($admin)->withSession(['auth.version' => $admin->auth_version, 'password_hash_web' => $admin->getAuthPassword()])
+            ->patchJson(route('mains.update', $main), ['date_finish' => '2026-07-23'])
+            ->assertOk();
+        $this->assertSame('2026-07-23', $main->fresh()->date_finish?->format('Y-m-d'));
     }
 
-    public function test_shop_roles_do_not_see_quote_submission_or_entire_approved_stage_in_mains(): void
+    public function test_main_renders_notes_without_loading_tasks_for_shop_roles(): void
     {
         $workorder = $this->createWorkorder();
         $disassembly = GeneralTask::query()->create([
@@ -305,30 +271,50 @@ class WorkorderActionsTest extends TestCase
         ]);
 
         foreach (['Technician', 'Team Leader'] as $role) {
-            $response = $this->actingAs($this->createUserWithRole($role))
-                ->get(route('mains.show', $workorder));
+            $user = $this->createUserWithRole($role)->refresh();
+            $this->actingAs($user)->withSession(['auth.version' => $user->auth_version, 'password_hash_web' => $user->getAuthPassword()])->postJson('/user-ui-settings', [
+                'scope' => 'mains.show', 'key' => 'activeTab:'.$workorder->id, 'value' => 'tasks',
+            ])->assertOk();
+
+            \Illuminate\Support\Facades\DB::enableQueryLog();
+            try {
+                $response = $this->get(route('mains.show', $workorder));
+                $queries = collect(\Illuminate\Support\Facades\DB::getQueryLog())->pluck('query');
+            } finally {
+                \Illuminate\Support\Facades\DB::disableQueryLog();
+                \Illuminate\Support\Facades\DB::flushQueryLog();
+            }
 
             $response->assertOk();
-            $response->assertSee('Visible Disassembly Task');
+            $response->assertViewHas('initialMainTab', 'tasks');
+            $response->assertSee('main-notes-only');
+            $response->assertSee('Workorder Notes');
+            $response->assertSee('js/mains/process-dates.js');
+            $response->assertDontSee('js/mains/general-tasks.js');
+            $response->assertDontSee('woNotesLogModal');
+            $response->assertDontSee('Visible Disassembly Task');
             $response->assertDontSee('WO Submitted for Quote');
             $response->assertDontSee('Approved Stage Internal Task');
             $response->assertDontSee('data-gt-id="'.$approved->id.'"', false);
+            $this->assertFalse($queries->contains(fn ($sql) => preg_match('/\bfrom `(tasks|mains)`/i', $sql) === 1));
         }
 
         foreach (['Manager', 'Admin'] as $role) {
-            $response = $this->actingAs($this->createUserWithRole($role))
+            $user = $this->createUserWithRole($role)->refresh();
+            $response = $this->actingAs($user)->withSession(['auth.version' => $user->auth_version, 'password_hash_web' => $user->getAuthPassword()])
                 ->get(route('mains.show', $workorder));
 
             $response->assertOk();
+            $response->assertSee('Tasks / Notes');
+            $response->assertSee('js/mains/general-tasks.js');
             $response->assertSee('WO Submitted for Quote');
             $response->assertSee('Approved Stage Internal Task');
             $response->assertSee('data-gt-id="'.$approved->id.'"', false);
         }
     }
 
-    public function test_technician_approval_stage_color_still_requires_hidden_approved_task(): void
+    public function test_manager_approval_stage_color_requires_approved_task(): void
     {
-        $technician = $this->createUserWithRole('Technician');
         $manager = $this->createUserWithRole('Manager');
         $workorder = $this->createWorkorder();
         $generalTask = GeneralTask::query()->create([
@@ -354,7 +340,7 @@ class WorkorderActionsTest extends TestCase
             'date_finish' => '2026-07-08',
         ]);
 
-        $notApprovedResponse = $this->actingAs($technician)->get(route('mains.show', $workorder));
+        $notApprovedResponse = $this->actingAs($manager)->get(route('mains.show', $workorder));
 
         $notApprovedResponse->assertOk()->assertSee('Quote Sent to Customer');
         $this->assertMatchesRegularExpression(
@@ -367,7 +353,7 @@ class WorkorderActionsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('approved', true);
 
-        $approvedResponse = $this->actingAs($technician)->get(route('mains.show', $workorder));
+        $approvedResponse = $this->get(route('mains.show', $workorder));
 
         $approvedResponse->assertOk();
         $this->assertMatchesRegularExpression(
@@ -407,7 +393,10 @@ class WorkorderActionsTest extends TestCase
             ->where('description', 'workorder_notes_created')
             ->exists());
 
-        $logsResponse = $this->actingAs($manager)->getJson(route('workorders.notes.logs', $workorder));
+        $logsResponse = $this->actingAs($manager)->withSession([
+            'auth.version' => (int) $manager->auth_version,
+            'password_hash_web' => $manager->getAuthPassword(),
+        ])->getJson(route('workorders.notes.logs', $workorder));
 
         $logsResponse->assertOk();
         $logsResponse->assertJsonPath('success', true);

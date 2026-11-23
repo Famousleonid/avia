@@ -285,7 +285,7 @@ class WorkorderStatusTest extends TestCase
             ->assertDontSee('data-ws-status="completed"',false);
     }
 
-    public function test_user_state_is_restored_in_first_html_without_overwriting_it(): void
+    public function test_saved_filters_restore_only_the_first_eight_cards(): void
     {
         $user = $this->createUserWithRole('Manager');
         $otherUser = $this->createUserWithRole('Admin');
@@ -297,11 +297,18 @@ class WorkorderStatusTest extends TestCase
             'scroll'=>['top'=>420,'left'=>0]];
         $this->actingAs($user)->postJson(route('user-ui-settings.store'), ['scope'=>'wo-status','key'=>'state','value'=>$state])->assertSuccessful();
         $response = $this->get(route('workorders.status'))->assertOk();
-        $this->assertSame(16, substr_count($response->getContent(), 'data-workorder='));
+        $this->assertSame(8, substr_count($response->getContent(), 'data-workorder='));
         $response->assertSee('aria-controls="ws-'.$wo->id.'-processes" aria-expanded="true"', false)
             ->assertViewHas('selectedNumber', '881')
-            ->assertViewHas('nextUrl', fn($url)=>str_contains($url, 'page=3') && str_contains($url, 'customer_id='.$customer->id));
-        $this->getJson($response->viewData('nextUrl'))->assertOk()->assertJsonPath('total',17);
+            ->assertViewHas('uiState', fn ($ui) => !array_key_exists('pages', $ui) && !array_key_exists('top', $ui['scroll']))
+            ->assertViewHas('nextUrl', fn($url)=>str_contains($url, 'page=2') && str_contains($url, 'customer_id='.$customer->id));
+        $secondPage = $this->getJson($response->viewData('nextUrl'))->assertOk()->assertJsonPath('total',17);
+        $this->assertSame(8, substr_count($secondPage->json('html'), 'data-workorder='));
+        $this->getJson($secondPage->json('next'))->assertOk()->assertJsonPath('next', null);
+        $this->get(route('workorders.status', ['page'=>2]))->assertOk()
+            ->assertSee('data-workorder="'.$wo->id.'"', false)
+            ->assertViewHas('selectedNumber', '881')
+            ->assertViewHas('nextUrl', $response->viewData('nextUrl'));
         $this->get(route('workorders.status', ['number'=>'881116']))->assertOk()->assertViewHas('selectedNumber','881116');
         $this->getJson(route('workorders.status', ['number'=>'999999999']))->assertJsonPath('total',0);
         $this->assertEquals($state, \App\Models\UserUiSetting::where('user_id',$user->id)->where('scope','wo-status')->value('value'));

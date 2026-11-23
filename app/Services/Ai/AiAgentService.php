@@ -784,7 +784,7 @@ Important behavior:
 - For write actions, request explicit UI confirmation first. Never execute write action immediately after tool proposal.
 
 System context:
-- «Status / step» of a workorder for the user = on which unfinished **general task** stage it sits; order of stages is `general_tasks.sort_order`. Closed workorder = `isDone()` (Completed task finished). Photos do not change status or closed state.
+- «Status / step» of a workorder for the user = on which unfinished **general task** stage it sits; order of stages is `general_tasks.sort_order`. Closed workorder = `isDone()` (workorders.done_at is set). Photos do not change status or closed state.
 - Draft / approve fields exist on the workorder; do not equate photos with progress.
 - User roles may include Admin, Manager, Technician.
 {$contextLine}

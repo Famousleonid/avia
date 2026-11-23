@@ -1568,6 +1568,30 @@
                 if (new URLSearchParams(window.location.search).has('manual_id')) rememberTrainingSearch();
             }
 
+            // Submission warnings open this unit's Dates & Forms, ready to add a date.
+            const requestedTrainingManual = @json((string) request('open_training', ''));
+            if (/^\d+$/.test(requestedTrainingManual)) {
+                window.addEventListener('load', () => {
+                    const editor = document.getElementById('trainingModal' + requestedTrainingManual);
+                    if (editor) {
+                        document.dispatchEvent(new CustomEvent('training:select-component', {detail: {manualId: requestedTrainingManual}}));
+                        editor.addEventListener('shown.bs.modal', () => {
+                            editor.querySelector('.add-training-date-input')?.focus({preventScroll: true});
+                        }, {once: true});
+                        bootstrap.Modal.getOrCreateInstance(editor).show();
+                    } else {
+                        const opener = document.getElementById('openAddUnitModal');
+                        if (opener) {
+                            opener.dataset.requestedManual = requestedTrainingManual;
+                            opener.click();
+                        }
+                    }
+                    const url = new URL(location.href);
+                    url.searchParams.delete('open_training');
+                    history.replaceState(history.state, '', url);
+                }, {once: true});
+            }
+
             // Calendar overlap links open the existing date editor for the selected record.
             const requestedTraining = new URLSearchParams(window.location.search).get('edit_training');
             if (requestedTraining && /^\d+$/.test(requestedTraining)) {

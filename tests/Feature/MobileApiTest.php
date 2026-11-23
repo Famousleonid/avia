@@ -234,22 +234,24 @@ class MobileApiTest extends TestCase
         $user = $this->createUserWithRole('Technician');
         $open = $this->createWorkorder(['user_id' => $user->id, 'number' => 812347]);
         $done = $this->createWorkorder(['user_id' => $user->id, 'number' => 812348]);
+        $done->forceFill(['done_at' => '2026-05-25'])->save();
+        $submitted = $this->createWorkorder(['user_id' => $user->id, 'number' => 812349]);
 
         $generalTask = GeneralTask::query()->create([
-            'name' => 'Completion ' . uniqid(),
+            'name' => 'Assembly ' . uniqid(),
             'sort_order' => 999,
         ]);
-        $completedTask = Task::query()->create([
-            'name' => 'Completed',
+        $submittedTask = Task::query()->create([
+            'name' => 'WO Submitted for Final Inspection',
             'general_task_id' => $generalTask->id,
             'task_has_start_date' => false,
         ]);
         Main::query()->create([
             'user_id' => $user->id,
-            'workorder_id' => $done->id,
+            'workorder_id' => $submitted->id,
             'general_task_id' => $generalTask->id,
-            'task_id' => $completedTask->id,
-            'date_finish' => now()->toDateString(),
+            'task_id' => $submittedTask->id,
+            'date_finish' => '2026-05-25',
             'ignore_row' => false,
         ]);
 
@@ -259,9 +261,19 @@ class MobileApiTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('ok', true);
 
-        $ids = collect($response->json('data.items'))->pluck('id')->all();
-        $this->assertContains($done->id, $ids);
-        $this->assertNotContains($open->id, $ids);
+        $items = collect($response->json('data.items'))->keyBy('id');
+        $this->assertSame('2026-05-25', $items[$done->id]['done_at']);
+        $this->assertTrue($items[$submitted->id]['is_done']);
+        $this->assertNull($items[$submitted->id]['done_at']);
+        $this->assertFalse($items->has($open->id));
+
+        $manager = $this->createUserWithRole('Manager');
+        $unfiltered = $this->withMobileToken($manager)
+            ->getJson(route('api.mobile.workorders.index', ['scope' => 'all', 'include_done' => 1]))
+            ->assertOk();
+        $items = collect($unfiltered->json('data.items'))->keyBy('id');
+        $this->assertFalse($items[$submitted->id]['is_done']);
+        $this->assertTrue($items[$done->id]['is_done']);
     }
 
     public function test_shipping_role_can_update_workorder_storage(): void
@@ -430,6 +442,7 @@ class MobileApiTest extends TestCase
 
     public function test_mobile_api_can_update_regular_task_dates_and_blocks_restricted_finish_for_technician(): void
     {
+        config(['mains.restricted_date_task_ids' => []]);
         $user = $this->createUserWithRole('Technician');
         $workorder = $this->createWorkorder(['user_id' => $user->id]);
         $generalTask = GeneralTask::query()->create([
@@ -467,6 +480,21 @@ class MobileApiTest extends TestCase
         $restrictedResponse->assertForbidden()
             ->assertJsonPath('ok', false)
             ->assertJsonPath('message', 'Forbidden.');
+
+        $newStageTask = Task::create([
+            'name' => 'Wait records', 'general_task_id' => $generalTask->id, 'task_has_start_date' => false,
+        ]);
+        $this->withMobileToken($user)
+            ->putJson(route('api.mobile.workorders.tasks.dates', [$workorder->id, $newStageTask->id]), [
+                'date_finish' => '2026-05-27',
+            ])->assertForbidden();
+
+        $regularTask->forceFill(['archived_at' => now()])->save();
+        $this->withMobileToken($user)->getJson(route('api.mobile.workorders.tasks.index', $workorder))
+            ->assertOk()->assertDontSee($regularTask->name);
+        $this->withMobileToken($user)
+            ->putJson(route('api.mobile.workorders.tasks.dates', [$workorder->id, $regularTask->id]), ['date_finish' => '2026-05-28'])
+            ->assertConflict();
     }
 
     public function test_mobile_api_task_dates_expose_explicit_permissions_and_preserve_dates_when_toggling_ignore_row(): void

@@ -14,13 +14,10 @@ class MobileTaskController extends Controller
     public function tasks(Workorder $workorder, Request $request)
     {
 
-        $workorder = Workorder::with('generalTaskStatuses')->findOrFail($workorder->id);
+        $general_tasks = GeneralTask::inCatalog()->orderBy('sort_order')->orderBy('id')->get();
 
-        $general_tasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
-
-        $tasks = Task::whereIn('general_task_id', $general_tasks->pluck('id'))
-            ->orderBy('general_task_id')
-            ->orderBy('name')
+        $tasks = Task::active()->whereIn('general_task_id', $general_tasks->pluck('id'))
+            ->inDisplayOrder()
             ->get();
 
         $tasksByGeneral = $tasks->groupBy('general_task_id');
@@ -31,9 +28,8 @@ class MobileTaskController extends Controller
 
         $mainsByTask = $mains->keyBy('task_id');
 
-        $gtDoneMap = $workorder->generalTaskStatuses
-            ->keyBy('general_task_id')
-            ->map(fn($s) => (bool)$s->is_done)
+        $gtDoneMap = $tasksByGeneral
+            ->map(fn ($group) => GeneralTask::tasksFinished($group, $mainsByTask))
             ->toArray();
 
         return view('mobile.pages.tasks', compact(
@@ -155,6 +151,7 @@ class MobileTaskController extends Controller
         ]);
 
         $task = Task::findOrFail($validated['task_id']);
+        abort_if($task->archived_at !== null, 409, 'This task is archived.');
 
         Main::create([
             'user_id' => $validated['user_id'],

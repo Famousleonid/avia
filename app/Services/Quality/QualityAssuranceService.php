@@ -113,7 +113,7 @@ class QualityAssuranceService
         }
 
         if (! $isDone) {
-            $warnings[] = 'Completed task not finished';
+            $warnings[] = 'Workorder completion date missing';
         }
 
         $warnings = array_values(array_unique(array_filter($warnings)));
@@ -581,8 +581,8 @@ class QualityAssuranceService
     private function firstMainTarget(Collection $mainRows, callable $matches): ?array
     {
         $main = $mainRows
-            ->filter(fn ($main) => $matches($main->task?->name))
-            ->sortBy(fn ($main) => $main->task?->sort_order ?? $main->task_id ?? 999999)
+            ->filter(fn ($main) => $main->task?->archived_at === null && $matches($main->task?->name))
+            ->sortBy(fn ($main) => $main->task_id ?? 999999)
             ->first();
 
         if ($main !== null) {
@@ -593,7 +593,7 @@ class QualityAssuranceService
             ];
         }
 
-        $task = Task::query()
+        $task = Task::active()
             ->get(['id', 'general_task_id', 'name'])
             ->filter(fn (Task $task) => $matches($task->name))
             ->sortBy(fn (Task $task) => $task->id ?? 999999)

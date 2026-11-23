@@ -27,6 +27,7 @@ use App\Services\Media\MobileLandscapePhotoProcessor;
 use App\Services\Media\WorkorderPhotoStorageService;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\WorkorderNotifyService;
+use App\Services\Workorders\WorkorderVisibilityService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -46,7 +47,7 @@ class MobileController extends Controller
     ) {
     }
 
-    public function index()
+    public function index(WorkorderVisibilityService $visibility)
     {
         if (Auth::user()?->roleIs('Paint')) {
             return redirect()->route('mobile.paint');
@@ -58,10 +59,11 @@ class MobileController extends Controller
 
         $userId = Auth::id();
 
-        $workorders = Workorder::withDrafts()
+        $query = Workorder::withDrafts()
             ->with(['unit.manuals', 'customer', 'instruction',])
-            ->orderByDesc('number')
-            ->get();
+            ->orderByDesc('number');
+        $visibility->addListCompletion($query, Auth::user());
+        $workorders = $query->get();
 
         return view('mobile.pages.index', compact('workorders', 'userId'));
     }

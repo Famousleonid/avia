@@ -9,7 +9,7 @@
     let next = sentinel.dataset.next || null;
     let loading = false, controller = null, generation = 0, timer = null, failed = null;
     const initial = JSON.parse(document.getElementById('wsInitialState').textContent);
-    let pages = initial.pages || 1, lastWorkorder = initial.lastWorkorder || null;
+    let appended = false;
     let restoring = true, dirty = false, saveTimer = null, pendingSave = null, saving = null;
     let remainingPopover = null, remainingTrigger = null, remainingAnchor = null;
     function closeRemaining(restoreFocus = false) {
@@ -106,7 +106,6 @@
         buttons.forEach(button => {
             setPanelOpen(button, open);
         });
-        lastWorkorder = card.dataset.workorder;
         remember();
     }
 
@@ -118,9 +117,9 @@
             detailScroll[element.id] = {top: element.scrollTop, left: element.scrollLeft};
         });
         return {
-            filters: Object.fromEntries(new FormData(form)), pages, lastWorkorder,
+            filters: Object.fromEntries(new FormData(form)),
             open: openPanels.map(element => element.id),
-            scroll: {top: scroll.scrollTop, left: scroll.scrollLeft}, detailScroll,
+            scroll: {left: scroll.scrollLeft}, detailScroll,
         };
     }
     function flushState() {
@@ -157,7 +156,7 @@
         return sentinel.getBoundingClientRect().top <= scroll.getBoundingClientRect().bottom + 240;
     }
     function maybeLoad() {
-        if (next && !loading && !failed && nearEnd()) load(next, false);
+        if (!restoring && next && !loading && !failed && nearEnd()) load(next, false);
     }
     async function load(url, replace) {
         if (loading) return;
@@ -176,13 +175,12 @@
             if (replace) { destroyCalendars(); cards.innerHTML = data.html; }
             else cards.insertAdjacentHTML('beforeend', data.html);
             initCalendars();
-            pages = replace ? 1 : pages + 1;
+            appended = !replace;
             total.textContent = data.total;
             next = data.next;
             failed = null;
             sentinel.textContent = next ? '' : (data.total ? 'All matching workorders loaded' : '');
             if (replace) history.replaceState(null, '', url);
-            remember();
         } catch (error) {
             if (version !== generation || error.name === 'AbortError') return;
             failed = {url, replace};
@@ -192,7 +190,6 @@
             if (version === generation) {
                 loading = false;
                 scroll.setAttribute('aria-busy', 'false');
-                requestAnimationFrame(maybeLoad);
             }
         }
     }
@@ -206,8 +203,7 @@
         retry.classList.add('d-none');
         destroyCalendars();
         cards.replaceChildren();
-        pages = 1;
-        lastWorkorder = null;
+        appended = false;
         total.textContent = '…';
         showLoading();
         scroll.scrollTop = 0;
@@ -252,7 +248,6 @@
         const open = button.getAttribute('aria-expanded') !== 'true';
         closeRemaining();
         setPanelOpen(button, open);
-        lastWorkorder = button.closest('.ws-card').dataset.workorder;
         remember();
     });
     cards.addEventListener('keydown', event => {
@@ -319,10 +314,6 @@
     document.addEventListener('click', async event => {
         const link = event.target.closest('a[href]');
         if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || link.target === '_blank') return;
-        if (link.classList.contains('ws-number')) {
-            lastWorkorder = link.closest('.ws-card').dataset.workorder;
-            remember();
-        }
         const url = new URL(link.href, location.href);
         if (url.origin !== location.origin || url.pathname === location.pathname && url.hash) return;
         if (!dirty && !saving && !pendingSave) return;
@@ -333,19 +324,50 @@
     window.addEventListener('pagehide', flushState);
     document.addEventListener('visibilitychange', () => { if (document.hidden) flushState(); });
     retry.addEventListener('click', () => { if (failed) load(failed.url, failed.replace); });
-    new IntersectionObserver(entries => {
-        if (entries.some(entry => entry.isIntersecting)) maybeLoad();
-    }, {root: scroll, rootMargin: '240px'}).observe(sentinel);
-    scroll.addEventListener('scroll', () => { maybeLoad(); remember(); }, {passive:true});
     sentinel.textContent = next ? '' : (cards.querySelector('.ws-card') ? 'All matching workorders loaded' : '');
     Object.entries(initial.detailScroll || {}).forEach(([id, position]) => {
         const detail = document.getElementById(id);
         if (detail && cards.contains(detail)) { detail.scrollTop = position.top || 0; detail.scrollLeft = position.left || 0; }
     });
-    scroll.scrollTop = initial.scroll?.top || 0;
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    scroll.scrollTop = 0;
     scroll.scrollLeft = initial.scroll?.left || 0;
+    let previousTop = scroll.scrollTop;
+    let previousLeft = scroll.scrollLeft;
+    scroll.addEventListener('scroll', () => {
+        const {scrollTop, scrollLeft} = scroll;
+        if (scrollTop > previousTop) maybeLoad();
+        if (scrollLeft !== previousLeft) remember();
+        previousTop = scrollTop;
+        previousLeft = scrollLeft;
+    }, {passive:true});
+
+    // A downward gesture can request the next page even when all eight cards fit.
+    function loadAtBottom(event) {
+        if (scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop <= 1
+            && !event.target.closest('.ws-detail')) maybeLoad();
+    }
+    scroll.addEventListener('wheel', event => {
+        if (event.deltaY > 0) loadAtBottom(event);
+    }, {passive:true});
+    let touchY = null;
+    scroll.addEventListener('touchstart', event => {
+        touchY = event.touches.length === 1 ? event.touches[0].clientY : null;
+    }, {passive:true});
+    scroll.addEventListener('touchend', event => {
+        if (touchY !== null && event.changedTouches[0]?.clientY < touchY - 8) loadAtBottom(event);
+        touchY = null;
+    }, {passive:true});
+    scroll.addEventListener('keydown', event => {
+        if (['ArrowDown', 'PageDown', 'End'].includes(event.key)
+            && !event.target.matches('input, textarea, select, [contenteditable="true"]')) loadAtBottom(event);
+    });
+    window.addEventListener('pageshow', event => {
+        if (!event.persisted) return;
+        if (appended) location.reload();
+        else scroll.scrollTop = 0;
+    });
     initCalendars();
     document.querySelector('.wo-status').classList.remove('ws-restoring');
     requestAnimationFrame(() => { restoring = false; });
-    requestAnimationFrame(maybeLoad);
 })();
